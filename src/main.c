@@ -338,7 +338,7 @@ static int opt_cmp(void const *_a, void const *_b)
         return i;
     }
     if (b->name[a->n] != '\0') {
-        return +1;
+        return -1;
     }
     return 0;
 }
