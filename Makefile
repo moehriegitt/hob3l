@@ -257,10 +257,10 @@ cptest.x: $(MOD_O.cptest.x) libcpmat.a libcptest.a
 	$(CC) $(CFLAGS) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lcpmat $(LIBS) -lm
 
 src/mat_gen_ext.c: mkmat.pl
-	./mkmat.pl
+	./script/mkmat
 
 src/mat_is_rot.c: mkrotmat.pl
-	./mkrotmat.pl > $@.new
+	./script/mkrotmat > $@.new
 	mv $@.new $@
 
 out/%.o: src/%.c src/mat_gen_ext.c
@@ -273,7 +273,7 @@ out/%.o: src/%.c src/mat_gen_ext.c
 out/main.o: src/main.c src/opt.inc
 
 %.inc: %.switch mkswitch
-	./mkswitch $< > $@.new
+	./script/mkswitch $< > $@.new
 	mv $@.new $@
 
 .PHONY: test
@@ -298,17 +298,17 @@ test-out/%.ps: scad-test/%.scad csg2plane.x
 	mv $@.new $@
 
 scad-test/%.scad: scad-test/%.fig
-	./fig2scad.pl $< > $@.new
+	./script/fig2scad $< > $@.new
 	mv $@.new $@
 
 scad-test/%-mx.scad: scad-test/%.fig
-	./fig2scad.pl --mirror=x $< > $@.new
+	./script/fig2scad --mirror=x $< > $@.new
 	mv $@.new $@
 
 scad-test/%-r90.scad: scad-test/%.fig
-	./fig2scad.pl --rotate=90 $< > $@.new
+	./script/fig2scad --rotate=90 $< > $@.new
 	mv $@.new $@
 
 scad-test/%-r30.scad: scad-test/%.fig
-	./fig2scad.pl --rotate=30 $< > $@.new
+	./script/fig2scad --rotate=30 $< > $@.new
 	mv $@.new $@
