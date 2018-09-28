@@ -1,4 +1,4 @@
-/* -*- Mode: C++ -*- */
+/* -*- Mode: C -*- */
 
 /**
  * SCAD input file.

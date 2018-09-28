@@ -1,4 +1,4 @@
-/* -*- Mode: C++ -*- */
+/* -*- Mode: C -*- */
 
 #ifndef __CP_CSG2_H
 #define __CP_CSG2_H

@@ -1,4 +1,4 @@
-/* -*- Mode: C++ -*- */
+/* -*- Mode: C -*- */
 
 #ifndef __CP_GC_H
 #define __CP_GC_H
