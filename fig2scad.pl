@@ -1,0 +1,325 @@
+#! /usr/bin/perl
+#
+# Reads a FIG file and produces polyhedron SCAD output for
+# the polygons in the FIG file.
+#
+# This takes Level 60 as the outline and Level 50 as list of
+# convex polygons to define the polyhedron.  All level 50
+# polygons are, thus, tried to be assigned to a level 60
+# polygon.  All points in a level 50 are supposed to exist
+# in the correspondng level 60 polygon.
+#
+# Polygons on other levels but 60 and 50 are currently ignored.
+#
+
+use strict;
+use warnings;
+use Data::Dumper;
+
+use constant PI => 3.1415926535897932384626433832795;
+
+my %poly = ();
+
+sub mat2w_new()
+{
+    return {
+        m => [[1,0],[0,1]],
+        v => { x => 0, y => 0 },
+    };
+}
+
+sub mat2w_mul($$)
+{
+    my ($a, $b) = @_;
+    my $h = mat2w_new();
+    $h->{m}[0][0] = ($a->{m}[0][0] * $b->{m}[0][0]) + ($a->{m}[0][1] * $b->{m}[1][0]);
+    $h->{m}[0][1] = ($a->{m}[0][0] * $b->{m}[0][1]) + ($a->{m}[0][1] * $b->{m}[1][1]);
+    $h->{v}{x} = ($a->{m}[0][0] * $b->{v}{x}) + ($a->{m}[0][1] * $b->{v}{y}) + $a->{v}{x};
+    $h->{m}[1][0] = ($a->{m}[1][0] * $b->{m}[0][0]) + ($a->{m}[1][1] * $b->{m}[1][0]);
+    $h->{m}[1][1] = ($a->{m}[1][0] * $b->{m}[0][1]) + ($a->{m}[1][1] * $b->{m}[1][1]);
+    $h->{v}{y} = ($a->{m}[1][0] * $b->{v}{x}) + ($a->{m}[1][1] * $b->{v}{y}) + $a->{v}{y};
+    return $h;
+}
+
+sub mat2w_mirror_unit($)
+{
+    my ($u) = @_;
+    my $x = $u->{x};
+    my $y = $u->{y};
+    my $m2x = -2 * $x;
+    my $m2y = -2 * $y;
+    my $m2xy = $m2x * $y;
+    return {
+        m => [
+            [ 1 + ($m2x * $x), $m2xy ],
+            [ $m2xy, 1 + ($m2y * $y) ]
+        ],
+        v => { x => 0, y => 0 }
+    };
+}
+
+sub deg2rad($)
+{
+    my ($x) = @_;
+    return $x * (PI / 180);
+}
+
+sub mat2w_rot($)
+{
+    my ($a) = @_;
+    my $s = sin(deg2rad($a));
+    my $c = cos(deg2rad($a));
+    return {
+        m => [
+            [ $c,  $s ],
+            [ -$s, $c ]
+        ],
+        v => { x => 0, y => 0 }
+    };
+}
+
+sub vec2w_xform($$)
+{
+    my ($a, $b) = @_;
+    return {
+        x => ($a->{m}[0][0] * $b->{x}) + ($a->{m}[0][1] * $b->{y}),
+        y => ($a->{m}[1][0] * $b->{x}) + ($a->{m}[1][1] * $b->{y}),
+    };
+}
+
+sub hash_point($)
+{
+    my ($p) = @_;
+    return sprintf "%0.2f %0.2f", $p->{x}, $p->{y};
+}
+
+sub learn_poly($$$$)
+{
+    my ($m, $pi, $depth, $coord) = @_;
+    my @p = ();
+    while (my ($px, $py) = splice @$coord, 0, 2) {
+        my $x = +($px / $pi) * 25.4;
+        my $y = -($py / $pi) * 25.4;
+        my $v = { x=>$x, y=>$y };
+        push @p, vec2w_xform($m, $v);
+    }
+
+    if (($p[0]{x} == $p[-1]{x}) &&
+        ($p[0]{y} == $p[-1]{y}))
+    {
+        pop @p;
+    }
+
+    my %q = ();
+    for my $i (0..$#p) {
+        my $p = $p[$i];
+        $q{hash_point($p)} = {
+            x => $p->{x},
+            y => $p->{y},
+            i => $i
+        };
+    }
+
+    push @{ $poly{$depth} }, {
+        depth => $depth,
+        point => \%q,
+        path => \@p
+    };
+}
+
+sub cross3_z($$$)
+{
+    my ($u,$v,$w) = @_;
+    return
+        (($u->{x} - $v->{x}) * ($w->{y} - $v->{y})) -
+        (($u->{y} - $v->{y}) * ($w->{x} - $v->{x}));
+}
+
+sub ccw(@)
+{
+    my @p = @_;
+    my $z_sum = 0;
+    for my $i (0..$#p) {
+        my $j = ($i + 1) % scalar(@p);
+        my $k = ($i + 2) % scalar(@p);
+        my $z = cross3_z($p[$i], $p[$j], $p[$k]);
+        $z_sum += $z;
+    }
+    return $z_sum < 0;
+}
+
+sub print_face($@)
+{
+    my ($rev, @p) = @_;
+    @p = reverse @p if $rev;
+    print "        [";
+    my $s = "";
+    for my $i (@p) {
+        print "$s$i";
+        $s = ",";
+    }
+    print "],\n";
+}
+
+sub scad_poly($)
+{
+    my ($q) = @_;
+    my @p = @{ $q->{path} };
+
+    my $ccw = ccw(@p);
+    my $t = $ccw ? -1 : +1;
+
+    print "polyhedron(\n";
+    print "    points=[\n";
+    for my $p (@p) {
+        print "    [$p->{x}, $p->{y}, ".($t*+10)."],\n";
+    }
+    for my $p (@p) {
+        print "    [$p->{x}, $p->{y}, ".($t*-10)."],\n";
+    }
+    print "    ],\n";
+    print "    faces=[\n";
+
+    if ($q->{convex}) {
+        my @c = @{ $q->{convex} };
+        for my $w (@c) {
+            my $ccw2 = ccw(@{ $w->{path} });
+            my @i =
+                map {
+                    my $p = $_;
+                    my $h = hash_point($p);
+                    my $p2 = $q->{point}{$h};
+                    my $i = $p2 && $p2->{i};
+                    die "Point not in outline of polygon" unless defined $i;
+                    die "Different hash" unless $h eq hash_point($p2);
+                    $i;
+                }
+                @{ $w->{path} };
+
+            print_face($ccw2 != $ccw, @i);
+            print_face($ccw2 == $ccw, map { $_ + scalar(@p) } @i);
+        }
+    }
+    else {
+        # top & bottom
+        print_face(0, 0..$#p);
+        print_face(1, scalar(@p)..scalar(@p)+$#p);
+    }
+
+    # sides
+    for my $i (0..$#p) {
+        my $j = ($i + 1) % scalar(@p);
+        my $k = $i + scalar(@p);
+        my $l = $j + scalar(@p);
+        print_face(0, $i,$k,$l,$j);
+    }
+
+    print "    ]\n";
+    print ");\n";
+}
+
+sub split_string($)
+{
+    my ($s) = @_;
+    $s =~ s/^\s+//;
+    $s =~ s/\s+$//;
+    return split /\s+/, $s;
+}
+
+sub fig_cmd($$$$)
+{
+    my ($opt, $comment, $cmd, $coord) = @_;
+    my ($cmd1, $cmd2, @param) = split_string($cmd);
+    my @coord = split_string($coord);
+    if ($cmd1 == 2) {
+        learn_poly($opt->{m}, $opt->{per_inch}, $param[4], \@coord);
+    }
+}
+
+sub combine_poly()
+{
+    my %q60 = ();
+    for my $c (@{ $poly{60} }) {
+        for my $p (keys %{ $c->{point} }) {
+            $q60{$p} = $c;
+        }
+    }
+    for my $c (@{ $poly{50} }) {
+        my ($p,@p) = keys %{ $c->{point} };
+        my $q = $q60{$p};
+        die "No poly on level 60 found for poly on level 50" unless $q;
+        push @{ $q->{convex} }, $c;
+    }
+}
+
+my $m = mat2w_new();
+my @file = ();
+for my $arg (@ARGV) {
+    if ($arg =~ /^-/) {
+        if ($arg =~ /^-+mirror=x/) {
+            $m = mat2w_mul(mat2w_mirror_unit({x=>1, y=>0}), $m);
+        }
+        elsif ($arg =~ /^-+rotate=([0-9]+)/) {
+            $m = mat2w_mul(mat2w_rot(0+$1), $m);
+        }
+        else {
+            die "Error: Unrecognised option: $arg\n";
+        }
+    }
+    else {
+        push @file, $arg;
+    }
+}
+for my $file (@file) {
+    open (my $f, '<', $file) or die "Error: open $file: $@\n";
+    my $sig = <$f>;
+    die "No FIG file" unless $sig =~ /#FIG/;
+    my $opt = {};
+    $opt->{m} = $m;
+    $opt->{scape} = <$f>;
+    $opt->{orient} = <$f>;
+    $opt->{system} = <$f>;
+    $opt->{paper} = <$f>;
+    $opt->{mag} = <$f>;
+    $opt->{mode} = <$f>;
+    $opt->{trans} = <$f>;
+
+    my $comment = "";
+    my $unit = undef;
+    my $cmd = undef;
+    my $coord = '';
+    while (my $line = <$f>) {
+        if ($line =~ /^#/) {
+            $comment .= $line;
+        }
+        elsif (!defined $unit) {
+            $unit = $line;
+            ($opt->{per_inch}, $opt->{uu}) = split /\s+/, $unit;
+        }
+        elsif ($line =~ /^\t/) {
+            die "Syntax error, no command before coordinates: $_" unless defined $cmd;
+            $coord.= $line;
+        }
+        else {
+            if (defined $cmd) {
+                fig_cmd($opt, $comment, $cmd, $coord);
+                $comment = $coord = '';
+                $cmd = undef;
+            }
+
+            chomp($cmd = $line);
+        }
+    }
+    if (defined $cmd) {
+        fig_cmd($opt, $comment, $cmd, $coord);
+    }
+    close $f;
+}
+
+combine_poly();
+
+#print Dumper(\%poly);
+
+for my $c (@{ $poly{60} }) {
+    scad_poly($c);
+}
