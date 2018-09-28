@@ -1,3 +1,4 @@
+/* -*- Mode: C -*- */
 static char const *opt_help =
     "General Options\n"
     "    --h\n"
@@ -75,6 +76,7 @@ static char const *opt_help =
     "        set name of PostScript debug output file\n"
 #endif
     "";
+
 static void get_opt_help(
     cp_opt_t *opt __unused,
     char const *name __unused,

@@ -222,6 +222,7 @@ sub generate_help($)
         }
     }
     print "    \"\";\n";
+    print "\n";
 }
 
 sub generate_code($)
@@ -286,5 +287,6 @@ die "Error: Expected '$0 INFILE [OUTFILE]'\n" unless defined $fn_in;
 
 learn(\%case, $fn_in);
 
+print "/* -*- Mode: C -*- */\n";
 generate_help(\@case);
 generate_code(\%case);
