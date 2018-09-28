@@ -1,0 +1,157 @@
+/* -*- Mode: C -*- */
+
+help_section "General Options";
+
+case "h":
+case "?":
+case "help": {
+    "displays this help text";
+    help();
+}
+
+help_section "Slicing Options";
+
+case "min": dim &opt->z_min {
+    "min slice z coord [mm] (default: use bounding box of model)";
+    opt->have_z_min = true;
+}
+case "max": dim &opt->z_max {
+    "max slice z coord [mm] (default: use bounding box of model)";
+    opt->have_z_max = true;
+}
+
+case "step": dim &opt->z_step {
+    "thickness of slice [mm] (default: 0.2)";
+}
+
+case "z": dim &opt->z_min {
+    "equivalent to --min COORD --max COORD";
+    opt->z_max = opt->z_min;
+    opt->have_z_min = true;
+    opt->have_z_max = true;
+}
+
+help_section "Intermediate Stage Output/Alternative Output Format Options";
+
+case "dump-syn": bool &opt->dump_syn {
+    "print after stage 1: AST of input file; don't slice";
+}
+case "dump-scad": bool &opt->dump_scad {
+    "print after stage 2: SCAD tree, SCAD format; don't slice";
+}
+case "dump-csg3": bool &opt->dump_csg3 {
+    "print after stage 3: 3D CSG model, SCAD format; don't slice";
+}
+case "dump-csg2": bool &opt->dump_csg2 {
+    "print after stage 4: final 2D polygon stack in SCAD format";
+}
+case "dump-ps": bool &opt->dump_ps {
+    "print after stage 4: final 2D polygon stack in PS format";
+}
+
+case "no-csg": bool &opt->no_csg {
+    "for stage 4: do (not) run 2D boolean operation pass";
+}
+case "no-tri": bool &opt->no_tri {
+    "for stage 4: do (not) run triangulation pass";
+}
+
+help_section "PostScript Output Options";
+
+case "ps-scale-fit": {
+    "for --dump-ps: expand to fit normal bounding box to page";
+    opt->ps_scale_step = 1;
+}
+case "ps-scale-max": {
+    "for --dump-ps: expand to fit maximum bounding box to page";
+    opt->ps_scale_step = 2;
+}
+
+case "ps-no-single-page": neg_bool &opt->ps.single_page {
+    "(do not) print all layers to a single page, bottom to top";
+}
+
+case "ps-no-tri":  bool &opt->ps.no_tri {
+    "(do not) print triangle boundaries";
+}
+case "ps-no-path": bool &opt->ps.no_path {
+    "(do not) print paths and points";
+}
+case "ps-no-mark": bool &opt->ps.no_mark {
+    "(do not) mark the polygon inside with a mark";
+}
+
+case "ps-no-wire": {
+    "same as --ps-no-tri --ps-no-path --ps-no-mark";
+    opt->ps.no_tri = true;
+    opt->ps.no_path = true;
+    opt->ps.no_mark = true;
+}
+
+case "ps-rot-x": cp_angle_t angle &a {
+    "rotate about x axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_x(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-rot-y": cp_angle_t angle &a {
+    "rotate about y axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_y(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-rot-z": cp_angle_t angle &a {
+    "rotate about z axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_z(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+
+case "ps-scale": cp_scale_t scale &s {
+    "scale output on all axes";
+    cp_mat4_t m;
+    cp_mat4_scale1(&m, s);
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-persp": scale &opt->ps_persp {
+    "perspective change (1 = 1m toward camera scales by 2)";
+}
+
+case "ps-color-path": rgb &opt->ps.color_path {
+    "RGB color of polygon paths";
+}
+case "ps-color-tri": rgb &opt->ps.color_tri {
+    "RGB color of triangle boundaries";
+}
+case "ps-color-fill": rgb &opt->ps.color_fill {
+    "RGB fill color of triangles";
+}
+case "ps-color-vertex": rgb &opt->ps.color_vertex {
+    "RGB color of vertices";
+}
+case "ps-color-mark": rgb &opt->ps.color_mark {
+    "RGB color of internal mark";
+}
+
+#ifdef PSTRACE
+help_section "Debugging Options";
+
+case "debug-ps": fn {
+    "set name of PostScript debug output file";
+
+    FILE *f = fopen(fn, "wt");
+    if (f == NULL) {
+        fprintf(stderr, "Error: Unable to open %s for writing: %s\n",
+            fn, strerror(errno));
+        my_exit(1);
+    }
+    cp_debug_ps_file = f;
+
+    CP_CALLOC(cp_debug_ps);
+    *cp_debug_ps = *CP_STREAM_FROM_FILE(f);
+
+    cp_ps_doc_begin(cp_debug_ps,
+        CP_SIZE_MAX,
+        0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
+}
+#endif
