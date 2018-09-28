@@ -1,0 +1,290 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+use Carp;
+use Data::Dumper;
+
+my %case = ();
+my @case = ();
+
+sub is_nothing(\$)
+{
+    my ($s) = @_;
+    $$s =~ s(^\s*\/\*.*?\*\/)();
+    if ($$s =~ m(^\s*$)) {
+        return 1;
+    }
+    if ($$s =~ m(^\s*//.*$)) {
+        return 1;
+    }
+    return 0;
+}
+
+sub learn_case($$$$$);
+sub learn_case($$$$$)
+{
+    my ($cases, $file, $case, $cond, $help_section) = @_;
+
+    confess unless defined $cond;
+    confess unless defined $help_section;
+
+    my @word = @{ $case->{word} // [] };
+    die "$file->{name}:$file->{line}: Error: Expected 'case', found no keys for action.\n"
+        unless scalar(@word);
+
+    $case->{cond} = $cond;
+    $case->{help_section} = $help_section;
+
+    push @case, $case;
+
+    my $neg_case = {};
+
+    $case->{need_arg} = 0;
+    if ($case->{arg}{name}) {
+        $case->{need_arg} = 2;
+        if ($case->{arg}{conv} && ($case->{arg}{conv} =~ /bool/)) {
+            $case->{need_arg} = 1;
+
+            # prepare negative case:
+            $neg_case->{arg}{name} = $case->{arg}{name};
+            $neg_case->{arg}{type} = $case->{arg}{type};
+            if ($case->{arg}{conv} eq 'bool') {
+                $neg_case->{arg}{conv} = 'neg_bool';
+            }
+            elsif ($case->{arg}{conv} eq 'neg_bool') {
+                $neg_case->{arg}{conv} = 'bool';
+            }
+        }
+    }
+
+    for my $word (@word) {
+        if ($cases->{$word}) {
+            die "$file->{name}:$file->{line}: Error: Duplicate key '$word'\n";
+        }
+        $cases->{$word} = $case;
+
+        (my $_word = $word) =~ s/-/_/g;
+        if ($_word =~ /^[a-zA-Z_0-9]+$/) {
+            if (!defined($case->{name}) || (length($_word) > length($case->{name}))) {
+                $case->{name} = $_word;
+            }
+        }
+
+        if ($neg_case->{arg}{conv}) {
+            if ($word =~ /^no-(.*)$/) {
+                push @{ $neg_case->{word} }, $1;
+            }
+            elsif ($word =~ /^(.*)-no-(.*)$/) {
+                push @{ $neg_case->{word} }, "$1-$2";
+            }
+        }
+    }
+
+    if (!defined $case->{name}) {
+        die "$file->{name}:$file->{line}: Error: No C identifier found for case.\n";
+    }
+
+    if ($neg_case->{word}) {
+        $case->{neg} = $neg_case;
+        learn_case($cases, $file, $neg_case, $cond, $help_section);
+    }
+}
+
+sub trim($)
+{
+    my ($s) = @_;
+    $s =~ s/^\s+//;
+    $s =~ s/\s+$//;
+    return $s;
+}
+
+sub learn($$)
+{
+    my ($cases, $fn) = @_;
+    my $file = {
+        name => $fn,
+        line => 0,
+    };
+    open(my $f, '<', $fn) or die "Error: Unable to open $fn: $@\n";
+    my @cond = ();
+    my $help_section = "Options";
+    my $case = {};
+    my $in_cmd = 0;
+    LINE: while (defined(my $s = <$f>)) {
+        $file->{line}++;
+        chomp $s;
+        my $orig_s = $s;
+        if ($in_cmd) {
+            if ($s =~ m(^}\s*$)) {
+                learn_case($cases, $file, $case, [ @cond ], $help_section);
+                $case = {};
+                $in_cmd = 0;
+                next LINE;
+            }
+            if ($s =~ /^\s*\"(.*)\"\s*;\s*$/) {
+                push @{ $case->{help_text} }, $1;
+            }
+            else {
+                push @{ $case->{action} }, $s;
+            }
+            next LINE;
+        }
+
+        next LINE if is_nothing($s);
+
+        if ($s =~ /^#if(.*)$/) {
+            push @cond, $s;
+            next LINE;
+        }
+        if (scalar(@cond) && ($s =~ /^#endif$/)) {
+            pop @cond;
+            next LINE;
+        }
+        if ($s =~ /^\s*help_section\s*\"(.*)\"\s*;\s*$/) {
+            $help_section = $1;
+            next LINE;
+        }
+
+        while ($s =~ s(^\s*case\s*\"([^\"\\]*)\"\s*:)()) {
+            push @{ $case->{word} }, $1;
+        }
+        next LINE if is_nothing($s);
+
+        if (!$case->{arg}) {
+            if ($s =~ s(^\s*(\b[a-z0-9A-Z_]+\b)\s+(\b[a-z0-9A-Z_]+\b)\s+([^\s{}\"][^{}\"]*))()) {
+                $case->{arg}{type} = $1;
+                $case->{arg}{conv} = $2;
+                $case->{arg}{name} = trim($3);
+            }
+            elsif ($s =~ s(^\s*(\b[a-z0-9A-Z_]+\b)\s+([^\s{}\"][^{}\"]*))()) {
+                $case->{arg}{conv} = $1;
+                $case->{arg}{name} = trim($2);
+            }
+            elsif ($s =~ s(^\s*(\b[a-z0-9A-Z_]+\b))()) {
+                $case->{arg}{name} = trim($1);
+            }
+        }
+
+        if ($s =~ m(^\s*{\s*}\s*$)) {
+            learn_case($cases, $file, $case, [ @cond ], $help_section);
+            $case = {};
+            next LINE;
+        }
+
+        if ($s =~ m(^\s*{$)) {
+            $in_cmd = 1;
+            next LINE;
+        }
+
+        die "$file->{name}:$file->{line}: Error: Unrecognised line: $orig_s\n";
+    }
+    close $f;
+}
+
+sub generate_help($)
+{
+    my ($cases) = @_;
+    my $section = '';
+    print "static char const *opt_help =\n";
+    my %have = ();
+    CASE: for my $case (@$cases) {
+        die Dumper($case) unless $case->{help_section};
+        next CASE if $have{$case->{name}};
+        $have{$case->{name}} = 1;
+        my $neg = $case->{neg};
+        if ($neg) {
+            $have{$neg->{name}} = 1;
+        }
+
+        if ($case->{help_section} ne $section) {
+            $section = $case->{help_section};
+            print "    \"$section\\n\"\n";
+        }
+        for my $c (@{ $case->{cond} }) {
+            print "$c\n";
+        }
+        my $arg = '';
+        if ($case->{need_arg} == 2) {
+            $arg = "=ARG";
+        }
+        for my $word (@{ $case->{word} }) {
+            print "    \"    --$word$arg\\n\"\n";
+        }
+        for my $word (@{ $neg ? $neg->{word} : [] }) {
+            print "    \"    --$word$arg\\n\"\n";
+        }
+        for my $text (@{ $case->{help_text} }) {
+            print "    \"        $text\\n\"\n";
+        }
+        for my $c (@{ $case->{cond} }) {
+            print "#endif\n";
+        }
+    }
+    print "    \"\";\n";
+}
+
+sub generate_code($)
+{
+    my ($cases) = @_;
+
+    my %have = ();
+    WORD: for my $word (sort keys %case) {
+        my $case = $case{$word};
+        die Dumper($case) unless $case->{name};
+        next WORD if $have{$case->{name}};
+        $have{$case->{name}} = 1;
+
+        my $arg = 'arg';
+        if ($case->{arg}{name} && !$case->{arg}{conv}) {
+            $arg = $case->{arg}{name};
+        }
+        print
+            "static void get_opt_$case->{name}(\n".
+            "    cp_opt_t *opt __unused,\n".
+            "    char const *name __unused,\n".
+            "    char const *$arg __unused)\n".
+            "{\n";
+        if ($case->{arg}{name}) {
+            if ($case->{arg}{type}) {
+                my $n = $case->{arg}{name};
+                $n =~ s/^&\s*//;
+                print "    $case->{arg}{type} $n;\n";
+            }
+            if ($case->{arg}{conv}) {
+                print "    get_arg_$case->{arg}{conv}($case->{arg}{name}, name, arg);\n";
+            }
+        }
+        for my $c (@{ $case->{cond} }) {
+            print "$c\n";
+        }
+        for my $a (@{ $case->{action} }) {
+            print "$a\n";
+        }
+        for my $c (@{ $case->{cond} }) {
+            print "#endif\n";
+        }
+        print
+            "}\n\n";
+    }
+
+    print "cp_get_opt_t opt_list[] = {\n";
+    WORD: for my $word (sort keys %case) {
+        my $case = $case{$word};
+        print
+            "    {\n".
+            "        \"$word\",\n".
+            "        get_opt_$case->{name},\n".
+            "        $case->{need_arg},\n".
+            "    },\n";
+    }
+    print "};\n";
+}
+
+my ($fn_in) = @ARGV;
+die "Error: Expected '$0 INFILE [OUTFILE]'\n" unless defined $fn_in;
+
+learn(\%case, $fn_in);
+
+generate_help(\@case);
+generate_code(\%case);

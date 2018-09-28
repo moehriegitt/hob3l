@@ -1,0 +1,14 @@
+difference(){
+  rotate(a=90,v=[0,0,1000]){
+    translate([0,-5,0]){
+      rotate(a=90,v=[0,0,1000]){
+        rotate([0,-90,0]){cylinder($fn=100,h=10,r=7,center=true);}
+      }
+    }
+    translate([0,-0.4,0]){
+      translate([0,-0.5,0]){
+        cube([14.6,1,1],center=true);
+      }
+    }
+  }
+}
