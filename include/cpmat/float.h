@@ -24,7 +24,9 @@ typedef cp_f_t cp_angle_t;
 
 static inline cp_f_t cp_double(size_t u)
 {
+#if __SIZEOF_POINTER__ == 8
     assert(u < (1ULL << 53));
+#endif
     return (cp_f_t)u;
 }
 

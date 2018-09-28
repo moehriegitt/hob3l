@@ -31,11 +31,12 @@
  * Make a bit mask of all ones for a given type, be sure to
  * only return a positive result, i.e., return the maximum value
  * for a given type. */
-#define CP_MAX_OF(x) (((~((0?(x):1U) << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1)
+#define CP_MAX_OF(x) \
+    ((__typeof__(x))(((~((0?((x)&1):1U) << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1))
 
-cp_static_assert(CP_MAX_OF(0)  == 0x7fffffff);
-cp_static_assert(CP_MAX_OF(0U) == 0xffffffff);
-cp_static_assert(CP_MAX_OF(0LL) == 0x7fffffffffffffff);
+cp_static_assert(CP_MAX_OF(0)    == 0x7fffffff);
+cp_static_assert(CP_MAX_OF(0U)   == 0xffffffff);
+cp_static_assert(CP_MAX_OF(0LL)  == 0x7fffffffffffffff);
 cp_static_assert(CP_MAX_OF(0ULL) == 0xffffffffffffffff);
 
 #define CP_SIZE_MAX (~(size_t)0)

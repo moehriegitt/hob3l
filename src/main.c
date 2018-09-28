@@ -139,7 +139,7 @@ static bool do_file(
     if (range.cnt == 0) {
         range.cnt = 1;
     }
-    fprintf(stderr, "DEBUG: z_min=%g, z_max=%g, z_step=%g, z_cnt=%zu\n",
+    fprintf(stderr, "DEBUG: z_min=%g, z_max=%g, z_step=%g, z_cnt=%"_Pz"u\n",
         range.min, range.min + (cp_dim(range.cnt) * range.step), range.step, range.cnt);
 
     /* step 1: slice leaf objects */

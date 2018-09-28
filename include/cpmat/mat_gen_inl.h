@@ -906,7 +906,7 @@ static inline size_t cp_mat2_get_idx(
 {
     assert(x < 2);
     assert(y < 2);
-    return offsetof(cp_mat2_t, m[y][x]);
+    return cp_offsetof(cp_mat2_t, m[y][x]);
 }
 
 static inline size_t cp_mat2w_get_idx(
@@ -915,10 +915,10 @@ static inline size_t cp_mat2w_get_idx(
 {
     assert(y < 2);
     if (x == 2) {
-        return offsetof(cp_mat2w_t, w.v[y]);
+        return cp_offsetof(cp_mat2w_t, w.v[y]);
     }
     assert(x < 2);
-    return offsetof(cp_mat2w_t, b.m[y][x]);
+    return cp_offsetof(cp_mat2w_t, b.m[y][x]);
 }
 
 static inline size_t cp_mat3_get_idx(
@@ -927,7 +927,7 @@ static inline size_t cp_mat3_get_idx(
 {
     assert(x < 3);
     assert(y < 3);
-    return offsetof(cp_mat3_t, m[y][x]);
+    return cp_offsetof(cp_mat3_t, m[y][x]);
 }
 
 static inline size_t cp_mat3w_get_idx(
@@ -936,10 +936,10 @@ static inline size_t cp_mat3w_get_idx(
 {
     assert(y < 3);
     if (x == 3) {
-        return offsetof(cp_mat3w_t, w.v[y]);
+        return cp_offsetof(cp_mat3w_t, w.v[y]);
     }
     assert(x < 3);
-    return offsetof(cp_mat3w_t, b.m[y][x]);
+    return cp_offsetof(cp_mat3w_t, b.m[y][x]);
 }
 
 static inline size_t cp_mat4_get_idx(
@@ -948,7 +948,7 @@ static inline size_t cp_mat4_get_idx(
 {
     assert(x < 4);
     assert(y < 4);
-    return offsetof(cp_mat4_t, m[y][x]);
+    return cp_offsetof(cp_mat4_t, m[y][x]);
 }
 
 static inline cp_dim_t* cp_mat2_get_ptr(

@@ -1344,7 +1344,7 @@ sub gen_get_idx_mat($$$)
     my $s = '';
     $s.= "    assert(x < $t->{dim});\n";
     $s.= "    assert(y < $t->{dim});\n";
-    $s.= "    return offsetof($name, m[y][x]);\n";
+    $s.= "    return X_offsetof($name, m[y][x]);\n";
     publish_inline($oc, $p, $s);
 }
 
@@ -1356,10 +1356,10 @@ sub gen_get_idx_matw($$$)
     my $s = '';
     $s.= "    assert(y < $t->{dim});\n";
     $s.= "    if (x == $t->{dim}) {\n";
-    $s.= "        return offsetof($name, w.v[y]);\n";
+    $s.= "        return X_offsetof($name, w.v[y]);\n";
     $s.= "    }\n";
     $s.= "    assert(x < $t->{dim});\n";
-    $s.= "    return offsetof($name, b.m[y][x]);\n";
+    $s.= "    return X_offsetof($name, b.m[y][x]);\n";
     publish_inline($oc, $p, $s);
 }
 
