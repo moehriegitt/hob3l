@@ -23,11 +23,10 @@ This tool reads a subset of the SCAD format used by OpenSCAD -- I did
 not want to invent another format.  This section describes which
 subset is supported.
 
-The general idea is that every basic polygon-typed 3D object is
-supported, add basic transformations, and all boolean operations are
-supported.  No operations are supported that invoke the CGAL
-rendering, e.g. minkovsky.  I haven't used them anyway because they
-are so slow.
+The general idea is that all basic polyhedra 3D objects are supported,
+all basic transformations, and all boolean operations.  No operations
+are supported that invoke the CGAL rendering, e.g. complex ones like
+`minkovsky`.  I haven't used them anyway because they are so slow.
 
 The following SCAD abstract syntax tree (AST) structures are supported:
 
