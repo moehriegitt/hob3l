@@ -1,5 +1,12 @@
 # -*- Mode: Makefile -*-
 
+package_name := csg2plane
+package_version := test
+
+######################################################################
+
+SHELL := /bin/sh
+
 -include .mode.d
 
 # default is 'just do it' mode, with some runtime checks
@@ -40,22 +47,35 @@ CC.nix32   := gcc -m32
 CC.win64   := x86_64-w64-mingw32-gcc
 CC.win32   := i686-w64-mingw32-gcc
 
+_EXE.win64  := .exe
+_EXE.win32  := .exe
+
+_LIB.default := .a
+_LIB.nix64   := .a
+_LIB.nix32   := .a
+_LIB.win64   := .lib
+_LIB.win32   := .lib
+
+LIB_.default := lib
+LIB_.nix64   := lib
+LIB_.nix32   := lib
+
 TARGET := default
 
-CC := $(CC.$(TARGET))
-
-_ := $(shell mkdir -p out)
-_ := $(shell mkdir -p test-out)
+CC   := $(CC.$(TARGET))
+_EXE := $(_EXE.$(TARGET))
+_LIB := $(_LIB.$(TARGET))
+LIB_ := $(LIB_.$(TARGET))
 
 AR := ar
 RANLIB := ranlib
+MKINSTALLDIR := mkdir -p
+UNINSTALL := rm -f
+UNINSTALL_DIR := rmdir
 
-CSTD=c11
-
-CFLAGS_OPT  := -O$(OPT) -g3
-CFLAGS_STD  := -std=$(CSTD)
-CFLAGS_ARCH := -march=core2 -mfpmath=sse
-CFLAGS_SAFE := -fno-delete-null-pointer-checks -fwrapv
+CFLAGS_OPT   := -O$(OPT) -g3
+CFLAGS_ARCH  := -march=core2 -mfpmath=sse
+CFLAGS_SAFE  := -fno-delete-null-pointer-checks -fwrapv
 
 ifeq ($(FRAME),0)
 CFLAGS_DEBUG += -fomit-frame-pointer
@@ -71,13 +91,16 @@ ifeq ($(PSTRACE),1)
 CPPFLAGS += -DPSTRACE
 endif
 
-CFLAGS += $(CFLAGS_STD)
-CFLAGS += $(CFLAGS_OPT)
-CFLAGS += $(CFLAGS_ARCH)
-CFLAGS += $(CFLAGS_SAFE)
-CFLAGS += $(CFLAGS_DEBUG)
+CFLAGS     += $(CFLAGS_OPT)
+CFLAGS     += $(CFLAGS_ARCH)
+CFLAGS     += $(CFLAGS_SAFE)
+CFLAGS     += $(CFLAGS_DEBUG)
 
-CPPFLAGS += -I./include
+CSTD=c11
+CPPFLAGS_STD := -std=$(CSTD)
+
+CPPFLAGS   += $(CPPFLAGS_STD)
+CPPFLAGS += -I$(srcdir)/include
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 
 # warnings:
@@ -112,7 +135,20 @@ endif
 
 ######################################################################
 
+package_dir  := $(package_name)-$(package-version)
+
+######################################################################
+
+all:
+
+include install.mk
 include test.mk
+
+######################################################################
+# header files
+
+H_CPMAT     := $(notdir $(wildcard include/cpmat/*.h))
+H_CSG2PLANE := $(notdir $(wildcard include/csg2plane/*.h))
 
 ######################################################################
 
@@ -189,7 +225,8 @@ MOD_D.cptest.x := $(addprefix out/,$(MOD_C.cptest.x:.c=.d))
 
 ######################################################################
 
-all:
+_ := $(shell mkdir -p out)
+_ := $(shell mkdir -p test-out)
 
 -include out/*.d
 
@@ -197,13 +234,18 @@ all:
 
 .SUFFIXES:
 
-.PHONY: all
 all: \
-    csg2plane.x \
-    cptest.x
+    cptest.x \
+    libcptest.a
 
-.PHONY: zap
-zap: sweep clean
+bin: \
+    csg2plane.x \
+
+lib: \
+    libcsg2plane.a \
+    libcpmat.a
+
+maintainer-clean: zap
 
 .PHONY: sweep
 sweep:
@@ -218,15 +260,14 @@ sweep:
 	rm -f include/csg2plane/*~
 	rm -f include/csg2plane/*.bak
 
+.PHONY: zap
+zap: sweep clean
+	rm -f mode.d
+
 .PHONY: clean-test
 clean-test:
 	rm -rf test-out
 
-.PHONY: zap
-zap: clean sweep
-	rm -f mode.d
-
-.PHONY: clean
 clean: clean-test
 	rm -rf out
 	rm -f *.o
@@ -251,29 +292,29 @@ libcptest.a: $(MOD_O.libcptest.a)
 	mv $@.new.a $@
 
 csg2plane.x: $(MOD_O.csg2plane.x) libcsg2plane.a libcpmat.a
-	$(CC) $(CFLAGS) -o $@ $(MOD_O.csg2plane.x) -L. -lcsg2plane -lcpmat $(LIBS) -lm
+	$(CC) -o $@ $(MOD_O.csg2plane.x) -L. -lcsg2plane -lcpmat $(LIBS) -lm $(CFLAGS)
 
 cptest.x: $(MOD_O.cptest.x) libcpmat.a libcptest.a
-	$(CC) $(CFLAGS) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lcpmat $(LIBS) -lm
+	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lcpmat $(LIBS) -lm $(CFLAGS)
 
 src/mat_gen_ext.c: mkmat.pl
-	./script/mkmat
+	$(srcdir)/script/mkmat
 
 src/mat_is_rot.c: mkrotmat.pl
-	./script/mkrotmat > $@.new
+	$(srcdir)/script/mkrotmat > $@.new
 	mv $@.new $@
 
 out/%.o: src/%.c src/mat_gen_ext.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $<
+	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
 
 %.i: %.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -MMD -MP -MT $@ -MF out/$*.d -E $< > $@.new
+	$(CC) -MMD -MP -MT $@ -MF out/$*.d -E $< $(CPPFLAGS) $(CFLAGS) > $@.new
 	mv $@.new $@
 
 out/main.o: src/main.c src/opt.inc
 
 %.inc: %.switch mkswitch
-	./script/mkswitch $< > $@.new
+	$(srcdir)/script/mkswitch $< > $@.new
 	mv $@.new $@
 
 .PHONY: test
@@ -298,17 +339,71 @@ test-out/%.ps: scad-test/%.scad csg2plane.x
 	mv $@.new $@
 
 scad-test/%.scad: scad-test/%.fig
-	./script/fig2scad $< > $@.new
+	$(srcdir)/script/fig2scad $< > $@.new
 	mv $@.new $@
 
 scad-test/%-mx.scad: scad-test/%.fig
-	./script/fig2scad --mirror=x $< > $@.new
+	$(srcdir)/script/fig2scad --mirror=x $< > $@.new
 	mv $@.new $@
 
 scad-test/%-r90.scad: scad-test/%.fig
-	./script/fig2scad --rotate=90 $< > $@.new
+	$(srcdir)/script/fig2scad --rotate=90 $< > $@.new
 	mv $@.new $@
 
 scad-test/%-r30.scad: scad-test/%.fig
-	./script/fig2scad --rotate=30 $< > $@.new
+	$(srcdir)/script/fig2scad --rotate=30 $< > $@.new
 	mv $@.new $@
+
+######################################################################
+# installation, the usual ceremony.
+
+installdirs-bin:
+	$(NORMAL_INSTALL)
+	$(MKINSTALLDIR) $(DESTDIR)$(bindir)
+
+installdirs-lib:
+	$(NORMAL_INSTALL)
+	$(MKINSTALLDIR) $(DESTDIR)$(libdir)
+
+installdirs-include:
+	$(NORMAL_INSTALL)
+	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/cpmat
+	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/csg2plane
+
+installdirs: installdirs-bin installdirs-lib installdirs-include
+
+install-bin: installdirs-bin
+	$(NORMAL_INSTALL)
+	$(INSTALL_BIN) csg2plane.x $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
+
+install-lib: installdirs-lib
+	$(NORMAL_INSTALL)
+	$(INSTALL_DATA) libcpmat.a $(DESTDIR)$(libdir)/$(LIB_)cpmat$(_LIB)
+	$(INSTALL_DATA) libcsg2plane.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
+
+install-include: installdirs-include
+	$(NORMAL_INSTALL)
+	for H in $(H_CPMAT); do \
+	    $(INSTALL_DATA) \
+	        include/cpmat/$$H \
+	        $(DESTDIR)$(includedir)/cpmat/$$H; \
+	done
+	for H in $(H_CSG2PLANE); do \
+	    $(INSTALL_DATA) \
+	        include/csg2plane/$$H \
+	        $(DESTDIR)$(includedir)/csg2plane/$$H; \
+	done
+
+uninstall:
+	$(NORMAL_UNINSTALL)
+	$(UNINSTALL) $(DESTDIR)$(bindir)/$(package_name)$(EXE)
+	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)cpmat$(_LIB)
+	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
+	for H in $(H_CPMAT); do \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/cpmat/$$H; \
+	done
+	for H in $(H_CSG2PLANE); do \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/csg2plane/$$H; \
+	done
+	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/cpmat
+	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/csg2plane

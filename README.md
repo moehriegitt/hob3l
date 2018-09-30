@@ -50,11 +50,11 @@ The following SCAD abstract syntax tree (AST) structures are supported:
 The biggest parts that are missing are constants/variables, functions,
 and modules.
 
-The SCAD operators and identifiers are are supported are the following
-ones.  In the functor parenthesis, the supported arguments are listed.
-$fa and $fs are ignored, but accepted in the input file for
-convenience.  Named and positional arguments are supported just like
-in OpenSCAD.
+The following SCAD operators and identifiers are supported.  In each
+functor's parentheses, the supported arguments are listed.  $fa and
+$fs are ignored, but accepted in the input file for compatibility with
+existing files.  Both named and positional arguments are supported
+just like in OpenSCAD.
 
 Usually the default for a missing argument is '1', but this tool may
 be more restrictive than OpenSCAD: if the OpenSCAD documentation lists
@@ -101,31 +101,7 @@ identify the children correctly, which is an ugly mix of meta levels.
 So the parser of this tool spends quite some effort on determining
 which one is the first non-empty child of `difference`.  Whether it
 does that in the same way as OpenSCAD, I can only hope for.  I think
-this part of the SCAD syntax is broken.  In my opinion, it would have
-been better to have clear markers inside `difference()`, which parts
-are the negative ones, e.g. by having a `negate(){...}` substructure.
-And with that, `difference` and `union` could have been merged.
-E.g. instead of
-
-```
-    difference() {
-        foo() { ... }
-        ... bar ...
-    }
-```
-
-It would have been better to have:
-
-```
-    union() {
-        foo() { ... }
-        negate() {
-            ... bar ...
-        }
-    }
-```
-
-But it's too late for that, I suppose.
+this part of the SCAD syntax is broken.
 
 Whenever this tool prints SCAD format, it will state its intended
 meaning by using comments `// add` and `// sub` to mark which parts
@@ -133,16 +109,16 @@ are positive and which ones are negative.
 
 ## Algorithmic Improvements
 
-The polygon clipping from Mart&iacute;nez, Rueda, Feito (2009) was
-improved to have less computational instability be deriving crossing
-points always from the original edge (although currently, each 2D
-operation restarts this -- this could be improved).  Also,
+The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
+was improved to have less computational instability be deriving
+crossing points always from the original edge (although currently,
+each 2D operation restarts this -- this could be improved).  Also,
 computational stability was improved by rigurous use of epsilon-aware
 arithmetics.  Further, a better polygon reassembling algorithm with
 O(n log n) runtime was implemented -- the original paper and reference
 implementation do not focus on this part.
 
-The triangulation algorithms from Hertel & Mehlhorn (1983) was
+The triangulation algorithm of Hertel & Mehlhorn (1983) was
 extended to support coincident vertices, because this is what the
 polygon clipping outputs.  Also, sequences of collinear edges are
 fully supported, because, again, this may happen.
@@ -163,11 +139,13 @@ algorithm does not output the correct path direction for deciding
 inside and outside, which is needed for computing normals and for
 putting points in triangle paths into the correct order.
 
-The input polyhedra must consist of only convex faces.
+The input polyhedra must consist of only convex faces.  This will be
+fixed in the future.
 
 The input polyhedra must be 2-manifold.  This is because the slicing
 algorithm is edge driven and uses a notion of 'left and right face' at
 an edge, so an edge must have a unique face on each of its sides.
+This restriction will probably not be fixed soon.
 
 Spheres are not properly implemented yet.  I want to do them nicely
 and delay their rendering until they are circles/ellipses in the 2D
@@ -187,14 +165,17 @@ this tool basically starts, allocates, exits, i.e., it does not run
 for long, so the memory leaks do not build up.  The goal is to have a
 proper, fast pool based allocation.  This is prepared, but incomplete.
 
-No 'install' target has been added to the makefile yet.
+There are not enough tests.
+
+The tests that exist often only test a lack of crash, but whether the
+algorithm works needs to be inspected by a human.
 
 ## Building
 
 Building relies on GNU make and gcc, and uses no automake or other
-meta-make layer.  Some Perl scripts generate C code, but all generated
-C code is also checked in, so this is only invoked when changes are
-made.
+meta-make layer.  Some Perl scripts are used to generate C code, but
+all generated C code is also checked in, so the scripts are only
+invoked when changes are made.
 
 Make variables can be used to switch how the stuff is compiled.  Since
 this is pure standard C (albeit with gcc extensions), it should be
@@ -209,6 +190,9 @@ E.g.:
 ```
 
 The resulting executable is called 'csg2plane.x'.
+
+Parallel building should be fully supported using the `-j` option to
+make.
 
 ### Different Build Variants
 
@@ -271,6 +255,31 @@ conversion tests.  For full set of checks (asserts) during testing,
 the 'devel' build variant should be used in addition to the actual
 build variant.
 
+## Installation
+
+The usual installation ceremony is implemented, hopefully according to
+the GNU Coding Standard.  I.e., you have `make install` with `prefix`,
+and all `*dir` options and also `DESTDIR` support as well as
+`$(NORMAL_INSTALL)` markers, and also `make uninstall`.
+
+```
+    make DESTDIR=./install-root prefix=/usr install
+```
+
+For better package separation, the `install` target is split into
+`install-bin`, `install-lib`, `install-include` (e.g. to have a
+separate `-dev` package as in Debian distributions).
+
+Unfortunately, there is no `install-doc` yet.  FIXME.
+
+The package and the binary are currently called `csg2plane` -- the
+name is work in progress.  The github repository is called `eins` and,
+thus, not really more imaginative.  The package name can be changed
+during installation using the `package_name` variable, but this only
+changes the executable name and the library name, but not the include
+subdirectory, because this would not work as the name is explicitly
+used in the header files.
+
 ## Command Line Parameters
 
-Use `csg2plane.pl --help`.
+Use `csg2plane --help`.
