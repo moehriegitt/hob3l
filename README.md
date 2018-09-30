@@ -36,7 +36,7 @@ The following SCAD abstract syntax tree (AST) structures are supported:
     /* block comments */
     564           // integers
     56.3          // reals
-    true undef pi // identifiers
+    true undef x  // identifiers
     [A:B:C]       // ranges
     [a, b, c]     // arrays
     foo()         // functors
