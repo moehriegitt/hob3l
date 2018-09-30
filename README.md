@@ -129,7 +129,7 @@ It would have been better to have:
 But it's too late for that, I suppose.
 
 Whenever this tool prints SCAD format, it will state its intended
-meaning by using comments `// add` and `// sub`` to mark which parts
+meaning by using comments `// add` and `// sub` to mark which parts
 are positive and which ones are negative.
 
 ## Algorithmic Improvements
