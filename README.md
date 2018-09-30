@@ -167,8 +167,9 @@ proper, fast pool based allocation.  This is prepared, but incomplete.
 
 There are not enough tests.
 
-The tests that exist often only test a lack of crash, but whether the
-algorithm works needs to be inspected by a human.
+The tests that exist often only test a lack of a crash or assertion
+failure, but whether the algorithm works correctly then needs to be
+inspected by a human.
 
 ## Building
 
@@ -200,7 +201,7 @@ The makefile supports 'normal', 'release', and 'devel' build variants,
 which can be switched using the `MODE=normal` (default),
 `MODE=release`, or `MODE=devel` command line variables for make.  The
 selection is stored in a file `.mode.d`, so next time you invoke
-'make' without a `MODE` parameter, the previous build variant is
+'make' without a `MODE` parameter, the previous build variant will be
 chosen.
 
 ### Different Compiler Targets
@@ -244,7 +245,10 @@ yet, so reading the Makefile may be necessary here.
 ## Running Tests
 
 After building, tests can be run, provided that the 'csg2plane.x'
-executable can actually be executed.  Use
+executable can actually be executed.  It may be (e.g. under Windows)
+that the local executable does not have the necessary file extension
+(e.g. `.exe`), so `make test` will not work.  On systems where it
+works, use
 
 ```
     make test
@@ -254,6 +258,22 @@ for that.  This runs both the unit tests as well as basic SCAD
 conversion tests.  For full set of checks (asserts) during testing,
 the 'devel' build variant should be used in addition to the actual
 build variant.
+
+After installation, the SCAD conversion tests can be run with the
+installed binary by using
+
+```
+    make check
+```
+
+On some systems, this will work better than `make test`, because the
+installed executable will have the correct file extension
+(e.g. `.exe`).
+
+Each time `make check` is invoked, it will first remove the old test
+output files to make sure that the check is actually run.  `make
+check` also honors the `DESTDIR` variable to construct the path to the
+installed executable in the same was as `make install`.
 
 ## Installation
 

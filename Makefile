@@ -137,6 +137,8 @@ endif
 
 package_dir  := $(package_name)-$(package-version)
 
+CSG2PLANE := ./csg2plane.x
+
 ######################################################################
 
 all:
@@ -239,7 +241,7 @@ all: \
     libcptest.a
 
 bin: \
-    csg2plane.x \
+    csg2plane.x
 
 lib: \
     libcsg2plane.a \
@@ -335,7 +337,7 @@ test-out/%.png: test-out/%.ps
 	mv $@.new.png $@
 
 test-out/%.ps: scad-test/%.scad csg2plane.x
-	./csg2plane.x $< -z=2.0 --dump-ps > $@.new
+	$(CSG2PLANE) $< -z=2.0 --dump-ps > $@.new
 	mv $@.new $@
 
 scad-test/%.scad: scad-test/%.fig
@@ -407,3 +409,7 @@ uninstall:
 	done
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/cpmat
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/csg2plane
+
+# check installation by running 'test' with installed binary
+check: clean-test
+	$(MAKE) CSG2PLANE=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) test-triangle
