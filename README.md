@@ -153,4 +153,4 @@ should be used in addition to the actual build variant.
 
 ## Command Line Parameters
 
-Use 'csg2plane.pl --help'.
+Use `csg2plane.pl --help`.
