@@ -242,6 +242,13 @@ The Makefile has more settings that can be used to switch to other compilers
 like clang, or to other target architectures.  This is not properly documented
 yet, so reading the Makefile may be necessary here.
 
+The most likely ones you may want to change are the following (listed
+with their default setting):
+
+```
+CFLAGS_ARCH  := -march=core2 -mfpmath=sse
+```
+
 ## Running Tests
 
 After building, tests can be run, provided that the 'csg2plane.x'
