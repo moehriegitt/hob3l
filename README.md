@@ -97,7 +97,7 @@ non-empty child is interpreted as positive, all others are negative.
 However, the syntax does not make it immediately clear which thing is
 the 'first non-empty' child, because even an empty `group(){}` is
 skipped, and even recursively so.  Essentially, you need semantics to
-identify the children correctly, which is an ugly mix of meta levels,
+identify the children correctly, which is an ugly mix of meta levels.
 
 So the parser of this tool spends quite some effort on determining
 which one is the first non-empty child of `difference`.  Whether it
@@ -141,7 +141,7 @@ operation restarts this -- this could be improved).  Also,
 computational stability was improved by rigurous use of epsilon-aware
 arithmetics.  Further, a better polygon reassembling algorithm with
 O(n log n) runtime was implemented -- the original paper and reference
-implementation does not focus on this part.
+implementation do not focus on this part.
 
 The triangulation algorithms from Hertel & Mehlhorn (1983) was
 extended to support coincident vertices, because this is what the
@@ -161,39 +161,45 @@ focus from the start.
 
 There is no STL output yet.  This is because the polygon clipping
 algorithm does not output the correct path direction for deciding
-inside and outside.
+inside and outside, which is needed for computing normals and for
+putting points in triangle paths into the correct order.
 
 The input polyhedra must consist of only convex faces.
 
 The input polyhedra must be 2-manifold.  This is because the slicing
-algorithm is edge-driven and uses a notion of 'left and right face' at
-an edge, so an edge must have a unique face on both its sides.
+algorithm is edge driven and uses a notion of 'left and right face' at
+an edge, so an edge must have a unique face on each of its sides.
 
 Spheres are not properly implemented yet.  I want to do them nicely
-and delay their rendering until they are circles in the 2D world, so
-there is no polyhedron approximation of spheres implemented yet.  (My
-3D constructions rarely ever contain spheres -- I seem to build
-everything from cubes and cylinders, and occasionally manually
-constructed polyhedra.)
+and delay their rendering until they are circles/ellipses in the 2D
+world, so there is no polyhedron approximation of spheres implemented
+yet.  (My 3D constructions rarely ever contain spheres -- I seem to
+build everything from cubes and cylinders, and occasionally from
+manually constructed polyhedra.)
 
-Cylinders fail to work if $fn is too large.  This has the same reason
-as for circles: my intension is to make them nice and completely
-round, but this part is not implemented yet.  The threshold setting for
-'large $fn' should be a command line options, but is currently missing.
+Cylinders fail to work if `$fn` is too large.  This has the same
+reason as for circles: my intension is to make them nice and
+completely round, but this part is not implemented yet.  The threshold
+setting for 'large $fn' should be a command line options, but is
+currently missing.
 
-Memory management has leaks.  I admit don't care enough, because this
-tool basically starts, allocates, exists, i.e., it does not run for
-long, so the memory leaks do not build up.  The goal is to have a
+Memory management has leaks.  I admit I don't care enough, because
+this tool basically starts, allocates, exits, i.e., it does not run
+for long, so the memory leaks do not build up.  The goal is to have a
 proper, fast pool based allocation.  This is prepared, but incomplete.
 
 No 'install' target has been added to the makefile yet.
 
 ## Building
 
-This relies on gnumake and gcc, and uses no automake or other
-meta-make process.  Make variables can be used to switch how the stuff
-is compiled.  Since this is pure standard C (albeit with gcc
-extensions), it should be compilable without too much effort.
+Building relies on GNU make and gcc, and uses no automake or other
+meta-make layer.  Some Perl scripts generate C code, but all generated
+C code is also checked in, so this is only invoked when changes are
+made.
+
+Make variables can be used to switch how the stuff is compiled.  Since
+this is pure standard C (albeit with gcc extensions), it should be
+compilable without too much effort.
 
 E.g.:
 
@@ -207,14 +213,16 @@ The resulting executable is called 'csg2plane.x'.
 
 ### Different Build Variants
 
-The makefile supports 'normal', 'release', and 'devel' build variants, which can
-be switch using the 'MODE=normal' (default), 'MODE=release', or 'MODE=devel'
-command line variables for make.  The selection is stored in the file .mode.d,
-so next time you invoke 'make', it uses the same build variant.
+The makefile supports 'normal', 'release', and 'devel' build variants,
+which can be switched using the `MODE=normal` (default),
+`MODE=release`, or `MODE=devel` command line variables for make.  The
+selection is stored in a file `.mode.d`, so next time you invoke
+'make' without a `MODE` parameter, the previous build variant is
+chosen.
 
 ### Different Compiler Targets
 
-To compile with the standard 'gcc' whatever it is, for x86:
+To compile with the standard 'gcc', whatever that is, for x86:
 
 ```
     make
@@ -248,7 +256,7 @@ To cross compile for Windows 32 using mingw32:
 
 The Makefile has more settings that can be used to switch to other compilers
 like clang, or to other target architectures.  This is not properly documented
-yet, so reading the Makefile is necessary here.
+yet, so reading the Makefile may be necessary here.
 
 ## Running Tests
 
