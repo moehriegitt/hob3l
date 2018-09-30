@@ -150,11 +150,37 @@ struct event {
     cp_loc_t loc;
     point_t *p;
     event_t *other;
-    unsigned poly_id;
-    event_type_t type;
+
+    struct {
+        /**
+         * Mask of poly IDs that have this edge.  Due to overlapping
+         * edges, this is a set.  For self-overlapping edges, the
+         * corresponding bit is the lowest bit of the overlapped edge
+         * count.
+         * This mask can be used to compute 'above' from 'below',
+         * because a polygon edge will change in/out for a polygon:
+         * above = below ^ owner.
+         */
+        size_t owner;
+
+        /**
+         * Mask of whether 'under' this edge, it is 'inside' of the
+         * polygon.  Each bit corresponds to inside/outside of the
+         * polygon ID corresponding to that bit number.
+         */
+        size_t below;
+    } in;
+
+    struct {
+        unsigned poly_id;
+        event_type_t type;
+        bool in_out;
+        bool inside;
+    } io;
+
+    /**
+     * Whether this is a left edge (false = right edge)*/
     bool left;
-    bool in_out;
-    bool inside;
 
     /**
      * Whether the event point is already part of a path. */
@@ -281,19 +307,19 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
         snprintf(s, n, "#("FD2"--"FD2")  %cin %cio %s %u",
             CP_V01(x->p->coord),
             CP_V01(x->other->p->coord),
-            x->inside ? '+' : '-',
-            x->in_out ? '+' : '-',
-            ev_type_str(x->type),
-            x->poly_id);
+            x->io.inside ? '+' : '-',
+            x->io.in_out ? '+' : '-',
+            ev_type_str(x->io.type),
+            x->io.poly_id);
     }
     else {
         snprintf(s, n, " ("FD2"--"FD2")# %cin %cio %s %u",
             CP_V01(x->other->p->coord),
             CP_V01(x->p->coord),
-            x->inside ? '+' : '-',
-            x->in_out ? '+' : '-',
-            ev_type_str(x->type),
-            x->poly_id);
+            x->io.inside ? '+' : '-',
+            x->io.in_out ? '+' : '-',
+            ev_type_str(x->io.type),
+            x->io.poly_id);
     }
     s[n-1] = 0;
     return s;
@@ -507,16 +533,12 @@ static event_t *ev_new(
     cp_loc_t loc,
     point_t *p,
     bool left,
-    unsigned poly_id,
-    event_t *other,
-    unsigned type)
+    event_t *other)
 {
     event_t *r = CP_POOL_NEW(c->pool, *r);
     r->loc = loc;
     r->p = p;
     r->left = left;
-    r->poly_id = poly_id;
-    r->type = type;
     r->other = other;
     return r;
 }
@@ -687,8 +709,16 @@ static void q_add_orig(
         return;
     }
 
-    event_t *e1 = ev_new(c, loc, p1, true,  poly_id, NULL, E_NORMAL);
-    event_t *e2 = ev_new(c, loc, p2, false, poly_id, e1,   E_NORMAL);
+    event_t *e1 = ev_new(c, loc, p1, true,  NULL);
+    e1->io.poly_id = poly_id;
+    e1->io.type = E_NORMAL;
+    e1->in.owner = ((size_t)1) << poly_id;
+
+    event_t *e2 = ev_new(c, loc, p2, false, e1);
+    e2->io.poly_id = poly_id;
+    e2->io.type = E_NORMAL;
+    e2->in.owner= ((size_t)1) << poly_id;
+
     e1->other = e2;
 
     if (pt_cmp(e1->p, e2->p) > 0) {
@@ -728,8 +758,18 @@ static void divide_segment(
     event_t *e,
     point_t *p)
 {
-    event_t *r = ev_new(c, p->loc, p, false, e->poly_id, e, e->type);
-    event_t *l = ev_new(c, p->loc, p, true, e->poly_id, e->other, e->other->type);
+    assert(e->io.poly_id == e->other->io.poly_id);
+    event_t *r = ev_new(c, p->loc, p, false, e);
+    r->io.poly_id = e->io.poly_id;
+    r->io.type = e->io.type;
+    r->in.owner = e->in.owner;
+    r->in.below = e->in.below;
+
+    event_t *l = ev_new(c, p->loc, p, true, e->other);
+    l->io.poly_id = e->io.poly_id;
+    l->io.type = e->other->io.type;
+    l->in.owner = e->other->in.owner;
+    l->in.below = e->other->in.below;
 
     if (ev_cmp(l, e->other) > 0) {
         e->other->left = true;
@@ -1250,7 +1290,7 @@ static bool check_intersection(
     }
 
     /* self-overlap? */
-    if (e1->poly_id == e2->poly_id) {
+    if (e1->io.poly_id == e2->io.poly_id) {
         cp_vchar_printf(&c->err->msg,
             "Overlapping edge in same polygon is not supported.\n");
         c->err->loc = e1->loc;
@@ -1264,20 +1304,20 @@ static bool check_intersection(
     assert(sev_cnt >= 2);
     assert(sev_cnt <= cp_countof(sev));
 
-    unsigned same_or_diff = (e1->in_out == e2->in_out) ? E_SAME : E_DIFF;
+    unsigned same_or_diff = (e1->io.in_out == e2->io.in_out) ? E_SAME : E_DIFF;
 
     if (sev_cnt == 2) {
         assert(sev[0] == NULL);
         assert(sev[1] == NULL);
-        e1->type = e1->other->type = E_IGNORE;
-        e2->type = e2->other->type = same_or_diff;
+        e1->io.type = e1->other->io.type = E_IGNORE;
+        e2->io.type = e2->other->io.type = same_or_diff;
         return true;
     }
     if (sev_cnt == 3) {
         assert(sev[1] != NULL);
         assert((sev[0] == NULL) || (sev[2] == NULL));
-        sev[1]->type = sev[1]->other->type = E_IGNORE;
-        (sev[0] ?: sev[2])->other->type = same_or_diff;
+        sev[1]->io.type = sev[1]->other->io.type = E_IGNORE;
+        (sev[0] ?: sev[2])->other->io.type = same_or_diff;
         divide_segment(c, sev[0] ?: sev[2]->other, sev[1]->p);
         return true;
     }
@@ -1289,17 +1329,17 @@ static bool check_intersection(
     assert(sev[3] != NULL);
 
     if (sev[0] != sev[3]->other) {
-        sev[1]->type = E_IGNORE;
-        sev[2]->type = same_or_diff;
+        sev[1]->io.type = E_IGNORE;
+        sev[2]->io.type = same_or_diff;
         divide_segment(c, sev[0], sev[1]->p);
         divide_segment(c, sev[1], sev[2]->p);
         return true;
     }
 
-    sev[1]->type = sev[1]->other->type = E_IGNORE;
+    sev[1]->io.type = sev[1]->other->io.type = E_IGNORE;
     divide_segment(c, sev[0], sev[1]->p);
 
-    sev[3]->other->type = same_or_diff;
+    sev[3]->other->io.type = same_or_diff;
     divide_segment(c, sev[3]->other, sev[2]->p);
 
     return true;
@@ -1340,33 +1380,33 @@ static bool ev_left(
     assert((prpr == NULL) || prpr->left);
 
     if (prev == NULL) {
-        e->inside = false;
-        e->in_out = false;
+        e->io.inside = false;
+        e->io.in_out = false;
     }
     else
-    if (prev->type != E_NORMAL) {
+    if (prev->io.type != E_NORMAL) {
         if (prpr == NULL) {
-            e->inside = true;
-            e->in_out = false;
+            e->io.inside = true;
+            e->io.in_out = false;
         }
         else
-        if (prev->poly_id == e->poly_id) {
-            e->inside = !prpr->in_out;
-            e->in_out = !prev->in_out;
+        if (prev->io.poly_id == e->io.poly_id) {
+            e->io.inside = !prpr->io.in_out;
+            e->io.in_out = !prev->io.in_out;
         }
         else {
-            e->inside = !prev->in_out;
-            e->in_out = !prpr->in_out;
+            e->io.inside = !prev->io.in_out;
+            e->io.in_out = !prpr->io.in_out;
         }
     }
     else
-    if (e->poly_id == prev->poly_id) {
-        e->inside = prev->inside;
-        e->in_out = !prev->in_out;
+    if (e->io.poly_id == prev->io.poly_id) {
+        e->io.inside = prev->io.inside;
+        e->io.in_out = !prev->io.in_out;
     }
     else {
-        e->inside = !prev->in_out;
-        e->in_out = prev->inside;
+        e->io.inside = !prev->io.in_out;
+        e->io.in_out = prev->io.inside;
     }
 
     debug_print_s(c, "left after insert", e);
@@ -1402,22 +1442,22 @@ static bool ev_right(
     assert(!cp_dict_is_member(&e->other->node_s));
 
     /* then add to out */
-    switch (e->type) {
+    switch (e->io.type) {
     case E_NORMAL:
         switch(c->op) {
         case CP_OP_CUT:
-            if (sli->inside) {
+            if (sli->io.inside) {
                 chain_add(c, e);
             }
             break;
         case CP_OP_ADD:
-            if (!sli->inside) {
+            if (!sli->io.inside) {
                 chain_add(c, e);
             }
             break;
         case CP_OP_SUB:
-            if (((e->poly_id == 0) && !sli->inside) ||
-                ((e->poly_id == 1) &&  sli->inside))
+            if (((e->io.poly_id == 0) && !sli->io.inside) ||
+                ((e->io.poly_id == 1) &&  sli->io.inside))
             {
                 chain_add(c, e);
             }

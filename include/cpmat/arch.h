@@ -1,5 +1,5 @@
+/* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
-/* -*- Mode: C -* */
 
 #ifndef __CP_ARCH_H
 #define __CP_ARCH_H
