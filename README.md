@@ -63,6 +63,10 @@ an argument as mandatory, it will be rejected if missing, while
 OpenSCAD may still accept it and assume '1'.
 
 ```
+    true
+    false
+    PI
+
     group() { ... }
     union() { ... }          // interpreted the same as 'group'
     intersection() { ... }
