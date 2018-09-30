@@ -11,22 +11,26 @@
 #include <csg2plane/csg3.h>
 #include "internal.h"
 
-static void csg2_point_from_csg3_edge(
-    cp_vec2_loc_t *p,
-    double z,
-    cp_csg3_edge_t const *e)
-{
-    cp_vec3_t const *src = &e->src->ref->coord;
-    cp_vec3_t const *dst = &e->dst->ref->coord;
+/** Combine multiple comparisions into one value */
+#define CMP_SHIFT(a,s) ((((a) & 3) << (s)) & 0xffff)
+#define CMP3(c,b,a)  (CMP_SHIFT(c,8) | CMP_SHIFT(b,4) | CMP_SHIFT(a,0))
+#define CMP2(b,a)    CMP3(0,b,a)
 
-    assert(!cp_equ(dst->z, src->z));
-    double t01 = cp_t01(src->z, z, dst->z);
-    assert(t01 >= 0);
-    assert(t01 <= 1);
-    p->loc = e->src->loc;
-    p->coord.x = cp_lerp(src->x, dst->x, t01);
-    p->coord.y = cp_lerp(src->y, dst->y, t01);
-}
+/** Z plane edge categorisations */
+/** Fore is Above, back is below */
+#define FA 1
+/** Fore is Below, back is above */
+#define FB -1
+/** Fore is Equal to back wrt. above/below */
+#define FE 2
+
+typedef struct {
+    cp_a_size_t *have_edge;
+    cp_v_vec2_loc_t *point;
+    cp_v_csg2_path_t *path;
+    cp_csg3_poly_t const *poly;
+    double z;
+} ctxt_t;
 
 static inline bool edge_is_back(
     cp_csg3_face_t const *f,
@@ -35,21 +39,21 @@ static inline bool edge_is_back(
     return f == e->back;
 }
 
-static inline cp_csg3_face_t const *edge_get_face(
+static inline cp_csg3_face_t const *edge_face(
     cp_csg3_edge_t const *e,
     bool back)
 {
     return back ? e->back : e->fore;
 }
 
-static inline cp_csg3_face_t const *edge_get_buddy_face(
+static inline cp_csg3_face_t const *edge_buddy_face(
     cp_csg3_face_t const *f,
     cp_csg3_edge_t const *e)
 {
-    return edge_get_face(e, !edge_is_back(f,e));
+    return edge_face(e, !edge_is_back(f,e));
 }
 
-static inline cp_vec3_loc_ref_t const *edge_get_src(
+static inline cp_vec3_loc_ref_t const *edge_src(
     cp_csg3_face_t const *f,
     cp_csg3_edge_t const *e)
 {
@@ -59,7 +63,7 @@ static inline cp_vec3_loc_ref_t const *edge_get_src(
     return e->src;
 }
 
-static inline cp_vec3_loc_ref_t const *edge_get_dst(
+static inline cp_vec3_loc_ref_t const *edge_dst(
     cp_csg3_face_t const *f,
     cp_csg3_edge_t const *e)
 {
@@ -69,11 +73,59 @@ static inline cp_vec3_loc_ref_t const *edge_get_dst(
     return e->dst;
 }
 
-static inline size_t edge_get_idx(
+static inline size_t edge_idx(
     cp_csg3_face_t const *f,
     cp_csg3_edge_t const *e)
 {
-    return cp_v_idx(&f->point, edge_get_src(f, e));
+    return cp_v_idx(&f->point, edge_src(f, e));
+}
+
+static inline cp_csg3_edge_t const *edge_prev(
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const *e)
+{
+    size_t i = edge_idx(f,e);
+    size_t i2 = cp_wrap_sub1(i, f->point.size);
+    return cp_v_nth(&f->edge, i2);
+}
+
+static inline cp_csg3_edge_t const *edge_next(
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const *e)
+{
+    size_t i = edge_idx(f,e);
+    size_t i2 = cp_wrap_add1(i, f->point.size);
+    return cp_v_nth(&f->edge, i2);
+}
+
+static void point_on_edge(
+    cp_vec2_loc_t *p,
+    cp_csg3_edge_t const *e,
+    double z)
+{
+    cp_vec3_t const *src = &e->src->ref->coord;
+    cp_vec3_t const *dst = &e->dst->ref->coord;
+
+    assert(!cp_equ(dst->z, src->z));
+    double t01 = cp_t01(src->z, z, dst->z);
+    if (cp_equ(t01, 0)) { t01 = 0; }
+    if (cp_equ(t01, 1)) { t01 = 1; }
+    assert(t01 >= 0);
+    assert(t01 <= 1);
+    p->loc = e->src->loc;
+    p->coord.x = cp_lerp(src->x, dst->x, t01);
+    p->coord.y = cp_lerp(src->y, dst->y, t01);
+}
+
+static void src_on_edge(
+    cp_vec2_loc_t *p,
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const *e)
+{
+    cp_vec3_loc_ref_t const *q = edge_src(f,e);
+    p->loc = q->loc;
+    p->coord.x = q->ref->coord.x;
+    p->coord.y = q->ref->coord.y;
 }
 
 #ifdef DEBUG
@@ -94,8 +146,8 @@ __unused
 static const char *__edge_str(
     char *s, size_t n, cp_csg3_face_t const *f, cp_csg3_edge_t const *e)
 {
-    cp_vec3_loc_ref_t const *src = edge_get_src(f, e);
-    cp_vec3_loc_ref_t const *dst = edge_get_dst(f, e);
+    cp_vec3_loc_ref_t const *src = edge_src(f, e);
+    cp_vec3_loc_ref_t const *dst = edge_dst(f, e);
     snprintf(s, n, "["FD3" -- "FD3">",
         CP_V012(src->ref->coord), CP_V012(dst->ref->coord));
     s[n-1] = 0;
@@ -106,213 +158,41 @@ static const char *__edge_str(
 
 #endif
 
-static void csg2_mark(
-    cp_a_size_t *have_edge,
-    cp_csg3_poly_t const *d,
-    cp_csg3_edge_t const *e)
+static cp_vec2_loc_t *path_push0(
+    ctxt_t *q,
+    cp_csg2_path_t **h)
 {
-    cp_v_bit_set(have_edge, cp_v_idx(&d->edge, e), 1);
-}
-
-/**
- * Find edge that is below z, with its predecessor above z.
- * This searches around a single point in the plane to find
- * the right face for the next edge, because in a singleton
- * point, the adjacent face is ambiguous: many faces may share
- * a point (in contrast to an edge, which is handled more
- * easily in csg2_find_dst).
- */
-static cp_csg3_edge_t const *csg2_find_buddy_edge(
-    cp_csg3_face_t const **f2_p,
-    double z,
-    cp_csg3_face_t const *f_start,
-    cp_csg3_edge_t const *p_start)
-{
-    cp_csg3_face_t const *f = f_start;
-    cp_csg3_edge_t const *p = p_start;
-    for (;;) {
-        assert(cp_leq(p->src->ref->coord.z, z));
-        assert(cp_leq(p->dst->ref->coord.z, z));
-        cp_csg3_face_t const *f2 = edge_get_buddy_face(f, p);
-        size_t i2 = edge_get_idx(f2, p);
-        size_t j2 = cp_wrap_sub1(i2, f2->point.size);
-        cp_csg3_edge_t const *q = cp_v_nth(&f2->edge, j2);
-        assert(q != p_start);
-        /* ugly case: q is parallel to plane */
-        if (cp_equ(q->src->ref->coord.z, z) &&
-            cp_equ(q->dst->ref->coord.z, z))
-        {
-            LOG("found parallel edge: %s\n", edge_str(f2,q));
-            /* return q itself */
-            assert(edge_get_dst(f_start, p_start)->ref == edge_get_dst(f2, q)->ref);
-            *f2_p = f2;
-            return q;
-        }
-
-        /* non-degenerated case: q is above, p is below */
-        if (cp_geq(q->src->ref->coord.z, z) &&
-            cp_geq(q->dst->ref->coord.z, z))
-        {
-            LOG("find_buddy_edge: found diving edge %s\n", edge_str(f2,p));
-            assert(edge_get_dst(f_start, p_start)->ref == edge_get_src(f2, p)->ref);
-            *f2_p = f2;
-            return p;
-        }
-
-        /* q is still below: search next buddy plane */
-        f = f2;
-        p = q;
+    if (*h == NULL) {
+        *h = cp_v_push0(q->path);
     }
-}
 
-static cp_csg3_edge_t const *csg2_find_dst(
-    cp_csg3_face_t const **f2_p,
-    cp_a_size_t *have_edge,
-    cp_csg3_poly_t const *d,
-    double z,
-    cp_csg3_face_t const *f,
-    cp_csg3_edge_t const *e_start)
-{
-    cp_csg3_edge_t const *e = e_start;
-
-    /* Cannot be exactly on z plane as such edge should have been skipped.
-     * This functions does not handle faces coplanar with z plane. */
-    assert(!cp_equ(e->src->ref->coord.z, e->dst->ref->coord.z));
-
-    /* Should be either completely below z or cutting into z.  This cannot
-     * deal with edges above z or cutting from below to above z. */
-    assert(edge_get_dst(f,e)->ref->coord.z < z);
-
-    /* Get the face where e cut z plane top-to-bottom. */
-    size_t start_i = edge_get_idx(f, e);
-
-    /* Now find an edge in the polyhedron that
-     * defines the next point.  This edge, again, should be top-to-bottom,
-     * i.e., this function will skip to the buddy face of the edge so that
-     * the caller only sees top-to-bottom edges.
-     */
-    LOG("find_dst: BEGIN: %2zu: %s (%p back=%u)\n", start_i, edge_str(f,e), f, edge_is_back(f,e));
-    size_t i = start_i;
-    size_t next_i = cp_wrap_add1(i, f->point.size);
-    for (;;) {
-        cp_csg3_edge_t const *p = e;
-        assert((p->fore == f) || (p->back == f));
-
-        i = next_i;
-        next_i = cp_wrap_add1(i, f->point.size);
-
-        e = cp_v_nth(&f->edge, i);
-        LOG("find_dst: STEP:  %2zu: %s\n", i, edge_str(f,e));
-
-        assert(e != e_start); /* we missed the edge */
-        assert((e->fore == f) || (e->back == f));
-        cp_vec3_t const *e_src = &edge_get_src(f, e)->ref->coord;
-        cp_vec3_t const *e_dst = &edge_get_dst(f, e)->ref->coord;
-        assert(edge_get_dst(f, p)->ref == edge_get_src(f, e)->ref);
-
-        if ((next_i != start_i) && cp_equ(e_dst->z, z)) {
-            /* We hit right on the z plane.
-             *
-             * We continue until dst->z is clearly above so that we skip edges
-             * parallel to the plane (must be collinear, since the face is not
-             * z-coplanar).
-             *
-             * Further more, if this is a singleton point in the z edge, i.e.,
-             * a corner of the face touches z, then the next edge's z will be
-             * below z again and the singleton point will be skipped, too.
-             */
-            /* handle this in the next step; just continue iterating... */
-            LOG("same z: skip\n");
-        }
-        else
-        if (cp_equ(e_src->z, z)) {
-            /* Now we know that dst.z != src.z or that we hit the initial edge, so
-             * this edge must be above
-             * z now.  We can now search for the buddy edge.  This is not
-             * as trivial as with a non-trivially plane cutting edge, because
-             * any edge containing e_src could be the one. */
-            assert((next_i == start_i) || (e_dst->z > z));
-            LOG("find_dst: END: single point\n");
-            csg2_mark(have_edge, d, e);
-
-            return csg2_find_buddy_edge(f2_p, z, f, p);
-        }
-        else
-        if (e_dst->z > z) {
-            /* We found the edge that cuts cleanly through z plane. */
-            assert(!cp_equ(e_src->z, z)); /* previous edge should have matched */
-            assert(e_src->z < z);         /* previous edge should have matched */
-            *f2_p = edge_get_buddy_face(f,e);
-            LOG("find_dst: END: cutting edge\n");
-            return e;
-        }
-    }
-}
-
-static cp_vec2_loc_t *csg2_path_push0(
-    cp_v_vec2_loc_t *point,
-    cp_csg2_path_t *h)
-{
-    cp_vec2_loc_t *p = cp_v_push0(point);
-    assert(cp_v_idx(point, p) == (point->size - 1));
-    cp_v_push(&h->point_idx, point->size - 1);
+    cp_vec2_loc_t *p = cp_v_push0(q->point);
+    assert(cp_v_idx(q->point, p) == (q->point->size - 1));
+    cp_v_push(&(*h)->point_idx, q->point->size - 1);
 
     return p;
 }
 
-static void csg2_add_coplanar(
-    cp_v_vec2_loc_t *point,
-    cp_v_csg2_path_t *path,
-    cp_csg3_face_t const *f)
+static void edge_mark(
+    ctxt_t *q,
+    cp_csg3_edge_t const *e)
 {
-    LOG("DEBUG: add coplanar face %p\n", f);
-    cp_csg2_path_t *h = cp_v_push0(path);
-
-    /* add whole 3D path as 2D face */
-    for (cp_v_each(i, &f->edge)) {
-        cp_csg3_edge_t const *e = cp_v_nth(&f->edge, i);
-        cp_vec3_loc_ref_t const *src = edge_get_src(f, e);
-
-        /* add point to path */
-        cp_vec2_loc_t *p = csg2_path_push0(point, h);
-        p->loc = src->loc;
-        p->coord = src->ref->coord.b;
-        LOG("add point A: "FD2"\n", p->coord.x, p->coord.y);
-    }
+    size_t i = cp_v_idx(&q->poly->edge, e);
+    assert(!cp_v_bit_get(q->have_edge, i));
+    cp_v_bit_set(q->have_edge, i, 1);
 }
 
-static void csg2_find_coplanar_face(
-    cp_a_size_t *have_edge,
-    cp_v_vec2_loc_t *point,
-    cp_v_csg2_path_t *path,
-    cp_csg3_poly_t const *d,
-    double z,
-    cp_csg3_face_t const *f)
+static unsigned edge_cmp_z(
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const *e,
+    double z)
 {
-    assert(f->edge.size > 0);
-    if (cp_equ(f->edge.data[0]->src->ref->coord.z, z) &&
-        cp_equ(f->normal.x, 0) &&
-        cp_equ(f->normal.y, 0))
-    {
-        assert(!cp_equ(f->normal.z, 0));
-
-        /* Face is coplanar.  All edges are marked as 'done'. */
-        for (cp_v_each(i, &f->edge)) {
-            cp_csg3_edge_t const *e = cp_v_nth(&f->edge, i);
-            csg2_mark(have_edge, d, e);
-        }
-
-        /* Bottom faces are added to output, top faces are not. */
-        if (f->normal.z < 0) {
-            csg2_add_coplanar(point, path, f);
-        }
-    }
+    cp_vec3_t const *s = &edge_src(f,e)->ref->coord;
+    cp_vec3_t const *d = &edge_dst(f,e)->ref->coord;
+    return CMP2(cp_cmp(s->z, z), cp_cmp(d->z, z));
 }
 
-/**
- * Return whether the face is above (+1) or below (-1) or in z (0).
- */
-static int csg2_face_cmp_z(
+static int face_cmp_z(
     cp_csg3_face_t const *f,
     double z)
 {
@@ -325,12 +205,122 @@ static int csg2_face_cmp_z(
     return 0;
 }
 
-static void csg2_edge_find_path(
-    cp_a_size_t *have_edge,
-    cp_v_vec2_loc_t *point,
-    cp_v_csg2_path_t *path,
-    cp_csg3_poly_t const *d,
-    double z,
+static unsigned edge_z_cat(
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const *e,
+    double z)
+{
+    assert(cp_equ(e->src->ref->coord.z, e->dst->ref->coord.z));
+    switch (CMP2(face_cmp_z(f, z), face_cmp_z(edge_buddy_face(f,e), z))) {
+    case CMP2(0,0):
+    case CMP2(+1,+1):
+    case CMP2(-1,-1):
+    case CMP2(-1,0):
+    case CMP2(0,-1):
+        return CMP3(FE,0,0);
+
+    case CMP2(+1,-1):
+    case CMP2(+1,0):
+        return CMP3(FA,0,0);
+
+    case CMP2(-1,+1):
+    case CMP2(0,+1):
+        return CMP3(FB,0,0);
+    }
+    CP_DIE();
+}
+
+static unsigned edge_follow_path(
+    cp_csg3_face_t const *f,
+    cp_csg3_edge_t const **e_p,
+    double z)
+{
+    LOG("follow_path\n");
+    cp_csg3_edge_t const *e = *e_p;
+    for (;;) {
+        cp_csg3_edge_t const *p = e;
+        assert((p->fore == f) || (p->back == f));
+
+        e = edge_next(f,e);
+
+        assert(e != *e_p); /* we missed the opposite edge */
+        assert((e->fore == f) || (e->back == f));
+        unsigned c = edge_cmp_z(f, e, z);
+        switch (c) {
+        case CMP2(-1,+1): /* up crossing */
+        case CMP2(-1,0):  /* up touching */
+            *e_p = e;
+            return c;
+
+        case CMP2(-1,-1): /* below: continue search */
+            break;
+
+        default: /* above: we missed the transition */
+            CP_DIE("missed transition: c=0x%x", c);
+        }
+    }
+}
+
+static unsigned src_cw_search(
+    cp_csg3_face_t const **f_p,
+    cp_csg3_edge_t const **e_p,
+    double z)
+{
+    LOG("cw_search\n");
+    cp_csg3_face_t const *f = *f_p;
+    cp_csg3_edge_t const *e = *e_p;
+    for (;;) {
+        /* must be below z plane, with src in z plane */
+        assert(cp_equ(edge_src(f,e)->ref->coord.z, z));
+        assert(cp_leq(e->src->ref->coord.z, z));
+
+        /* get next edge in CW direction = buddy_of(previous_edge(e)) */
+        cp_csg3_edge_t const *e2 = edge_prev(f,e);
+        cp_csg3_face_t const *f2 = edge_buddy_face(f,e2);
+        if (e2 == *e_p) {
+            /* cannot find another edge: hopefully this only happens
+             * for an initial edge, not if the path has already started */
+            return CMP3(FE,0,0);
+        }
+        assert(edge_src(f, e)->ref == edge_src(f2, e2)->ref);
+
+        /* classify */
+        int cmp_e2_d = cp_cmp(edge_dst(f2, e2)->ref->coord.z, z);
+        switch (cmp_e2_d) {
+        case -1: /* dst is below */
+            /* continue search */
+            break;
+
+        case +1: /* dst is strictly above */
+            /* return prev edge with new classification */
+            *f_p = f;
+            *e_p = e;
+            return CMP3(+1,0,-1); /* touching down, face extends up */
+
+        case 0: { /* dst is in z plane */
+            /* return next edge */
+            unsigned c = edge_z_cat(f2, e2, z);
+            if (c == CMP3(FE,0,0)) {
+                /* continue search */
+                break;
+            }
+            *f_p = f2;
+            *e_p = e2;
+            return c; /* in z plane */
+        }
+
+        default:
+            CP_DIE();
+        }
+
+        /* iterate*/
+        f = f2;
+        e = e2;
+    }
+}
+
+static void edge_find_path(
+    ctxt_t *q,
     cp_csg3_edge_t const *e_start)
 {
     TRACE("edge: %s -- %s",
@@ -338,127 +328,77 @@ static void csg2_edge_find_path(
         coord_str(&e_start->dst->ref->coord));
     cp_csg3_edge_t const *e = e_start;
 
-    cp_vec3_t const *v1 = &e->src->ref->coord;
-    cp_vec3_t const *v2 = &e->dst->ref->coord;
+    cp_csg2_path_t *h = NULL;
+    cp_csg3_face_t const *f= e->fore;
+    unsigned c = edge_cmp_z(f, e, q->z);
+    for (;;) {
+        cp_csg3_edge_t const *eo = e;
 
-    int cmp_z1 = cp_cmp(v1->z, z);
-    int cmp_z2 = cp_cmp(v2->z, z);
-
-    /* Ignore edges touching in one point. */
-    if ((cmp_z1 == 0) != (cmp_z2 == 0)) {
-        return;
-    }
-
-    cp_csg3_face_t const *f = NULL;
-
-    /* Corner case 1: edge is in plane */
-    if ((cmp_z1 == 0) && (cmp_z2 == 0)) {
-        /* Corner case 1a: one of the adjacent faces is completely in the plane:
-         * discarded if it is a top face, or copy as is if it is a bottom face. */
-
-        /* Check fore face: completely inside the plane? */
-        int cmp_fpz = csg2_face_cmp_z(e->fore, z);
-        assert(cmp_fpz != 0); /* should have been handled in find_coplanar_face */
-
-        /* Check back face: completely inside the plane? */
-        int cmp_bpz = csg2_face_cmp_z(e->back, z);
-        assert(cmp_bpz != 0); /* should have been handled in find_coplanar_face */
-
-        /* Corner case 1c: fore face and back face are on the same side of the z
-         * plane: discard, as this might be a single edge, not a polygon.  (It
-         * may be a polygon that touches, if the 3D structure is hollow.  This
-         * special case is not handled here, but will be treated consistently
-         * like a single touching edge.)
-         * (test30b.scad)
-         */
-        if (cmp_fpz == cmp_bpz) {
+        LOG("e=(%s), c=0x%x\n", edge_str(f, e), c);
+        switch (c) {
+        default:
+            CP_DIE("edge category: 0x%x", c);
+        case CMP2(-1,-1):   /* below */
+        case CMP2(+1,+1):   /* above */
+        case CMP2(+1,0):    /* down touching */
+        case CMP2(0,+1):    /* touching up */
+        case CMP3(FE,0,0):  /* in z plane, not in output polygon */
+            edge_mark(q, e);
+            assert(h == NULL);
             return;
-        }
 
-        /* Corner case 1b: fore face and back face are on opposite sides of z plane
-         * => do include this edge and search for path. (test30d.scad). */
-        LOG("Touching crossing edge encountered: %d\n", cmp_fpz);
-        f = e->fore;
-        if (cmp_fpz > 0) {
-            /* use face below z for iterating */
-            f = e->back;
-        }
-    }
-    else {
-        /* Corner case 2: one point of path is a singleton point in plane, i.e.,
-         * the other point is not in the plane: discard for now and wait for another
-         * point of the face to decide the path's fate. (test30c.scad) */
-        if ((cmp_z1 == 0) || (cmp_z2 == 0)) {
-            /* FIXME: This could go wrong if all points of the polygon are in the
-             * plane, but no edge is (corner case 1b would then trigger), and if we
-             * need that polygon because the polyhedron is cut.
-             * (test30e.scad)
-             */
-            return;
-        }
+        case CMP2(-1,+1):   /* up crossing */
+            f = edge_buddy_face(f, e);
+            /* fall-through */
+        case CMP2(+1,-1):   /* down crossing */
+            point_on_edge(path_push0(q, &h), e, q->z);
+            edge_mark(q, e);
+            c = edge_follow_path(f, &e, q->z);
+            break;
 
-        /* Only start at edges intersecting the plane */
-        if ((cmp_z1 < 0) == (cmp_z2 < 0)) {
-            return;
-        }
+        case CMP3(+1,0,-1): /* touching down, face extends up */
+            src_on_edge(path_push0(q, &h), f, e);
+            edge_mark(q, e);
+            c = edge_follow_path(f, &e, q->z);
+            break;
 
-        assert(cp_between(z, v1->z, v2->z));
-
-        /* get face of edge where edge points from above plane to below plane */
-        f = edge_get_face(e, e->src->ref->coord.z < e->dst->ref->coord.z);
-        assert(edge_get_src(f,e)->ref->coord.z > z);
-        assert(edge_get_dst(f,e)->ref->coord.z < z);
-    }
-
-    /* make new path */
-    cp_csg2_path_t *h = cp_v_push0(path);
-
-    LOG("find_path: %s\n", edge_str(f, e));
-    /* iterate through faces to construct 2D path */
-    for(;;) {
-        /* edge(s) in plane: add them, too */
-        if (cp_equ(e->src->ref->coord.z, e->dst->ref->coord.z)) {
-            while (cp_equ(e->src->ref->coord.z, e->dst->ref->coord.z)) {
-                size_t i2 = edge_get_idx(f, e);
-
-                /* mark edge processed */
-                csg2_mark(have_edge, d, e);
-
-                cp_vec3_loc_t *dst = edge_get_dst(f, e)->ref;
-                cp_vec2_loc_t *q = csg2_path_push0(point, h);
-                q->loc = e->src->loc;
-                q->coord.x = dst->coord.x;
-                q->coord.y = dst->coord.y;
-                LOG("add point B: "FD2"\n", q->coord.x, q->coord.y);
-
-                e = cp_v_nth(&f->edge, cp_wrap_sub1(i2, f->edge.size));
+        case CMP3(FA,0,0):  /* in z plane, part of polygon, forward */
+            src_on_edge(path_push0(q, &h), f, e);
+            f = edge_buddy_face(f, e);
+            /* fall-through */
+        case CMP3(0,0,-1):  /* touching down, unknown face orientation */
+        case CMP3(-1,0,-1): /* touching down, face is strictly below */
+        case CMP3(FB,0,0):  /* in z plane, part of polygon, backward */
+            if (h == NULL) {
+                /* wait for another edge to start the path */
+                return;
             }
-            /* switch to buddy face to continue search */
-            assert(edge_get_src(f,e)->ref->coord.z < z);
-            f = edge_get_buddy_face(f, e);
+            edge_mark(q, e);
+            c = src_cw_search(&f, &e, q->z);
+            break;
+
+        case CMP2(-1,0):    /* up touching */
+            if (h == NULL) {
+                if (cp_leq(edge_dst(f,edge_next(f,e))->ref->coord.z, q->z)) {
+                    /* wait for another edge to start the path */
+                    return;
+                }
+            }
+            f = edge_buddy_face(f, e);
+            edge_mark(q, e);
+            c = src_cw_search(&f, &e, q->z);
+            break;
+
+        case CMP3(0,0,0):   /* in z plane, unknown face orientation */
+            c = edge_z_cat(f, e, q->z);
+            break;
         }
 
-        /* mark edge processed */
-        csg2_mark(have_edge, d, e);
-
-        /* add point to path */
-        cp_vec2_loc_t *p = csg2_path_push0(point, h);
-        csg2_point_from_csg3_edge(p, z, e);
-        LOG("add point C: "FD2"\n", p->coord.x, p->coord.y);
-
-        /* search end of 2D edge in face */
-        cp_csg3_face_t const *f2 = NULL;
-        cp_csg3_edge_t const *e2 = csg2_find_dst(&f2, have_edge, d, z, f, e);
-        assert(f2 != NULL);
-        if (e2 == e_start) {
-            /* theoretically, the polygon should not be degenerated */
-            assert(h->point_idx.size >= 3);
-            return; /* poly is complete */
+        if ((eo != e) && (e == e_start)) {
+            assert(h != NULL);
+            LOG("END: (%s)\n", edge_str(f,e));
+            return;
         }
-
-        /* continue with next edge */
-        e = e2;
-        f = f2;
     }
 }
 
@@ -477,19 +417,22 @@ static void csg2_add_layer_poly(
     /* FIXME: use pool */
     assert(d->edge.size > 0);
     size_t hea[CP_ROUNDUP_DIV(d->edge.size, 8*sizeof(size_t))];
-    CP_ZERO(hea);
+    CP_ZERO(&hea);
     cp_a_size_t have_edge = CP_A_INIT_WITH_ARR(hea);
 
-    /* check faces for inside z plane */
-    for (cp_v_each(i, &d->face)) {
-        csg2_find_coplanar_face(&have_edge, &point, &path, d, z, &cp_v_nth(&d->face, i));
-    }
+    ctxt_t q = {
+        .have_edge = &have_edge,
+        .point = &point,
+        .path = &path,
+        .poly = d,
+        .z = z,
+    };
 
     /* remaining edges */
     for (cp_v_each(i, &d->edge)) {
         if (!cp_v_bit_get(&have_edge, i)) {
             cp_csg3_edge_t const *e = &cp_v_nth(&d->edge, i);
-            csg2_edge_find_path(&have_edge, &point, &path, d, z, e);
+            edge_find_path(&q, e);
         }
     }
 
@@ -586,20 +529,6 @@ static bool csg2_add_layer_cut(
     return true;
 }
 
-extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
-    cp_csg2_stack_t *c,
-    size_t zi)
-{
-    if (! (zi >= c->idx0)) {
-        return NULL;
-    }
-    size_t i = zi - c->idx0;
-    if (! (i < c->layer.size)) {
-        return NULL;
-    }
-    return &cp_v_nth(&c->layer, i);
-}
-
 static bool csg2_add_layer_stack(
     bool *no,
     cp_csg2_tree_t *r,
@@ -671,6 +600,23 @@ static bool csg2_add_layer(
     }
 
     CP_DIE("3D object type: %#x", c->type);
+}
+
+/* ********************************************************************** */
+/* extern */
+
+extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
+    cp_csg2_stack_t *c,
+    size_t zi)
+{
+    if (! (zi >= c->idx0)) {
+        return NULL;
+    }
+    size_t i = zi - c->idx0;
+    if (! (i < c->layer.size)) {
+        return NULL;
+    }
+    return &cp_v_nth(&c->layer, i);
 }
 
 extern bool cp_csg2_tree_add_layer(

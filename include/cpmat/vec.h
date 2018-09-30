@@ -522,7 +522,9 @@ static inline size_t __cp_v_bsearch(
         assert(__vec != NULL); \
         assert(__ptr >= __vec->data); \
         assert(__ptr <= (__vec->data + __vec->size)); \
-        CP_PTRDIFF(__ptr, __vec->data); \
+        size_t __idx = CP_PTRDIFF(__ptr, __vec->data); \
+        assert(__idx < __vec->size); \
+        __idx; \
     })
 
 /* The following use different local variable names so they
