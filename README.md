@@ -88,6 +88,50 @@ OpenSCAD may still accept it and assume '1'.
     polygon(points, paths)
 ```
 
+### Broken SCAD Syntax
+
+The most irritating detail about SCAD syntax that I found was the
+interpretation of children elements of `difference()`: the first
+non-empty child is interpreted as positive, all others are negative.
+
+However, the syntax does not make it immediately clear which thing is
+the 'first non-empty' child, because even an empty `group(){}` is
+skipped, and even recursively so.  Essentially, you need semantics to
+identify the children correctly, which is an ugly mix of meta levels,
+
+So the parser of this tool spends quite some effort on determining
+which one is the first non-empty child of `difference`.  Whether it
+does that in the same way as OpenSCAD, I can only hope for.  I think
+this part of the SCAD syntax is broken.  In my opinion, it would have
+been better to have clear markers inside `difference()`, which parts
+are the negative ones, e.g. by having a `negate(){...}` substructure.
+And with that, `difference` and `union` could have been merged.
+E.g. instead of
+
+```
+    difference() {
+        foo() { ... }
+        ... bar ...
+    }
+```
+
+It would have been better to have:
+
+```
+    union() {
+        foo() { ... }
+        negate() {
+            ... bar ...
+        }
+    }
+```
+
+But it's too late for that, I suppose.
+
+Whenever this tool prints SCAD format, it will state its intended
+meaning by using comments `// add` and `// sub`` to mark which parts
+are positive and which ones are negative.
+
 ## Algorithmic Improvements
 
 The polygon clipping from Mart&iacute;nez, Rueda, Feito (2009) was
