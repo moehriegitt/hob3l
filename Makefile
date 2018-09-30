@@ -1,4 +1,5 @@
 # -*- Mode: Makefile -*-
+# Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 package_name := csg2plane
 package_version := test
@@ -299,10 +300,10 @@ csg2plane.x: $(MOD_O.csg2plane.x) libcsg2plane.a libcpmat.a
 cptest.x: $(MOD_O.cptest.x) libcpmat.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lcpmat $(LIBS) -lm $(CFLAGS)
 
-src/mat_gen_ext.c: mkmat.pl
+src/mat_gen_ext.c: $(srcdir)/script/mkmat
 	$(srcdir)/script/mkmat
 
-src/mat_is_rot.c: mkrotmat.pl
+src/mat_is_rot.c: $(srcdir)/script/mkrotmat
 	$(srcdir)/script/mkrotmat > $@.new
 	mv $@.new $@
 
@@ -315,7 +316,7 @@ out/%.o: src/%.c src/mat_gen_ext.c
 
 out/main.o: src/main.c src/opt.inc
 
-%.inc: %.switch mkswitch
+%.inc: %.switch $(srcdir)/script/mkswitch
 	$(srcdir)/script/mkswitch $< > $@.new
 	mv $@.new $@
 
@@ -340,19 +341,19 @@ test-out/%.ps: scad-test/%.scad csg2plane.x
 	$(CSG2PLANE) $< -z=2.0 --dump-ps > $@.new
 	mv $@.new $@
 
-scad-test/%.scad: scad-test/%.fig
+scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad $< > $@.new
 	mv $@.new $@
 
-scad-test/%-mx.scad: scad-test/%.fig
+scad-test/%-mx.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad --mirror=x $< > $@.new
 	mv $@.new $@
 
-scad-test/%-r90.scad: scad-test/%.fig
+scad-test/%-r90.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad --rotate=90 $< > $@.new
 	mv $@.new $@
 
-scad-test/%-r30.scad: scad-test/%.fig
+scad-test/%-r30.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad --rotate=30 $< > $@.new
 	mv $@.new $@
 

@@ -1,4 +1,5 @@
 /* -*- Mode: C -*- */
+/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 /*
  * This is adapted from Francisco Martinez del Rio (2011), v1.4.1.
  * See: http://www4.ujaen.es/~fmartin/bool_op.html

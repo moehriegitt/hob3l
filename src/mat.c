@@ -1,3 +1,4 @@
+/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 /* -*- Mode: C -* */
 
 #include <cpmat/mat.h>

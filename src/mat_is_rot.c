@@ -1,3 +1,4 @@
+/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 #include <cpmat/mat.h>
 extern bool cp_mat3_is_rect_rot(
     cp_mat3_t const *m)

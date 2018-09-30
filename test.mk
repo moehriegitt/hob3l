@@ -1,4 +1,5 @@
 # -*- Mode: Makefile -*-
+# Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 TEST_TRIANGLE.scad := \
     scad-test/paper1.scad \

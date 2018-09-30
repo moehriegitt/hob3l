@@ -1,4 +1,5 @@
 /* -*- Mode: C -*- */
+/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <cpmat/arith.h>
 #include <cpmat/stream.h>
