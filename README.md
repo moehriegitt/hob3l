@@ -23,7 +23,66 @@ This tool reads a subset of the SCAD format used by OpenSCAD -- I did
 not want to invent another format.  This section describes which
 subset is supported.
 
-The general idea is that every basic polygon-type
+The general idea is that every basic polygon-typed 3D object is
+supported, add basic transformations, and all boolean operations are
+supported.  No operations are supported that invoke the CGAL
+rendering, e.g. minkovsky.  I haven't used them anyway because they
+are so slow.
+
+The following SCAD abstract syntax tree (AST) structures are supported:
+
+```
+    // line comments
+    /* block comments */
+    564           // integers
+    56.3          // reals
+    true undef pi // identifiers
+    [A:B:C]       // ranges
+    [a, b, c]     // arrays
+    foo()         // functors
+    foo(x, y)     // functors with arguments
+    foo(x, x=z)   // functors with named arguments (also mixed)
+    foo();        // empty functor invocations
+    foo() bar()   // single element functor invocations
+    foo() { }     // block functor invocations
+    * ! # %       // modifier characters
+```
+
+The biggest parts that are missing are constants/variables, functions,
+and modules.
+
+The SCAD operators and identifiers are are supported are the following
+ones.  In the functor parenthesis, the supported arguments are listed.
+$fa and $fs are ignored, but accepted in the input file for
+convenience.  Named and positional arguments are supported just like
+in OpenSCAD.
+
+Usually the default for a missing argument is '1', but this tool may
+be more restrictive than OpenSCAD: if the OpenSCAD documentation lists
+an argument as mandatory, it will be rejected if missing, while
+OpenSCAD may still accept it and assume '1'.
+
+```
+    group() { ... }
+    union() { ... }          // interpreted the same as 'group'
+    intersection() { ... }
+    difference() { ... }
+
+    sphere(r, d, $fa, $fs, $fn)
+    cube(size, center)
+    cylinder(h, r, r1, r2, d, d1, d2, center, $fa, $fs, $fn)
+    polyhedron(points, faces, triangles)
+
+    multmatrix(m)
+    translate(v)
+    mirror(v)
+    scale(v)
+    rotate(a,v)
+
+    circle(r, d, $fa, $fs, $fn)
+    square(size, center)
+    polygon(points, paths)
+```
 
 ## Algorithmic Improvements
 
@@ -146,10 +205,16 @@ yet, so reading the Makefile is necessary here.
 ## Running Tests
 
 After building, tests can be run, provided that the 'csg2plane.x'
-executable can actually be executed.  Use 'make test' for that.  This
-runs both the unit tests as well as basic SCAD conversion tests.  For
-full set of checks (asserts) during testing, the 'devel' build variant
-should be used in addition to the actual build variant.
+executable can actually be executed.  Use
+
+```
+    make test
+```
+
+for that.  This runs both the unit tests as well as basic SCAD
+conversion tests.  For full set of checks (asserts) during testing,
+the 'devel' build variant should be used in addition to the actual
+build variant.
 
 ## Command Line Parameters
 
