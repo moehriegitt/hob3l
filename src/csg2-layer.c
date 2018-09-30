@@ -13,7 +13,7 @@
 
 /** Combine multiple comparisions into one value */
 #define CMP_SHIFT(a,s) ((((a) & 3) << (s)) & 0xffff)
-#define CMP3(c,b,a)  (CMP_SHIFT(c,8) | CMP_SHIFT(b,4) | CMP_SHIFT(a,0))
+#define CMP3(c,b,a)  (CMP_SHIFT(c,4) | CMP_SHIFT(b,2) | CMP_SHIFT(a,0))
 #define CMP2(b,a)    CMP3(0,b,a)
 
 /** Z plane edge categorisations */

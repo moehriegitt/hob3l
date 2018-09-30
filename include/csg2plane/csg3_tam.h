@@ -10,6 +10,16 @@
 #include <csg2plane/csg3_fwd.h>
 
 /**
+ * Whether to have a normal in each face.
+ *
+ * Currently, the algorithm does not need a normal.  Switching it
+ * on activates additional error messages about concave faces in polyhedra,
+ * which the layer slicer currently does not support.  FIXME: add support
+ * for concave faces in polyhedra.
+ */
+#define CP_CSG3_NORMAL 0
+
+/**
  * 3D CSG basic shapes.
  *
  * The idea is that this is output from some other program that
@@ -166,6 +176,7 @@ struct cp_csg3_face {
      */
     cp_a_csg3_edge_p_t edge;
 
+#if CP_CSG3_NORMAL
     /**
      * The unit normal of the faces.
      * This is constructed from the first three points.  The order
@@ -173,6 +184,7 @@ struct cp_csg3_face {
      * outside, the points are clock-wise.
      */
     cp_vec3_t normal;
+#endif
 
     /**
      * Source location of face. */

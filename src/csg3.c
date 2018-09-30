@@ -527,6 +527,7 @@ static void face_basics(
         cp_v_reverse(&face->point, 0, face->point.size);
     }
 
+#if CP_CSG3_NORMAL
     /* Compute normal.  Spread the indices to get a more stable value for
      * fine structures. */
     size_t u = face->point.size / 3; /* >= 1 */
@@ -550,6 +551,7 @@ static void face_basics(
         assert(cp_vec3_equ(&n, &face->normal));
     }
 #endif
+#endif /* CP_CSG3_NORMAL */
 }
 
 static cp_csg3_face_t *face_init_from_point_ref(
@@ -917,6 +919,7 @@ static bool csg3_from_polyhedron(
         /* init edge to same size as point */
         cp_v_init0(&cf->edge,  cf->point.size);
 
+#if CP_CSG3_NORMAL
         /* only convex faces on polyhedron */
         /* compute normal.
          * FIXME: This only works for convex faces.  Use the cross product sum for
@@ -973,6 +976,7 @@ static bool csg3_from_polyhedron(
                 return false;
             }
         }
+#endif /* CP_CSG3_NORMAL */
     }
 
     csg3_poly_minmax(o);

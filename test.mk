@@ -45,6 +45,9 @@ TEST_TRIANGLE.scad := \
     scad-test/test17-r30.scad \
     scad-test/test5b.scad \
     scad-test/test5c.scad \
+    scad-test/test5d.scad \
+    scad-test/test5e.scad \
+    scad-test/test5f.scad \
     scad-test/test8.scad \
     scad-test/test10.scad \
     scad-test/test10b.scad \
