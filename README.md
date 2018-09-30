@@ -272,8 +272,8 @@ installed executable will have the correct file extension
 
 Each time `make check` is invoked, it will first remove the old test
 output files to make sure that the check is actually run.  `make
-check` also honors the `DESTDIR` variable to construct the path to the
-installed executable in the same was as `make install`.
+check` also honours the `DESTDIR` variable to construct the path to the
+installed executable in the same way as `make install`.
 
 ## Installation
 
