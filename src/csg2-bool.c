@@ -4,54 +4,30 @@
  * This is adapted from Francisco Martinez del Rio (2011), v1.4.1.
  * See: http://www4.ujaen.es/~fmartin/bool_op.html
  *
- * Note:
- * The original implementation is not clean C/C++:
+ * The inside/outside idea is the same as described by Sean Conelly in his
+ * polybooljs project.
+ * See: https://github.com/voidqk/polybooljs
  *
- *   - The allocator uses a vector to allocate new SweepEvents:
- *     it pushes a new structure and uses the pointer to the last
- *     entry throughout the algorithm.  However, this is badly broken
- *     because pushing might realloc the vector to a different memory
- *     location so that all previously allocated events become broken
- *     pointers.
- *
- *   - The algorithm uses float comparison <=, >=, <, >, and even == freely.
- *     Only in a few cases, an epsilon is checked, but for my taste, this is
- *     not clean enough.
- *
- *   - The InOut and inside bools are left uninitialised in the constructor.
- *     This is OK (the algorithm sets them before using them), but it is
- *     confusing and dirty.
- *
- *   - The InOut, inside, pl, type handling to determine inside and outside
- *     is difficult to understand and to extend.  I tend to think that a
- *     up side/low side in/out info is more helpful.   Sean Connelly uses
- *     this approach in his JavaScript adaption.  I want this in order to be
- *     able to handle multiple polygon at once.
+ * The Conelly idea is also a bit complicated, and this library uses xor based
+ * bit masks instead, which may be less obvious, but also allows the algorithm
+ * to handle polygons with self-overlapping edges.  This feature is not
+ * exploited, but I could remove an error case.
  *
  * This implements most of the algorithm using dictionaries instead of, say,
  * a heap for the pqueue.  This avoids 'realloc' and makes it easier to use
- * pool memory.
- *
- * An approach to get rid of inOut/inside/pl/type handling is to mark
- * what side of an edge is inside of which polygon.  This is usually
- * available from the input polygons (from the order of the points).
- * Or it could be derived during the algorithm.  Self-intersecting
- * polygons should continue to work -- we won't have those, but I do
- * not want to make the algorithm worse in any way.  Marking in/out
- * side of edges beforehand would be note also to have inverted
- * polygons so that SUB can be the same as ADD (i.e., we could handle
- * multiple polygons in a SUB operation at once).  Also, CUT could
- * be the same by inverting both polygons.
+ * pool memory.  BSTs worst case is just as good (and we do not need to merge
+ * whole pqueue trees, but have only insert/remove operations).
  *
  * The polygons output by this algorithm have no predefined point
  * direction and are always non-self-intersecting and disjoint (except
- * for single points) but there may be holes.  (And that is exactly
- * what the triangulation algorithm can handle.)  We want this output
- * to become the new input for another round of the algorithm, so to
- * avoid the need to order the points in a polygon correctly after
- * this algorithm is run, I'd rather let the algorithm decide what's
- * in and out during the run, only marking whether a polygon is POS or
- * NEG.
+ * for single points) but there may be holes.  The subsequent triangulation
+ * algorithm does not care about point order -- it determines the
+ * inside/outside information implicitly and outputs triangles in the correct
+ * point order.  But for generating the connective triangles between two 2D
+ * layers for the STL output, the paths output by this algorithm should have
+ * the correct point order so that STL can compute the correct normal for those
+ * triangles.  This is why this algorithm should also take care of getting
+ * the path point order right.
  */
 
 #define DEBUG 0
@@ -1549,25 +1525,28 @@ static bool ev_right(
      *    10  01     00        0           1        1
      *    11  00     01        1           1        0
      */
-    bool in_do_add = false;
     size_t below = sli->in.below;
     size_t above = sli->in.below ^ sli->in.owner;
+    bool below_in = false;
+    bool above_in = false;
     switch (c->op) {
     case CP_OP_ADD:
-        in_do_add = (below != 0) !=
-                    (above != 0);
+        below_in = (below != 0);
+        above_in = (above != 0);
         break;
+
     case CP_OP_CUT:
     case CP_OP_SUB:
-        in_do_add = ((below ^ c->mask_neg ^ c->mask_all) == 0) !=
-                    ((above ^ c->mask_neg ^ c->mask_all) == 0);
+        below_in = ((below ^ c->mask_neg ^ c->mask_all) == 0);
+        above_in = ((above ^ c->mask_neg ^ c->mask_all) == 0);
         break;
+
     case CP_OP_XOR:
-        in_do_add = odd_parity(sli->in.owner);
+        below_in = odd_parity(below);
+        above_in = odd_parity(above);
         break;
     }
-
-    if (in_do_add) {
+    if (below_in != above_in) {
         chain_add(c, e);
     }
 

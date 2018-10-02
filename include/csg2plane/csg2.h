@@ -316,21 +316,22 @@ extern void cp_csg2_poly_merge(
  *
  * (1) The original algorithm (both paper and sample implementation)
  *     do not focus on reassembling into polygons the set of edges the
- *     algorithm produces.  The sample implementation uses a slow
- *     adhoc O(n**2) algorithm.  This library replaces the polygon
- *     reassembling by a O(n log n) algorithm that connects the points
- *     into rings and then outputs path.  It exploits the fact that
- *     the edges are produced in sweep line order.  The algorithm may
- *     generate paths with multiple identical points.  The
- *     triangulation algorithm needs to cope with this, so it was
- *     modified, too (see above).
+ *     algorithm produces.  This library replaces the polygon
+ *     reassembling by a O(n log n) algorithm.
  *
- * (2) Some memory safety violations in the sample implementation where
+ * (2) The original algorithm used a complicated in/out determination
+ *     strategy not extensible to processing multiple polygons
+ *     in one algorithm run and not allowing easily to determine point
+ *     direction in the output paths.  I replaced it with a bitmask xor
+ *     based algorithm.  This also lifts the restriction that no
+ *     self-overlapping polygons may exist.
+ *
+ * (3) Some memory safety violations in the sample implementation where
  *     fixed.
  *
- * (3) Float operations have all been mapped to epsilon aware versions.
+ * (4) Float operations have all been mapped to epsilon aware versions.
  *
- * (4) Intersection points are always computed from the original line slope
+ * (5) Intersection points are always computed from the original line slope
  *     and offset to avoid adding up rounding errors for edges with many
  *     intersections.
  *
