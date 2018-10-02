@@ -100,6 +100,12 @@ typedef enum {
         __CP_7, __CP_6, __CP_5, __CP_4, \
         __CP_3, __CP_2, __CP_1, __CP_0)
 
+#define cp_is_pow2(x) \
+    ({ \
+        __typeof__(x) __x = (x); \
+        ((__x != 0) && ((__x & (__x - 1)) == 0)); \
+    })
+
 /**
  * Zero a structure and return the given pointer.
  *

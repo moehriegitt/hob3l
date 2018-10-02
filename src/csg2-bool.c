@@ -166,7 +166,9 @@ struct event {
         /**
          * Mask of whether 'under' this edge, it is 'inside' of the
          * polygon.  Each bit corresponds to inside/outside of the
-         * polygon ID corresponding to that bit number.
+         * polygon ID corresponding to that bit number.  This is only
+         * maintained while the edge is in s, otherwise, only owner and
+         * start are used.
          */
         size_t below;
     } in;
@@ -255,8 +257,14 @@ typedef struct {
     /** minimal max x coordinate of input polygons */
     cp_dim_t minmaxx;
 
-    /** which bool operation? */
+    /** io: which bool operation? */
     cp_bool_op_t op;
+
+    /** in: mark of all negated polygons */
+    size_t mask_neg;
+
+    /** in: mark of all polygons */
+    size_t mask_all;
 } ctxt_t;
 
 __unused
@@ -715,10 +723,8 @@ static void q_add_orig(
     e1->in.owner = ((size_t)1) << poly_id;
 
     event_t *e2 = ev_new(c, loc, p2, false, e1);
-    e2->io.poly_id = poly_id;
-    e2->io.type = E_NORMAL;
-    e2->in.owner= ((size_t)1) << poly_id;
-
+    e2->io = e1->io;
+    e2->in = e1->in;
     e1->other = e2;
 
     if (pt_cmp(e1->p, e2->p) > 0) {
@@ -758,29 +764,51 @@ static void divide_segment(
     event_t *e,
     point_t *p)
 {
-    assert(e->io.poly_id == e->other->io.poly_id);
+    assert(e->left);
+    event_t *o = e->other;
+
+    assert(!cp_dict_is_member(&o->node_s));
+
+    /*
+     * Split an edge at a point p on that edge (we assume that p is correct -- no
+     * check is done).
+     *      p              p
+     * e-------.       e--.l--.
+     *  `-------o       `--r`--o
+     */
+
     event_t *r = ev_new(c, p->loc, p, false, e);
-    r->io.poly_id = e->io.poly_id;
-    r->io.type = e->io.type;
-    r->in.owner = e->in.owner;
-    r->in.below = e->in.below;
+    event_t *l = ev_new(c, p->loc, p, true,  o);
 
-    event_t *l = ev_new(c, p->loc, p, true, e->other);
-    l->io.poly_id = e->io.poly_id;
-    l->io.type = e->other->io.type;
-    l->in.owner = e->other->in.owner;
-    l->in.below = e->other->in.below;
+    /* relink buddies */
+    o->other = l;
+    e->other = r;
+    assert(r->other == e);
+    assert(l->other == o);
 
-    if (ev_cmp(l, e->other) > 0) {
-        e->other->left = true;
+    /* copy in/out tracking -- the caller must set this up appropriately */
+    r->io = e->io;
+    l->io = o->io;
+
+    r->in = e->in;
+    l->in = o->in;
+
+    /* copy edge slope and offset */
+    l->line = r->line = e->line;
+
+    assert(ev_cmp(l, o) < 0);
+    assert(ev_cmp(e, r) < 0);
+    /* This is some weirdness from the original algorithm that I do
+     * not understand: how can left/right change when splitting?
+     * Only left edges are passed, and p is between l and o, so
+     * how can l be larger than o?  Anyway, I keep this here.
+     */
+    if (ev_cmp(l, o) > 0) {
+        o->left = true;
         l->left = false;
     }
 
-    l->line = r->line = e->line;
-
-    e->other->other = l;
-    e->other = r;
-
+    /* handle new events later */
     q_insert(c, l);
     q_insert(c, r);
 }
@@ -1254,23 +1282,36 @@ static point_t *find_intersection(
 
 static bool check_intersection(
     ctxt_t *c,
-    event_t *e1,
-    event_t *e2)
+    /** the lower edge in s */
+    event_t *el,
+    /** the upper edge in s */
+    event_t *eh)
 {
+    event_t *ol = el->other;
+    event_t *oh = eh->other;
+    assert( el->left);
+    assert( eh->left);
+    assert( cp_dict_is_member(&el->node_s));
+    assert( cp_dict_is_member(&eh->node_s));
+    assert(!ol->left);
+    assert(!oh->left);
+    assert(!cp_dict_is_member(&ol->node_s));
+    assert(!cp_dict_is_member(&oh->node_s));
+
     bool collinear;
-    point_t *ip = find_intersection(&collinear, c, e1, e2);
+    point_t *ip = find_intersection(&collinear, c, el, eh);
 
     LOG("DEBUG: #intersect = %p %u\n", ip, collinear);
 
     if (ip != NULL) {
-        if ((e1->p == e2->p) || (e1->other->p == e2->other->p)) {
+        if ((el->p == eh->p) || (ol->p == oh->p)) {
             return true;
         }
-        if ((e1->p != ip) && (e1->other->p != ip)) {
-            divide_segment(c, e1, ip);
+        if ((el->p != ip) && (ol->p != ip)) {
+            divide_segment(c, el, ip);
         }
-        if ((e2->p != ip) && (e2->other->p != ip)) {
-            divide_segment(c, e2, ip);
+        if ((eh->p != ip) && (oh->p != ip)) {
+            divide_segment(c, eh, ip);
         }
         return true;
     }
@@ -1279,46 +1320,90 @@ static bool check_intersection(
         return true;
     }
 
-    /* check for overlap (note: e1 and e2 are both left events) */
-    assert(pt_cmp(e1->p, e1->other->p) < 0);
-    assert(pt_cmp(e2->p, e2->other->p) < 0);
-    if (pt_cmp(e1->other->p, e2->p) < 0) {
+    /* check for overlap (note: el and eh are both left events) */
+    assert(pt_cmp(el->p, ol->p) < 0);
+    assert(pt_cmp(eh->p, oh->p) < 0);
+    if (pt_cmp(ol->p, eh->p) < 0) {
         return true;
     }
-    if (pt_cmp(e2->other->p, e1->p) < 0) {
+    if (pt_cmp(oh->p, el->p) < 0) {
         return true;
     }
 
     /* self-overlap? */
-    if (e1->io.poly_id == e2->io.poly_id) {
+    if (el->io.poly_id == eh->io.poly_id) {
         cp_vchar_printf(&c->err->msg,
             "Overlapping edge in same polygon is not supported.\n");
-        c->err->loc = e1->loc;
+        c->err->loc = el->loc;
         return false;
     }
 
     event_t *sev[4];
     size_t sev_cnt = 0;
-    intersection_add_ev(sev, &sev_cnt, e1, e2);
-    intersection_add_ev(sev, &sev_cnt, e1->other, e2->other);
+    intersection_add_ev(sev, &sev_cnt, el, eh);
+    intersection_add_ev(sev, &sev_cnt, ol, oh);
     assert(sev_cnt >= 2);
     assert(sev_cnt <= cp_countof(sev));
 
-    unsigned same_or_diff = (e1->io.in_out == e2->io.in_out) ? E_SAME : E_DIFF;
+    unsigned same_or_diff = (el->io.in_out == eh->io.in_out) ? E_SAME : E_DIFF;
+    size_t owner = (eh->in.owner ^ el->in.owner);
+    size_t below = el->in.below;
+    size_t above = below ^ owner;
 
+    /* We do not need to care about resetting other->in.below, because it is !left
+     * and is not part of S yet, and in.below will be reset upon insertion. */
     if (sev_cnt == 2) {
+        /*  eh.....oh
+         *  el.....ol
+         */
         assert(sev[0] == NULL);
         assert(sev[1] == NULL);
-        e1->io.type = e1->other->io.type = E_IGNORE;
-        e2->io.type = e2->other->io.type = same_or_diff;
+        el->io.type = ol->io.type = E_IGNORE;
+        eh->io.type = oh->io.type = same_or_diff;
+
+        eh->in.owner = oh->in.owner = owner;
+        eh->in.below = below;
+
+        el->in.owner = ol->in.owner = 0;
+        assert(el->in.below == below);
+
         return true;
     }
     if (sev_cnt == 3) {
+        /* sev:  0    1    2
+         *       eh........NULL    ; sh == eh, shl == eh
+         *            el...NULL
+         * OR
+         *            eh...NULL
+         *       el........NULL    ; sh == el, shl == el
+         * OR
+         *     NULL........oh      ; sh == oh, shl == eh
+         *     NULL...ol
+         * OR
+         *     NULL...oh
+         *     NULL........ol      ; sh == ol, shl == el
+         */
         assert(sev[1] != NULL);
         assert((sev[0] == NULL) || (sev[2] == NULL));
+
+        /* ignore the shorter one */
         sev[1]->io.type = sev[1]->other->io.type = E_IGNORE;
-        (sev[0] ?: sev[2])->other->io.type = same_or_diff;
-        divide_segment(c, sev[0] ?: sev[2]->other, sev[1]->p);
+
+        sev[1]->in.owner = sev[1]->other->in.owner = 0;
+
+        /* split the longer one, marking the double side as overlapping: */
+        event_t *sh  = sev[0] ?: sev[2];
+        event_t *shl = sev[0] ?: sev[2]->other;
+        sh->other->io.type = same_or_diff;
+
+        sh->other->in.owner = owner;
+        sh->other->in.below = below;
+        if (shl == el) {
+            assert((sev[1] == eh) || (sev[1] == oh));
+            eh->in.below = above;
+        }
+
+        divide_segment(c, shl, sev[1]->p);
         return true;
     }
 
@@ -1327,19 +1412,62 @@ static bool check_intersection(
     assert(sev[1] != NULL);
     assert(sev[2] != NULL);
     assert(sev[3] != NULL);
+    assert(
+        ((sev[0] == el) && (sev[1] == eh)) ||
+        ((sev[0] == eh) && (sev[1] == el)));
+    assert(
+        ((sev[2] == ol) && (sev[3] == oh)) ||
+        ((sev[2] == oh) && (sev[3] == ol)));
 
     if (sev[0] != sev[3]->other) {
+        /*        0   1   2   3
+         *            eh......oh
+         *        el......ol
+         * OR:
+         *        eh......oh
+         *            el......ol
+         */
+        assert(
+            ((sev[0] == el) && (sev[1] == eh) && (sev[2] == ol) && (sev[3] == oh)) ||
+            ((sev[0] == eh) && (sev[1] == el) && (sev[2] == oh) && (sev[3] == ol)));
+
         sev[1]->io.type = E_IGNORE;
         sev[2]->io.type = same_or_diff;
+
+        sev[1]->in.owner = 0;
+        if (sev[1] == eh) {
+            sev[1]->in.below = above;
+        }
+        sev[2]->in.owner = owner;
+        sev[2]->in.below = below;
+
         divide_segment(c, sev[0], sev[1]->p);
         divide_segment(c, sev[1], sev[2]->p);
         return true;
     }
 
-    sev[1]->io.type = sev[1]->other->io.type = E_IGNORE;
+    /*        0   1   2   3
+     *            eh..oh
+     *        el..........ol
+     * OR:
+     *        eh..........oh
+     *            el..ol
+     */
+    assert(
+        ((sev[0] == el) && (sev[1] == eh) && (sev[2] == oh) && (sev[3] == ol)) ||
+        ((sev[0] == eh) && (sev[1] == el) && (sev[2] == ol) && (sev[3] == oh)));
+    assert(sev[1]->other == sev[2]);
+
+    sev[1]->io.type = sev[2]->io.type = E_IGNORE;
+    sev[1]->in.owner = sev[2]->in.owner = 0;
+    if (sev[1] == eh) {
+        sev[1]->in.below = sev[2]->in.below = above;
+    }
     divide_segment(c, sev[0], sev[1]->p);
 
     sev[3]->other->io.type = same_or_diff;
+    sev[3]->other->in.owner = owner;
+    sev[3]->other->in.below = below;
     divide_segment(c, sev[3]->other, sev[2]->p);
 
     return true;
@@ -1380,33 +1508,40 @@ static bool ev_left(
     assert((prpr == NULL) || prpr->left);
 
     if (prev == NULL) {
+        /* should be set up correctly from q phase */
         e->io.inside = false;
         e->io.in_out = false;
+        e->in.below = 0;
     }
-    else
-    if (prev->io.type != E_NORMAL) {
-        if (prpr == NULL) {
-            e->io.inside = true;
-            e->io.in_out = false;
+    else {
+        /* use previous edge's above for this edge's below info */
+        e->in.below = prev->in.below ^ prev->in.owner;
+
+        /* ->io. */
+        if (prev->io.type != E_NORMAL) {
+            if (prpr == NULL) {
+                e->io.inside = true;
+                e->io.in_out = false;
+            }
+            else
+            if (prev->io.poly_id == e->io.poly_id) {
+                e->io.inside = !prpr->io.in_out;
+                e->io.in_out = !prev->io.in_out;
+            }
+            else {
+                e->io.inside = !prev->io.in_out;
+                e->io.in_out = !prpr->io.in_out;
+            }
         }
         else
-        if (prev->io.poly_id == e->io.poly_id) {
-            e->io.inside = !prpr->io.in_out;
+        if (e->io.poly_id == prev->io.poly_id) {
+            e->io.inside = prev->io.inside;
             e->io.in_out = !prev->io.in_out;
         }
         else {
             e->io.inside = !prev->io.in_out;
-            e->io.in_out = !prpr->io.in_out;
+            e->io.in_out = prev->io.inside;
         }
-    }
-    else
-    if (e->io.poly_id == prev->io.poly_id) {
-        e->io.inside = prev->io.inside;
-        e->io.in_out = !prev->io.in_out;
-    }
-    else {
-        e->io.inside = !prev->io.in_out;
-        e->io.in_out = prev->io.inside;
     }
 
     debug_print_s(c, "left after insert", e);
@@ -1427,6 +1562,19 @@ static bool ev_left(
     return true;
 }
 
+static bool odd_parity(size_t s)
+{
+    s ^= s << 1;
+    s ^= s << 2;
+    s ^= s << 4;
+    s ^= s << 8;
+    s ^= s << 16;
+#if __SIZEOF_POINTER__ == 8
+    s ^= s << 32;
+#endif
+    return s & 1;
+}
+
 static bool ev_right(
     ctxt_t *c,
     event_t *e)
@@ -1441,44 +1589,82 @@ static bool ev_right(
     assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->other->node_s));
 
-    /* then add to out */
+    /* now add to out */
+    /*
+     * xor is done: popcount(owner)&1 ==  1
+     *
+     * Others are done by comparing below and above masks: if both lead to different
+     * results about in/out, then we need this edge.
+     *
+     *                         ~(ab)==00   ab!=00   ~(ab)^1==00   popcount(owner)&1==1
+     *    ab  ~(ab)  ~(ab)^1   a&b         a|b      a&~b          xor
+     *    00  11     10        0           0        0
+     *    01  10     11        0           1        0
+     *    10  01     00        0           1        1
+     *    11  00     01        1           1        0
+     */
+    bool in_do_add __unused = false;
+    size_t below = sli->in.below;
+    size_t above = sli->in.below ^ sli->in.owner;
+    switch (c->op) {
+    case CP_OP_ADD:
+        in_do_add = (below != 0) !=
+                    (above != 0);
+        break;
+    case CP_OP_CUT:
+        in_do_add = ((below ^ c->mask_all) == 0) !=
+                    ((above ^ c->mask_all) == 0);
+        break;
+    case CP_OP_SUB:
+        in_do_add = ((below ^ c->mask_neg ^ c->mask_all) == 0) !=
+                    ((above ^ c->mask_neg ^ c->mask_all) == 0);
+        break;
+    case CP_OP_XOR:
+        in_do_add = odd_parity(sli->in.owner);
+    }
+
+    bool io_do_add __unused = false;
     switch (e->io.type) {
     case E_NORMAL:
         switch(c->op) {
         case CP_OP_CUT:
             if (sli->io.inside) {
-                chain_add(c, e);
+                io_do_add = true;
             }
             break;
         case CP_OP_ADD:
             if (!sli->io.inside) {
-                chain_add(c, e);
+                io_do_add = true;
             }
             break;
         case CP_OP_SUB:
             if (((e->io.poly_id == 0) && !sli->io.inside) ||
                 ((e->io.poly_id == 1) &&  sli->io.inside))
             {
-                chain_add(c, e);
+                io_do_add = true;
             }
             break;
         case CP_OP_XOR:
-            chain_add(c, e);
+            io_do_add = true;
             break;
         }
         break;
     case E_SAME:
         if ((c->op == CP_OP_CUT) || (c->op == CP_OP_ADD)) {
-            chain_add(c, e);
+            io_do_add = true;
         }
         break;
     case E_DIFF:
         if (c->op == CP_OP_SUB) {
-            chain_add(c, e);
+            io_do_add = true;
         }
         break;
     default:
         break;
+    }
+    assert(io_do_add == in_do_add);
+    if (in_do_add) {
+        chain_add(c, e);
     }
 
     if ((next != NULL) && (prev != NULL)) {
@@ -1534,6 +1720,8 @@ extern bool cp_csg2_op_poly(
         .err = t,
         .op = op,
         .bb = { CP_MINMAX_EMPTY, CP_MINMAX_EMPTY },
+        .mask_all = 3,
+        .mask_neg = (op == CP_OP_SUB) ? 2 : 0,
     };
     cp_list_init(&c.poly);
 
@@ -1599,8 +1787,8 @@ extern bool cp_csg2_op_poly(
         LOG("\nDEBUG: event %"_Pz"u: %s o=(%sin %sio)\n",
             ++ev_cnt,
             ev_str(e),
-            e->other->inside ? "+" : "-",
-            e->other->in_out ? "+" : "-");
+            e->other->io.inside ? "+" : "-",
+            e->other->io.in_out ? "+" : "-");
 
 #if OPT >= 3
         /* trivial: all the rest is cut away */
