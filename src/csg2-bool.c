@@ -24,10 +24,10 @@
  * algorithm does not care about point order -- it determines the
  * inside/outside information implicitly and outputs triangles in the correct
  * point order.  But for generating the connective triangles between two 2D
- * layers for the STL output, the paths output by this algorithm should have
+ * layers for the STL output, the paths output by this algorithm must have
  * the correct point order so that STL can compute the correct normal for those
- * triangles.  This is why this algorithm should also take care of getting
- * the path point order right.
+ * triangles.  Therefore, this algorithm also takes care of getting the path
+ * point order right.
  */
 
 #define DEBUG 0
@@ -148,13 +148,6 @@ struct event {
          */
         size_t below;
     } in;
-
-    struct {
-        unsigned poly_id;
-        event_type_t type;
-        bool in_out;
-        bool inside;
-    } io;
 
     /**
      * Whether this is a left edge (false = right edge)*/
@@ -425,6 +418,8 @@ static void debug_print_s(
         for (cp_list_each(_e, &c->poly)) {
             cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", cp_double(i % 3) * 0.5);
             event_t *e0 = CP_BOX_OF(_e, event_t, node_poly);
+            cp_printf(cp_debug_ps, "newpath %g %g 4 0 360 arc closepath fill\n",
+                CP_PS_XY(e0->p->coord));
             debug_print_chain(e0, ~cp_debug_ps_page_cnt);
             i++;
         }
@@ -612,7 +607,6 @@ static int __seg_cmp(event_t const *e1, event_t const *e2)
 
         /* different points */
         if (ev_cmp(e1, e2) > 0) {
-            //assert(0);
             /* e2 is above e2->p? => e1 is below */
             return pt2_pt_cmp(e2->p, e2->other->p, e1->p) >= 0 ? -1 : +1;
         }
@@ -693,7 +687,6 @@ static void q_add_orig(
     e1->in.owner = ((size_t)1) << poly_id;
 
     event_t *e2 = ev_new(c, loc, p2, false, e1);
-    e2->io = e1->io;
     e2->in = e1->in;
     e1->other = e2;
 
@@ -757,9 +750,6 @@ static void divide_segment(
     assert(l->other == o);
 
     /* copy in/out tracking -- the caller must set this up appropriately */
-    r->io = e->io;
-    l->io = o->io;
-
     r->in = e->in;
     l->in = o->in;
 
@@ -871,67 +861,36 @@ static void path_add_point(
     cp_v_push(&p->point_idx, idx);
 }
 
-#if 0
-/**
- * An event is interpreted as edge by using e->p as source and e->other->p as
- * destination.
- */
-static bool edge_is_cw(ctxt_t *c, event_t *e)
-{
-    /* at left edge, we have in_out information */
-    if (!e->left) {
-        assert(e->other->left);
-        return !edge_is_cw(c, e->other);
-    }
-
-    switch (c->op) {
-    case CP_OP_ADD:
-    case CP_OP_SUB:
-        return (e->inside != e->in_out);
-    case CP_OP_CUT:
-        return (e->inside == e->in_out);
-    case CP_OP_XOR:
-        return e->in_out; /* untested, because SCAD does not support this */
-    }
-    CP_DIE("unhandled op: %u\n", c->op);
-}
-#endif
-
 /**
  * Construct the poly from the chains */
 static void path_make(
-    ctxt_t *c,
+    ctxt_t *c __unused,
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
     event_t *e0)
 {
     assert(p->point_idx.size == 0);
-    event_t *e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 0), event_t, node_chain);
+    event_t *ex = CP_BOX_OF(cp_ring_step(&e0->node_chain, 0), event_t, node_chain);
+    event_t *e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 1), event_t, node_chain);
 
-    (void)c;
-#if 0 /* FIXME: this fails.  why? */
-    /* determine direction by checking inside vs. outside */
-    assert(e0->p != e1->p);
-    assert(e0->other->p != e1->other->p);
+    /* make it so that e1 equals e0->other, and ex is the other end */
+    assert((e1->p == e0->other->p) || (ex->p == e0->other->p));
+    if (ex->p == e0->other->p) {
+        /* for some reason, none of my tests triggers this, but I cannot see
+         * why it couldn't happen */
+        CP_SWAP(&e1, &ex);
+    }
+    assert(e1->p == e0->other->p);
 
-    /* e0 may not be connected to e1 via 'other' point, because it may be
-     * that this is exactly the connection point, whether one edge is
-     * missing.  E.g. the triangle a--b--c may be stored by using a,b
-     * from even a--b and using c from b--c.  In poly_add(), we use
-     * exactly one of those ends.
+    /* Four cases that collapse to two (no need to check whether e1 or ex is above):
+     * If e0-e1 is below e0-ex, and e0->in.below==0, then move along e0->e1.
+     * If e0-e1 is above e0-ex, and e0->in.below==1, then move along e1->e0.
+     * If e0-e1 is below e0-ex, and e0->in.below==1, then move along e1->e0.
+     * If e0-e1 is above e0-ex, and e0->in.below==0, then move along e0->e1.
      */
-    /* make it so that the path is clockwise around the inner part */
-    /* if e1->other->p == e0->p, then e1 points toward e0, i.e., should point
-     * into ccw direction, i.e., we negate. */
-
-    bool cw1 = edge_is_cw(c, e0) != (e0->other->p == e1->p);
-    bool cw2 = edge_is_cw(c, e1) == (e1->other->p == e0->p);
-    assert(cw1 == cw2);
-
-    if (edge_is_cw(c, e0) != (e0->other->p == e1->p)) {
+    if (e0->in.below) {
         CP_SWAP(&e0, &e1);
     }
-#endif
 
     /* first and second point */
     path_add_point(r, p, e0);
@@ -1049,7 +1008,11 @@ static void chain_add(
         assert(!cp_ring_is_end(&o1->node_chain));
         assert(!cp_ring_is_end(&o2->node_chain));
         /* put in poly list */
-        poly_add(c, o1);
+        poly_add(c, o2);
+        /* At this point, from o2->in.below and the z normal of the triangle
+         * o1, o2, o2->other, we can derive what is inside and what is
+         * outside. */
+        assert(o1 != o2->other);
         break;
 
     case 1: /* o1 found, o2 not found: connect */
@@ -1547,6 +1510,7 @@ static bool ev_right(
         break;
     }
     if (below_in != above_in) {
+        e->in.below = e->other->in.below = below_in;
         chain_add(c, e);
     }
 

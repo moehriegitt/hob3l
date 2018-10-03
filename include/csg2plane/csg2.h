@@ -315,25 +315,22 @@ extern void cp_csg2_poly_merge(
  * Bentley-Ottmann plain sweep.  The algorithm is modified:
  *
  * (1) The original algorithm (both paper and sample implementation)
- *     do not focus on reassembling into polygons the set of edges the
- *     algorithm produces.  This library replaces the polygon
- *     reassembling by a O(n log n) algorithm.
+ *     does not focus on reassembling into polygons the sequence of edges
+ *     the algorithm produces.  This library replaces the polygon
+ *     reassembling by an O(n log n) algorithm.
  *
- * (2) The original algorithm used a complicated in/out determination
- *     strategy not extensible to processing multiple polygons
- *     in one algorithm run and not allowing easily to determine point
- *     direction in the output paths.  I replaced it with a bitmask xor
- *     based algorithm.  This also lifts the restriction that no
- *     self-overlapping polygons may exist.
+ * (2) The original algorithm's in/out determination strategy is not
+ *     extensible to processing multiple polygons in one algorithm run.
+ *     It was replaceds by a bitmask xor based algorithm.  This also lifts
+ *     the restriction that no self-overlapping polygons may exist.
  *
- * (3) Some memory safety violations in the sample implementation where
- *     fixed.
- *
- * (4) Float operations have all been mapped to epsilon aware versions.
- *
- * (5) Intersection points are always computed from the original line slope
+ * (3) Intersection points are always computed from the original line slope
  *     and offset to avoid adding up rounding errors for edges with many
  *     intersections.
+ *
+ * (4) Float operations have all been mapped to epsilon aware versions.
+ *     (The reference implementation failed on one of my tests because of
+ *     using plain floating point '<' comparison.)
  *
  * Runtime: O(k log k),
  * Space: O(k)

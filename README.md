@@ -134,10 +134,7 @@ unknown bugs).  Because of the 'stability' design goal that extends
 from computational real number stability to corner cases, this was in
 focus from the start.
 
-There is no STL output yet.  This is because the polygon clipping
-algorithm does not output the correct path direction for deciding
-inside and outside, which is needed for computing normals and for
-putting points in triangle paths into the correct order.
+There is no actual STL output yet.
 
 The input polyhedra must consist of only convex faces.  This will be
 fixed in the future.
