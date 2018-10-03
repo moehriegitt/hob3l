@@ -1415,10 +1415,8 @@ static bool ev_left(
     assert(o == NULL);
 
     event_t *prev = s_prev(e);
-    event_t *prpr = s_prev(prev);
     assert(e->left);
     assert((prev == NULL) || prev->left);
-    assert((prpr == NULL) || prpr->left);
 
     if (prev == NULL) {
         /* should be set up correctly from q phase */
