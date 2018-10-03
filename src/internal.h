@@ -34,6 +34,7 @@ extern cp_stream_t *cp_debug_ps;
 extern size_t cp_debug_ps_page_cnt;
 extern cp_ps_xform_t cp_debug_ps_xform;
 extern cp_ps_opt_t const *cp_debug_ps_opt;
+extern size_t cp_debug_ps_skip_page;
 
 /**
  * Transform using cp_debug_ps_xform.

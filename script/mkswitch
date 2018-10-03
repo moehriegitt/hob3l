@@ -247,6 +247,9 @@ sub generate_code($)
             "    char const *name __unused,\n".
             "    char const *$arg __unused)\n".
             "{\n";
+        for my $c (@{ $case->{cond} }) {
+            print "$c\n";
+        }
         if ($case->{arg}{name}) {
             if ($case->{arg}{type}) {
                 my $n = $case->{arg}{name};
@@ -256,9 +259,6 @@ sub generate_code($)
             if ($case->{arg}{conv}) {
                 print "    get_arg_$case->{arg}{conv}($case->{arg}{name}, name, arg);\n";
             }
-        }
-        for my $c (@{ $case->{cond} }) {
-            print "$c\n";
         }
         for my $a (@{ $case->{action} }) {
             print "$a\n";

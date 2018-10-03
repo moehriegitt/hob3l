@@ -83,6 +83,10 @@ static char const *opt_help =
     "    --debug-ps=ARG\n"
     "        set name of PostScript debug output file\n"
 #endif
+#ifdef PSTRACE
+    "    --debug-ps-skip=ARG\n"
+    "        skip this amount of pages before starting to dump\n"
+#endif
     "";
 
 static void get_opt_help(
@@ -122,6 +126,16 @@ static void get_opt_debug_ps(
     cp_ps_doc_begin(cp_debug_ps, &opt->ps,
         CP_SIZE_MAX,
         0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
+#endif
+}
+
+static void get_opt_debug_ps_skip(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_size(&cp_debug_ps_skip_page, name, arg);
 #endif
 }
 
@@ -456,6 +470,11 @@ cp_get_opt_t opt_list[] = {
     {
         "debug-ps",
         get_opt_debug_ps,
+        2,
+    },
+    {
+        "debug-ps-skip",
+        get_opt_debug_ps_skip,
         2,
     },
     {

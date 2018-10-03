@@ -648,11 +648,11 @@ extern void cp_mat4i_mul(
     cp_mat4i_t const* a,
     cp_mat4i_t const* b);
 
-extern __wur cp_det_t cp_mat2_inv(
+extern cp_det_t cp_mat2_inv(
     cp_mat2_t * r,
     cp_mat2_t const* a);
 
-extern __wur cp_det_t cp_mat2w_inv(
+extern cp_det_t cp_mat2w_inv(
     cp_mat2w_t * r,
     cp_mat2w_t const* a);
 
@@ -664,11 +664,11 @@ extern void cp_mat2wi_inv(
     cp_mat2wi_t * r,
     cp_mat2wi_t const* a);
 
-extern __wur cp_det_t cp_mat3_inv(
+extern cp_det_t cp_mat3_inv(
     cp_mat3_t * r,
     cp_mat3_t const* a);
 
-extern __wur cp_det_t cp_mat3w_inv(
+extern cp_det_t cp_mat3w_inv(
     cp_mat3w_t * r,
     cp_mat3w_t const* a);
 
@@ -680,7 +680,7 @@ extern void cp_mat3wi_inv(
     cp_mat3wi_t * r,
     cp_mat3wi_t const* a);
 
-extern __wur cp_det_t cp_mat4_inv(
+extern cp_det_t cp_mat4_inv(
     cp_mat4_t * r,
     cp_mat4_t const* a);
 

@@ -1296,7 +1296,7 @@ sub gen_mul_mati($$$)
 sub gen_inv_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, '__wur X_det_t', $elem, r=>$t, a=>$t);
+    my $p = proto($t, 'X_det_t', $elem, r=>$t, a=>$t);
     # implementation in mat.c, generated with mkinv.pl.
     publish_extern($oc, $p, undef);
 }

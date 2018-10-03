@@ -145,19 +145,19 @@ static inline void cp_vec3_left_cross3(
 }
 
 /** unit(cross(a,b)), returns success (i.e., whether vector is not len0) */
-extern __wur bool cp_vec3_normal(
+extern bool cp_vec3_normal(
     cp_vec3_t *result,
     cp_vec3_t const *a,
     cp_vec3_t const *b);
 
 /** unit(cross3(a,o,b)), returns success (i.e., whether vector is not len0) */
-extern __wur bool cp_vec3_right_normal3(
+extern bool cp_vec3_right_normal3(
     cp_vec3_t *r,
     cp_vec3_t const *a,
     cp_vec3_t const *o,
     cp_vec3_t const *b);
 
-static inline __wur bool cp_vec3_left_normal3(
+static inline bool cp_vec3_left_normal3(
     cp_vec3_t *r,
     cp_vec3_t const *a,
     cp_vec3_t const *o,

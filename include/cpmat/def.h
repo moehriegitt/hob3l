@@ -18,10 +18,6 @@
 #define __unused __attribute__((unused))
 #endif
 
-#ifndef __wur
-#define __wur __attribute__((warn_unused_result))
-#endif
-
 #define cp_static_assert(x) _Static_assert(x,#x)
 
 /* *** float type *** */

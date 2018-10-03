@@ -174,6 +174,15 @@ static cp_vec2_loc_t *path_push0(
     return p;
 }
 
+__unused
+static bool edge_is_marked(
+    ctxt_t *q,
+    cp_csg3_edge_t const *e)
+{
+    size_t i = cp_v_idx(&q->poly->edge, e);
+    return cp_v_bit_get(q->have_edge, i);
+}
+
 static void edge_mark(
     ctxt_t *q,
     cp_csg3_edge_t const *e)
@@ -287,6 +296,7 @@ static unsigned src_cw_search(
 
         /* classify */
         int cmp_e2_d = cp_cmp(edge_dst(f2, e2)->ref->coord.z, z);
+        LOG("CW: e=%s, c=%+d\n", edge_str(f2, e2), cmp_e2_d);
         switch (cmp_e2_d) {
         case -1: /* dst is below */
             /* continue search */
@@ -333,9 +343,10 @@ static void edge_find_path(
     cp_csg3_face_t const *f= e->fore;
     unsigned c = edge_cmp_z(f, e, q->z);
     for (;;) {
+        cp_csg3_face_t const *fo __unused = f;
         cp_csg3_edge_t const *eo = e;
 
-        LOG("e=(%s), c=0x%x\n", edge_str(f, e), c);
+        LOG("FIND: e=%s, c=0x%x\n", edge_str(f, e), c);
         switch (c) {
         default:
             CP_DIE("edge category: 0x%x", c);
@@ -344,6 +355,7 @@ static void edge_find_path(
         case CMP2(+1,0):    /* down touching */
         case CMP2(0,+1):    /* touching up */
         case CMP3(FE,0,0):  /* in z plane, not in output polygon */
+            assert(!edge_is_marked(q, e));
             edge_mark(q, e);
             assert(h == NULL);
             return;
@@ -353,12 +365,14 @@ static void edge_find_path(
             /* fall-through */
         case CMP2(+1,-1):   /* down crossing */
             point_on_edge(path_push0(q, &h), e, q->z);
+            assert(!edge_is_marked(q, e));
             edge_mark(q, e);
             c = edge_follow_path(f, &e, q->z);
             break;
 
         case CMP3(+1,0,-1): /* touching down, face extends up */
             src_on_edge(path_push0(q, &h), f, e);
+            assert(!edge_is_marked(q, e));
             edge_mark(q, e);
             c = edge_follow_path(f, &e, q->z);
             break;
@@ -374,6 +388,7 @@ static void edge_find_path(
                 /* wait for another edge to start the path */
                 return;
             }
+            assert(!edge_is_marked(q, e));
             edge_mark(q, e);
             c = src_cw_search(&f, &e, q->z);
             break;
@@ -386,8 +401,12 @@ static void edge_find_path(
                 }
             }
             f = edge_buddy_face(f, e);
-            edge_mark(q, e);
+            assert(!edge_is_marked(q, e));
             c = src_cw_search(&f, &e, q->z);
+            assert((e != eo) || (f != fo));
+            if (e != eo) { /* could be same edge: only mark once */
+                edge_mark(q, eo);
+            }
             break;
 
         case CMP3(0,0,0):   /* in z plane, unknown face orientation */

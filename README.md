@@ -47,8 +47,8 @@ The following SCAD abstract syntax tree (AST) structures are supported:
     * ! # %       // modifier characters
 ```
 
-The biggest parts that are missing are constants/variables, functions,
-and modules.
+The biggest parts that are missing are strings, constants/variables,
+functions, and modules.
 
 The following SCAD operators and identifiers are supported.  In each
 functor's parentheses, the supported arguments are listed.  $fa and
@@ -128,13 +128,14 @@ fully supported, because, again, this may happen.
 The basic workflow is implemented and tested, i.e., the tool can read
 the specified subset of SCAD, it can slice the input object, it can
 apply the 2D boolean operations (AKA polygon clipping), and it can
-triangulate the resulting polgygons as a preparation for writing STL.
+triangulate the resulting polgygons, and write STL.
+
+Slic3r can read the STL files this tool produces.
+
 Corner cases in the algorithms have been dealt with (except for
 unknown bugs).  Because of the 'stability' design goal that extends
 from computational real number stability to corner cases, this was in
 focus from the start.
-
-There is no actual STL output yet.
 
 The input polyhedra must consist of only convex faces.  This will be
 fixed in the future.

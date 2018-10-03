@@ -307,6 +307,21 @@ static void get_arg_dim(
     }
 }
 
+__unused
+static void get_arg_size(
+    size_t *v,
+    char const *arg,
+    char const *str)
+{
+    char *r = NULL;
+    unsigned long long val = strtoull(str, &r, 10);
+    if ((str == r) || (*r != '\0')) {
+        fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
+        my_exit(1);
+    }
+    *v = val & CP_MAX_OF(*v);
+}
+
 static void get_arg_rgb(
     cp_color_rgb_t *v,
     char const *arg,
