@@ -32,6 +32,20 @@
         __TEST_CHECK(__res != (val), "(" #expr ") != " #val); \
     })
 
+#define TEST_FEQ(expr, val) \
+    ({ \
+        fprintf(stderr, "%s:%d: X %-20s===%s\n", __FILE__, __LINE__, #val, #expr); \
+        __typeof__(expr) __res = (expr); \
+        __TEST_CHECK(cp_equ(__res, val), "(" #expr ") === " #val); \
+    })
+
+#define TEST_FNE(expr, val) \
+    ({ \
+        fprintf(stderr, "%s:%d: X %-20s!==%s\n", __FILE__, __LINE__, #val, #expr); \
+        __typeof__(expr) __res = (expr); \
+        __TEST_CHECK(!cp_equ(__res, val), "(" #expr ") !== " #val); \
+    })
+
 #define TEST_RUN(test) \
     ({ \
         fprintf(stderr, "%s:%d: R %s\n", __FILE__, __LINE__, #test); \
@@ -45,6 +59,7 @@ extern void __cp_test_fail(
     char const *msg1,
     char const *msg2);
 
+extern void cp_math_test(void);
 extern void cp_dict_test(void);
 extern void cp_list_test(void);
 extern void cp_ring_test(void);

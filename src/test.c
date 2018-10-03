@@ -6,6 +6,7 @@
 
 int main(void)
 {
+    TEST_RUN(cp_math_test());
     TEST_RUN(cp_dict_test());
     TEST_RUN(cp_list_test());
     TEST_RUN(cp_ring_test());

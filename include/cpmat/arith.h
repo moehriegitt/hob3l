@@ -131,15 +131,27 @@ static inline int cp_cmp(cp_f_t a, cp_f_t b)
     return cp_equ(a,b) ? 0 : a < b ? -1 : +1;
 }
 
-static inline cp_f_t cp_sin_deg(cp_f_t a)
-{
-    return sin(cp_deg(a));
-}
+/**
+ * This returns true if \p f is an integers, and
+ * then returns that integer in \p i.
+ */
+extern bool cp_f_get_int(
+    long long *i,
+    cp_f_t f);
 
-static inline cp_f_t cp_cos_deg(cp_f_t a)
-{
-    return cos(cp_deg(a));
-}
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_sin_deg(180) == 0, not just close
+ * to 0, but 0.
+ */
+extern cp_f_t cp_sin_deg(cp_f_t a);
+
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_cos_deg(180) == 1, not just close
+ * to 1, but 1.
+ */
+extern cp_f_t cp_cos_deg(cp_f_t a);
 
 static inline bool cp_between(cp_f_t x, cp_f_t a, cp_f_t b)
 {

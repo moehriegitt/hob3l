@@ -203,6 +203,7 @@ MOD_D.libcsg2plane.a := $(addprefix out/,$(MOD_C.libcsg2plane.a:.c=.d))
 # libcptest.a:
 MOD_C.libcptest.a := \
     test-lib.c \
+    math-test.c \
     dict-test.c \
     list-test.c \
     ring-test.c
