@@ -1,0 +1,37 @@
+#! /bin/bash
+set -euC
+
+# The least tested ones first, so this fails fast.
+make clean
+make -j TARGET=win64 MODE=release
+
+make clean
+make -j TARGET=win32 MODE=release
+
+make clean
+make -j TARGET=win64 MODE=normal OPT=2
+
+make clean
+make -j TARGET=win32 MODE=normal OPT=2
+
+make clean
+make -j TARGET=nix64 MODE=release OPT=2
+
+make clean
+make -j TARGET=nix32 MODE=release OPT=2
+
+make clean
+make -j TARGET=nix64 MODE=devel OPT=2
+
+make clean
+make -j TARGET=nix32 MODE=devel OPT=2
+
+make clean
+make -j MODE=release
+make -j test
+
+make clean
+make -j MODE=devel OPT=2
+make -j test
+
+make clean MODE=devel
