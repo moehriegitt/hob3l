@@ -146,8 +146,44 @@ typedef struct {
     /**
      * type is CP_CSG2_POLY */
     _CP_CSG2
+
+    /**
+     * The vertices of the polygon.
+     *
+     * This stores both the coordinates and the location in the
+     * input file (for error messages).
+     *
+     * Each point must be unique.  Paths and triangles refer to
+     * this array.
+     */
     cp_v_vec2_loc_t point;
+
+    /**
+     * Paths definingthe polygon.
+     *
+     * This should be equivalent information as in triangle.
+     *
+     * All paths should be clockwise.  Some processing stages
+     * work without this (e.g., triangulation and bool operations
+     * do not really care about point order), others require it
+     * (like SCAD and STL output).  The bool operation output
+     * will correctly fill this in clockwise order.  (I.e., polygon
+     * paths subtracting from an outer path will have reverse
+     * order.)
+     */
     cp_v_csg2_path_t path;
+
+    /**
+     * Triangles defining the polygon.
+     *
+     * This should be equivalent information as in path.
+     *
+     * All triangles should be clockwise.  Whether this is
+     * required depends on the step in the processing pipeline.
+     * SCAD and STL output require this to work correctly.
+     *
+     * Without triangulation run, this is empty.
+     */
     cp_v_size3_t triangle;
 } cp_csg2_poly_t;
 
@@ -172,6 +208,7 @@ typedef struct {
     cp_a_double_t z;
     cp_a_size_t flag;
     cp_csg2_t *root;
+    double thick;
 } cp_csg2_tree_t;
 
 /**

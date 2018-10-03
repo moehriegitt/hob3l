@@ -1,6 +1,23 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
+/**
+ * Some matrix and vector type/macro definitions.
+ *
+ * We have many matrix types here to be able to use the minimum amount
+ * of float computations, and to exploit precision where it exists.  E.g.
+ * there are 2, 3, and 4 dimensional vectors and matrices.  For the
+ * usual SCAD transformations, to support translations, there are
+ * extendend matrixes suffixed with 'w' which contain the translation
+ * vector.  These transformations do not need perspective corrections,
+ * so this is faster than going up to full 4 dimensions.  And to improve
+ * precision, there is a class of matrices that have their inverse
+ * matrix plus their determinant, so we do not need to compute this later.
+ * Computing those is usually very expensive and computationally unstable,
+ * but for rotations, translations, and scaling transformations, it is
+ * very easy to compute the inverse alongside the normal matrix.
+ */
+
 #ifndef __CP_MAT_TAM_H
 #define __CP_MAT_TAM_H
 

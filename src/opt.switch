@@ -10,6 +10,11 @@ case "help": {
     help();
 }
 
+case "o": fn {
+    "sets the output file.  File ending selects default output format.";
+    opt->out_file_name = fn;
+}
+
 help_section "Slicing Options";
 
 case "min": dim &opt->z_min {
@@ -36,18 +41,27 @@ help_section "Intermediate Stage Output/Alternative Output Format Options";
 
 case "dump-syn": bool &opt->dump_syn {
     "print after stage 1: AST of input file; don't slice";
+    opt->have_dump = true;
 }
 case "dump-scad": bool &opt->dump_scad {
     "print after stage 2: SCAD tree, SCAD format; don't slice";
+    opt->have_dump = true;
 }
 case "dump-csg3": bool &opt->dump_csg3 {
     "print after stage 3: 3D CSG model, SCAD format; don't slice";
+    opt->have_dump = true;
 }
 case "dump-csg2": bool &opt->dump_csg2 {
     "print after stage 4: final 2D polygon stack in SCAD format";
+    opt->have_dump = true;
 }
 case "dump-ps": bool &opt->dump_ps {
     "print after stage 4: final 2D polygon stack in PS format";
+    opt->have_dump = true;
+}
+case "dump-stl": bool &opt->dump_stl {
+    "print after stage 4: final 2D polygon stack in STL format";
+    opt->have_dump = true;
 }
 
 case "no-csg": bool &opt->no_csg {

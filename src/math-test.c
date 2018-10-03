@@ -149,4 +149,64 @@ extern void cp_math_test(void)
     TEST_EQ(m.m[0][0], 1); TEST_EQ(m.m[0][1], 0); TEST_EQ(m.m[0][2], 0);
     TEST_EQ(m.m[1][0], 0); TEST_EQ(m.m[1][1], 0); TEST_EQ(m.m[1][2], +1);
     TEST_EQ(m.m[2][0], 0); TEST_EQ(m.m[2][1],-1); TEST_EQ(m.m[2][2], 0);
+
+    {
+        /* Test that CCW normal computation is really called 'left'. */
+        cp_vec3_t n = {{ 0, 0, 1 }};
+        cp_vec3_t a = {{ 0, 1, 0 }};
+        cp_vec3_t b = {{ 0, 0, 0 }};
+        cp_vec3_t c = {{ 1, 0, 0 }};
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+    }
+    {
+        /* Test that CW normal computation is really called 'right'. */
+        cp_vec3_t n = {{ 0, 0, 1 }};
+        cp_vec3_t a = {{ 1, 0, 0 }};
+        cp_vec3_t b = {{ 0, 0, 0 }};
+        cp_vec3_t c = {{ 0, 1, 0 }};
+
+        cp_vec3_t p;
+        cp_vec3_right_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+    }
+    {
+        /* STL facet from OpenSCAD: uses 'left normal' */
+        cp_vec3_t n = {{ -6.62557e-18, -1, 2.86288e-16 }};
+        cp_vec3_t a = {{ -107, -6, 50.5 }};
+        cp_vec3_t b = {{ -107, -6, 51.4711 }};
+        cp_vec3_t c = {{ -109.7, -6, 44.6289 }};
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+    }
+    {
+        /* STL facet from Wikipedia: also uses 'left normal' */
+        /* This requires an epsilon of 0.02 to work, maybe this is an artistic
+         * error or done for some shaping fanciness. */
+        double old_epsilon = cp_equ_epsilon;
+        cp_equ_epsilon = 0.02;
+
+        cp_vec3_t n = {{ 0.70675, -0.70746, 0 }};
+        cp_vec3_t a = {{ 1000, 0, 0 }};
+        cp_vec3_t b = {{ 0, -1000, 0 }};
+        cp_vec3_t c = {{ 0, -999, -52 }};
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+
+        cp_equ_epsilon = old_epsilon;
+    }
 }

@@ -158,6 +158,7 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s)
 {
     r->root = cp_csg2_new(CP_CSG2_ADD, d->root->loc);
+    r->thick = s->step;
 
     cp_v_init0(&r->flag, s->cnt);
 

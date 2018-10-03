@@ -7,6 +7,8 @@ static char const *opt_help =
     "    --?\n"
     "    --help\n"
     "        displays this help text\n"
+    "    --o=ARG\n"
+    "        sets the output file.  File ending selects default output format.\n"
     "Slicing Options\n"
     "    --min=ARG\n"
     "        min slice z coord [mm] (default: use bounding box of model)\n"
@@ -27,6 +29,8 @@ static char const *opt_help =
     "        print after stage 4: final 2D polygon stack in SCAD format\n"
     "    --dump-ps\n"
     "        print after stage 4: final 2D polygon stack in PS format\n"
+    "    --dump-stl\n"
+    "        print after stage 4: final 2D polygon stack in STL format\n"
     "    --no-csg\n"
     "    --csg\n"
     "        for stage 4: do (not) run 2D boolean operation pass\n"
@@ -127,6 +131,7 @@ static void get_opt_dump_csg2(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_csg2, name, arg);
+    opt->have_dump = true;
 }
 
 static void get_opt_dump_csg3(
@@ -135,6 +140,7 @@ static void get_opt_dump_csg3(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_csg3, name, arg);
+    opt->have_dump = true;
 }
 
 static void get_opt_dump_ps(
@@ -143,6 +149,7 @@ static void get_opt_dump_ps(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_ps, name, arg);
+    opt->have_dump = true;
 }
 
 static void get_opt_dump_scad(
@@ -151,6 +158,16 @@ static void get_opt_dump_scad(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_scad, name, arg);
+    opt->have_dump = true;
+}
+
+static void get_opt_dump_stl(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_bool(&opt->dump_stl, name, arg);
+    opt->have_dump = true;
 }
 
 static void get_opt_dump_syn(
@@ -159,6 +176,7 @@ static void get_opt_dump_syn(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_syn, name, arg);
+    opt->have_dump = true;
 }
 
 static void get_opt_max(
@@ -193,6 +211,14 @@ static void get_opt_no_tri(
     char const *arg __unused)
 {
     get_arg_bool(&opt->no_tri, name, arg);
+}
+
+static void get_opt_o(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *fn __unused)
+{
+    opt->out_file_name = fn;
 }
 
 static void get_opt_ps_color_fill(
@@ -453,6 +479,11 @@ cp_get_opt_t opt_list[] = {
         1,
     },
     {
+        "dump-stl",
+        get_opt_dump_stl,
+        1,
+    },
+    {
         "dump-syn",
         get_opt_dump_syn,
         1,
@@ -486,6 +517,11 @@ cp_get_opt_t opt_list[] = {
         "no-tri",
         get_opt_no_tri,
         1,
+    },
+    {
+        "o",
+        get_opt_o,
+        2,
     },
     {
         "ps-color-fill",

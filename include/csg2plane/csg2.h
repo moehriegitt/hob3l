@@ -391,6 +391,13 @@ extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
     cp_csg2_stack_t *c,
     size_t zi);
 
+/**
+ * Return the layer thickness of a given layer.
+ */
+extern cp_dim_t cp_csg2_layer_thickness(
+    cp_csg2_tree_t *t,
+    size_t zi);
+
 /* Dynamic casts */
 CP_DECLARE_CAST(csg2, circle, CP_CSG2_CIRCLE)
 CP_DECLARE_CAST(csg2, poly,   CP_CSG2_POLY)

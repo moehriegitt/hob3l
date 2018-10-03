@@ -27,11 +27,14 @@ typedef struct {
     bool dump_csg3;
     bool dump_csg2;
     bool dump_ps;
+    bool dump_stl;
+    bool have_dump;
     bool no_tri;
     bool no_csg;
     unsigned ps_scale_step; /* 0 = no change, 1 = normal bb, 2 = max bb */
     cp_ps_opt_t ps;
     cp_scale_t ps_persp;
+    char const *out_file_name;
 } cp_opt_t;
 
 static void format_source_line(
@@ -68,13 +71,12 @@ static void format_source_line(
 }
 
 static bool do_file(
+    cp_stream_t *sout,
     cp_opt_t *opt,
     cp_syn_tree_t *r,
     const char *fn,
     FILE *f)
 {
-    cp_stream_t *sout = CP_STREAM_FROM_FILE(stdout);
-
     /* stage 1: syntax tree */
     if (!cp_syn_parse(r, fn, f)) {
         return false;
@@ -183,6 +185,10 @@ static bool do_file(
         cp_csg2_tree_put_scad(sout, csg2);
         return true;
     }
+    if (opt->dump_stl) {
+        cp_csg2_tree_put_stl(sout, csg2);
+        return true;
+    }
     if (opt->dump_ps) {
         cp_ps_xform_t xform = CP_PS_XFORM_MM;
         switch (opt->ps_scale_step) {
@@ -236,7 +242,7 @@ __attribute__((noreturn))
 static void help(void)
 {
 #define PRI printf
-    PRI("Usage: %s [Options] [FILE [FILE [...]]\n", cp_prog_name());
+    PRI("Usage: %s [Options] INFILE\n", cp_prog_name());
     PRI("\n");
     PRI("This reads 3D CSG models from (simple syntax) SCAD files, slices\n"
         "them into layers of 2D CSG models, applies 2D CSG boolean operations\n"
@@ -388,6 +394,18 @@ static void parse_opt(
     g->func(opt, argvi, arg);
 }
 
+static bool has_suffix(
+    char const *haystack,
+    char const *needle)
+{
+    size_t len1 = strlen(haystack);
+    size_t len2 = strlen(needle);
+    if (len1 < len2) {
+        return false;
+    }
+    return strequ(haystack + len1 - len2, needle);
+}
+
 int main(int argc, char **argv)
 {
     /* init options */
@@ -404,13 +422,19 @@ int main(int argc, char **argv)
     opt.ps.line_width = 0.4;
 
     /* parse command line */
-    cp_v_cstr_t file = CP_V_INIT;
+    char const *in_file_name = NULL;
     for (int i = 1; i < argc; i++) {
         if (argv[i][0] == '-') {
             parse_opt(&opt, &i, argc, argv);
         }
+        else
+        if (in_file_name == NULL) {
+            in_file_name = argv[i];
+        }
         else {
-            cp_v_push(&file, argv[i]);
+            fprintf(stderr, "Error: Multiple input files cannot be processed: '%s'\n",
+                argv[i]);
+            my_exit(1);
         }
     }
 
@@ -422,84 +446,115 @@ int main(int argc, char **argv)
         cp_mat4_mul(&opt.ps.xform2, &m, &opt.ps.xform2);
     }
 
-    /* process files */
-    for (cp_v_each(i, &file)) {
-        const char *fn = file.data[i];
-        FILE *f = fopen(fn, "rt");
-        if (f == NULL) {
-            fprintf(stderr, "Error: Unable to open '%s' for reading: %s\n", fn, strerror(errno));
+    /* output file: */
+    cp_stream_t *sout = CP_STREAM_FROM_FILE(stdout);
+    FILE *fout = NULL;
+    if (opt.out_file_name) {
+        fout = fopen(opt.out_file_name, "wt");
+        if (fout == NULL) {
+            fprintf(stderr, "Error: Unable to open '%s' for writing: %s\n",
+                opt.out_file_name, strerror(errno));
             my_exit(1);
         }
+        sout = CP_STREAM_FROM_FILE(fout);
 
-        cp_syn_tree_t *r = CP_NEW(*r);
-        bool ok = do_file(&opt, r, fn, f);
-
-        fclose(f);
-
-        /* print error (FIXME: make this readable) */
-        if (!ok) {
-            cp_syn_loc_t loc;
-            bool have_loc = cp_syn_get_loc(&loc, r, r->err.loc);
-
-            cp_vchar_t src_line;
-            cp_vchar_init(&src_line);
-            size_t pos = CP_SIZE_MAX;
-
-            if (have_loc) {
-                format_source_line(
-                    &src_line,
-                    &pos,
-                    loc.orig + CP_PTRDIFF(r->err.loc, loc.copy),
-                    loc.orig,
-                    CP_PTRDIFF(loc.orig_end, loc.orig));
-                if (pos != CP_SIZE_MAX) {
-                    fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: ",
-                        loc.file->filename.data, loc.line+1, pos+1);
-                }
-                else {
-                    fprintf(stderr, "%s:%"_Pz"u: ", loc.file->filename.data, loc.line+1);
-                }
+        if (!opt.have_dump) {
+            if (has_suffix(opt.out_file_name, ".stl")) {
+                opt.dump_stl = true;
             }
-
-            if (r->err.msg.size > 0) {
-                if (r->err.msg.data[r->err.msg.size-1] != '\n') {
-                    cp_vchar_push(&r->err.msg, '\n');
-                }
-
-                fprintf(stderr, "Error: %s", r->err.msg.data);
+            else if (has_suffix(opt.out_file_name, ".scad")) {
+                opt.dump_csg2 = true;
+            }
+            else if (has_suffix(opt.out_file_name, ".ps")) {
+                opt.dump_ps = true;
             }
             else {
-                fprintf(stderr, "Error: Unknown failure.\n");
+                fprintf(stderr, "Error: Unrecognised file ending: '%s'.  Use --dump-...\n",
+                    opt.out_file_name);
+                my_exit(1);
             }
-            if (have_loc) {
-                fprintf(stderr, " %s", src_line.data);
-                if (pos != CP_SIZE_MAX) {
-                    fprintf(stderr, " %*s^\n", (int)pos, "");
-                }
-            }
-
-            cp_syn_loc_t loc2;
-            bool have_loc2 = cp_syn_get_loc(&loc2, r, r->err.loc2);
-            if (have_loc2 && (r->err.loc2 != r->err.loc)) {
-                cp_vchar_t src_line2;
-                cp_vchar_init(&src_line2);
-                size_t pos2 = CP_SIZE_MAX;
-                format_source_line(
-                    &src_line2,
-                    &pos2,
-                    loc2.orig + CP_PTRDIFF(r->err.loc2, loc2.copy),
-                    loc2.orig,
-                    CP_PTRDIFF(loc2.orig_end, loc2.orig));
-                if (pos2 != CP_SIZE_MAX) {
-                    fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: Info: See also here:\n",
-                        loc2.file->filename.data, loc2.line+1, pos2+1);
-                    fprintf(stderr, " %s", src_line2.data);
-                    fprintf(stderr, " %*s^\n", (int)pos2, "");
-                }
-            }
-
-            my_exit(1);
         }
+    }
+
+    /* process files */
+    FILE *fin = fopen(in_file_name, "rt");
+    if (fin == NULL) {
+        fprintf(stderr, "Error: Unable to open '%s' for reading: %s\n",
+            in_file_name, strerror(errno));
+        my_exit(1);
+    }
+
+    cp_syn_tree_t *r = CP_NEW(*r);
+    bool ok = do_file(sout, &opt, r, in_file_name, fin);
+    fclose(fin);
+
+    if (fout != NULL) {
+        fclose(fout);
+    }
+
+    /* print error (FIXME: make this readable) */
+    if (!ok) {
+        cp_syn_loc_t loc;
+        bool have_loc = cp_syn_get_loc(&loc, r, r->err.loc);
+
+        cp_vchar_t src_line;
+        cp_vchar_init(&src_line);
+        size_t pos = CP_SIZE_MAX;
+
+        if (have_loc) {
+            format_source_line(
+                &src_line,
+                &pos,
+                loc.orig + CP_PTRDIFF(r->err.loc, loc.copy),
+                loc.orig,
+                CP_PTRDIFF(loc.orig_end, loc.orig));
+            if (pos != CP_SIZE_MAX) {
+                fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: ",
+                    loc.file->filename.data, loc.line+1, pos+1);
+            }
+            else {
+                fprintf(stderr, "%s:%"_Pz"u: ", loc.file->filename.data, loc.line+1);
+            }
+        }
+
+        if (r->err.msg.size > 0) {
+            if (r->err.msg.data[r->err.msg.size-1] != '\n') {
+                cp_vchar_push(&r->err.msg, '\n');
+            }
+
+            fprintf(stderr, "Error: %s", r->err.msg.data);
+        }
+        else {
+            fprintf(stderr, "Error: Unknown failure.\n");
+        }
+        if (have_loc) {
+            fprintf(stderr, " %s", src_line.data);
+            if (pos != CP_SIZE_MAX) {
+                fprintf(stderr, " %*s^\n", (int)pos, "");
+            }
+        }
+
+        cp_syn_loc_t loc2;
+        bool have_loc2 = cp_syn_get_loc(&loc2, r, r->err.loc2);
+        if (have_loc2 && (r->err.loc2 != r->err.loc)) {
+            cp_vchar_t src_line2;
+            cp_vchar_init(&src_line2);
+            size_t pos2 = CP_SIZE_MAX;
+            format_source_line(
+                &src_line2,
+                &pos2,
+                loc2.orig + CP_PTRDIFF(r->err.loc2, loc2.copy),
+                loc2.orig,
+                CP_PTRDIFF(loc2.orig_end, loc2.orig));
+            if (pos2 != CP_SIZE_MAX) {
+                fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: Info: See also here:\n",
+                    loc2.file->filename.data, loc2.line+1, pos2+1);
+                fprintf(stderr, " %s", src_line2.data);
+                fprintf(stderr, " %*s^\n", (int)pos2, "");
+            }
+        }
+
+        my_exit(1);
     }
 
     my_exit(0);

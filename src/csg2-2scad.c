@@ -21,6 +21,47 @@ static void v_csg2_put_scad(
     size_t zi,
     cp_v_csg2_p_t *r);
 
+static void poly_put_scad(
+    cp_stream_t *s,
+    cp_csg2_tree_t *t,
+    int d,
+    size_t zi,
+    cp_csg2_poly_t *r)
+{
+    cp_printf(s, "%*s", d,"");
+    cp_dim_t lt = cp_csg2_layer_thickness(t, zi);
+    cp_printf(s, "linear_extrude(height="FF",center=0,convexity=2,twist=0)", lt - 0.01);
+    cp_printf(s, "polygon(");
+    cp_printf(s, "points=[");
+    for (cp_v_each(i, &r->point)) {
+        cp_vec2_t const *v = &cp_v_nth(&r->point, i).coord;
+        cp_printf(s,"%s["FF","FF"]",
+            i == 0 ? "" : ",",
+            v->x, v->y);
+    }
+    cp_printf(s, "],");
+    cp_printf(s, "paths=[");
+    if (r->triangle.size > 0) {
+        for (cp_v_each(i, &r->triangle)) {
+            cp_size3_t const *f = &cp_v_nth(&r->triangle, i);
+            cp_printf(s, "%s[%"_Pz"u,%"_Pz"u,%"_Pz"u]",
+                i == 0 ? "" : ",",
+                f->p[0], f->p[1], f->p[2]);
+        }
+    }
+    else {
+        for (cp_v_each(i, &r->path)) {
+            cp_csg2_path_t const *f = &cp_v_nth(&r->path, i);
+            cp_printf(s, "%s[", i == 0 ? "" : ",");
+            for (cp_v_each(j, &f->point_idx)) {
+                cp_printf(s, "%s%"_Pz"u", j == 0 ? "" : ",", cp_v_nth(&f->point_idx, j));
+            }
+            cp_printf(s, "]");
+        }
+    }
+    cp_printf(s, "]);\n");
+}
+
 static void union_put_scad(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
@@ -71,83 +112,28 @@ static void cut_put_scad(
 {
     cp_printf(s, "%*sintersection(){\n", d, "");
     for (cp_v_each(i, &r->cut)) {
-        union_put_scad(s, t, d + IND, zi, &r->cut.data[i]->add);
+        union_put_scad(s, t, d + IND, zi, &cp_v_nth(&r->cut, i)->add);
     }
     cp_printf(s, "%*s}\n", d, "");
-}
-
-static cp_dim_t layer_thickness(
-    cp_csg2_tree_t *t,
-    size_t zi)
-{
-    if (t->z.size <= 1) {
-        return 1.0;
-    }
-    if (zi <= 0) {
-       zi = 1;
-    }
-    if (zi >= t->z.size) {
-       zi = t->z.size - 1;
-    }
-    double th = t->z.data[zi] - t->z.data[zi - 1];
-    assert(th > 0);
-    return th;
-}
-
-static void poly_put_scad(
-    cp_stream_t *s,
-    cp_csg2_tree_t *t,
-    int d,
-    size_t zi,
-    cp_csg2_poly_t *r)
-{
-    cp_printf(s, "%*s", d,"");
-    cp_dim_t lt = layer_thickness(t, zi);
-    cp_printf(s, "linear_extrude(height=%g,center=0,convexity=2,twist=0)", lt - 0.01);
-    cp_printf(s, "polygon(");
-    cp_printf(s, "points=[");
-    for (cp_v_each(i, &r->point)) {
-        cp_vec2_t const *v = &r->point.data[i].coord;
-        cp_printf(s,"%s["FF","FF"]",
-            i == 0 ? "" : ",",
-            v->x, v->y);
-    }
-    cp_printf(s, "],");
-    cp_printf(s, "paths=[");
-    if (r->triangle.size > 0) {
-        for (cp_v_each(i, &r->triangle)) {
-            cp_size3_t const *f = &r->triangle.data[i];
-            cp_printf(s, "%s[%"_Pz"u,%"_Pz"u,%"_Pz"u]",
-                i == 0 ? "" : ",",
-                f->p[0], f->p[1], f->p[2]);
-        }
-    }
-    else {
-        for (cp_v_each(i, &r->path)) {
-            cp_csg2_path_t const *f = &r->path.data[i];
-            cp_printf(s, "%s[", i == 0 ? "" : ",");
-            for (cp_v_each(j, &f->point_idx)) {
-                cp_printf(s, "%s%"_Pz"u", j == 0 ? "" : ",", f->point_idx.data[j]);
-            }
-            cp_printf(s, "]");
-        }
-    }
-    cp_printf(s, "]);\n");
 }
 
 static void layer_put_scad(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     int d,
-    size_t zi,
+    size_t zi __unused,
     cp_csg2_layer_t *r)
 {
-    double z = t->z.data[r->zi];
+    if (r->root.add.size == 0) {
+        return;
+    }
+    assert(zi == r->zi);
+    double z = cp_v_nth(&t->z, r->zi);
 
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "translate([0,0,"FF"]) {\n", z);
 
-    v_csg2_put_scad(s, t, d + IND, zi, &r->root.add);
+    v_csg2_put_scad(s, t, d + IND, r->zi, &r->root.add);
 
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "}\n");
@@ -165,7 +151,7 @@ static void stack_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "group(){\n");
     for (cp_v_each(i, &r->layer)) {
-        layer_put_scad(s, t, d + IND, i, &r->layer.data[i]);
+        layer_put_scad(s, t, d + IND, r->idx0 + i, &cp_v_nth(&r->layer, i));
     }
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "}\n");
@@ -215,7 +201,7 @@ static void v_csg2_put_scad(
     cp_v_csg2_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_scad(s, t, d, zi, r->data[i]);
+        csg2_put_scad(s, t, d, zi, cp_v_nth(r, i));
     }
 }
 

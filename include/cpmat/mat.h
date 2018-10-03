@@ -40,7 +40,7 @@ static inline void cp_vec2_normal(
 }
 
 /**
- * Right handled (=standard) z coordinate of cross product
+ * Right handed (=standard) z coordinate of cross product
  */
 static inline cp_f_t cp_cross_z(cp_f_t ax, cp_f_t ay, cp_f_t bx, cp_f_t by)
 {
@@ -122,7 +122,7 @@ static inline int cp_vec2_left_normal3_z(
 
 /* ** 3D special stuff ** */
 
-/** cross product (which is right-handle, see above) */
+/** cross product (which is right-handed, see above) */
 extern void cp_vec3_cross(
     cp_vec3_t *result,
     cp_vec3_t const *a,
