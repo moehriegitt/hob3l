@@ -296,7 +296,7 @@ static void dump_ey(
 #endif
 
 #ifdef PSTRACE
-    if (cp_debug_ps != NULL) {
+    if (cp_debug_ps_try_page()) {
         /* begin page */
         cp_ps_page_begin(cp_debug_ps, cp_debug_ps_opt, ++cp_debug_ps_page_cnt);
 

@@ -47,6 +47,18 @@ extern size_t cp_debug_ps_skip_page;
  */
 #define CP_PS_XY(v) CP_PS_X((v).x), CP_PS_Y((v).y)
 
+static inline bool cp_debug_ps_try_page(void)
+{
+    if (cp_debug_ps == NULL) {
+        return false;
+    }
+    if (cp_debug_ps_skip_page == 0) {
+        return true;
+    }
+    cp_debug_ps_skip_page--;
+    return false;
+}
+
 #endif /* PSTRACE */
 
 #if defined(DEBUG) && DEBUG

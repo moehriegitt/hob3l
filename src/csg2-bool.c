@@ -354,7 +354,7 @@ static void debug_print_s(
 
 #ifdef PSTRACE
     /* output to postscript */
-    if (cp_debug_ps != NULL) {
+    if (cp_debug_ps_try_page()) {
         /* begin page */
         cp_ps_page_begin(cp_debug_ps, cp_debug_ps_opt, ++cp_debug_ps_page_cnt);
 
