@@ -184,7 +184,7 @@ E.g.:
 
 ```
     make clean
-    make MODE=release
+    make
     make test
 ```
 
