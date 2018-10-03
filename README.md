@@ -176,7 +176,7 @@ all generated C code is also checked in, so the scripts are only
 invoked when changes are made.
 
 Make variables can be used to switch how the stuff is compiled.  Since
-I tried not to overdo with gcc extensions (`({...})' and `\_\_typeof\_\_`
+I tried not to overdo with gcc extensions (`({...})` and `\_\_typeof\_\_`
 are used frequently, though), it should be compilable without too much
 effort.
 
