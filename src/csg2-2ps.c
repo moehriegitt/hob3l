@@ -277,17 +277,17 @@ extern void cp_csg2_tree_put_ps(
         k.bb.max.y = -99999;
 
         size_t page_cnt = 0;
-        cp_ps_doc_begin(s, cp_debug_ps_opt, CP_SIZE_MAX, 0, 0, -1, -1);
+        cp_ps_doc_begin(s, opt, CP_SIZE_MAX, 0, 0, -1, -1);
         if (opt->single_page) {
             page_cnt++;
-            cp_ps_page_begin(s, cp_debug_ps_opt, page_cnt);
+            cp_ps_page_begin(s, opt, page_cnt);
         }
 
         for (cp_v_each(zi, &t->z)) {
             if (cp_v_nth(&t->flag, zi) & CP_CSG2_FLAG_NON_EMPTY) {
                 if (!opt->single_page) {
                     page_cnt++;
-                    cp_ps_page_begin(s, cp_debug_ps_opt, page_cnt);
+                    cp_ps_page_begin(s, opt, page_cnt);
                     cp_printf(s, "10 10 moveto (z=%g zi=%"_Pz"u) show\n", cp_v_nth(&t->z, zi), zi);
                 }
 

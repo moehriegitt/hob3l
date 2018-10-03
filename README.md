@@ -6,10 +6,10 @@ Fast Slicing of SCAD Files for 3D Printing
 Preparing a 3D model in CSG format (e.g., when using OpenSCAD) for
 printing may take a long time and is often computationally instable.
 
-So this tool wants to replace a workflow of '3D CSG--Slice--Print':
+So this tool wants to replace a workflow 'apply 3D CSG, then slice, then print':
 ![3D CSG](img/csg1-old.png)
 
-by a workflow of 'Slice--2D CSG--Print':
+by a workflow 'slice, then apply 2D CSG, then print':
 
 ![2D CSG](img/csg1-new.png)
 
