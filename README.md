@@ -176,8 +176,9 @@ all generated C code is also checked in, so the scripts are only
 invoked when changes are made.
 
 Make variables can be used to switch how the stuff is compiled.  Since
-this is pure standard C (albeit with gcc extensions), it should be
-compilable without too much effort.
+I tried not to overdo with gcc extensions (`({...})' and `__typeof__`
+are used frequently, though), it should be compilable without too much
+effort.
 
 E.g.:
 
