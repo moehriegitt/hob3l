@@ -42,6 +42,7 @@ extern void cp_ps_xform_from_bb(
  */
 extern void cp_ps_doc_begin(
     cp_stream_t *s,
+    cp_ps_opt_t const *opt,
     size_t page_cnt,
     long x1, long y1, long x2, long y2);
 
@@ -61,6 +62,7 @@ extern void cp_ps_doc_end(
 
 extern void cp_ps_page_begin(
     cp_stream_t *s,
+    cp_ps_opt_t const *opt,
     size_t page);
 
 extern void cp_ps_page_end(

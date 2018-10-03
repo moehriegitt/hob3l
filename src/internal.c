@@ -8,6 +8,7 @@ FILE *cp_debug_ps_file = NULL;
 cp_stream_t *cp_debug_ps = NULL;
 size_t cp_debug_ps_page_cnt = 0;
 cp_ps_xform_t cp_debug_ps_xform = CP_PS_XFORM_MM;
+cp_ps_opt_t const *cp_debug_ps_opt = NULL;
 #endif
 
 extern int cp_trace_level(int i)

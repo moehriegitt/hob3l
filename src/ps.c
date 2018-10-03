@@ -46,6 +46,7 @@ extern double cp_ps_y(cp_ps_xform_t const *d, double y)
 
 extern void cp_ps_doc_begin(
     cp_stream_t *s,
+    cp_ps_opt_t const *opt __unused,
     size_t page_cnt,
     long x1, long y1, long x2, long y2)
 {
@@ -107,6 +108,7 @@ extern void cp_ps_doc_end(
 
 extern void cp_ps_page_begin(
     cp_stream_t *s,
+    cp_ps_opt_t const *opt,
     size_t page)
 {
     cp_printf(s,
@@ -114,10 +116,11 @@ extern void cp_ps_page_begin(
         "save\n"
         "1 setlinecap\n"
         "1 setlinejoin\n"
-        "0.4 setlinewidth\n"
+        "%g setlinewidth\n"
         "0 setgray\n"
         "/Helvetica findfont 18 scalefont setfont\n",
-        page, page);
+        page, page,
+        opt->line_width);
 }
 
 extern void cp_ps_page_end(

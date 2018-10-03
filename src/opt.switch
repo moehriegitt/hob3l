@@ -133,6 +133,9 @@ case "ps-color-vertex": rgb &opt->ps.color_vertex {
 case "ps-color-mark": rgb &opt->ps.color_mark {
     "RGB color of internal mark";
 }
+case "ps-line-width": dim &opt->ps.line_width {
+    "Line width used for polygon paths";
+}
 
 #ifdef PSTRACE
 help_section "Debugging Options";
@@ -151,7 +154,7 @@ case "debug-ps": fn {
     CP_CALLOC(cp_debug_ps);
     *cp_debug_ps = *CP_STREAM_FROM_FILE(f);
 
-    cp_ps_doc_begin(cp_debug_ps,
+    cp_ps_doc_begin(cp_debug_ps, &opt->ps,
         CP_SIZE_MAX,
         0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
 }

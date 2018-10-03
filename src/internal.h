@@ -33,6 +33,7 @@ extern FILE *cp_debug_ps_file;
 extern cp_stream_t *cp_debug_ps;
 extern size_t cp_debug_ps_page_cnt;
 extern cp_ps_xform_t cp_debug_ps_xform;
+extern cp_ps_opt_t const *cp_debug_ps_opt;
 
 /**
  * Transform using cp_debug_ps_xform.

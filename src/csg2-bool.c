@@ -356,7 +356,7 @@ static void debug_print_s(
     /* output to postscript */
     if (cp_debug_ps != NULL) {
         /* begin page */
-        cp_ps_page_begin(cp_debug_ps, ++cp_debug_ps_page_cnt);
+        cp_ps_page_begin(cp_debug_ps, cp_debug_ps_opt, ++cp_debug_ps_page_cnt);
 
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (CSG: %s) show\n", msg);

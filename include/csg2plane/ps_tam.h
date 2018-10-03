@@ -30,7 +30,7 @@ typedef struct {
 } cp_ps_xform_t;
 
 /**
- * Options for ps outpu */
+ * Options for ps output */
 typedef struct {
     cp_ps_xform_t const *xform1;
     cp_mat4_t xform2;
@@ -39,6 +39,7 @@ typedef struct {
     cp_color_rgb_t color_fill;
     cp_color_rgb_t color_vertex;
     cp_color_rgb_t color_mark;
+    double line_width;
     bool single_page;
     bool no_tri;
     bool no_path;

@@ -114,6 +114,7 @@ static bool do_file(
 #ifdef PSTRACE
         cp_ps_xform_from_bb(&cp_debug_ps_xform,
             full_bb.min.x, full_bb.min.y, full_bb.max.x, full_bb.max.y);
+        cp_debug_ps_opt = &opt->ps;
 #endif
     }
     else {
@@ -400,6 +401,7 @@ int main(int argc, char **argv)
     opt.ps.color_fill   = (cp_color_rgb_t){ 204, 204, 204 };
     opt.ps.color_vertex = (cp_color_rgb_t){ 255,   0,   0 };
     opt.ps.color_mark   = (cp_color_rgb_t){   0,   0, 255 };
+    opt.ps.line_width = 0.4;
 
     /* parse command line */
     cp_v_cstr_t file = CP_V_INIT;

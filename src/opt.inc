@@ -72,6 +72,8 @@ static char const *opt_help =
     "        RGB color of vertices\n"
     "    --ps-color-mark=ARG\n"
     "        RGB color of internal mark\n"
+    "    --ps-line-width=ARG\n"
+    "        Line width used for polygon paths\n"
     "Debugging Options\n"
 #ifdef PSTRACE
     "    --debug-ps=ARG\n"
@@ -113,7 +115,7 @@ static void get_opt_debug_ps(
     CP_CALLOC(cp_debug_ps);
     *cp_debug_ps = *CP_STREAM_FROM_FILE(f);
 
-    cp_ps_doc_begin(cp_debug_ps,
+    cp_ps_doc_begin(cp_debug_ps, &opt->ps,
         CP_SIZE_MAX,
         0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
 #endif
@@ -231,6 +233,14 @@ static void get_opt_ps_color_vertex(
     char const *arg __unused)
 {
     get_arg_rgb(&opt->ps.color_vertex, name, arg);
+}
+
+static void get_opt_ps_line_width(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_dim(&opt->ps.line_width, name, arg);
 }
 
 static void get_opt_ps_mark(
@@ -500,6 +510,11 @@ cp_get_opt_t opt_list[] = {
     {
         "ps-color-vertex",
         get_opt_ps_color_vertex,
+        2,
+    },
+    {
+        "ps-line-width",
+        get_opt_ps_line_width,
         2,
     },
     {
