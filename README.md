@@ -202,6 +202,14 @@ selection is stored in a file `.mode.d`, so next time you invoke
 'make' without a `MODE` parameter, the previous build variant will be
 chosen.
 
+E.g.:
+
+```
+    make clean
+    make MODE=release
+    make test
+```
+
 ### Different Compiler Targets
 
 To compile with the standard 'gcc', whatever that is, for x86:
