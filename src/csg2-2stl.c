@@ -64,9 +64,9 @@ static void poly_put_stl(
         size_t const *p = cp_v_nth(&r->triangle, i).p;
         triangle_put_stl(s,
             0., 0., -1.,
-            cp_v_nth(point, p[0]).coord.x, cp_v_nth(point, p[0]).coord.y, z2,
-            cp_v_nth(point, p[1]).coord.x, cp_v_nth(point, p[1]).coord.y, z2,
-            cp_v_nth(point, p[2]).coord.x, cp_v_nth(point, p[2]).coord.y, z2);
+            cp_v_nth(point, p[0]).coord.x, cp_v_nth(point, p[0]).coord.y, z1,
+            cp_v_nth(point, p[1]).coord.x, cp_v_nth(point, p[1]).coord.y, z1,
+            cp_v_nth(point, p[2]).coord.x, cp_v_nth(point, p[2]).coord.y, z1);
     }
 
     /* sides */

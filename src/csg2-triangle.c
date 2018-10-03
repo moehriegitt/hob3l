@@ -1,16 +1,6 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-/*
- * TODO:
- *
- *   - holes work, but be sure that coincident points work, because we
- *     may encounter those easily, e.g. from a boolean operation.
- *     If not, I think it may be as easy as extending the comparison
- *     function to consider the other side of an edge from comparing
- *     points.
- */
-
 #define DEBUG 0
 
 #include <stdio.h>

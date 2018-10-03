@@ -209,4 +209,17 @@ extern void cp_math_test(void)
 
         cp_equ_epsilon = old_epsilon;
     }
+    {
+        /* Test of own STL output */
+        cp_vec3_t n = {{ 0, 0, 1 }};
+        cp_vec3_t a = {{ 0, 0, 2.19}};
+        cp_vec3_t b = {{ 10, 0, 2.19}};
+        cp_vec3_t c = {{ 0, 10, 2.19}};
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+    }
 }

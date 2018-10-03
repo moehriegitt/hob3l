@@ -6,6 +6,7 @@ TEST_TRIANGLE.scad := \
     scad-test/paper1-mx.scad \
     scad-test/paper1-r90.scad \
     scad-test/paper1-r30.scad \
+    scad-test/test1b.scad \
     scad-test/test11.scad \
     scad-test/test11-mx.scad \
     scad-test/test11-r90.scad \
