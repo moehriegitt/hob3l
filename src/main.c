@@ -116,6 +116,15 @@ static bool do_file(
 #ifdef PSTRACE
         cp_ps_xform_from_bb(&cp_debug_ps_xform,
             full_bb.min.x, full_bb.min.y, full_bb.max.x, full_bb.max.y);
+        cp_debug_ps_xform.add_x -= CP_PS_PAPER_X/2;
+        cp_debug_ps_xform.add_y -= CP_PS_PAPER_Y/2;
+        cp_debug_ps_xform.add_x *= cp_debug_ps_scale;
+        cp_debug_ps_xform.add_y *= cp_debug_ps_scale;
+        cp_debug_ps_xform.mul   *= cp_debug_ps_scale;
+        cp_debug_ps_xform.add_x += CP_PS_PAPER_X/2;
+        cp_debug_ps_xform.add_y += CP_PS_PAPER_Y/2;
+        cp_debug_ps_xform.add_x += (cp_debug_ps_xlat_x * cp_debug_ps_xform.mul);
+        cp_debug_ps_xform.add_y += (cp_debug_ps_xlat_y * cp_debug_ps_xform.mul);
         cp_debug_ps_opt = &opt->ps;
 #endif
     }

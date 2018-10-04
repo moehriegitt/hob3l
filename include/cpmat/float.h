@@ -13,7 +13,7 @@ typedef double cp_f_t;
 #define CP_SQR_EPSILON_DEFAULT (CP_EQU_EPSILON_DEFAULT * CP_EQU_EPSILON_DEFAULT)
 
 #define CP_FF  "%g"
-#define CP_FD  "%+6.2f"
+#define CP_FD  "%+9.5f"
 
 #define cp_abs(x) fabs(x)
 

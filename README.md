@@ -165,7 +165,7 @@ proper, fast pool based allocation.  This is prepared, but incomplete.
 
 There are not enough tests.
 
-The tests that exist often only test a lack of a crash or assertion
+The tests that exist often only test for absence of a crash or assertion
 failure, but whether the algorithm works correctly then needs to be
 inspected by a human.
 

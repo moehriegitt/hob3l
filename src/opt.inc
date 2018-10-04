@@ -84,8 +84,29 @@ static char const *opt_help =
     "        set name of PostScript debug output file\n"
 #endif
 #ifdef PSTRACE
-    "    --debug-ps-skip=ARG\n"
-    "        skip this amount of pages before starting to dump\n"
+    "    --debug-ps-page-skip=ARG\n"
+    "        skip this amount of pages before starting to print debug PostScript\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-page-count=ARG\n"
+    "        output max this amounts of debug PostScript pages (-1 = no limit)\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-scale=ARG\n"
+    "        additional scaling of the debug PostScript output\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-xlat-x=ARG\n"
+    "        move viewport of the debug PostScript output horizontally\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-xlat-y=ARG\n"
+    "        move viewport of the debug PostScript output vertically\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-no-dots\n"
+    "    --debug-ps-dots\n"
+    "        do (not) draw dots for vertices in debug PostScript output\n"
 #endif
     "";
 
@@ -129,13 +150,73 @@ static void get_opt_debug_ps(
 #endif
 }
 
-static void get_opt_debug_ps_skip(
+static void get_opt_debug_ps_dots(
     cp_opt_t *opt __unused,
     char const *name __unused,
     char const *arg __unused)
 {
 #ifdef PSTRACE
-    get_arg_size(&cp_debug_ps_skip_page, name, arg);
+    get_arg_bool(&cp_debug_ps_dots, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_no_dots(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_neg_bool(&cp_debug_ps_dots, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_page_count(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_size(&cp_debug_ps_page_count, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_page_skip(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_size(&cp_debug_ps_page_skip, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_scale(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_scale(&cp_debug_ps_scale, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_xlat_x(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_scale(&cp_debug_ps_xlat_x, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_xlat_y(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_scale(&cp_debug_ps_xlat_y, name, arg);
 #endif
 }
 
@@ -473,8 +554,38 @@ cp_get_opt_t opt_list[] = {
         2,
     },
     {
-        "debug-ps-skip",
-        get_opt_debug_ps_skip,
+        "debug-ps-dots",
+        get_opt_debug_ps_dots,
+        1,
+    },
+    {
+        "debug-ps-no-dots",
+        get_opt_debug_ps_no_dots,
+        1,
+    },
+    {
+        "debug-ps-page-count",
+        get_opt_debug_ps_page_count,
+        2,
+    },
+    {
+        "debug-ps-page-skip",
+        get_opt_debug_ps_page_skip,
+        2,
+    },
+    {
+        "debug-ps-scale",
+        get_opt_debug_ps_scale,
+        2,
+    },
+    {
+        "debug-ps-xlat-x",
+        get_opt_debug_ps_xlat_x,
+        2,
+    },
+    {
+        "debug-ps-xlat-y",
+        get_opt_debug_ps_xlat_y,
         2,
     },
     {

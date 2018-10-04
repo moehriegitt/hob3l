@@ -123,6 +123,18 @@ extern void cp_ps_page_begin(
         opt->line_width);
 }
 
+extern void cp_ps_clip_box(
+    cp_stream_t *s,
+    double x1, double y1, double x2, double y2)
+{
+    cp_printf(s,
+        "newpath %g %g moveto %g %g lineto %g %g lineto %g %g lineto closepath clip\n",
+        x1, y1,
+        x1, y2,
+        x2, y2,
+        x2, y1);
+}
+
 extern void cp_ps_page_end(
     cp_stream_t *s)
 {

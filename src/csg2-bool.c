@@ -321,19 +321,36 @@ static void debug_print_chain(
     e1->debug_tag = tag;
     cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(e1->p->coord));
 
+    event_t *ey __unused = e0;
+    event_t *ez __unused = e1;
     bool close = false;
     for (cp_ring_each(_ei, &e0->node_chain, &e1->node_chain)) {
         event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
-
+        ez = ei;
         ei->debug_tag = tag;
-        cp_printf(cp_debug_ps,
-            " %g %g lineto", CP_PS_XY(ei->p->coord));
+        cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->coord));
         close = !cp_ring_is_end(_ei);
     }
     if (close) {
         cp_printf(cp_debug_ps, " closepath");
     }
     cp_printf(cp_debug_ps, " stroke\n");
+    if (!close && !cp_ring_is_end(&e0->node_chain)) {
+        /* find other end */
+        cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->coord));
+        for (cp_ring_each(_ei, &e1->node_chain, &e0->node_chain)) {
+            event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
+            ey = ei;
+            ei->debug_tag = tag;
+            cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->coord));
+        }
+        cp_printf(cp_debug_ps, " stroke\n");
+    }
+
+    if (!close) {
+        cp_debug_ps_dot(CP_PS_XY(ey->p->coord), 7);
+        cp_debug_ps_dot(CP_PS_XY(ez->p->coord), 7);
+    }
 }
 #endif
 
@@ -354,10 +371,7 @@ static void debug_print_s(
 
 #ifdef PSTRACE
     /* output to postscript */
-    if (cp_debug_ps_try_page()) {
-        /* begin page */
-        cp_ps_page_begin(cp_debug_ps, cp_debug_ps_opt, ++cp_debug_ps_page_cnt);
-
+    if (cp_debug_ps_page_begin()) {
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (CSG: %s) show\n", msg);
         cp_printf(cp_debug_ps, "30 55 moveto (%s) show\n", ev_str(es));
@@ -379,8 +393,7 @@ static void debug_print_s(
         cp_printf(cp_debug_ps, "0.8 setgray\n");
         for (cp_dict_each(_p, c->pt)) {
             point_t *p = CP_BOX_OF(_p, point_t, node_pt);
-            cp_printf(cp_debug_ps, "newpath %g %g 3 0 360 arc closepath fill\n",
-                CP_PS_XY(p->coord));
+            cp_debug_ps_dot(CP_PS_XY(p->coord), 3);
         }
 
         /* s */
@@ -390,9 +403,7 @@ static void debug_print_s(
             event_t *e = CP_BOX_OF(_e, event_t, node_s);
             cp_printf(cp_debug_ps,
                 "0 %g 0 setrgbcolor\n", cp_double(i % 3) * 0.5);
-            cp_printf(cp_debug_ps,
-                "newpath %g %g 3 0 360 arc closepath fill\n",
-                CP_PS_XY(e->p->coord));
+            cp_debug_ps_dot(CP_PS_XY(e->p->coord), 3);
             cp_printf(cp_debug_ps,
                 "newpath %g %g moveto %g %g lineto stroke\n",
                 CP_PS_XY(e->p->coord),
@@ -406,8 +417,7 @@ static void debug_print_s(
         for (cp_dict_each(_e, c->end)) {
             cp_printf(cp_debug_ps, "1 %g 0 setrgbcolor\n", cp_double(i % 3) * 0.3);
             event_t *e0 = CP_BOX_OF(_e, event_t, node_end);
-            cp_printf(cp_debug_ps, "newpath %g %g 4 0 360 arc closepath fill\n",
-                CP_PS_XY(e0->p->coord));
+            cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
             debug_print_chain(e0, cp_debug_ps_page_cnt);
             i++;
         }
@@ -418,8 +428,7 @@ static void debug_print_s(
         for (cp_list_each(_e, &c->poly)) {
             cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", cp_double(i % 3) * 0.5);
             event_t *e0 = CP_BOX_OF(_e, event_t, node_poly);
-            cp_printf(cp_debug_ps, "newpath %g %g 4 0 360 arc closepath fill\n",
-                CP_PS_XY(e0->p->coord));
+            cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
             debug_print_chain(e0, ~cp_debug_ps_page_cnt);
             i++;
         }
@@ -1118,7 +1127,7 @@ static point_t *find_intersection(
     point_t *p0b = e0->other->p;
     point_t *p1  = e1->p;
     point_t *p1b = e1->other->p;
-#if 1
+
     /* Intersections are always calculated from the original input data so that
      * no errors add up. */
 
@@ -1153,64 +1162,6 @@ static point_t *find_intersection(
 
     /* new point */
     return pt_new(c, p0->loc, &i);
-#else
-    /* ORIGINAL: like in Martinez' sample implementation, where the rounding error
-     * will build up along the lines as more and more pieces are cut off.
-     */
-    cp_vec2_t d0;
-    cp_vec2_sub(&d0, &p0b->coord, &p0->coord);
-    cp_vec2_t d1;
-    cp_vec2_sub(&d1, &p1b->coord, &p1->coord);
-    cp_vec2_t e;
-    cp_vec2_sub(&e, &p1->coord, &p0->coord);
-
-    LOG("DEBUG: intersection: %s--%s (d=%s) with %s--%s (d=%s)\n",
-        pt_str(p0), pt_str(p0b), coord_str(&d0),
-        pt_str(p1), pt_str(p1b), coord_str(&d1));
-
-    /* See Schneider, Eberly (2003) */
-    cp_f_t cross = cp_vec2_cross_z(&d0, &d1);
-    cp_f_t sqr_cross = cross * cross;
-    cp_f_t sqr_len0 = cp_vec2_sqr_len(&d0);
-    cp_f_t sqr_len1 = cp_vec2_sqr_len(&d1);
-
-    /* single intersection point? */
-    if (sqr_cross > (cp_sqr_epsilon * sqr_len0 * sqr_len1)) {
-        /* check whether the intersection is really inside the segments */
-        cp_f_t s = cp_vec2_cross_z(&e, &d1) / cross;
-        cp_f_t t = cp_vec2_cross_z(&e, &d0) / cross;
-
-        /* not without segments? */
-        if (cp_lt(s, 0) || cp_gt(s, 1) || cp_lt(t, 0) || cp_gt(t, 1)) {
-            return NULL;
-        }
-
-        /* equal to end points? */
-        if (cp_equ(s, 0)) { return p0; }
-        if (cp_equ(s, 1)) { return p0b; }
-        if (cp_equ(t, 0)) { return p1; }
-        if (cp_equ(t, 1)) { return p1b; }
-
-        /* we indeed have a single, non-trivial intersection point */
-        cp_vec2_t i;
-        cp_vec2_mul(&i, &d0, s);
-        cp_vec2_add(&i, &i, &p0->coord);
-        return pt_new(c, p0->loc, &i);
-    }
-
-    /* parallel: same or disjoint? */
-    cp_f_t sqr_len_e = cp_vec2_sqr_len(&e);
-    cross = cp_vec2_cross_z(&e, &d0);
-    sqr_cross = cross * cross;
-    if (sqr_cross > (cp_sqr_epsilon * sqr_len0 * sqr_len_e)) {
-        return NULL;
-    }
-
-    /* find intersections on same line */
-    CP_NYI("overlapping lines");
-    (void)o2_p;
-    return NULL;
-#endif
 }
 
 static bool check_intersection(

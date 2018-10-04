@@ -53,7 +53,7 @@ static inline cp_f_t cp_cross_z(cp_f_t ax, cp_f_t ay, cp_f_t bx, cp_f_t by)
  */
 static inline int cp_normal_z(double ax, double ay, double bx, double by)
 {
-    return cp_cmp(ax * by, ay * bx);
+    return cp_sqr_cmp(ax * by, ay * bx);
 }
 
 /**

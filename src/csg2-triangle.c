@@ -296,10 +296,7 @@ static void dump_ey(
 #endif
 
 #ifdef PSTRACE
-    if (cp_debug_ps_try_page()) {
-        /* begin page */
-        cp_ps_page_begin(cp_debug_ps, cp_debug_ps_opt, ++cp_debug_ps_page_cnt);
-
+    if (cp_debug_ps_page_begin()) {
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (TRI: %s) show\n", msg);
         cp_printf(cp_debug_ps, "30 55 moveto (%s) show\n", node_str(p));
@@ -310,8 +307,7 @@ static void dump_ey(
             "newpath %g dup 0 moveto %u lineto stroke\n",
             CP_PS_X(p->coord->x),
             CP_PS_PAPER_Y);
-        cp_printf(cp_debug_ps, "newpath %g %g 3 0 360 arc closepath fill\n",
-            CP_PS_XY(*p->coord));
+        cp_debug_ps_dot(CP_PS_XY(*p->coord), 3);
 
         /* sweep state */
         cp_printf(cp_debug_ps, "3 setlinewidth\n");
@@ -331,8 +327,7 @@ static void dump_ey(
                     if (n == NULL) {
                         break;
                     }
-                    cp_printf(cp_debug_ps, "newpath %g %g 4 0 360 arc closepath fill\n",
-                        CP_PS_XY(*n->coord));
+                    cp_debug_ps_dot(CP_PS_XY(*n->coord), 4);
                     if (m != NULL) {
                         cp_printf(cp_debug_ps, "newpath %g %g moveto %g %g lineto stroke\n",
                             CP_PS_XY(*n->coord),

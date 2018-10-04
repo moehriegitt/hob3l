@@ -24,9 +24,9 @@
     })
 
 typedef struct {
-    double mul;
-    double add_x;
-    double add_y;
+    cp_scale_t mul;
+    cp_dim_t add_x;
+    cp_dim_t add_y;
 } cp_ps_xform_t;
 
 /**

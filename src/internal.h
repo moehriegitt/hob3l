@@ -34,7 +34,12 @@ extern cp_stream_t *cp_debug_ps;
 extern size_t cp_debug_ps_page_cnt;
 extern cp_ps_xform_t cp_debug_ps_xform;
 extern cp_ps_opt_t const *cp_debug_ps_opt;
-extern size_t cp_debug_ps_skip_page;
+extern size_t cp_debug_ps_page_skip;
+extern size_t cp_debug_ps_page_count;
+extern cp_scale_t cp_debug_ps_scale;
+extern cp_scale_t cp_debug_ps_xlat_x;
+extern cp_scale_t cp_debug_ps_xlat_y;
+extern bool cp_debug_ps_dots;
 
 /**
  * Transform using cp_debug_ps_xform.
@@ -47,17 +52,8 @@ extern size_t cp_debug_ps_skip_page;
  */
 #define CP_PS_XY(v) CP_PS_X((v).x), CP_PS_Y((v).y)
 
-static inline bool cp_debug_ps_try_page(void)
-{
-    if (cp_debug_ps == NULL) {
-        return false;
-    }
-    if (cp_debug_ps_skip_page == 0) {
-        return true;
-    }
-    cp_debug_ps_skip_page--;
-    return false;
-}
+extern bool cp_debug_ps_page_begin(void);
+extern void cp_debug_ps_dot(double x, double y, double sz);
 
 #endif /* PSTRACE */
 

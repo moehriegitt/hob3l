@@ -47,6 +47,15 @@ extern void cp_ps_doc_begin(
     long x1, long y1, long x2, long y2);
 
 /**
+ * Set up a clipping box.
+ *
+ * Can be surrounded by gsave/grestore to undo.
+ */
+extern void cp_ps_clip_box(
+    cp_stream_t *s,
+    double x1, double y1, double x2, double y2);
+
+/**
  * Prints document trailer.
  *
  * If page_cnt is CP_SIZE_MAX, does not print any page count indicator,

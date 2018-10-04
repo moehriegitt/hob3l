@@ -131,6 +131,11 @@ static inline int cp_cmp(cp_f_t a, cp_f_t b)
     return cp_equ(a,b) ? 0 : a < b ? -1 : +1;
 }
 
+static inline int cp_sqr_cmp(cp_f_t a, cp_f_t b)
+{
+    return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1;
+}
+
 /**
  * This returns true if \p f is an integers, and
  * then returns that integer in \p i.

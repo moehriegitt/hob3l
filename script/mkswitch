@@ -138,7 +138,7 @@ sub learn($$)
             push @cond, $s;
             next LINE;
         }
-        if (scalar(@cond) && ($s =~ /^#endif$/)) {
+        if (scalar(@cond) && ($s =~ /^#endif\b.*$/)) {
             pop @cond;
             next LINE;
         }

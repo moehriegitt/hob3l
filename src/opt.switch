@@ -152,6 +152,7 @@ case "ps-line-width": dim &opt->ps.line_width {
 }
 
 #ifdef PSTRACE
+
 help_section "Debugging Options";
 
 case "debug-ps": fn {
@@ -172,7 +173,23 @@ case "debug-ps": fn {
         CP_SIZE_MAX,
         0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
 }
-case "debug-ps-skip": size &cp_debug_ps_skip_page {
-    "skip this amount of pages before starting to dump";
+case "debug-ps-page-skip": size &cp_debug_ps_page_skip {
+    "skip this amount of pages before starting to print debug PostScript";
 }
-#endif
+case "debug-ps-page-count": size &cp_debug_ps_page_count {
+    "output max this amounts of debug PostScript pages (-1 = no limit)";
+}
+case "debug-ps-scale": scale &cp_debug_ps_scale {
+    "additional scaling of the debug PostScript output";
+}
+case "debug-ps-xlat-x": scale &cp_debug_ps_xlat_x {
+    "move viewport of the debug PostScript output horizontally";
+}
+case "debug-ps-xlat-y": scale &cp_debug_ps_xlat_y {
+    "move viewport of the debug PostScript output vertically";
+}
+case "debug-ps-no-dots": neg_bool &cp_debug_ps_dots {
+    "do (not) draw dots for vertices in debug PostScript output";
+}
+
+#endif /* PSTRACE */
