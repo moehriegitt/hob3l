@@ -143,8 +143,8 @@ TEST_TRIANGLE.scad := \
     scad-test/test30f.scad \
     scad-test/uselessbox+body.scad
 
-TEST_STL.scad := 
+TEST_STL.scad := \
+    scad-test/uselessbox+body.scad
 
 # BROKEN:
-#    scad-test/uselessbox+body.scad
 #    scad-test/curry.scad

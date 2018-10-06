@@ -364,7 +364,7 @@ static void debug_print_s(
     event_t *es)
 {
 #if DEBUG
-    LOG("DEBUG: S %s\n", msg);
+    LOG("S %s\n", msg);
     for (cp_dict_each(_e, c->s)) {
         event_t *e = CP_BOX_OF(_e, event_t, node_s);
         LOG("S: %s\n", ev_str(e));
@@ -509,7 +509,7 @@ static point_t *pt_new(
     p->coord = coord;
     p->idx = CP_SIZE_MAX;
 
-    LOG("DEBUG: new pt: %s\n", pt_str(p));
+    LOG("new pt: %s\n", pt_str(p));
 
     cp_dict_insert_ref(&p->node_pt, &ref, &c->pt);
     return p;
@@ -755,11 +755,22 @@ static void q_add_orig(
     q_insert(c, e2);
 }
 
-static void divide_segment(
+#ifndef NDEBUG
+#  define divide_segment(c,e,p)  __divide_segment(__FILE__, __LINE__, c, e, p)
+#else
+#  define __divide_segment(f,l,c,e,p) divide_segment(c,e,p)
+#endif
+
+static void __divide_segment(
+    char const *file __unused,
+    int line __unused,
     ctxt_t *c,
     event_t *e,
     point_t *p)
 {
+    assert(p != e->p);
+    assert(p != e->other->p);
+
     assert(e->left);
     event_t *o = e->other;
 
@@ -789,30 +800,21 @@ static void divide_segment(
     /* copy edge slope and offset */
     l->line = r->line = e->line;
 
-    /* If the middle point is rounded, the order of e and r may
-     * switch.  We ignore this for e--r if e is member of S,
-     * but for l--o, we swap left/right if this happens to handle
-     * the edge correctly. */
+    /* If the middle point is rounded, the order of l and o may
+     * switch.  This must not happen with e--r, because e is already
+     * processed, so we'd need to go back in time to fix.
+     * Any caller must make sure that p is in the correct place wrt.
+     * e, in particular 'find_intersection', which computes a new point.
+     */
     if (ev_cmp(l, o) > 0) {
+        /* for the unprocessed part, we can fix the anomality by swapping. */
         o->left = true;
         l->left = false;
     }
 
-    /* For the left edge, we may not be able to swap left/right because
-     * e may be part of s already.  If we encounter this weirdness,
-     * we need to fix also e's X coordinate a bit... */
-    if (ev_cmp(e, r) > 0) {
-        if (!cp_dict_is_member(&e->node_s)) {
-            /* we can still swap */
-            r->left = true;
-            e->left = false;
-        }
-        else {
-            assert(cp_pt_equ(e->p->coord.x, r->p->coord.x));
-            e->p->coord.x = r->p->coord.x;
-            assert(ev_cmp(e,r) < 0);
-        }
-    }
+    /* For e--r, we cannot handle this case here: blame the caller. */
+    assert((ev_cmp(e,r) < 0) ||
+        CONFESS("%s:%d:\n\tp=%s\n\te=%s\n\tl=%s", file, line, pt_str(p), ev_str(e), ev_str(l)));
 
     /* handle new events later */
     q_insert(c, l);
@@ -843,7 +845,7 @@ static event_t *chain_insert_or_extract(
     ctxt_t *c,
     event_t *e)
 {
-    LOG("DEBUG: insert %s\n", ev_str(e));
+    LOG("insert %s\n", ev_str(e));
     cp_dict_t *_r = cp_dict_insert(&e->node_end, &c->end, pt_cmp_end_d, NULL, 0);
     if (_r == NULL) {
         return NULL;
@@ -860,7 +862,7 @@ static void chain_join(
     event_t *o1,
     event_t *e)
 {
-    LOG("DEBUG: join   %s with %s\n", ev_str(o1), ev_str(e));
+    LOG("join   %s with %s\n", ev_str(o1), ev_str(e));
     assert(cp_ring_is_end(&o1->node_chain));
     assert(cp_ring_is_end(&e->node_chain));
     cp_ring_join(&o1->node_chain, &e->node_chain);
@@ -872,7 +874,7 @@ static void poly_add(
     ctxt_t *c,
     event_t *e)
 {
-    LOG("DEBUG: poly   %s\n", ev_str(e));
+    LOG("poly   %s\n", ev_str(e));
     assert(!cp_dict_is_member(&e->node_q));
     assert(!cp_dict_is_member(&e->node_end));
     cp_list_init(&e->node_poly);
@@ -977,7 +979,7 @@ static void chain_add(
     ctxt_t *c,
     event_t *e)
 {
-    LOG("DEBUG: out:   %s (%p)\n", ev_str(e), e);
+    LOG("out:   %s (%p)\n", ev_str(e), e);
 
     /* the event should left and neither point should be s or q */
     assert(!e->left);
@@ -1129,7 +1131,7 @@ static void intersection_point(
     _LINE_Y(ks,r) = (ka * q) + kb;
 }
 
-static bool in_order(cp_f_t a, cp_f_t b, cp_f_t c)
+static bool dim_between(cp_dim_t a, cp_dim_t b, cp_dim_t c)
 {
     return (a < c) ? (cp_leq(a,b) && cp_leq(b,c)) : (cp_geq(a,b) && cp_geq(b,c));
 }
@@ -1180,25 +1182,55 @@ static point_t *find_intersection(
         e0->line.a, e0->line.b, e0->line.swap,
         e1->line.a, e1->line.b, e1->line.swap);
 
+    cp_vec2_t i_orig = i;
+    i.x = rasterize(i.x);
+    i.y = rasterize(i.y);
+
     /* check whether i is on e0 and e1 */
-    if (!in_order(p0->coord.x, i.x, p0b->coord.x) ||
-        !in_order(p0->coord.y, i.y, p0b->coord.y) ||
-        !in_order(p1->coord.x, i.x, p1b->coord.x) ||
-        !in_order(p1->coord.y, i.y, p1b->coord.y))
+    if (!dim_between(p0->coord.x, i.x, p0b->coord.x) ||
+        !dim_between(p0->coord.y, i.y, p0b->coord.y) ||
+        !dim_between(p1->coord.x, i.x, p1b->coord.x) ||
+        !dim_between(p1->coord.y, i.y, p1b->coord.y))
     {
         return NULL;
     }
 
-    /* new point (or old point -- pt_new will check whether we have this already) */
-    return pt_new(c, p0->loc, &i);
-}
+    /* now possibly move the new point so that the relationship between
+     * eX->p and i remains the same as between eX->other->p.
+     * If the relationship changes, we are probably very close to a vertical
+     * line, so increase i.x.   This needs to be done before hashing the
+     * point using pt_new.  Other parts of the code rely on the fact that this
+     * is done here, because it may not be changable later.  We only need to do
+     * this if i is close to the left point, because the right ones are probably
+     * not inserted yet. */
+    int cmp_p0_i = cp_vec2_lex_pt_cmp(&p0->coord, &i);
+    if (cmp_p0_i == 0) {
+        return p0;
+    }
+    assert(cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) < 0);
+    if (cmp_p0_i >= 0) {
+        assert(cp_pt_equ(p0->coord.x, i.x));
+        i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
+    }
+    assert((cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) == cp_vec2_lex_pt_cmp(&p0->coord, &i)) ||
+        CONFESS("e0=%s, i=%s", ev_str(e0), coord_str(&i)));
 
-static bool coord1_between(
-    cp_dim_t a,
-    cp_dim_t b,
-    cp_dim_t c)
-{
-    return cp_pt_leq(a,b) && cp_pt_leq(b,c);
+    /* same fixing for other edge */
+    int cmp_p1_i = cp_vec2_lex_pt_cmp(&p1->coord, &i);
+    if (cmp_p1_i == 0) {
+        return p1;
+    }
+    assert(cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) < 0);
+    if (cmp_p1_i >= 0) {
+        assert(cp_pt_equ(p1->coord.x, i.x));
+        i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
+    }
+    assert((cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) == cp_vec2_lex_pt_cmp(&p1->coord, &i)) ||
+        CONFESS("e1=%s, i=%s", ev_str(e1), coord_str(&i)));
+
+    /* Finally, make a new point (or an old point -- pt_new will check whether we have
+     * this already) */
+    return pt_new(c, p0->loc, &i);
 }
 
 static bool coord_between(
@@ -1206,10 +1238,10 @@ static bool coord_between(
     cp_vec2_t const *b,
     cp_vec2_t const *c)
 {
-    if (!coord1_between(a->x, b->x, c->x)) {
+    if (!dim_between(a->x, b->x, c->x)) {
         return false;
     }
-    if (!coord1_between(a->y, b->y, c->y)) {
+    if (!dim_between(a->y, b->y, c->y)) {
         return false;
     }
     cp_dim_t dx = c->x - a->x;
@@ -1334,7 +1366,7 @@ static void check_intersection(
         bool collinear;
         point_t *ip = find_intersection(&collinear, c, el, eh);
 
-        LOG("DEBUG: #intersect = %p %u\n", ip, collinear);
+        LOG("#intersect = %p %u\n", ip, collinear);
 
         if (ip != NULL) {
             /* If the lines meet in one point, it's ok */
@@ -1351,7 +1383,6 @@ static void check_intersection(
                 q_insert(c, el);
             }
             else if (ip != ol->p) {
-                LOG("ip=%s, ol->p=%s (el->p=%s)\n", pt_str(ip), pt_str(ol->p), pt_str(el->p));
                 divide_segment(c, el, ip);
             }
 
@@ -1364,13 +1395,13 @@ static void check_intersection(
                 divide_segment(c, eh, ip);
             }
 
-            LOG("DEBUG: done2\n");
             return;
         }
 
         if (!collinear) {
             return;
         }
+        assert(0);
     }
 
     /* check */
@@ -1524,7 +1555,7 @@ static void ev_left(
 {
     assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->other->node_s));
-    LOG("DEBUG: insert_s: %p (%p)\n", e, e->other);
+    LOG("insert_s: %p (%p)\n", e, e->other);
     s_insert(c, e);
 
     event_t *prev = s_prev(e);
@@ -1578,7 +1609,7 @@ static void ev_right(
     event_t *prev = s_prev(sli);
 
     /* first remove from s */
-    LOG("DEBUG: remove_s: %p (%p)\n", e->other, e);
+    LOG("remove_s: %p (%p)\n", e->other, e);
     s_remove(c, sli);
     assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->other->node_s));
@@ -1649,7 +1680,7 @@ extern void cp_csg2_op_poly(
 #if OPT >= 1
     /* trivial case: empty polygon */
     if ((a->path.size == 0) || (b->path.size == 0)) {
-        LOG("DEBUG: one polygon is empty\n");
+        LOG("one polygon is empty\n");
         switch (op) {
         case CP_OP_CUT:
             return;
@@ -1689,7 +1720,7 @@ extern void cp_csg2_op_poly(
         cp_gt(c.bb[0].min.y, c.bb[1].max.y) ||
         cp_gt(c.bb[1].min.y, c.bb[0].max.y))
     {
-        LOG("DEBUG: bounding boxes do not overlap: copy\n");
+        LOG("bounding boxes do not overlap: copy\n");
         switch (op) {
         case CP_OP_CUT:
             return;
@@ -1709,7 +1740,7 @@ extern void cp_csg2_op_poly(
 #endif
 
     /* initialise queue */
-    LOG("DEBUG: poly 0: #path=%"_Pz"u\n", a->path.size);
+    LOG("poly 0: #path=%"_Pz"u\n", a->path.size);
     for (cp_v_each(i, &a->path)) {
         cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
         for (cp_v_each(j, &p->point_idx)) {
@@ -1718,7 +1749,7 @@ extern void cp_csg2_op_poly(
             q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 0);
         }
     }
-    LOG("DEBUG: poly 1: #path=%"_Pz"u\n", b->path.size);
+    LOG("poly 1: #path=%"_Pz"u\n", b->path.size);
     for (cp_v_each(i, &b->path)) {
         cp_csg2_path_t *p = &cp_v_nth(&b->path, i);
         for (cp_v_each(j, &p->point_idx)) {
@@ -1727,7 +1758,7 @@ extern void cp_csg2_op_poly(
             q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 1);
         }
     }
-    LOG("DEBUG: start\n");
+    LOG("start\n");
 
     /* run algorithm */
     size_t ev_cnt __unused = 0;
@@ -1737,7 +1768,7 @@ extern void cp_csg2_op_poly(
             break;
         }
 
-        LOG("\nDEBUG: event %"_Pz"u: %s o=(%#"_Pz"x %#"_Pz"x)\n",
+        LOG("\nevent %"_Pz"u: %s o=(%#"_Pz"x %#"_Pz"x)\n",
             ++ev_cnt,
             ev_str(e),
             e->other->in.owner,
@@ -1980,7 +2011,7 @@ extern bool cp_csg2_op_add_layer(
     if (!csg2_op_csg2(pool, t, r, zi, &o, a->root)) {
         return false;
     }
-    LOG("DEBUG: #o.point: %"_Pz"u\n", o.point.size);
+    LOG("#o.point: %"_Pz"u\n", o.point.size);
 
     if (o.point.size > 0) {
         /* new layer */
