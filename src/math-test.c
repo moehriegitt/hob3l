@@ -222,4 +222,9 @@ extern void cp_math_test(void)
         TEST_FEQ(n.y, p.y);
         TEST_FEQ(n.z, p.z);
     }
+
+    TEST_EQ(1, 0x1p0);
+    TEST_EQ(2, 0x1p1);
+    TEST_EQ(3, 0x1.8p1);
+    TEST_EQ(0.125, 0x1p-3);
 }

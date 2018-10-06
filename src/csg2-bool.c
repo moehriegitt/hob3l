@@ -300,7 +300,7 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
     return s;
 }
 
-#define ev_str(x) __ev_str((char[50]){}, 50, x)
+#define ev_str(x) __ev_str((char[80]){}, 80, x)
 
 #ifdef PSTRACE
 static void debug_print_chain(
@@ -472,8 +472,11 @@ static int pt_cmp_d(
 
 static cp_dim_t rasterize(cp_dim_t v)
 {
+#if 0
     return v;
+#else
     return cp_pt_epsilon * round(v / cp_pt_epsilon);
+#endif
 }
 
 /**
@@ -1177,7 +1180,7 @@ static point_t *find_intersection(
         e0->line.a, e0->line.b, e0->line.swap,
         e1->line.a, e1->line.b, e1->line.swap);
 
-    /* check whether g is on e0 and e1 */
+    /* check whether i is on e0 and e1 */
     if (!in_order(p0->coord.x, i.x, p0b->coord.x) ||
         !in_order(p0->coord.y, i.y, p0b->coord.y) ||
         !in_order(p1->coord.x, i.x, p1b->coord.x) ||
@@ -1188,6 +1191,106 @@ static point_t *find_intersection(
 
     /* new point (or old point -- pt_new will check whether we have this already) */
     return pt_new(c, p0->loc, &i);
+}
+
+static bool coord1_between(
+    cp_dim_t a,
+    cp_dim_t b,
+    cp_dim_t c)
+{
+    return cp_pt_leq(a,b) && cp_pt_leq(b,c);
+}
+
+static bool coord_between(
+    cp_vec2_t const *a,
+    cp_vec2_t const *b,
+    cp_vec2_t const *c)
+{
+    if (!coord1_between(a->x, b->x, c->x)) {
+        return false;
+    }
+    if (!coord1_between(a->y, b->y, c->y)) {
+        return false;
+    }
+    cp_dim_t dx = c->x - a->x;
+    cp_dim_t dy = c->y - a->y;
+    if (fabs(dx) > fabs(dy)) {
+        assert(!cp_pt_equ(a->x, c->x));
+        cp_dim_t t = (b->x - a->x) / dx;
+        cp_dim_t y = a->y + (t * dy);
+        return cp_pt_equ(y, b->y);
+    }
+    else {
+        assert(!cp_pt_equ(a->y, c->y));
+        cp_dim_t t = (b->y - a->y) / dy;
+        cp_dim_t x = a->x + (t * dx);
+        return cp_pt_equ(x, b->x);
+    }
+}
+
+static bool pt_between(
+    point_t const *a,
+    point_t const *b,
+    point_t const *c)
+{
+    if (a == b) {
+        return true;
+    }
+    if (b == c) {
+        return true;
+    }
+    if (a == b) {
+        return false;
+    }
+    return coord_between(&a->coord, &b->coord, &c->coord);
+}
+
+static bool ev4_overlap(
+    event_t *el,
+    event_t *ol,
+    event_t *eh,
+    event_t *oh)
+{
+    /*
+     * The following cases exist:
+     * (1) el........ol        (6) eh........oh
+     *          eh...oh                 el...ol
+     *
+     * (2) el........ol        (7) eh........oh
+     *     eh...oh                 el...ol
+     *
+     * (3) el........ol        (8) eh........oh
+     *        eh..oh                  el..ol
+     *
+     * (4) el........ol        (9) eh........oh
+     *          eh........oh            el........ol
+     *
+     * We do not care about the following ones, because they need
+     * a collinearity check anyway (i.e., these must return false):
+     *
+     * (5) el...ol            (10) eh...oh
+     *          eh...oh                 el...ol
+     */
+    if (pt_between(el->p, eh->p, ol->p)) { /* (1),(2),(3),(4),(5),(7) */
+        if (pt_between(el->p, oh->p, ol->p)) { /* (1),(2),(3) */
+            return true;
+        }
+        if (pt_between(eh->p, ol->p, oh->p)) { /* (4),(5) */
+            return ol != eh; /* exclude (5) */
+        }
+        /* (7) needs to be checked, so no 'return false' here */
+    }
+
+    if (pt_between(eh->p, el->p, oh->p)) { /* (2),(6),(7),(8),(9),(10) */
+        if (pt_between(eh->p, ol->p, oh->p)) { /* (6),(7),(8) */
+            return true;
+        }
+        if (pt_between(el->p, oh->p, ol->p)) { /* (9),(10) */
+            return oh != el;
+        }
+    }
+
+    return false;
 }
 
 static void check_intersection(
@@ -1208,56 +1311,73 @@ static void check_intersection(
     assert(!cp_dict_is_member(&ol->node_s));
     assert(!cp_dict_is_member(&oh->node_s));
 
-    bool collinear;
-    point_t *ip = find_intersection(&collinear, c, el, eh);
+    /* A simple comparison of line.a to decide about overlap will not work, i.e.,
+     * because the criterion needs to be consistent with point coordinate comparison,
+     * otherwise we may run into problems elsewhere.  I.e., we cannot first check for
+     * collinearity and only then check for overlap.  But we need to base the
+     * decision of overlap on point coordinate comparison.  So we will first try
+     * for overlap, then we'll try to find a proper intersection point.
+     * 'find_intersection' will, therefore, not have to deal with the case of overlap.
+     * If the edges are collinear (e.g., based on an line.a criterion), it will mean
+     * that the lines are paralllel or collinear but with a gap in between, i.e., they
+     * will not overlap.
+     *
+     * The whole 'overlap' check explicitly does not use the 'normal_z' or 'line.a'
+     * checks to really base this on cp_pt_equ().
+     *
+     * Now, if el and eh are indeed overlapping, Whether el or eh is the 'upper' edge
+     * may have been decided based on a rounding error, so either case must be handled
+     * correctly.
+     */
 
-    LOG("DEBUG: #intersect = %p %u\n", ip, collinear);
+    if (!ev4_overlap(el, ol, eh, oh)) {
+        bool collinear;
+        point_t *ip = find_intersection(&collinear, c, el, eh);
 
-    if (ip != NULL) {
-        /* If the lines meet in one point, it's ok */
-        if ((el->p == eh->p) || (ol->p == oh->p)) {
+        LOG("DEBUG: #intersect = %p %u\n", ip, collinear);
+
+        if (ip != NULL) {
+            /* If the lines meet in one point, it's ok */
+            if ((el->p == eh->p) || (ol->p == oh->p)) {
+                return;
+            }
+
+            if (ip == el->p) {
+                /* This means that we need to reclassify the upper line again (which
+                 * we thought was below, but due to rounding, it now turns out to be
+                 * completely above).  The easiest is to remove it again from S
+                 * and through it back into Q to try again later. */
+                s_remove(c, el);
+                q_insert(c, el);
+            }
+            else if (ip != ol->p) {
+                LOG("ip=%s, ol->p=%s (el->p=%s)\n", pt_str(ip), pt_str(ol->p), pt_str(el->p));
+                divide_segment(c, el, ip);
+            }
+
+            if (ip == eh->p) {
+                /* Same corder case as above: we may have classified eh too early. */
+                s_remove(c, eh);
+                q_insert(c, eh);
+            }
+            else if (ip != oh->p) {
+                divide_segment(c, eh, ip);
+            }
+
+            LOG("DEBUG: done2\n");
             return;
         }
 
-        if (ip == el->p) {
-            /* This means that we need to reclassify the upper line again (which
-             * we thought was below, but due to rounding, it now turns out to be
-             * completely above).  The easiest is to remove it again from S
-             * and through it back into Q to try again later. */
-            s_remove(c, el);
-            q_insert(c, el);
+        if (!collinear) {
+            return;
         }
-        else if (ip != ol->p) {
-            LOG("ip=%s, ol->p=%s (el->p=%s)\n", pt_str(ip), pt_str(ol->p), pt_str(el->p));
-            divide_segment(c, el, ip);
-        }
-
-        if (ip == eh->p) {
-            /* Same corder case as above: we may have classified eh too early. */
-            s_remove(c, eh);
-            q_insert(c, eh);
-        }
-        else if (ip != oh->p) {
-            divide_segment(c, eh, ip);
-        }
-
-        LOG("DEBUG: done2\n");
-        return;
     }
 
-    if (!collinear) {
-        return;
-    }
-
-    /* check for overlap (note: el and eh are both left events) */
+    /* check */
     assert(pt_cmp(el->p, ol->p) < 0);
     assert(pt_cmp(eh->p, oh->p) < 0);
-    if (pt_cmp(ol->p, eh->p) < 0) {
-        return;
-    }
-    if (pt_cmp(oh->p, el->p) < 0) {
-        return;
-    }
+    assert(pt_cmp(ol->p, eh->p) >= 0);
+    assert(pt_cmp(oh->p, el->p) >= 0);
 
     /* overlap */
     event_t *sev[4];
