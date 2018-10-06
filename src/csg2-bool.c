@@ -1195,21 +1195,20 @@ static point_t *find_intersection(
         return NULL;
     }
 
-    /* now possibly move the new point so that the relationship between
-     * eX->p and i remains the same as between eX->other->p.
+    /* Now possibly move the new point so that the relationship between
+     * eX->p and i remains the same as between eX->p and eX->other->p.
      * If the relationship changes, we are probably very close to a vertical
      * line, so increase i.x.   This needs to be done before hashing the
      * point using pt_new.  Other parts of the code rely on the fact that this
      * is done here, because it may not be changable later.  We only need to do
-     * this if i is close to the left point, because the right ones are probably
+     * this if i is close to the left point, because the right ones are
      * not inserted yet. */
     int cmp_p0_i = cp_vec2_lex_pt_cmp(&p0->coord, &i);
     if (cmp_p0_i == 0) {
         return p0;
     }
     assert(cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) < 0);
-    if (cmp_p0_i >= 0) {
-        assert(cp_pt_equ(p0->coord.x, i.x));
+    if (cmp_p0_i > 0) {
         i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
     }
     assert((cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) == cp_vec2_lex_pt_cmp(&p0->coord, &i)) ||
@@ -1221,8 +1220,7 @@ static point_t *find_intersection(
         return p1;
     }
     assert(cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) < 0);
-    if (cmp_p1_i >= 0) {
-        assert(cp_pt_equ(p1->coord.x, i.x));
+    if (cmp_p1_i > 0) {
         i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
     }
     assert((cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) == cp_vec2_lex_pt_cmp(&p1->coord, &i)) ||
