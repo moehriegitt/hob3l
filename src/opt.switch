@@ -37,6 +37,18 @@ case "z": dim &opt->z_min {
     opt->have_z_max = true;
 }
 
+help_section "Advanced Options";
+
+case "eps": dim &cp_pt_epsilon {
+    "rasterization epsilon for point coordinates (default: 0x1p-9)";
+}
+case "eps2": dim &cp_equ_epsilon {
+    "generic comparison epsilon (default: 0x1p-15)";
+}
+case "eps3": dim &cp_sqr_epsilon {
+    "comparison epsilon for squared dimensions (default: 0x1p-30)";
+}
+
 help_section "Intermediate Stage Output/Alternative Output Format Options";
 
 case "dump-syn": bool &opt->dump_syn {

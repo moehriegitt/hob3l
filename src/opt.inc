@@ -18,6 +18,13 @@ static char const *opt_help =
     "        thickness of slice [mm] (default: 0.2)\n"
     "    --z=ARG\n"
     "        equivalent to --min COORD --max COORD\n"
+    "Advanced Options\n"
+    "    --eps=ARG\n"
+    "        rasterization epsilon for point coordinates (default: 0x1p-9)\n"
+    "    --eps2=ARG\n"
+    "        generic comparison epsilon (default: 0x1p-15)\n"
+    "    --eps3=ARG\n"
+    "        comparison epsilon for squared dimensions (default: 0x1p-30)\n"
     "Intermediate Stage Output/Alternative Output Format Options\n"
     "    --dump-syn\n"
     "        print after stage 1: AST of input file; don't slice\n"
@@ -301,6 +308,30 @@ static void get_opt_dump_syn(
 {
     get_arg_bool(&opt->dump_syn, name, arg);
     opt->have_dump = true;
+}
+
+static void get_opt_eps(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_dim(&cp_pt_epsilon, name, arg);
+}
+
+static void get_opt_eps2(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_dim(&cp_equ_epsilon, name, arg);
+}
+
+static void get_opt_eps3(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_dim(&cp_sqr_epsilon, name, arg);
 }
 
 static void get_opt_max(
@@ -656,6 +687,21 @@ cp_get_opt_t opt_list[] = {
         "dump-syn",
         get_opt_dump_syn,
         1,
+    },
+    {
+        "eps",
+        get_opt_eps,
+        2,
+    },
+    {
+        "eps2",
+        get_opt_eps2,
+        2,
+    },
+    {
+        "eps3",
+        get_opt_eps3,
+        2,
     },
     {
         "h",

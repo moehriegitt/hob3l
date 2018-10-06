@@ -324,9 +324,8 @@ extern void cp_csg2_poly_merge(
  *     It was replaceds by a bitmask xor based algorithm.  This also lifts
  *     the restriction that no self-overlapping polygons may exist.
  *
- * (3) There were more corner cases in the intersection code than what
- *     Martinez implemented.  These have been added.  Hopefully all
- *     of them -- the float business is really tricky...
+ * (3) There is handling of corner cases in than what Martinez implemented.
+ *     The float business is really tricky...
  *
  * (4) Intersection points are always computed from the original line slope
  *     and offset to avoid adding up rounding errors for edges with many

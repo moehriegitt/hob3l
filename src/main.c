@@ -464,6 +464,12 @@ int main(int argc, char **argv)
     }
 
     /* post-process options */
+    if (cp_equ_epsilon > cp_pt_epsilon) {
+        cp_equ_epsilon = cp_pt_epsilon;
+    }
+    if (cp_sqr_epsilon > cp_equ_epsilon) {
+        cp_sqr_epsilon = cp_equ_epsilon;
+    }
     if (!cp_equ(opt.ps_persp,0)) {
         cp_mat4_t m;
         cp_mat4_unit(&m);
