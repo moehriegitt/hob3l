@@ -143,5 +143,8 @@ TEST_TRIANGLE.scad := \
     scad-test/test30f.scad \
     scad-test/uselessbox+body.scad
 
-TEST_TRIANGLE.png := \
-    $(addprefix test-out/,$(notdir $(TEST_TRIANGLE.scad:.scad=.png)))
+TEST_STL.scad := 
+
+# BROKEN:
+#    scad-test/uselessbox+body.scad
+#    scad-test/curry.scad

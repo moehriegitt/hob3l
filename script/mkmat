@@ -1417,6 +1417,12 @@ my @gen = (
         mati => \&gen_equ,
         matw => \&gen_equ,
     }],
+    ['lex_pt_cmp', {
+        vec => \&gen_lex_cmp,
+    }],
+    ['pt_equ', {
+        vec => \&gen_equ,
+    }],
     ['rev', {
         vec => \&gen_rev_vec,
     }],

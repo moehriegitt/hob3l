@@ -147,6 +147,12 @@ all:
 include install.mk
 include test.mk
 
+TEST_TRIANGLE.png := \
+    $(addprefix test-out/,$(notdir $(TEST_TRIANGLE.scad:.scad=.png)))
+
+TEST_STL.stl := \
+    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.stl)))
+
 ######################################################################
 # header files
 
@@ -322,7 +328,10 @@ out/main.o: src/main.c src/opt.inc
 	mv $@.new $@
 
 .PHONY: test
-test: test-triangle test-triangle-prepare unit-test
+test: unit-test no-unit-test
+
+.PHONY: no-unit-test
+no-unit-test: test-triangle test-triangle-prepare test-stl
 
 .PHONY: unit-test
 unit-test: cptest.x
@@ -330,6 +339,9 @@ unit-test: cptest.x
 
 .PHONY: test-triangle
 test-triangle: $(TEST_TRIANGLE.png)
+
+.PHONY: test-stl
+test-stl: $(TEST_STL.stl)
 
 .PHONY: test-triangle-prepare
 test-triangle-prepare: $(TEST_TRIANGLE.scad)
@@ -339,8 +351,12 @@ test-out/%.png: test-out/%.ps
 	mv $@.new.png $@
 
 test-out/%.ps: scad-test/%.scad csg2plane.x
-	$(CSG2PLANE) $< -z=2.0 --dump-ps > $@.new
-	mv $@.new $@
+	$(CSG2PLANE) $< -z=2.0 -o $@.new.ps
+	mv $@.new.ps $@
+
+test-out/%.stl: scad-test/%.scad csg2plane.x
+	$(CSG2PLANE) $< -o $@.new.stl
+	mv $@.new.stl $@
 
 scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad $< > $@.new

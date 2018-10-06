@@ -16,15 +16,17 @@ extern void cp_ps_xform_from_bb(
 {
     *d = CP_PS_XFORM_MM;
     if (cp_gt(x_max, x_min) && cp_gt(y_max, x_min)) {
-        d->mul = cp_min(
+        d->mul_x = cp_min(
             (CP_PS_PAPER_X - CP_PS_PAPER_MARGIN) / (x_max - x_min),
             (CP_PS_PAPER_Y - CP_PS_PAPER_MARGIN) / (y_max - y_min));
 
+        d->mul_y = d->mul_x;
+
         d->add_x = CP_PS_PAPER_X/2 -
-            d->mul * (x_max + x_min)/2;
+            d->mul_x * (x_max + x_min)/2;
 
         d->add_y = CP_PS_PAPER_Y/2 -
-            d->mul * (y_max + y_min)/2;
+            d->mul_y * (y_max + y_min)/2;
     }
 }
 
@@ -33,7 +35,7 @@ extern double cp_ps_x(cp_ps_xform_t const *d, double x)
     if (d == NULL) {
         d = &ps_mm;
     }
-    return d->add_x + (x * d->mul);
+    return d->add_x + (x * d->mul_x);
 }
 
 extern double cp_ps_y(cp_ps_xform_t const *d, double y)
@@ -41,7 +43,7 @@ extern double cp_ps_y(cp_ps_xform_t const *d, double y)
     if (d == NULL) {
         d = &ps_mm;
     }
-    return d->add_y + (y * d->mul);
+    return d->add_y + (y * d->mul_y);
 }
 
 extern void cp_ps_doc_begin(

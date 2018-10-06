@@ -7,7 +7,24 @@
 #include <cpmat/def.h>
 #include <cpmat/arith_tam.h>
 
+/**
+ * Epsilon for identifying point coordinates, i.e., granularity of coordinates
+ * of points. */
+extern cp_f_t cp_pt_epsilon;
+
+/**
+ * General epsilon for comparisons.
+ *
+ * Typically the square of cp_pt_epsilon.
+ */
 extern cp_f_t cp_equ_epsilon;
+
+/**
+ * Epsilon for comparison of squared values, or two coordinates multiplied,
+ * or determinants.
+ *
+ * Typically the square of cp_equ_epsilon.
+ */
 extern cp_f_t cp_sqr_epsilon;
 
 /** min */
@@ -71,26 +88,46 @@ extern unsigned cp_gcd_a(unsigned data0, unsigned const *data, size_t size);
         cp_gcd_a(CP_GENSYM(__d)[0], CP_GENSYM(__d)+1, cp_countof(CP_GENSYM(__d))-1); \
     })
 
+/**
+ * Comparison using cp_equ_epsilon
+ *
+ * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
+ */
 extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
 
-/* ** static inline ** */
-
-static inline bool cp_equ(cp_f_t a, cp_f_t b)
-{
-    return cp_abs(a - b) < cp_equ_epsilon;
-}
+static inline bool cp_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_equ_epsilon; }
+static inline bool cp_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_equ_epsilon; }
+static inline bool cp_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_equ_epsilon; }
+static inline bool cp_geq(cp_f_t a, cp_f_t b) { return cp_leq(b,a); }
+static inline bool cp_gt (cp_f_t a, cp_f_t b) { return cp_lt(b,a); }
+static inline int  cp_cmp(cp_f_t a, cp_f_t b) { return cp_equ(a,b) ? 0 : a < b ? -1 : +1; }
 
 /**
- * Same as cp_equ, but uses cp_sqr_epsilon, i.e., this should
- * be used of you are dealing with squared values.
+ * Comparison using cp_sqr_epsilon.
  *
- * Note: all the other function that use cp_equ_epsilon currently
- * have no alternative that uses cp_sqr_epsilon instead.
+ * This should be used of you are dealing with squared values.
  */
-static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b)
-{
-    return cp_abs(a - b) < cp_sqr_epsilon;
-}
+static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_sqr_epsilon; }
+static inline bool cp_sqr_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_sqr_epsilon; }
+static inline bool cp_sqr_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_sqr_epsilon; }
+static inline bool cp_sqr_geq(cp_f_t a, cp_f_t b) { return cp_sqr_leq(b,a); }
+static inline bool cp_sqr_gt (cp_f_t a, cp_f_t b) { return cp_sqr_lt(b,a); }
+static inline int  cp_sqr_cmp(cp_f_t a, cp_f_t b) { return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1; }
+
+/**
+ * Comparison using cp_pt_epsilon.
+ *
+ * This should be used to compare new point coordinates to old coordinates,
+ * or to rasterize them.
+ */
+extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
+
+static inline bool cp_pt_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_pt_epsilon; }
+static inline bool cp_pt_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_pt_epsilon; }
+static inline bool cp_pt_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_pt_epsilon; }
+static inline bool cp_pt_geq(cp_f_t a, cp_f_t b) { return cp_pt_leq(b,a); }
+static inline bool cp_pt_gt (cp_f_t a, cp_f_t b) { return cp_pt_lt(b,a); }
+static inline int  cp_pt_cmp(cp_f_t a, cp_f_t b) { return cp_pt_equ(a,b) ? 0 : a < b ? -1 : +1; }
 
 /**
  * Divide, avoiding division by zero by returning 0.  This is often a
@@ -104,36 +141,6 @@ static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b)
 static inline cp_f_t cp_div0(cp_f_t a, cp_f_t b)
 {
     return cp_equ(b,0) ? 0 : a / b;
-}
-
-static inline bool cp_leq(cp_f_t a, cp_f_t b)
-{
-    return (a - b) < cp_equ_epsilon;
-}
-
-static inline bool cp_lt(cp_f_t a, cp_f_t b)
-{
-    return (a - b) < -cp_equ_epsilon;
-}
-
-static inline bool cp_geq(cp_f_t a, cp_f_t b)
-{
-    return cp_leq(b,a);
-}
-
-static inline bool cp_gt(cp_f_t a, cp_f_t b)
-{
-    return cp_lt(b,a);
-}
-
-static inline int cp_cmp(cp_f_t a, cp_f_t b)
-{
-    return cp_equ(a,b) ? 0 : a < b ? -1 : +1;
-}
-
-static inline int cp_sqr_cmp(cp_f_t a, cp_f_t b)
-{
-    return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1;
 }
 
 /**

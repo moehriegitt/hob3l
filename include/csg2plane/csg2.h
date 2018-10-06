@@ -324,11 +324,15 @@ extern void cp_csg2_poly_merge(
  *     It was replaceds by a bitmask xor based algorithm.  This also lifts
  *     the restriction that no self-overlapping polygons may exist.
  *
- * (3) Intersection points are always computed from the original line slope
+ * (3) There were more corner cases in the intersection code than what
+ *     Martinez implemented.  These have been added.  Hopefully all
+ *     of them -- the float business is really tricky...
+ *
+ * (4) Intersection points are always computed from the original line slope
  *     and offset to avoid adding up rounding errors for edges with many
  *     intersections.
  *
- * (4) Float operations have all been mapped to epsilon aware versions.
+ * (5) Float operations have all been mapped to epsilon aware versions.
  *     (The reference implementation failed on one of my tests because of
  *     using plain floating point '<' comparison.)
  *
@@ -340,7 +344,7 @@ extern void cp_csg2_poly_merge(
  *     m = number of edges in b,
  *     s = number of intersection points.
  */
-extern bool cp_csg2_op_poly(
+extern void cp_csg2_op_poly(
     cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *r,

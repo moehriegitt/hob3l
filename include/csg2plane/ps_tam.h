@@ -18,13 +18,15 @@
 
 #define CP_PS_XFORM_MM \
     ((cp_ps_xform_t){ \
-        .mul   = 72.0 / 25.4, \
+        .mul_x = 72.0 / 25.4, \
+        .mul_y = 72.0 / 25.4, \
         .add_x = CP_PS_PAPER_X/2, \
         .add_y = CP_PS_PAPER_Y/2, \
     })
 
 typedef struct {
-    cp_scale_t mul;
+    cp_scale_t mul_x;
+    cp_scale_t mul_y;
     cp_dim_t add_x;
     cp_dim_t add_y;
 } cp_ps_xform_t;

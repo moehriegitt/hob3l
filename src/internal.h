@@ -36,7 +36,8 @@ extern cp_ps_xform_t cp_debug_ps_xform;
 extern cp_ps_opt_t const *cp_debug_ps_opt;
 extern size_t cp_debug_ps_page_skip;
 extern size_t cp_debug_ps_page_count;
-extern cp_scale_t cp_debug_ps_scale;
+extern cp_scale_t cp_debug_ps_scale_x;
+extern cp_scale_t cp_debug_ps_scale_y;
 extern cp_scale_t cp_debug_ps_xlat_x;
 extern cp_scale_t cp_debug_ps_xlat_y;
 extern bool cp_debug_ps_dots;
@@ -93,5 +94,10 @@ static void trace_func_leave(trace_func_t *t)
 #define LOG(...)   ((void)0)
 
 #endif
+
+/**
+ * To print info in an assert */
+#define CONFESS(...) \
+    (fprintf(stderr, "ASSERT FAIL: " __VA_ARGS__), fprintf(stderr,"\n"), 0)
 
 #endif /* __CP_SRC_INTERNAL_H */

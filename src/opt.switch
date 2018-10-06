@@ -179,8 +179,15 @@ case "debug-ps-page-skip": size &cp_debug_ps_page_skip {
 case "debug-ps-page-count": size &cp_debug_ps_page_count {
     "output max this amounts of debug PostScript pages (-1 = no limit)";
 }
-case "debug-ps-scale": scale &cp_debug_ps_scale {
+case "debug-ps-scale-x": scale &cp_debug_ps_scale_x {
+    "additional horizontal scaling of the debug PostScript output";
+}
+case "debug-ps-scale-y": scale &cp_debug_ps_scale_y {
+    "additional vertical scaling of the debug PostScript output";
+}
+case "debug-ps-scale": scale &cp_debug_ps_scale_x {
     "additional scaling of the debug PostScript output";
+    cp_debug_ps_scale_y = cp_debug_ps_scale_x;
 }
 case "debug-ps-xlat-x": scale &cp_debug_ps_xlat_x {
     "move viewport of the debug PostScript output horizontally";

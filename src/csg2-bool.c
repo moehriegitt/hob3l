@@ -234,6 +234,8 @@ typedef struct {
 
     /** in: mark of all polygons */
     size_t mask_all;
+
+    /** current z height (for debugging) */
 } ctxt_t;
 
 __unused
@@ -444,16 +446,6 @@ static void debug_print_s(
 #endif
 
 /**
- * Compare two coordinates
- */
-static inline int coord_cmp(
-    cp_vec2_t const *a,
-    cp_vec2_t const *b)
-{
-    return cp_vec2_lex_cmp(a, b);
-}
-
-/**
  * Compare two points
  */
 static int pt_cmp(
@@ -463,19 +455,25 @@ static int pt_cmp(
     if (a == b) {
         return 0;
     }
-    return coord_cmp(&a->coord, &b->coord);
+    return cp_vec2_lex_pt_cmp(&a->coord, &b->coord);
 }
 
 /**
  * Compare a vec2 with a point in a dictionary.
  */
 static int pt_cmp_d(
-    cp_vec2_t const *a,
+    cp_vec2_t *a,
     cp_dict_t *_b,
     void *user __unused)
 {
     point_t *b = CP_BOX_OF(_b, point_t, node_pt);
-    return coord_cmp(a, &b->coord);
+    return cp_vec2_lex_pt_cmp(a, &b->coord);
+}
+
+static cp_dim_t rasterize(cp_dim_t v)
+{
+    return v;
+    return cp_pt_epsilon * round(v / cp_pt_epsilon);
 }
 
 /**
@@ -486,22 +484,27 @@ static int pt_cmp_d(
 static point_t *pt_new(
     ctxt_t *c,
     cp_loc_t loc,
-    cp_vec2_t const *coord)
+    cp_vec2_t const *_coord)
 {
+    cp_vec2_t coord = {
+       .x = rasterize(_coord->x),
+       .y = rasterize(_coord->y),
+    };
+
+    /* normalise coordinates around 0 to avoid funny floats */
+    if (cp_equ(coord.x, 0)) { coord.x = 0; }
+    if (cp_equ(coord.y, 0)) { coord.y = 0; }
+
     cp_dict_ref_t ref;
-    cp_dict_t *pt = cp_dict_find_ref(&ref, coord, c->pt, pt_cmp_d, NULL, 0);
+    cp_dict_t *pt = cp_dict_find_ref(&ref, &coord, c->pt, pt_cmp_d, NULL, 0);
     if (pt != NULL) {
         return CP_BOX_OF(pt, point_t, node_pt);
     }
 
     point_t *p = CP_POOL_NEW(c->pool, *p);
     p->loc = loc;
-    p->coord = *coord;
+    p->coord = coord;
     p->idx = CP_SIZE_MAX;
-
-    /* normalise coordinates around 0 to avoid funny floats */
-    if (cp_equ(p->coord.x, 0)) { p->coord.x = 0; }
-    if (cp_equ(p->coord.y, 0)) { p->coord.y = 0; }
 
     LOG("DEBUG: new pt: %s\n", pt_str(p));
 
@@ -667,6 +670,21 @@ static void q_insert(
     cp_dict_insert(&e->node_q, &c->q, ev_cmp_q, NULL, 1);
 }
 
+static void s_insert(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_t *o __unused = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
+    assert(o == NULL);
+}
+
+static void s_remove(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_remove(&e->node_s, &c->s);
+}
+
 __unused
 static void get_coord_on_line(
     cp_vec2_t *r,
@@ -688,7 +706,8 @@ static void q_add_orig(
     point_t *p2 = pt_new(c, loc, coord2);
 
     if (p1 == p2) {
-        /* edge consisting of only one point */
+        /* edge consisting of only one point (or two coordinates
+         * closer than pt_epsilon collapsed) */
         return;
     }
 
@@ -712,7 +731,9 @@ static void q_add_orig(
     e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
     e1->line.b = LINE_Y(e1, &e1->p->coord) - (e1->line.a * LINE_X(e1, &e1->p->coord));
     assert(cp_leq(e1->line.a, +1));
-    assert(cp_geq(e1->line.a, -1));
+    assert(cp_geq(e1->line.a, -1) ||
+        CONFESS("a=%g (%g,%g--%g,%g)",
+            e1->line.a, e1->p->coord.x, e1->p->coord.y, e2->p->coord.x, e2->p->coord.y));
 
     /* other direction edge is on the same line */
     e2->line = e1->line;
@@ -765,16 +786,29 @@ static void divide_segment(
     /* copy edge slope and offset */
     l->line = r->line = e->line;
 
-    assert(ev_cmp(l, o) < 0);
-    assert(ev_cmp(e, r) < 0);
-    /* This is some weirdness from the original algorithm that I do
-     * not understand: how can left/right change when splitting?
-     * Only left edges are passed, and p is between l and o, so
-     * how can l be larger than o?  Anyway, I keep this here.
-     */
+    /* If the middle point is rounded, the order of e and r may
+     * switch.  We ignore this for e--r if e is member of S,
+     * but for l--o, we swap left/right if this happens to handle
+     * the edge correctly. */
     if (ev_cmp(l, o) > 0) {
         o->left = true;
         l->left = false;
+    }
+
+    /* For the left edge, we may not be able to swap left/right because
+     * e may be part of s already.  If we encounter this weirdness,
+     * we need to fix also e's X coordinate a bit... */
+    if (ev_cmp(e, r) > 0) {
+        if (!cp_dict_is_member(&e->node_s)) {
+            /* we can still swap */
+            r->left = true;
+            e->left = false;
+        }
+        else {
+            assert(cp_pt_equ(e->p->coord.x, r->p->coord.x));
+            e->p->coord.x = r->p->coord.x;
+            assert(ev_cmp(e,r) < 0);
+        }
     }
 
     /* handle new events later */
@@ -1064,7 +1098,6 @@ static void intersection_point(
     cp_f_t ka, cp_f_t kb, bool ks,
     cp_f_t ma, cp_f_t mb, bool ms)
 {
-    LOG("DEBUG: A: %g %g %u %u\n", ka, ma, ks, ms);
     if (fabs(ka) < fabs(ma)) {
         CP_SWAP(&ka, &ma);
         CP_SWAP(&kb, &mb);
@@ -1086,7 +1119,6 @@ static void intersection_point(
         ks = ms;
     }
 
-    LOG("DEBUG: B: %g %g %u %u\n", ka, ma, ks, ms);
     assert(!cp_equ(ka, ma) && "parallel lines should be handled in find_intersection, not here");
     assert((ks == ms) || cp_equ(ma,0));
     double q = (mb - kb) / (ka - ma);
@@ -1154,17 +1186,11 @@ static point_t *find_intersection(
         return NULL;
     }
 
-    /* check whether g is exactly an end */
-    if (cp_vec2_equ(&i, &p0->coord))  { return p0; }
-    if (cp_vec2_equ(&i, &p0b->coord)) { return p0b; }
-    if (cp_vec2_equ(&i, &p1->coord))  { return p1; }
-    if (cp_vec2_equ(&i, &p1b->coord)) { return p1b; }
-
-    /* new point */
+    /* new point (or old point -- pt_new will check whether we have this already) */
     return pt_new(c, p0->loc, &i);
 }
 
-static bool check_intersection(
+static void check_intersection(
     ctxt_t *c,
     /** the lower edge in s */
     event_t *el,
@@ -1188,30 +1214,49 @@ static bool check_intersection(
     LOG("DEBUG: #intersect = %p %u\n", ip, collinear);
 
     if (ip != NULL) {
+        /* If the lines meet in one point, it's ok */
         if ((el->p == eh->p) || (ol->p == oh->p)) {
-            return true;
+            return;
         }
-        if ((el->p != ip) && (ol->p != ip)) {
+
+        if (ip == el->p) {
+            /* This means that we need to reclassify the upper line again (which
+             * we thought was below, but due to rounding, it now turns out to be
+             * completely above).  The easiest is to remove it again from S
+             * and through it back into Q to try again later. */
+            s_remove(c, el);
+            q_insert(c, el);
+        }
+        else if (ip != ol->p) {
+            LOG("ip=%s, ol->p=%s (el->p=%s)\n", pt_str(ip), pt_str(ol->p), pt_str(el->p));
             divide_segment(c, el, ip);
         }
-        if ((eh->p != ip) && (oh->p != ip)) {
+
+        if (ip == eh->p) {
+            /* Same corder case as above: we may have classified eh too early. */
+            s_remove(c, eh);
+            q_insert(c, eh);
+        }
+        else if (ip != oh->p) {
             divide_segment(c, eh, ip);
         }
-        return true;
+
+        LOG("DEBUG: done2\n");
+        return;
     }
 
     if (!collinear) {
-        return true;
+        return;
     }
 
     /* check for overlap (note: el and eh are both left events) */
     assert(pt_cmp(el->p, ol->p) < 0);
     assert(pt_cmp(eh->p, oh->p) < 0);
     if (pt_cmp(ol->p, eh->p) < 0) {
-        return true;
+        return;
     }
     if (pt_cmp(oh->p, el->p) < 0) {
-        return true;
+        return;
     }
 
     /* overlap */
@@ -1240,7 +1285,7 @@ static bool check_intersection(
         el->in.owner = ol->in.owner = 0;
         assert(el->in.below == below);
 
-        return true;
+        return;
     }
     if (sev_cnt == 3) {
         /* sev:  0    1    2
@@ -1273,7 +1318,7 @@ static bool check_intersection(
         }
 
         divide_segment(c, shl, sev[1]->p);
-        return true;
+        return;
     }
 
     assert(sev_cnt == 4);
@@ -1309,7 +1354,7 @@ static bool check_intersection(
 
         divide_segment(c, sev[0], sev[1]->p);
         divide_segment(c, sev[1], sev[2]->p);
-        return true;
+        return;
     }
 
     /*        0   1   2   3
@@ -1333,8 +1378,6 @@ static bool check_intersection(
     sev[3]->other->in.owner = owner;
     sev[3]->other->in.below = below;
     divide_segment(c, sev[3]->other, sev[2]->p);
-
-    return true;
 }
 
 static inline event_t *s_next(
@@ -1355,15 +1398,14 @@ static inline event_t *s_prev(
     return CP_BOX0_OF(cp_dict_prev(&e->node_s), event_t, node_s);
 }
 
-static bool ev_left(
+static void ev_left(
     ctxt_t *c,
     event_t *e)
 {
     assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->other->node_s));
     LOG("DEBUG: insert_s: %p (%p)\n", e, e->other);
-    cp_dict_t *o __unused = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
-    assert(o == NULL);
+    s_insert(c, e);
 
     event_t *prev = s_prev(e);
     assert(e->left);
@@ -1382,18 +1424,16 @@ static bool ev_left(
 
     event_t *next = s_next(e);
     if (next != NULL) {
-        if (!check_intersection(c, e, next)) {
-            return false;
-        }
+        check_intersection(c, e, next);
     }
-    if (prev != NULL) {
-        if (!check_intersection(c, prev, e)) {
-            return false;
-        }
+    /* The previous 'check_intersection' may have kicked out 'e' from S due
+     * to rounding, so check that e is still in S before trying to intersect.
+     * If not, it is back in Q and we'll handle this later. */
+    if ((prev != NULL) && cp_dict_is_member(&e->node_s)) {
+        check_intersection(c, prev, e);
     }
 
     debug_print_s(c, "left after intersect", e);
-    return true;
 }
 
 static bool odd_parity(size_t s)
@@ -1409,7 +1449,7 @@ static bool odd_parity(size_t s)
     return s & 1;
 }
 
-static bool ev_right(
+static void ev_right(
     ctxt_t *c,
     event_t *e)
 {
@@ -1419,7 +1459,7 @@ static bool ev_right(
 
     /* first remove from s */
     LOG("DEBUG: remove_s: %p (%p)\n", e->other, e);
-    cp_dict_remove(&sli->node_s, &c->s);
+    s_remove(c, sli);
     assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->other->node_s));
 
@@ -1464,13 +1504,10 @@ static bool ev_right(
     }
 
     if ((next != NULL) && (prev != NULL)) {
-        if (!check_intersection(c, prev, next)) {
-            return false;
-        }
+        check_intersection(c, prev, next);
     }
 
     debug_print_s(c, "right after intersect", e);
-    return true;
 }
 
 static inline event_t *q_extract_min(ctxt_t *c)
@@ -1478,7 +1515,7 @@ static inline event_t *q_extract_min(ctxt_t *c)
     return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
 }
 
-extern bool cp_csg2_op_poly(
+extern void cp_csg2_op_poly(
     cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *r,
@@ -1495,16 +1532,16 @@ extern bool cp_csg2_op_poly(
         LOG("DEBUG: one polygon is empty\n");
         switch (op) {
         case CP_OP_CUT:
-            return true;
+            return;
 
         case CP_OP_SUB:
             CP_SWAP(r, a);
-            return true;
+            return;
 
         case CP_OP_ADD:
         case CP_OP_XOR:
             CP_SWAP(r, a->path.size == 0 ? b : a);
-            return true;
+            return;
         }
         CP_DIE("Unrecognised operation");
     }
@@ -1535,17 +1572,17 @@ extern bool cp_csg2_op_poly(
         LOG("DEBUG: bounding boxes do not overlap: copy\n");
         switch (op) {
         case CP_OP_CUT:
-            return true;
+            return;
 
         case CP_OP_SUB:
             CP_SWAP(r, a);
-            return true;
+            return;
 
         case CP_OP_ADD:
         case CP_OP_XOR:
             CP_SWAP(r, a);
             cp_csg2_poly_merge(r, b);
-            return true;
+            return;
         }
         assert(0 && "Unrecognised operation");
     }
@@ -1588,8 +1625,8 @@ extern bool cp_csg2_op_poly(
 
 #if OPT >= 3
         /* trivial: all the rest is cut away */
-        if ((op == CP_OP_CUT && cp_gt(e->p->coord.x, c.minmaxx)) ||
-            (op == CP_OP_SUB && cp_gt(e->p->coord.x, c.bb[0].max.x)))
+        if ((op == CP_OP_CUT && cp_pt_gt(e->p->coord.x, c.minmaxx)) ||
+            (op == CP_OP_SUB && cp_pt_gt(e->p->coord.x, c.bb[0].max.x)))
         {
             break;
         }
@@ -1597,7 +1634,7 @@ extern bool cp_csg2_op_poly(
 
 #if OPT >= 4
         /* trivial: nothing more to merge */
-        if ((op == CP_OP_ADD && (e->p->coord.x > c.minmaxx))) {
+        if ((op == CP_OP_ADD && cp_pt_gt(e->p->coord.x, c.minmaxx))) {
             if (!e->left) {
                 CP_ZERO(&e->node_s);
                 CP_ZERO(&e->other->node_s);
@@ -1616,20 +1653,14 @@ extern bool cp_csg2_op_poly(
 
         /* do real work on event */
         if (e->left) {
-            if (!ev_left(&c, e)) {
-                return false;
-            }
+            ev_left(&c, e);
         }
         else {
-            if (!ev_right(&c, e)) {
-                return false;
-            }
+            ev_right(&c, e);
         }
     }
 
     poly_make(r, &c, loc);
-
-    return true;
 }
 
 static bool csg2_op_poly(
@@ -1678,9 +1709,7 @@ static bool csg2_op_v_csg2(
                 return false;
             }
 
-            if (!cp_csg2_op_poly(pool, t, o, loc, o, &oi, CP_OP_ADD)) {
-                return false;
-            }
+            cp_csg2_op_poly(pool, t, o, loc, o, &oi, CP_OP_ADD);
         }
     }
     return true;
@@ -1727,7 +1756,8 @@ static bool csg2_op_sub(
         return false;
     }
 
-    return cp_csg2_op_poly(pool, t, o, a->loc, o, &os, CP_OP_SUB);
+    cp_csg2_op_poly(pool, t, o, a->loc, o, &os, CP_OP_SUB);
+    return true;
 }
 
 static bool csg2_op_cut(
@@ -1751,9 +1781,7 @@ static bool csg2_op_cut(
             if (!csg2_op_add(pool, t, r, zi, &oc, b)) {
                 return false;
             }
-            if (!cp_csg2_op_poly(pool, t, o, b->loc, o, &oc, CP_OP_CUT)) {
-                return false;
-            }
+            cp_csg2_op_poly(pool, t, o, b->loc, o, &oc, CP_OP_CUT);
         }
     }
 

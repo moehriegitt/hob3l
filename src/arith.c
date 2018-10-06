@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <cpmat/arith.h>
 
+cp_f_t cp_pt_epsilon  = CP_PT_EPSILON_DEFAULT;
 cp_f_t cp_equ_epsilon = CP_EQU_EPSILON_DEFAULT;
 cp_f_t cp_sqr_epsilon = CP_SQR_EPSILON_DEFAULT;
 
@@ -29,6 +30,16 @@ extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
         if (!cp_equ(a[i], b[i])) {
+            return a[i] < b[i] ? -1 : +1;
+        }
+    }
+    return 0;
+}
+
+extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
+{
+    for (cp_size_each(i, size)) {
+        if (!cp_pt_equ(a[i], b[i])) {
             return a[i] < b[i] ? -1 : +1;
         }
     }

@@ -92,6 +92,14 @@ static char const *opt_help =
     "        output max this amounts of debug PostScript pages (-1 = no limit)\n"
 #endif
 #ifdef PSTRACE
+    "    --debug-ps-scale-x=ARG\n"
+    "        additional horizontal scaling of the debug PostScript output\n"
+#endif
+#ifdef PSTRACE
+    "    --debug-ps-scale-y=ARG\n"
+    "        additional vertical scaling of the debug PostScript output\n"
+#endif
+#ifdef PSTRACE
     "    --debug-ps-scale=ARG\n"
     "        additional scaling of the debug PostScript output\n"
 #endif
@@ -196,7 +204,28 @@ static void get_opt_debug_ps_scale(
     char const *arg __unused)
 {
 #ifdef PSTRACE
-    get_arg_scale(&cp_debug_ps_scale, name, arg);
+    get_arg_scale(&cp_debug_ps_scale_x, name, arg);
+    cp_debug_ps_scale_y = cp_debug_ps_scale_x;
+#endif
+}
+
+static void get_opt_debug_ps_scale_x(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_scale(&cp_debug_ps_scale_x, name, arg);
+#endif
+}
+
+static void get_opt_debug_ps_scale_y(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#ifdef PSTRACE
+    get_arg_scale(&cp_debug_ps_scale_y, name, arg);
 #endif
 }
 
@@ -576,6 +605,16 @@ cp_get_opt_t opt_list[] = {
     {
         "debug-ps-scale",
         get_opt_debug_ps_scale,
+        2,
+    },
+    {
+        "debug-ps-scale-x",
+        get_opt_debug_ps_scale_x,
+        2,
+    },
+    {
+        "debug-ps-scale-y",
+        get_opt_debug_ps_scale_y,
         2,
     },
     {
