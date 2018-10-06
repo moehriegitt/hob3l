@@ -39,13 +39,13 @@ case "z": dim &opt->z_min {
 
 help_section "Advanced Options";
 
-case "eps": dim &cp_pt_epsilon {
-    "rasterization epsilon for point coordinates (default: 0x1p-9)";
+case "gran": dim &cp_pt_epsilon {
+    "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
 }
-case "eps2": dim &cp_equ_epsilon {
+case "eps": dim &cp_equ_epsilon {
     "generic comparison epsilon (default: 0x1p-15)";
 }
-case "eps3": dim &cp_sqr_epsilon {
+case "eps2": dim &cp_sqr_epsilon {
     "comparison epsilon for squared dimensions (default: 0x1p-30)";
 }
 

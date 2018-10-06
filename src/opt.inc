@@ -19,11 +19,11 @@ static char const *opt_help =
     "    --z=ARG\n"
     "        equivalent to --min COORD --max COORD\n"
     "Advanced Options\n"
+    "    --gran=ARG\n"
+    "        rasterization granularity for point coordinates [mm] (default: 0x1p-9)\n"
     "    --eps=ARG\n"
-    "        rasterization epsilon for point coordinates (default: 0x1p-9)\n"
-    "    --eps2=ARG\n"
     "        generic comparison epsilon (default: 0x1p-15)\n"
-    "    --eps3=ARG\n"
+    "    --eps2=ARG\n"
     "        comparison epsilon for squared dimensions (default: 0x1p-30)\n"
     "Intermediate Stage Output/Alternative Output Format Options\n"
     "    --dump-syn\n"
@@ -315,7 +315,7 @@ static void get_opt_eps(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_dim(&cp_pt_epsilon, name, arg);
+    get_arg_dim(&cp_equ_epsilon, name, arg);
 }
 
 static void get_opt_eps2(
@@ -323,15 +323,15 @@ static void get_opt_eps2(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_dim(&cp_equ_epsilon, name, arg);
+    get_arg_dim(&cp_sqr_epsilon, name, arg);
 }
 
-static void get_opt_eps3(
+static void get_opt_gran(
     cp_opt_t *opt __unused,
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_dim(&cp_sqr_epsilon, name, arg);
+    get_arg_dim(&cp_pt_epsilon, name, arg);
 }
 
 static void get_opt_max(
@@ -699,8 +699,8 @@ cp_get_opt_t opt_list[] = {
         2,
     },
     {
-        "eps3",
-        get_opt_eps3,
+        "gran",
+        get_opt_gran,
         2,
     },
     {
