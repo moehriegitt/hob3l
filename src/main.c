@@ -35,6 +35,8 @@ typedef struct {
     cp_ps_opt_t ps;
     cp_scale_t ps_persp;
     char const *out_file_name;
+    cp_csg3_opt_t csg3;
+    cp_csg2_tree_opt_t tree;
 } cp_opt_t;
 
 static void format_source_line(
@@ -88,7 +90,7 @@ static bool do_file(
 
     /* stage 2: SCAD */
     cp_scad_tree_t *scad = CP_NEW(*scad);
-    if (!cp_v_scad_from_v_syn_func(scad, &r->err, &r->toplevel)) {
+    if (!cp_scad_from_syn_tree(scad, r)) {
         return false;
     }
     if (opt->dump_scad) {
@@ -98,7 +100,7 @@ static bool do_file(
 
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
-    csg3->opt.max_fn = 200;
+    csg3->opt = opt->csg3;
     if (!cp_csg3_from_scad_tree(csg3, &r->err, scad)) {
         return false;
     }
@@ -106,11 +108,6 @@ static bool do_file(
     cp_vec3_minmax_t full_bb;
     CP_ZERO(&full_bb);
     if (csg3->root != NULL) {
-        fprintf(stderr, "DEBUG: bounding box: ("FD3")--("FD3"), valid=%s\n",
-            CP_V012(csg3->root->bb.min),
-            CP_V012(csg3->root->bb.max),
-            csg3->root->non_empty ? "true" : "false");
-
         full_bb = csg3->root->bb;
         cp_csg3_tree_max_bb(&full_bb, csg3);
 #ifdef PSTRACE
@@ -128,9 +125,6 @@ static bool do_file(
         cp_debug_ps_xform.add_y += (cp_debug_ps_xlat_y * cp_debug_ps_xform.mul_y);
         cp_debug_ps_opt = &opt->ps;
 #endif
-    }
-    else {
-        fprintf(stderr, "DEBUG: bounding box: EMPTY\n");
     }
 
     if (opt->dump_csg3) {
@@ -153,13 +147,11 @@ static bool do_file(
     if (range.cnt == 0) {
         range.cnt = 1;
     }
-    fprintf(stderr, "DEBUG: z_min=%g, z_max=%g, z_step=%g, z_cnt=%"_Pz"u\n",
-        range.min, range.min + (cp_dim(range.cnt) * range.step), range.step, range.cnt);
 
     /* step 1: slice leaf objects */
     /* step 2: apply 2D CSG to each layer */
     cp_csg2_tree_t *csg2 = CP_NEW(*csg2);
-    cp_csg2_tree_from_csg3(csg2, csg3, &range);
+    cp_csg2_tree_from_csg3(csg2, csg3, &range, &opt->tree);
 
     cp_csg2_tree_t *csg2b = CP_NEW(*csg2b);
     cp_csg2_op_tree_init(csg2b, csg2);
@@ -445,6 +437,8 @@ int main(int argc, char **argv)
     opt.ps.color_vertex = (cp_color_rgb_t){ 255,   0,   0 };
     opt.ps.color_mark   = (cp_color_rgb_t){   0,   0, 255 };
     opt.ps.line_width = 0.4;
+    opt.csg3.max_fn = 200;
+    opt.tree.layer_gap = 0.01;
 
     /* parse command line */
     char const *in_file_name = NULL;
@@ -493,7 +487,10 @@ int main(int argc, char **argv)
             if (has_suffix(opt.out_file_name, ".stl")) {
                 opt.dump_stl = true;
             }
-            else if (has_suffix(opt.out_file_name, ".scad")) {
+            else if (
+                has_suffix(opt.out_file_name, ".scad") ||
+                has_suffix(opt.out_file_name, ".csg"))
+            {
                 opt.dump_csg2 = true;
             }
             else if (has_suffix(opt.out_file_name, ".ps")) {

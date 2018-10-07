@@ -18,8 +18,9 @@
 #define T_ID        258
 #define T_INT       259
 #define T_FLOAT     260
-#define T_LCOM      261 /* line comment */
-#define T_BCOM      262 /* block comment */
+#define T_STRING    261
+#define T_LCOM      262 /* line comment */
+#define T_BCOM      263 /* block comment */
 
 typedef struct {
     cp_syn_tree_t *tree;
@@ -159,6 +160,30 @@ static void tok_next_aux2(parse_t *p)
         }
 
         *p->lex_string = '\0';
+        return;
+    }
+
+    /* STRING */
+    if (p->lex_cur == '"') {
+        *p->lex_string = '\0';
+        lex_next(p);
+        p->tok_type = T_STRING;
+        p->tok_string = p->lex_string;
+        while (*p->lex_string != '"') {
+            if (*p->lex_string == '\\') {
+                lex_next(p);
+                if (*p->lex_string == '\0') {
+                    if (!have_err_msg(p)) {
+                        cp_vchar_printf(&p->tree->err.msg, "End of file inside string.\n");
+                    }
+                    p->tok_type = T_ERROR;
+                    return;
+                }
+            }
+            lex_next(p);
+        }
+        *p->lex_string = '\0';
+        lex_next(p);
         return;
     }
 
@@ -364,6 +389,15 @@ static bool parse_float(
     return expect_err(p, T_FLOAT);
 }
 
+static bool parse_string(
+    parse_t *p,
+    cp_syn_value_string_t *r)
+{
+    assert(r->type == CP_SYN_VALUE_STRING);
+    r->value = p->tok_string;
+    return expect_err(p, T_STRING);
+}
+
 #define value_new(t, l) __value_new(CP_FILE, CP_LINE, t, l)
 
 static cp_syn_value_t *__value_new(
@@ -373,11 +407,12 @@ static cp_syn_value_t *__value_new(
     cp_loc_t loc)
 {
     static const size_t size[] = {
-        [CP_SYN_VALUE_ID]    = sizeof(cp_syn_value_id_t),
-        [CP_SYN_VALUE_INT]   = sizeof(cp_syn_value_int_t),
-        [CP_SYN_VALUE_FLOAT] = sizeof(cp_syn_value_float_t),
-        [CP_SYN_VALUE_RANGE] = sizeof(cp_syn_value_range_t),
-        [CP_SYN_VALUE_ARRAY] = sizeof(cp_syn_value_array_t),
+        [CP_SYN_VALUE_ID]     = sizeof(cp_syn_value_id_t),
+        [CP_SYN_VALUE_INT]    = sizeof(cp_syn_value_int_t),
+        [CP_SYN_VALUE_FLOAT]  = sizeof(cp_syn_value_float_t),
+        [CP_SYN_VALUE_STRING] = sizeof(cp_syn_value_string_t),
+        [CP_SYN_VALUE_RANGE]  = sizeof(cp_syn_value_range_t),
+        [CP_SYN_VALUE_ARRAY]  = sizeof(cp_syn_value_array_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -416,6 +451,14 @@ static bool parse_new_float(
 {
     *rp = value_new(CP_SYN_VALUE_FLOAT, p->tok_string);
     return parse_float(p, &(*rp)->_float);
+}
+
+static bool parse_new_string(
+    parse_t *p,
+    cp_syn_value_t **rp)
+{
+    *rp = value_new(CP_SYN_VALUE_STRING, p->tok_string);
+    return parse_string(p, &(*rp)->_string);
 }
 
 /**
@@ -504,6 +547,9 @@ static bool parse_value(
 
     case T_FLOAT:
         return parse_new_float(p, r);
+
+    case T_STRING:
+        return parse_new_string(p, r);
 
     case T_ID:
         return parse_new_id(p, r);

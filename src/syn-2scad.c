@@ -44,6 +44,10 @@ static void cp_syn_value_put_scad(
         cp_printf(s, FF, f->_float.value);
         return;
 
+    case CP_SYN_VALUE_STRING:
+        cp_printf(s, "\"%s\"", f->_id.value);
+        return;
+
     case CP_SYN_VALUE_RANGE:
         cp_printf(s, "[");
         cp_syn_value_put_scad(s, d, f->_range.start);

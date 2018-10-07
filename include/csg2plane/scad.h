@@ -20,25 +20,15 @@
 #include <cpmat/stream.h>
 
 /**
- * Construct a SCAD CSG from the given function, recursively,
- * and append the CSG node(s) to \p result.
- */
-extern bool cp_v_scad_from_syn_func(
-    cp_scad_tree_t *result,
-    cp_err_t *err,
-    cp_syn_func_t *func);
-
-/**
  * Same as cp_scad_from_syn_func, applied to each element
  * of the 'func' vector.
  *
  * On success, returns true.
  * In case of error, returns false and fills in tree->err_loc and tree->err_msg.
  */
-extern bool cp_v_scad_from_v_syn_func(
+extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
-    cp_err_t *err,
-    cp_v_syn_func_p_t *func);
+    cp_syn_tree_t *tree);
 
 /**
  * Dump in SCAD format.

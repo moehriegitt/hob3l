@@ -155,10 +155,12 @@ static cp_csg2_t *csg2_tree_from_csg3(
 extern void cp_csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_csg3_tree_t const *d,
-    cp_range_t const *s)
+    cp_range_t const *s,
+    cp_csg2_tree_opt_t const *o)
 {
     r->root = cp_csg2_new(CP_CSG2_ADD, d->root->loc);
     r->thick = s->step;
+    r->opt = *o;
 
     cp_v_init0(&r->flag, s->cnt);
 

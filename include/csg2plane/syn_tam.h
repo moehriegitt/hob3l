@@ -55,6 +55,7 @@ typedef enum {
     CP_SYN_VALUE_ID = CP_SYN_VALUE_TYPE + 1,
     CP_SYN_VALUE_INT,
     CP_SYN_VALUE_FLOAT,
+    CP_SYN_VALUE_STRING,
     CP_SYN_VALUE_RANGE,
     CP_SYN_VALUE_ARRAY,
 } cp_syn_value_type_t;
@@ -88,6 +89,17 @@ typedef struct {
 } cp_syn_value_float_t;
 
 /**
+ * SCAD parser string value
+ */
+typedef struct {
+    CP_SYN_VALUE_BASE
+    /**
+     * The unparsed string (with all quotation in it)
+     */
+    char const *value;
+} cp_syn_value_string_t;
+
+/**
  * SCAD parser range value
  */
 typedef struct {
@@ -118,11 +130,12 @@ union cp_syn_value {
     struct {
         CP_SYN_VALUE_BASE
     };
-    cp_syn_value_id_t    _id;
-    cp_syn_value_int_t   _int;
-    cp_syn_value_float_t _float;
-    cp_syn_value_range_t _range;
-    cp_syn_value_array_t _array;
+    cp_syn_value_id_t     _id;
+    cp_syn_value_int_t    _int;
+    cp_syn_value_float_t  _float;
+    cp_syn_value_string_t _string;
+    cp_syn_value_range_t  _range;
+    cp_syn_value_array_t  _array;
 };
 
 typedef CP_VEC_T(char const *) cp_v_cstr_t;

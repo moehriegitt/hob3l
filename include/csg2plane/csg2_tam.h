@@ -205,10 +205,41 @@ union cp_csg2 {
 #define CP_CSG2_FLAG_NON_EMPTY 1
 
 typedef struct {
+    /**
+     * Gap between layers in STL or SCAD output.
+     *
+     * This is to make the STL a valid 2-manifold, because without
+     * the gaps, bottom and top faces of adjacent layers would be
+     * coplanar, which is not well-formed.
+     */
+    double layer_gap;
+} cp_csg2_tree_opt_t;
+
+typedef struct {
+    /**
+     * z coordinates of layers
+     */
     cp_a_double_t z;
+
+    /**
+     * Bitmap of CP_CSG2_FLAG_* entries for each layer
+     */
     cp_a_size_t flag;
+
+    /**
+     * The tree root
+     */
     cp_csg2_t *root;
+
+    /**
+     * Global layer thickness
+     */
     double thick;
+
+    /**
+     * Options for conversion or generation of output formats.
+     */
+    cp_csg2_tree_opt_t opt;
 } cp_csg2_tree_t;
 
 /**

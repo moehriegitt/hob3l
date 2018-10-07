@@ -6,11 +6,13 @@
 #include <cpmat/alloc.h>
 #include <csg2plane/gc.h>
 #include <csg2plane/scad.h>
+#include <csg2plane/syn.h>
 #include "internal.h"
 
 typedef struct {
     cp_scad_tree_t *top;
     cp_err_t *err;
+    cp_syn_tree_t *syn;
 } ctxt_t;
 
 static bool v_scad_from_v_syn_func(
@@ -1090,6 +1092,11 @@ static bool v_scad_from_syn_func(
            .from = combine_from_func
         },
         {
+           .id = "linear_extrude",
+           .type = 0,
+           .from = NULL,
+        },
+        {
            .id = "mirror",
            .type = CP_SCAD_MIRROR,
            .from = xyz_from_func
@@ -1130,6 +1137,11 @@ static bool v_scad_from_syn_func(
            .from = square_from_func
         },
         {
+           .id = "text",
+           .type = 0,
+           .from = NULL,
+        },
+        {
            .id = "translate",
            .type = CP_SCAD_TRANSLATE,
            .from = xyz_from_func
@@ -1155,6 +1167,14 @@ static bool v_scad_from_syn_func(
     }
 
     cmd_t const *c = &cmds[idx];
+    if (c->type == 0) {
+        cp_syn_loc_t loc;
+        if (cp_syn_get_loc(&loc, t->syn, f->loc)) {
+            fprintf(stderr, "%s:%"_Pz"u: ", loc.file->filename.data, loc.line+1);
+        }
+        fprintf(stderr, "Warning: Ignoring unsupported '%s'.\n", f->functor);
+        return true;
+    }
 
     cp_scad_t *r;
     if (!func_new(&r, t, f, c->type)) {
@@ -1177,26 +1197,14 @@ static bool v_scad_from_v_syn_func(
     return true;
 }
 
-extern bool cp_v_scad_from_syn_func(
+extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
-    cp_err_t *err,
-    cp_syn_func_t *f)
+    cp_syn_tree_t *syn)
 {
     ctxt_t t = {
+        .syn = syn,
         .top = result,
-        .err = err,
+        .err = &syn->err,
     };
-    return v_scad_from_syn_func(&t, &result->toplevel, f);
-}
-
-extern bool cp_v_scad_from_v_syn_func(
-    cp_scad_tree_t *result,
-    cp_err_t *err,
-    cp_v_syn_func_p_t *fs)
-{
-    ctxt_t t = {
-        .top = result,
-        .err = err,
-    };
-    return v_scad_from_v_syn_func(&t, &result->toplevel, fs);
+    return v_scad_from_v_syn_func(&t, &result->toplevel, &syn->toplevel);
 }

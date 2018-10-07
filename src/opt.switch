@@ -11,14 +11,23 @@ case "help": {
 }
 
 case "o": fn {
-    "sets the output file.  File ending selects default output format.";
+    "sets the output file.  File ending selects default output format:";
+    ".stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,";
+    ".ps selects --dump-ps format.";
     opt->out_file_name = fn;
+}
+
+case "layer-gap": dim &opt->tree.layer_gap {
+    "gap between layers in STL and SCAD output to ensure 2-manifold [mm]";
+    "(default: 0.01)";
 }
 
 help_section "Slicing Options";
 
 case "min": dim &opt->z_min {
-    "min slice z coord [mm] (default: use bounding box of model)";
+    "min slice z coord [mm] (by default, use bounding box of model,";
+    "starting at the middle of the first slice (i.e., at 50% slice";
+    "thickness) from the bottom).";
     opt->have_z_min = true;
 }
 case "max": dim &opt->z_max {
@@ -36,6 +45,14 @@ case "z": dim &opt->z_min {
     opt->have_z_min = true;
     opt->have_z_max = true;
 }
+
+#if CP_CSG3_CIRCULAR_CYLINDER
+case "round-fn": size &opt->csg3.max_fn {
+    "maximum value of $fn for treating cylinders as polyhedra (default: 200).";
+    "At $fn values larger than this, cylinders will be sliced as circular cylinders";
+    "and not converted to polyhedra.";
+}
+#endif
 
 help_section "Advanced Options";
 
@@ -68,7 +85,7 @@ case "dump-csg2": bool &opt->dump_csg2 {
     opt->have_dump = true;
 }
 case "dump-ps": bool &opt->dump_ps {
-    "print after stage 4: final 2D polygon stack in PS format";
+    "print after stage 4: final 2D polygon stack in PostScript format";
     opt->have_dump = true;
 }
 case "dump-stl": bool &opt->dump_stl {

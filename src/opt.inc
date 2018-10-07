@@ -8,16 +8,29 @@ static char const *opt_help =
     "    --help\n"
     "        displays this help text\n"
     "    --o=ARG\n"
-    "        sets the output file.  File ending selects default output format.\n"
+    "        sets the output file.  File ending selects default output format:\n"
+    "        .stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,\n"
+    "        .ps selects --dump-ps format.\n"
+    "    --layer-gap=ARG\n"
+    "        gap between layers in STL and SCAD output to ensure 2-manifold [mm]\n"
+    "        (default: 0.01)\n"
     "Slicing Options\n"
     "    --min=ARG\n"
-    "        min slice z coord [mm] (default: use bounding box of model)\n"
+    "        min slice z coord [mm] (by default, use bounding box of model,\n"
+    "        starting at the middle of the first slice (i.e., at 50% slice\n"
+    "        thickness) from the bottom).\n"
     "    --max=ARG\n"
     "        max slice z coord [mm] (default: use bounding box of model)\n"
     "    --step=ARG\n"
     "        thickness of slice [mm] (default: 0.2)\n"
     "    --z=ARG\n"
     "        equivalent to --min COORD --max COORD\n"
+#if CP_CSG3_CIRCULAR_CYLINDER
+    "    --round-fn=ARG\n"
+    "        maximum value of $fn for treating cylinders as polyhedra (default: 200).\n"
+    "        At $fn values larger than this, cylinders will be sliced as circular cylinders\n"
+    "        and not converted to polyhedra.\n"
+#endif
     "Advanced Options\n"
     "    --gran=ARG\n"
     "        rasterization granularity for point coordinates [mm] (default: 0x1p-9)\n"
@@ -35,7 +48,7 @@ static char const *opt_help =
     "    --dump-csg2\n"
     "        print after stage 4: final 2D polygon stack in SCAD format\n"
     "    --dump-ps\n"
-    "        print after stage 4: final 2D polygon stack in PS format\n"
+    "        print after stage 4: final 2D polygon stack in PostScript format\n"
     "    --dump-stl\n"
     "        print after stage 4: final 2D polygon stack in STL format\n"
     "    --no-csg\n"
@@ -334,6 +347,14 @@ static void get_opt_gran(
     get_arg_dim(&cp_pt_epsilon, name, arg);
 }
 
+static void get_opt_layer_gap(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_dim(&opt->tree.layer_gap, name, arg);
+}
+
 static void get_opt_max(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -570,6 +591,16 @@ static void get_opt_ps_tri(
     get_arg_neg_bool(&opt->ps.no_tri, name, arg);
 }
 
+static void get_opt_round_fn(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+#if CP_CSG3_CIRCULAR_CYLINDER
+    get_arg_size(&opt->csg3.max_fn, name, arg);
+#endif
+}
+
 static void get_opt_step(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -714,6 +745,11 @@ cp_get_opt_t opt_list[] = {
         0,
     },
     {
+        "layer-gap",
+        get_opt_layer_gap,
+        2,
+    },
+    {
         "max",
         get_opt_max,
         2,
@@ -847,6 +883,11 @@ cp_get_opt_t opt_list[] = {
         "ps-tri",
         get_opt_ps_tri,
         1,
+    },
+    {
+        "round-fn",
+        get_opt_round_fn,
+        2,
     },
     {
         "step",

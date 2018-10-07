@@ -35,6 +35,7 @@ The following SCAD abstract syntax tree (AST) structures are supported:
     /* block comments */
     564           // integers
     56.3          // reals
+    "hello\n"     // strings
     true undef x  // identifiers
     [A:B:C]       // ranges
     [a, b, c]     // arrays
@@ -47,8 +48,8 @@ The following SCAD abstract syntax tree (AST) structures are supported:
     * ! # %       // modifier characters
 ```
 
-The biggest parts that are missing are strings, constants/variables,
-functions, and modules.
+The biggest parts that are missing are constants/variables, functions,
+and modules.
 
 The following SCAD operators and identifiers are supported.  In each
 functor's parentheses, the supported arguments are listed.  $fa and
@@ -86,6 +87,9 @@ OpenSCAD may still accept it and assume '1'.
     square(size, center)
     polygon(points, paths)
 ```
+
+Some additional items are parsed, but ignored: `linear_extrude`,
+`text`.
 
 ### Broken SCAD Syntax
 
@@ -125,17 +129,23 @@ fully supported, because, again, this may happen.
 
 ## Status, Stability, Limitations, Future Work, TODO
 
-The basic workflow is implemented and tested, i.e., the tool can read
-the specified subset of SCAD, it can slice the input object, it can
-apply the 2D boolean operations (AKA polygon clipping), and it can
-triangulate the resulting polgygons, and write STL.
+Despite quite some testing and debugging, this will still assert-fail
+occasionally or output rubbish.  The floating point algorithms are
+somewhat brittle and hard to get right.
 
-Slic3r can read the STL files this tool produces.
+OTOH, the basic workflow is implemented and tested, i.e., the tool can
+read the specified subset of SCAD (e.g. from OpenSCAD's CSG output),
+it can slice the input object, it can apply the 2D boolean operations
+(AKA polygon clipping), and it can triangulate the resulting
+polgygons, and write STL.  Slic3r can read the STL files this tool
+produces.
 
 Corner cases in the algorithms have been dealt with (except for
-unknown bugs).  Because of the 'stability' design goal that extends
-from computational real number stability to corner cases, this was in
-focus from the start.
+unknown bugs).  Because of the stability design goal that extends from
+computational real number stability to corner cases, this was in focus
+from the start.  Corner case handle took most of the time of
+development and takes up a large portion of the code, because doing
+floating point computations in a stable way is really tricky.
 
 The input polyhedra must consist of only convex faces.  This will be
 fixed in the future.
@@ -151,12 +161,6 @@ world, so there is no polyhedron approximation of spheres implemented
 yet.  (My 3D constructions rarely ever contain spheres -- I seem to
 build everything from cubes and cylinders, and occasionally from
 manually constructed polyhedra.)
-
-Cylinders fail to work if `$fn` is too large.  This has the same
-reason as for circles: my intension is to make them nice and
-completely round, but this part is not implemented yet.  The threshold
-setting for 'large $fn' should be a command line options, but is
-currently missing.
 
 Memory management has leaks.  I admit I don't care enough, because
 this tool basically starts, allocates, exits, i.e., it does not run
@@ -314,6 +318,64 @@ changes the executable name and the library name, but not the include
 subdirectory, because this would not work as the name is explicitly
 used in the header files.
 
-## Command Line Parameters
+## Using This Tool, Command Line Options
 
-Use `csg2plane --help`.
+In general, use `csg2plane --help`.
+
+To convert a normal scad file into the subset this tool can ready,
+start by using OpenSCAD to convert to a flat 3D CSG structure with all
+the syntactic sugar removed.
+
+```
+    openscad thing.scad -o thing.csg
+```
+
+Now, if no fancy things are used (like `test` or `linear_extrude`), you can
+use this tool to slice is:
+
+```
+    csg2plane thing.csg -o thing.stl
+```
+
+This can then be used in your favorite slicer:
+
+```
+    slic3r thing.stl
+```
+
+## Speed comparison
+
+Depending on the complexity of the model, this tool is much faster
+than using OpenSCAD with CGAL rendering.  Extracting the flat CSG tree
+with openscad is very fast.  This step is usually needed because
+`csg2plane` reads only a restricted set of SCAD.
+
+Some examples:
+
+The x-carriage.scad part of my Prusa i3 MK3 printer from the Prusa
+github repository: let's first convert to `.csg` (flat SCAD format that
+this tool can read):
+
+```
+    time openscad x-carriage.scad -o x-carriage.csg
+    0m0.034s
+```
+
+To convert to STL using openscad 3D CSG takes a while:
+
+```
+    time openscad x-carriage.csg -o x-carriage.stl
+    0m46.372s
+```
+
+Doing the same with `csg2plane` is about 18 times faster:
+
+```
+    time csg2plane x-carriage.csg -o x-carriage.stl
+    0m2.549s
+```
+
+For one of my own parts `useless-box+body`, which is less complex, but
+does not care much about making rendering fast (I definitely set up
+cylinders with too many polygon corners), 3D CSG rendering takes 90s,
+and `csg2plane` takes 0.4s, which is a speed-up of 200.

@@ -30,7 +30,8 @@ static void poly_put_scad(
 {
     cp_printf(s, "%*s", d,"");
     cp_dim_t lt = cp_csg2_layer_thickness(t, zi);
-    cp_printf(s, "linear_extrude(height="FF",center=0,convexity=2,twist=0)", lt - 0.01);
+    cp_printf(s, "linear_extrude(height="FF",center=0,convexity=2,twist=0)",
+        lt - t->opt.layer_gap);
     cp_printf(s, "polygon(");
     cp_printf(s, "points=[");
     for (cp_v_each(i, &r->point)) {

@@ -2040,6 +2040,7 @@ extern void cp_csg2_op_tree_init(
     TRACE();
     r->root = cp_csg2_new(CP_CSG2_STACK, NULL);
     r->thick = a->thick;
+    r->opt = a->opt;
 
     size_t cnt = a->z.size;
 

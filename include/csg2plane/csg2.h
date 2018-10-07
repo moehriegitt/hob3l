@@ -72,7 +72,8 @@ static inline cp_vec2_loc_t *cp_csg2_path_nth(
 extern void cp_csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_csg3_tree_t const *d,
-    cp_range_t const *s);
+    cp_range_t const *s,
+    cp_csg2_tree_opt_t const *o);
 
 /**
  * This generates stacks of polygon CSG2 trees.

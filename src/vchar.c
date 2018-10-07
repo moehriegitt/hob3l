@@ -74,8 +74,11 @@ extern int cp_vchar_vprintf(
      * vsnprintf */
     __grow(v, 1);
     for(;;) {
+        va_list va2;
+        va_copy(va2, va);
         size_t have = v->alloc - v->size;
-        int done_i = vsnprintf(v->data + v->size, have, format, va);
+        int done_i = vsnprintf(v->data + v->size, have, format, va2);
+        va_end(va2);
         size_t done = (size_t)done_i;
         if (done < have) {
             v->size += done;
