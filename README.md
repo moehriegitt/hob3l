@@ -128,7 +128,7 @@ The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
 was improved to have less computational instability be deriving
 crossing points always from the original edge (although currently,
 each 2D operation restarts this -- this could be improved).  Also,
-computational stability was improved by rigurous use of epsilon-aware
+computational stability was improved by rigorous use of epsilon-aware
 arithmetics.  Further, a better polygon reassembling algorithm with
 O(n log n) runtime was implemented -- the original paper and reference
 implementation do not focus on this part.
@@ -154,9 +154,9 @@ produces.
 Corner cases in the algorithms have been dealt with (except for
 unknown bugs).  Because of the stability design goal that extends from
 computational real number stability to corner cases, this was in focus
-from the start.  Corner case handle took most of the time of
-development and takes up a large portion of the code, because doing
-floating point computations in a stable way is really tricky.
+from the start.  Corner case handling took up most of the development
+time and takes up a large portion of the code, because doing floating
+point computations in a stable way is really tricky.
 
 The input polyhedra must consist of only convex faces.  This will be
 fixed in the future.
