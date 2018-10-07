@@ -6,6 +6,7 @@
 #include <cpmat/panic.h>
 #include <cpmat/alloc.h>
 #include <cpmat/pool.h>
+#include <cpmat/arith.h>
 
 /**
  * Align block to 4k pages
@@ -103,16 +104,18 @@ static void *try_block_calloc(
     int line,
     cp_pool_block_t *a,
     size_t nmemb,
-    size_t size,
+    size_t size1,
     size_t align)
 {
-    assert((size > 0) && "Objects of size 0 are not supported");
+    assert((size1 > 0) && "Objects of size 0 are not supported");
     assert(nmemb > 0);
 
-    if (nmemb > (a->heap_size / size)) {
+    if (nmemb > (a->heap_size / size1)) {
         cp_panic(file, line, "Out of memory: large allocation: %"_Pz"u * %"_Pz"u > %"_Pz"u",
-            nmemb, size, a->heap_size);
+            nmemb, size1, a->heap_size);
     }
+
+    size_t size = nmemb * size1;
 
     if (CP_PTRDIFF(a->brk, a->heap) < size) {
         return NULL;
@@ -125,6 +128,7 @@ static void *try_block_calloc(
     }
     a->brk -= align_diff;
 
+    assert(cp_mem_is0(a->brk, size));
     return a->brk;
 }
 

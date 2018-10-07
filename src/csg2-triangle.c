@@ -8,6 +8,7 @@
 #include <cpmat/mat.h>
 #include <cpmat/list.h>
 #include <cpmat/panic.h>
+#include <cpmat/pool.h>
 #include <csg2plane/csg2.h>
 #include <csg2plane/ps.h>
 #include "internal.h"
@@ -1068,7 +1069,126 @@ static bool transition(
     return true;
 }
 
+static bool csg2_tri_circle(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_circle_t *r)
+{
+    (void)pool;
+    (void)t;
+    (void)r;
+    return true;
+}
+
+static bool csg2_tri_v_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_v_csg2_p_t *r,
+    size_t zi);
+
+static bool csg2_tri_layer(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_layer_t *r)
+{
+    return csg2_tri_v_csg2(pool, t, &r->root.add, r->zi);
+}
+
+static bool csg2_tri_stack(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_stack_t *r,
+    size_t zi)
+{
+    cp_csg2_layer_t *l = cp_csg2_stack_get_layer(r, zi);
+    if (l == NULL) {
+        return true;
+    }
+    return csg2_tri_layer(pool, t, l);
+}
+
+static bool csg2_tri_sub(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_sub_t *r,
+    size_t zi)
+{
+    return
+        csg2_tri_v_csg2(pool, t, &r->add.add, zi) &&
+        csg2_tri_v_csg2(pool, t, &r->sub.add, zi);
+}
+
+static bool csg2_tri_add(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_add_t *r,
+    size_t zi)
+{
+    return csg2_tri_v_csg2(pool, t, &r->add, zi);
+}
+
+static bool csg2_tri_cut(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_cut_t *r,
+    size_t zi)
+{
+    for (cp_v_each(i, &r->cut)) {
+        if (!csg2_tri_v_csg2(pool, t, &r->cut.data[i]->add, zi)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool csg2_tri_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_t *r,
+    size_t zi)
+{
+    switch (r->type) {
+    case CP_CSG2_CIRCLE:
+        return csg2_tri_circle(pool, t, &r->circle);
+
+    case CP_CSG2_POLY:
+        return cp_csg2_tri_poly(pool, t, &r->poly);
+
+    case CP_CSG2_STACK:
+        return csg2_tri_stack(pool, t, &r->stack, zi);
+
+    case CP_CSG2_ADD:
+        return csg2_tri_add(pool, t, &r->add, zi);
+
+    case CP_CSG2_SUB:
+        return csg2_tri_sub(pool, t, &r->sub, zi);
+
+    case CP_CSG2_CUT:
+        return csg2_tri_cut(pool, t, &r->cut, zi);
+    }
+
+    CP_DIE("2D object type: %#x", r->type);
+}
+
+static bool csg2_tri_v_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_v_csg2_p_t *r,
+    size_t zi)
+{
+    for (cp_v_each(i, r)) {
+        if (!csg2_tri_csg2(pool, t, r->data[i], zi)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* ********************************************************************** */
+/* extern */
+
 extern bool cp_csg2_tri_set(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,
@@ -1094,10 +1214,15 @@ extern bool cp_csg2_tri_set(
      * heap as they are discovered.
      */
 
+    if (n == 0) {
+        return true;
+    }
+
     /* allocate list cells */
     size_t list_size = n * 2;
-    list_t list_data[list_size];
-    CP_ZERO(&list_data);
+    list_t *list_data;
+    CP_POOL_CALLOC_ARR(pool, list_data, list_size);
+    assert(cp_mem_is0(list_data, sizeof(*list_data) * list_size));
 
     /* init context */
     ctxt_t c = {
@@ -1145,6 +1270,7 @@ extern bool cp_csg2_tri_set(
 }
 
 extern bool cp_csg2_tri_path(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *g,
     cp_csg2_path_t *s)
@@ -1152,10 +1278,10 @@ extern bool cp_csg2_tri_path(
     size_t n = s->point_idx.size;
 
     /* allocate */
-    node_t node[n];
-    CP_ZERO(&node);
-    edge_t edge[n];
-    CP_ZERO(&edge);
+    node_t *node;
+    CP_POOL_CALLOC_ARR(pool, node, n);
+    edge_t *edge;
+    CP_POOL_CALLOC_ARR(pool, edge, n);
 
     /* Init nodes and edges and insert into X structure 'px'
      * To do multiple paths in one go, this would need to be
@@ -1171,10 +1297,11 @@ extern bool cp_csg2_tri_path(
         p->in = &edge[cp_wrap_sub1(i,n)];
     }
 
-    return cp_csg2_tri_set(t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n);
+    return cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n);
 }
 
 extern bool cp_csg2_tri_poly(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *g)
 {
@@ -1186,10 +1313,10 @@ extern bool cp_csg2_tri_poly(
     }
 
     /* allocate */
-    node_t node[n];
-    CP_ZERO(&node);
-    edge_t edge[n];
-    CP_ZERO(&edge);
+    node_t *node;
+    CP_POOL_CALLOC_ARR(pool, node, n);
+    edge_t *edge;
+    CP_POOL_CALLOC_ARR(pool, edge, n);
 
     /* make edges */
     size_t m = g->path.size;
@@ -1215,118 +1342,21 @@ extern bool cp_csg2_tri_poly(
     cp_v_clear(&g->triangle, tri_cnt);
 
     /* run the triangulation algorithm */
-    if (!cp_csg2_tri_set(t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n)) {
+    if (!cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n)) {
         return false;
     }
     assert(g->triangle.size  <= tri_cnt);
     return true;
 }
 
-static bool csg2_tri_circle(
+extern bool cp_csg2_tri_layer(
+    cp_pool_t *pool,
     cp_err_t *t,
-    cp_csg2_circle_t *r)
-{
-    (void)t;
-    (void)r;
-    return true;
-}
-
-static bool csg2_tri_v_csg2(
-    cp_err_t *t,
-    cp_v_csg2_p_t *r);
-
-static bool csg2_tri_layer(
-    cp_err_t *t,
-    cp_csg2_layer_t *r)
-{
-    return csg2_tri_v_csg2(t, &r->root.add);
-}
-
-static bool csg2_tri_stack(
-    cp_err_t *t,
-    cp_csg2_stack_t *r)
-{
-    for (cp_v_each(i, &r->layer)) {
-        if (!csg2_tri_layer(t, &r->layer.data[i])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool csg2_tri_sub(
-    cp_err_t *t,
-    cp_csg2_sub_t *r)
-{
-    return
-        csg2_tri_v_csg2(t, &r->add.add) &&
-        csg2_tri_v_csg2(t, &r->sub.add);
-}
-
-static bool csg2_tri_add(
-    cp_err_t *t,
-    cp_csg2_add_t *r)
-{
-    return csg2_tri_v_csg2(t, &r->add);
-}
-
-static bool csg2_tri_cut(
-    cp_err_t *t,
-    cp_csg2_cut_t *r)
-{
-    for (cp_v_each(i, &r->cut)) {
-        if (!csg2_tri_v_csg2(t, &r->cut.data[i]->add)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool csg2_tri_csg2(
-    cp_err_t *t,
-    cp_csg2_t *r)
-{
-    switch (r->type) {
-    case CP_CSG2_CIRCLE:
-        return csg2_tri_circle(t, &r->circle);
-
-    case CP_CSG2_POLY:
-        return cp_csg2_tri_poly(t, &r->poly);
-
-    case CP_CSG2_STACK:
-        return csg2_tri_stack(t, &r->stack);
-
-    case CP_CSG2_ADD:
-        return csg2_tri_add(t, &r->add);
-
-    case CP_CSG2_SUB:
-        return csg2_tri_sub(t, &r->sub);
-
-    case CP_CSG2_CUT:
-        return csg2_tri_cut(t, &r->cut);
-    }
-
-    CP_DIE("2D object type: %#x", r->type);
-}
-
-static bool csg2_tri_v_csg2(
-    cp_err_t *t,
-    cp_v_csg2_p_t *r)
-{
-    for (cp_v_each(i, r)) {
-        if (!csg2_tri_csg2(t, r->data[i])) {
-            return false;
-        }
-    }
-    return true;
-}
-
-extern bool cp_csg2_tri_tree(
-    cp_err_t *t,
-    cp_csg2_tree_t *r)
+    cp_csg2_tree_t *r,
+    size_t zi)
 {
     if (r->root == NULL) {
         return true;
     }
-    return csg2_tri_csg2(t, r->root);
+    return csg2_tri_csg2(pool, t, r->root, zi);
 }

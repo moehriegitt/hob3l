@@ -7,6 +7,7 @@
 #include <cpmat/vec.h>
 #include <cpmat/mat.h>
 #include <cpmat/alloc.h>
+#include <cpmat/pool.h>
 #include <csg2plane/gc.h>
 #include <csg2plane/csg2.h>
 #include <csg2plane/csg3.h>
@@ -423,6 +424,7 @@ static void edge_find_path(
 }
 
 static void csg2_add_layer_poly(
+    cp_pool_t *pool,
     double z,
     cp_v_csg2_p_t *c,
     cp_csg3_poly_t const *d)
@@ -434,11 +436,11 @@ static void csg2_add_layer_poly(
     cp_v_csg2_path_t path;
     CP_ZERO(&path);
 
-    /* FIXME: use pool */
     assert(d->edge.size > 0);
-    size_t hea[CP_ROUNDUP_DIV(d->edge.size, 8*sizeof(size_t))];
-    CP_ZERO(&hea);
-    cp_a_size_t have_edge = CP_A_INIT_WITH_ARR(hea);
+    size_t hea_size = CP_ROUNDUP_DIV(d->edge.size, 8*sizeof(size_t));
+    size_t *hea;
+    CP_POOL_CALLOC_ARR(pool, hea, hea_size);
+    cp_a_size_t have_edge = CP_A_INIT_WITH(hea, hea_size);
 
     ctxt_t q = {
         .have_edge = &have_edge,
@@ -484,6 +486,7 @@ static void csg2_add_layer_poly(
 
 static bool csg2_add_layer(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
@@ -491,13 +494,14 @@ static bool csg2_add_layer(
 
 static bool csg2_add_layer_v(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
     cp_v_csg2_p_t *c)
 {
     for (cp_v_each(i, c)) {
-        if (!csg2_add_layer(no, r, t, zi, cp_v_nth(c,i))) {
+        if (!csg2_add_layer(no, pool, r, t, zi, cp_v_nth(c,i))) {
             return false;
         }
     }
@@ -506,28 +510,30 @@ static bool csg2_add_layer_v(
 
 static bool csg2_add_layer_add(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
     cp_csg2_add_t *c)
 {
-    return csg2_add_layer_v(no, r, t, zi, &c->add);
+    return csg2_add_layer_v(no, pool, r, t, zi, &c->add);
 }
 
 static bool csg2_add_layer_sub(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
     cp_csg2_sub_t *c)
 {
     bool add_no = false;
-    if (!csg2_add_layer_add(&add_no, r, t, zi, &c->add)) {
+    if (!csg2_add_layer_add(&add_no, pool, r, t, zi, &c->add)) {
         return false;
     }
     if (add_no) {
         *no = true;
-        if (!csg2_add_layer_add(no, r, t, zi, &c->sub)) {
+        if (!csg2_add_layer_add(no, pool, r, t, zi, &c->sub)) {
             return false;
         }
     }
@@ -536,13 +542,14 @@ static bool csg2_add_layer_sub(
 
 static bool csg2_add_layer_cut(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
     cp_csg2_cut_t *c)
 {
     for (cp_v_each(i, &c->cut)) {
-        if (!csg2_add_layer_add(no, r, t, zi, cp_v_nth(&c->cut, i))) {
+        if (!csg2_add_layer_add(no, pool, r, t, zi, cp_v_nth(&c->cut, i))) {
             return false;
         }
     }
@@ -551,6 +558,7 @@ static bool csg2_add_layer_cut(
 
 static bool csg2_add_layer_stack(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t __unused,
     size_t zi,
@@ -576,7 +584,7 @@ static bool csg2_add_layer_stack(
         CP_NYI("cylinder");
 
     case CP_CSG3_POLY:
-        csg2_add_layer_poly(z, &l->root.add, cp_csg3_poly_const(d));
+        csg2_add_layer_poly(pool, z, &l->root.add, cp_csg3_poly_const(d));
         break;
 
     case CP_CSG2_POLY:
@@ -596,6 +604,7 @@ static bool csg2_add_layer_stack(
 
 static bool csg2_add_layer(
     bool *no,
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
@@ -603,16 +612,16 @@ static bool csg2_add_layer(
 {
     switch (c->type) {
     case CP_CSG2_STACK:
-        return csg2_add_layer_stack(no, r, t, zi, cp_csg2_stack(c));
+        return csg2_add_layer_stack(no, pool, r, t, zi, cp_csg2_stack(c));
 
     case CP_CSG2_ADD:
-        return csg2_add_layer_add(no, r, t, zi, cp_csg2_add(c));
+        return csg2_add_layer_add(no, pool, r, t, zi, cp_csg2_add(c));
 
     case CP_CSG2_SUB:
-        return csg2_add_layer_sub(no, r, t, zi, cp_csg2_sub(c));
+        return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg2_sub(c));
 
     case CP_CSG2_CUT:
-        return csg2_add_layer_cut(no, r, t, zi, cp_csg2_cut(c));
+        return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg2_cut(c));
 
     case CP_CSG2_POLY:
     case CP_CSG2_CIRCLE:
@@ -640,6 +649,7 @@ extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
 }
 
 extern bool cp_csg2_tree_add_layer(
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi)
@@ -648,7 +658,7 @@ extern bool cp_csg2_tree_add_layer(
     assert(r->root->type == CP_CSG2_ADD);
     assert(zi < r->z.size);
     bool no = false;
-    return csg2_add_layer_add(&no, r, t, zi, cp_csg2_add(r->root));
+    return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg2_add(r->root));
 }
 
 extern void cp_v_vec2_loc_minmax(

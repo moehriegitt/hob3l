@@ -136,7 +136,7 @@ CFLAGS   += -Wshift-overflow=2
 CFLAGS   += -Wbad-function-cast
 CFLAGS   += -Wjump-misses-init
 CFLAGS   += -Wredundant-decls
-#CFLAGS   += -Wvla
+CFLAGS   += -Wvla
 
 ifeq ($(WERROR),1)
 CFLAGS   += -Werror

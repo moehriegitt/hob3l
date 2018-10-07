@@ -14,12 +14,12 @@
 #include <cpmat/def.h>
 #include <cpmat/pool_tam.h>
 
-#define CP_POOL_NEW_ARR(p, n, x) \
+#define CP_POOL_NEW_ARR(p, x, n) \
     ((__typeof__(x)*)cp_pool_calloc(CP_FILE, CP_LINE, p, n, sizeof(x), cp_alignof(x)))
 
-#define CP_POOL_NEW(p, x)           CP_POOL_NEW_ARR(p, 1, x)
-#define CP_POOL_CALLOC_ARR(p, n, x) ((x) = CP_POOL_NEW_ARR(p, *(x), n))
-#define CP_POOL_CALLOC(p, x)        CP_POOL_CALLOC_ARR(p, 1, x)
+#define CP_POOL_NEW(p, x)           CP_POOL_NEW_ARR(p, x, 1)
+#define CP_POOL_CALLOC_ARR(p, x, n) ((x) = CP_POOL_NEW_ARR(p, *(x), n))
+#define CP_POOL_CALLOC(p, x)        CP_POOL_CALLOC_ARR(p, x, 1)
 
 /**
  * Initialises a new allocator together with a first block of memory to

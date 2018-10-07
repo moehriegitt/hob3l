@@ -73,6 +73,49 @@ static void format_source_line(
     }
 }
 
+static bool next_i(
+    size_t *ip,
+    size_t *i_alloc,
+    size_t i_count)
+{
+    size_t i = (*i_alloc)++;
+    if (i < i_count) {
+        *ip = i;
+        return true;
+    }
+    return false;
+}
+
+static bool process_stack(
+    cp_opt_t *opt,
+    cp_pool_t *pool,
+    cp_err_t *err,
+    cp_csg2_tree_t *csg2,
+    cp_csg2_tree_t *csg2b,
+    cp_csg2_tree_t *csg2_out,
+    size_t *zi_p,
+    size_t  zi_count)
+{
+    size_t i;
+    while (next_i(&i, zi_p, zi_count)) {
+        cp_pool_clear(pool);
+        if (!cp_csg2_tree_add_layer(pool, csg2, err, i)) {
+            return false;
+        }
+        if (!opt->no_csg) {
+            if (!cp_csg2_op_add_layer(pool, err, csg2b, csg2, i)) {
+                return false;
+            }
+        }
+        if (!opt->no_tri) {
+            if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static bool do_file(
     cp_stream_t *sout,
     cp_opt_t *opt,
@@ -155,8 +198,7 @@ static bool do_file(
            range.min + (range.step * cp_f(range.cnt - 1)));
     }
 
-    /* step 1: slice leaf objects */
-    /* step 2: apply 2D CSG to each layer */
+    /* process layer by layer: extract layer, slice, triangulate */
     cp_csg2_tree_t *csg2 = CP_NEW(*csg2);
     cp_csg2_tree_from_csg3(csg2, csg3, &range, &opt->tree);
 
@@ -166,36 +208,19 @@ static bool do_file(
     cp_pool_t pool;
     cp_pool_init(&pool, 0);
 
-    for (cp_size_each(i, range.cnt)) {
-        if (!cp_csg2_tree_add_layer(csg2, &r->err, i)) {
-            return false;
-        }
-        if (!opt->no_csg) {
-            if (!cp_csg2_op_add_layer(&pool, &r->err, csg2b, csg2, i)) {
-                return false;
-            }
-        }
+    cp_csg2_tree_t *csg2_out = opt->no_csg ? csg2 : csg2b;
+    size_t zi = 0;
+    if (!process_stack(opt, &pool, &r->err, csg2, csg2b, csg2_out, &zi, range.cnt)) {
+        return false;
     }
 
-    /* step 2b: use reduced polygon stack */
-    if (!opt->no_csg) {
-        csg2 = csg2b;
-    }
-
-    /* step 3: triangulate */
-    if (!opt->no_tri) {
-        if (!cp_csg2_tri_tree(&r->err, csg2)) {
-            return false;
-        }
-    }
-
-    /* step 4: print */
+    /* print */
     if (opt->dump_csg2) {
-        cp_csg2_tree_put_scad(sout, csg2);
+        cp_csg2_tree_put_scad(sout, csg2_out);
         return true;
     }
     if (opt->dump_stl) {
-        cp_csg2_tree_put_stl(sout, csg2);
+        cp_csg2_tree_put_stl(sout, csg2_out);
         return true;
     }
     if (opt->dump_ps) {
@@ -217,7 +242,7 @@ static bool do_file(
             break;
         }
         opt->ps.xform1 = &xform;
-        cp_csg2_tree_put_ps(sout, &opt->ps, csg2);
+        cp_csg2_tree_put_ps(sout, &opt->ps, csg2_out);
         return true;
     }
 

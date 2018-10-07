@@ -27,7 +27,7 @@ extern cp_f_t cp_equ_epsilon;
  */
 extern cp_f_t cp_sqr_epsilon;
 
-/** min */
+/* min */
 static inline cp_f_t __cp_min_f(cp_f_t a, cp_f_t b)
 {
     return a <= b ? a : b;
@@ -53,7 +53,7 @@ static inline size_t __cp_min_z(size_t a, size_t b)
         *__ap = cp_min(*__ap, __VA_ARGS__); \
     }while(0)
 
-/** max */
+/* max */
 static inline cp_f_t __cp_max_f(cp_f_t a, cp_f_t b)
 {
     return a >= b ? a : b;
@@ -248,6 +248,10 @@ static inline cp_f_t cp_t_pm(cp_f_t src, cp_f_t val, cp_f_t dst)
  * Swap contents of memory.
  */
 extern void cp_memswap(void *a, void *b, size_t esz);
+
+/**
+ * Return whether a piece of memory is zeroed */
+bool cp_mem_is0(void *data, size_t size);
 
 /**
  * Initialise a discrete range.

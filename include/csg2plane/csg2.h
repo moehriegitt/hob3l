@@ -84,8 +84,11 @@ extern void cp_csg2_tree_from_csg3(
  *
  * In the polygons, only the 'path' entries are filled in, i.e.,
  * the 'triangle' entries are left empty.
+ *
+ * Uses \p pool for all temporary allocations (but not for constructing r).
  */
 extern bool cp_csg2_tree_add_layer(
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi);
@@ -126,7 +129,7 @@ extern void cp_csg2_tree_put_stl(
 /**
  * Print as PS file.
  *
- * All layers is printed on a separate page.
+ * Each layer is printed on a separate page.
  *
  * This prints both the triangle and the path data in different
  * colours, overlayed so that the shape can be debugged.
@@ -140,7 +143,9 @@ extern void cp_csg2_tree_put_ps(
     cp_csg2_tree_t *t);
 
 /**
- * This clears all 'triangle' vectors in all polygons of the tree and
+ * Triangulate a given layer
+ *
+ * This clears all 'triangle' vectors in all polygons of the layer and
  * refills them with a set of triangles derived from the 'path'
  * entries of the polygons.
  *
@@ -151,9 +156,7 @@ extern void cp_csg2_tree_put_ps(
  * tree, so the set of paths of each polygon in the tree is contrained
  * in the way described for that function.
  *
- * FIXME: Currently, all allocations of temporaries are on the stack.
- * This prevents heap fragmentation, but might not work well with
- * large polygons on OSes that have a fixed stack size for threads.
+ * Uses \p pool for all temporary allocations (but not for constructing r).
  *
  * Runtime: O(m * n log n)
  * Space: O(max(n))
@@ -162,9 +165,11 @@ extern void cp_csg2_tree_put_ps(
  *     n = number of points of a polygon,
  *     max(n) = the maximum n among the polygons.
  */
-extern bool cp_csg2_tri_tree(
+extern bool cp_csg2_tri_layer(
+    cp_pool_t *pool,
     cp_err_t *t,
-    cp_csg2_tree_t *r);
+    cp_csg2_tree_t *r,
+    size_t zi);
 
 /**
  * Triangulate a single polygon.
@@ -175,11 +180,14 @@ extern bool cp_csg2_tri_tree(
  * the paths in one data structure, so the set of paths of the given
  * polygon is contrained in the way described for that function.
  *
+ * Uses \p pool for all temporary allocations (but not for constructing r).
+ *
  * Runtime: O(n log n)
  * Space: O(n)
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_poly(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *r);
 
@@ -192,11 +200,14 @@ extern bool cp_csg2_tri_poly(
  * This uses cp_csg2_tri_set() internally, so the path is contrained
  * in the way described for that function.
  *
+ * Uses \p pool for all temporary allocations (but not for constructing g).
+ *
  * Runtime: O(n log n)
  * Space: O(n)
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_path(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_csg2_poly_t *g,
     cp_csg2_path_t *s);
@@ -249,11 +260,15 @@ extern bool cp_csg2_tri_path(
  *     Additionally, the improper start case has a special case if vertices
  *     coincide.
  *
+ * Uses \p pool for all temporary allocations (but not for constructing
+ * point_arr or tri).
+ *
  * Runtime: O(n log n)
  * Space: O(n)
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_set(
+    cp_pool_t *pool,
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,

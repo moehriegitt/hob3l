@@ -67,6 +67,16 @@ extern void cp_memswap(
     }
 }
 
+bool cp_mem_is0(void *data, size_t size)
+{
+    for (char const *i = data, *e = i + size; i != e; i++) {
+        if (*i != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
 typedef struct {
     unsigned long long mant;
     int exp;

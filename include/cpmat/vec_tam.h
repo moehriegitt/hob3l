@@ -45,8 +45,6 @@ typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
 
 #define CP_A_INIT_WITH(_d,_s) {{ .data = _d, .size = _s }}
 
-#define CP_A_INIT_WITH_ARR(_d) {{ .data = _d, .size = cp_countof(_d) }}
-
 /**
  * Helper macro to allos cp_v_each to have optional arguments.
  */
