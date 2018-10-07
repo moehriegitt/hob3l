@@ -3,7 +3,8 @@ Fast Slicing of SCAD Files for 3D Printing
 
 ## Replace 3D CSG by Fast 2D Polygon Clipping
 
-Preparing a 3D model in CSG format (e.g., when using OpenSCAD) for
+Preparing a 3D model in CSG format (e.g., when using
+[OpenSCAD](http://www.openscad.org/)) for
 printing may take a long time and is often computationally instable.
 
 So this tool wants to replace a workflow 'apply 3D CSG, then slice, then print':
@@ -16,6 +17,16 @@ by a workflow 'slice, then apply 2D CSG, then print':
 In the hope that the latter is faster.  First experiments indeed
 indicate a huge speed-up for a non-trivial example, and much better
 computational stability.
+
+The idea is explained in more detail [in my
+blog](http://www.theiling.de/cnc/date/2018-09-23.html).
+
+And I definitely do not want to rant about OpenSCAD.  It is a great
+tool that I am also using.  This is about a different technique for
+rendering CSG into STL that is especially suited for 3D printing,
+where individual flat slices from your model is all you need.  If you
+really need a 3D solid from your CSG, then do use OpenSCAD's CGAL
+based rendering.
 
 ## SCAD Input Format
 
@@ -357,9 +368,9 @@ with openscad is very fast.  This step is usually needed because
 
 Some examples:
 
-The x-carriage.scad part of my Prusa i3 MK3 printer from the Prusa
-github repository: let's first convert to `.csg` (flat SCAD format that
-this tool can read):
+The x-carriage.scad part of my [Prusa](https://www.prusa3d.com/) i3
+MK3 printer from the Prusa github repository: let's first convert to
+`.csg` (flat SCAD format that this tool can read):
 
 ```
     time openscad x-carriage.scad -o x-carriage.csg
