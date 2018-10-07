@@ -1,0 +1,156 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+use Data::Dumper;
+
+my %module = ();
+
+sub file_contents($)
+{
+    my ($fn) = @_;
+    open(my $f, '<', $fn) or die "Error: open '$fn': $@\n";
+    local $/ = undef;
+    return <$f>;
+}
+
+sub learn_extern($$$$)
+{
+    my ($file, $doxy, $attr, $decl) = @_;
+    chomp($decl);
+    if ($decl !~ /;$/) {
+        $decl .= ';';
+    }
+    push @{ $file->{extern} }, "$doxy$attr"."extern$decl\n";
+}
+
+sub learn_c($)
+{
+    my ($fn) = @_;
+    my $s = file_contents($fn);
+
+    my $file = {
+        file_name => $fn,
+        doxy => '',
+        part1 => '',
+        part2 => '',
+    };
+
+    if ($fn =~ m(([^/]+)[.](h|c)$)) {
+        $file->{module_name} = $1;
+        $file->{ext} = $2;
+    }
+    else {
+        die "Error: Unrecognised file name: '$fn', expected .c or .h\n";
+    }
+
+    if ($module{$file->{module_name}}{$file->{ext}}) {
+        die "Error: Duplicate file: '$file->{module_name}.$file->{ext}'\n";
+    }
+    $module{$file->{module_name}}{$file->{ext}} = $file;
+
+    my $part = \$file->{part1};
+    my $doxy = undef;
+    my $attr = '';
+    pos($s) = 0;
+    while (pos($s) < length($s)) {
+        if ($doxy) {
+            if ($s =~ /\G^((static|typedef|struct|union|#\s*define)\b.*)/gcm) {
+                $$part.= $doxy.$attr.$1;
+                $doxy = undef;
+                $attr = '';
+            }
+            elsif ($s =~ /\G^extern\b/gcm) {
+                unless ($s =~ /\G(.*?[);])\n/gms) {
+                    my $t = substr($s, pos($s));
+                    $t =~ s/\n.*//gs;
+                    die "Error: Cannot parse 'extern' declaration:\n\t$t\n";
+                }
+                my $decl = $1;
+
+                if ($decl =~ /\);?$/) {
+                    # only extern functions, the rest needs to be done manually.
+                    learn_extern($file, $doxy, $attr, $decl);
+                    $part = \$file->{part2};
+                }
+                else {
+                    $$part.= $doxy.$attr."extern".$decl."\n";
+                }
+                $doxy = undef;
+                $attr = '';
+            }
+            elsif ($s =~ /\G^(__attribute__\(\((.+)\)\)\n)/gcm) {
+                $attr .= $1;
+            }
+            else {
+                my $t = substr($s, pos($s));
+                $t =~ s/\n.*//gs;
+                die "$fn: Error: unable to parse doxygen item:\n$doxy\n$t\n";
+            }
+        }
+        else {
+            if ($s =~ /\G^\/\*\*/gmsc) {
+                $s =~ /\G(.*?)\*\/\n/gms or die "Error: Open comment.\n";;
+                $doxy = "/**$1*/\n";
+                if ($doxy =~ /\@file\b/) {
+                    $$part .= $doxy;
+                    $file->{doxy} = $doxy;
+                    $doxy = undef;
+                }
+            }
+            elsif ($s =~ /\G(.+)/gc) {
+                $$part .= $1;
+            }
+            elsif ($s =~ /\G(\n)/gc) {
+                $$part .= $1;
+            }
+            else {
+                my $t = substr($s, pos($s));
+                $t =~ s/\n.*//gs;
+                die "$fn: Error: unable to parse: $t\n";
+            }
+        }
+    }
+
+    $file->{part2} =~ s/^\s+//;
+}
+
+for my $fn (@ARGV) {
+    learn_c($fn);
+}
+
+MODULE: for my $module_name (sort keys %module) {
+    my $file_c = $module{$module_name}{c};
+    next MODULE unless $file_c;
+    my $file_h = $module{$module_name}{h};
+    unless ($file_c->{extern}) {
+        print STDERR "$file_c->{file_name}: Warning: No doxygen documented externs.\n";
+        next MODULE;
+    }
+    unless ($file_h) {
+        print STDERR "Warning: No header for '$module_name.c'.\n";
+        next MODULE;
+    }
+    if ($file_h->{part2} eq '') {
+        print STDERR
+            "$file_h->{file_name}: Warning: No place for extern decls found.  Missing '/**..*/ extern'?\n";
+        next MODULE;
+    }
+
+    my $c_old = file_contents($file_h->{file_name});
+
+    my $c_new =
+        $file_h->{part1}.
+        join("", map { "$_\n" } @{ $file_c->{extern} }).
+        $file_h->{part2};
+
+    if ($c_old ne $c_new) {
+        my $fn = "$file_h->{file_name}.new.h";
+        open(my $g, '>', $fn) or die "Error: Unable to open '$fn' for writing: $@\n";
+        print {$g} $c_new;
+        close $g;
+        rename $fn, $file_h->{file_name};
+    }
+}
+
+0;
