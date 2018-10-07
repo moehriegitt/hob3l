@@ -31,6 +31,7 @@ typedef struct {
     bool have_dump;
     bool no_tri;
     bool no_csg;
+    unsigned verbose;
     unsigned ps_scale_step; /* 0 = no change, 1 = normal bb, 2 = max bb */
     cp_ps_opt_t ps;
     cp_scale_t ps_persp;
@@ -146,6 +147,12 @@ static bool do_file(
     cp_range_init(&range, z_min, z_max, opt->z_step);
     if (range.cnt == 0) {
         range.cnt = 1;
+    }
+
+    if (opt->verbose >= 1) {
+       fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%zu, max=%g\n",
+           range.min, range.step, range.cnt,
+           range.min + (range.step * cp_f(range.cnt - 1)));
     }
 
     /* step 1: slice leaf objects */
@@ -439,6 +446,7 @@ int main(int argc, char **argv)
     opt.ps.line_width = 0.4;
     opt.csg3.max_fn = 200;
     opt.tree.layer_gap = 0.01;
+    opt.verbose = 1;
 
     /* parse command line */
     char const *in_file_name = NULL;

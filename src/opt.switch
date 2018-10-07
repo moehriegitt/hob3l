@@ -10,6 +10,18 @@ case "help": {
     help();
 }
 
+case "q":
+case "quiet": {
+    "suppress all informational messages";
+    opt->verbose = 0;
+}
+
+case "v":
+case "verbose": {
+    "be more verbose";
+    opt->verbose++;
+}
+
 case "o": fn {
     "sets the output file.  File ending selects default output format:";
     ".stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,";

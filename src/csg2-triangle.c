@@ -798,7 +798,9 @@ static void start_lh(
     assert(right(l)->coord == l->src->coord);
     double z = cp_vec2_right_cross3_z(
         l->src->coord, p->coord, h->dst->coord);
-    assert(!cp_equ(z, 0));
+    assert(!cp_sqr_equ(z, 0) ||
+        CONFESS("%s--%s--%s => %.13f", node_str(l->src), node_str(p), node_str(h->dst), z));
+
     if (z < 0) {
         CP_SWAP(&l, &h);
     }

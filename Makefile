@@ -100,7 +100,7 @@ CFLAGS     += $(CFLAGS_DEBUG)
 CSTD=c11
 CPPFLAGS_STD := -std=$(CSTD)
 
-CPPFLAGS   += $(CPPFLAGS_STD)
+CPPFLAGS += $(CPPFLAGS_STD)
 CPPFLAGS += -I$(srcdir)/include
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 
@@ -117,6 +117,7 @@ CFLAGS   += -Wstrict-prototypes
 CFLAGS   += -Waggregate-return
 CFLAGS   += -Wpointer-arith
 CFLAGS   += -Wcast-qual
+CFLAGS   += -Wcast-align
 CFLAGS   += -Wwrite-strings
 CFLAGS   += -Wshadow
 CFLAGS   += -Wdeprecated
@@ -125,13 +126,20 @@ CFLAGS   += -Wtrampolines
 CFLAGS   += -Wsuggest-attribute=format
 CFLAGS   += -Wsuggest-attribute=noreturn
 CFLAGS   += -Wconversion
+CFLAGS   += -Wsign-conversion
 CFLAGS   += -Wstrict-overflow=5
 CPPFLAGS += -finput-charset=us-ascii
 CFLAGS   += -Wshadow
 CFLAGS   += -Wmultichar
+CFLAGS   += -Wfloat-equal
+CFLAGS   += -Wshift-overflow=2
+CFLAGS   += -Wbad-function-cast
+CFLAGS   += -Wjump-misses-init
+CFLAGS   += -Wredundant-decls
+#CFLAGS   += -Wvla
 
 ifeq ($(WERROR),1)
-CFLAGS   += -Werror -Wno-error=unused-parameter
+CFLAGS   += -Werror
 endif
 
 ######################################################################
@@ -313,6 +321,8 @@ src/mat_gen_ext.c: $(srcdir)/script/mkmat
 src/mat_is_rot.c: $(srcdir)/script/mkrotmat
 	$(srcdir)/script/mkrotmat > $@.new
 	mv $@.new $@
+
+out/math-test.o: CFLAGS+=-Wno-float-equal
 
 out/%.o: src/%.c src/mat_gen_ext.c
 	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)

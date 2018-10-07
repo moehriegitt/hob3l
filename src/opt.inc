@@ -7,6 +7,12 @@ static char const *opt_help =
     "    --?\n"
     "    --help\n"
     "        displays this help text\n"
+    "    --q\n"
+    "    --quiet\n"
+    "        suppress all informational messages\n"
+    "    --v\n"
+    "    --verbose\n"
+    "        be more verbose\n"
     "    --o=ARG\n"
     "        sets the output file.  File ending selects default output format:\n"
     "        .stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,\n"
@@ -591,6 +597,14 @@ static void get_opt_ps_tri(
     get_arg_neg_bool(&opt->ps.no_tri, name, arg);
 }
 
+static void get_opt_quiet(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    opt->verbose = 0;
+}
+
 static void get_opt_round_fn(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -615,6 +629,14 @@ static void get_opt_tri(
     char const *arg __unused)
 {
     get_arg_neg_bool(&opt->no_tri, name, arg);
+}
+
+static void get_opt_verbose(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    opt->verbose++;
 }
 
 static void get_opt_z(
@@ -885,6 +907,16 @@ cp_get_opt_t opt_list[] = {
         1,
     },
     {
+        "q",
+        get_opt_quiet,
+        0,
+    },
+    {
+        "quiet",
+        get_opt_quiet,
+        0,
+    },
+    {
         "round-fn",
         get_opt_round_fn,
         2,
@@ -898,6 +930,16 @@ cp_get_opt_t opt_list[] = {
         "tri",
         get_opt_tri,
         1,
+    },
+    {
+        "v",
+        get_opt_verbose,
+        0,
+    },
+    {
+        "verbose",
+        get_opt_verbose,
+        0,
     },
     {
         "z",

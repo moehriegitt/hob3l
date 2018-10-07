@@ -29,7 +29,7 @@
  * only return a positive result, i.e., return the maximum value
  * for a given type. */
 #define CP_MAX_OF(x) \
-    ((__typeof__(x))(((~((0?((x)&1):1U) << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1))
+    ((__typeof__(x))(((~(1ULL << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1))
 
 cp_static_assert(CP_MAX_OF(0)    == 0x7fffffff);
 cp_static_assert(CP_MAX_OF(0U)   == 0xffffffff);
