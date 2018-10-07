@@ -162,6 +162,11 @@ yet.  (My 3D constructions rarely ever contain spheres -- I seem to
 build everything from cubes and cylinders, and occasionally from
 manually constructed polyhedra.)
 
+The output STL is in separate layers instead of a single solid.  This
+will be fixed in the future.  For now, if you hit `split` e.g. in
+slic3r, you'll get hundreds of separate layer objects -- which is not
+useful.
+
 Memory management has leaks.  I admit I don't care enough, because
 this tool basically starts, allocates, exits, i.e., it does not run
 for long, so the memory leaks do not build up.  The goal is to have a
@@ -330,14 +335,14 @@ the syntactic sugar removed.
     openscad thing.scad -o thing.csg
 ```
 
-Now, if no fancy things are used (like `test` or `linear_extrude`), you can
-use this tool to slice is:
+You can now use `csg2plane` to slice this directly instead of applying
+3D CSG:
 
 ```
     csg2plane thing.csg -o thing.stl
 ```
 
-This can then be used in your favorite slicer:
+This can then be used in your favorite tool for computing print paths.
 
 ```
     slic3r thing.stl
