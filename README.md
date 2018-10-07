@@ -125,13 +125,14 @@ are positive and which ones are negative.
 ## Algorithmic Improvements
 
 The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
-was improved to have less computational instability be deriving
+was improved to have less computational instability by deriving
 crossing points always from the original edge (although currently,
 each 2D operation restarts this -- this could be improved).  Also,
 computational stability was improved by rigorous use of epsilon-aware
 arithmetics.  Further, a better polygon reassembling algorithm with
 O(n log n) runtime was implemented -- the original paper and reference
-implementation do not focus on this part.
+implementation do not focus on this part.  Also, several additional
+corner cases are handled.
 
 The triangulation algorithm of Hertel & Mehlhorn (1983) was
 extended to support coincident vertices, because this is what the
