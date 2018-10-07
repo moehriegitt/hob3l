@@ -106,6 +106,8 @@ static void cp_syn_func_put_scad(
     cp_printf(s, "%*s}\n", d, "");
 }
 
+/**
+ * Dump in SCAD format */
 extern void cp_syn_tree_put_scad(
     cp_stream_t *s,
     cp_syn_tree_t *result)

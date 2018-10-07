@@ -1293,14 +1293,6 @@ sub gen_mul_mati($$$)
 
 #### INV ####
 
-sub gen_inv_mat($$$)
-{
-    my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_det_t', $elem, r=>$t, a=>$t);
-    # implementation in mat.c, generated with mkinv.pl.
-    publish_extern($oc, $p, undef);
-}
-
 sub gen_inv_mati($$$)
 {
     my ($oc, $t, $elem) = @_;
@@ -1317,14 +1309,6 @@ sub gen_inv_mati($$$)
 }
 
 #### DET ####
-
-sub gen_det_mat($$$)
-{
-    my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_det_t', $elem, a=>$t);
-    # implementation in mat.c, generated with mkinv.pl.
-    publish_extern($oc, $p, undef);
-}
 
 sub gen_det_mati($$$)
 {
@@ -1587,13 +1571,9 @@ my @gen = (
         mati => \&gen_mul_mati,
     }],
     ['inv', {
-        mat  => \&gen_inv_mat,
-        matw => \&gen_inv_mat,
         mati => \&gen_inv_mati,
     }],
     ['det', {
-        mat  => \&gen_det_mat,
-        matw => \&gen_det_mat,
         mati => \&gen_det_mati,
     }],
     ['get_idx', {

@@ -4,24 +4,10 @@
 #ifndef __CP_CSG3_H
 #define __CP_CSG3_H
 
+#include <cpmat/stream.h>
 #include <csg2plane/csg3_tam.h>
 #include <csg2plane/scad_tam.h>
-#include <cpmat/stream.h>
-
-extern bool cp_csg3_from_scad(
-    cp_csg3_tree_t *result,
-    cp_err_t *t,
-    cp_scad_t *scad);
-
-extern bool cp_csg3_from_v_scad(
-    cp_csg3_tree_t *result,
-    cp_err_t *t,
-    cp_v_scad_p_t *scad);
-
-extern bool cp_csg3_from_scad_tree(
-    cp_csg3_tree_t *result,
-    cp_err_t *t,
-    cp_scad_tree_t *scad);
+#include <csg2plane/csg3-2scad.h>
 
 /**
  * Get bounding box of all points, including those that are
@@ -31,13 +17,15 @@ extern bool cp_csg3_from_scad_tree(
  */
 extern void cp_csg3_tree_max_bb(
     cp_vec3_minmax_t *bb,
-    cp_csg3_tree_t const *result);
+    cp_csg3_tree_t const *r);
 
 /**
- * Dump in SCAD format */
-extern void cp_csg3_tree_put_scad(
-    cp_stream_t *s,
-    cp_csg3_tree_t *result);
+ * Convert a SCAD AST into a CSG3 tree.
+ */
+extern bool cp_csg3_from_scad_tree(
+    cp_csg3_tree_t *r,
+    cp_err_t *t,
+    cp_scad_tree_t *scad);
 
 /* Dynamic casts */
 CP_DECLARE_CAST(csg3, sphere, CP_CSG3_SPHERE)

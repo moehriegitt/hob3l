@@ -22,6 +22,12 @@ static int qsort_ctxt_compar(
     return u->compar(a, b, u->arg);
 }
 
+/**
+ * Wrapper for qsort_r under Windows, where a similar
+ * but incompatible function qsort_s exists.
+ *
+ * This is an emulation of qsort_r when we only have qsort_s.
+ */
 extern void cp_qsort_r(
     void *base,
     size_t nmemb,

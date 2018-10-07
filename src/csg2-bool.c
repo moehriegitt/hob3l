@@ -1664,154 +1664,6 @@ static inline event_t *q_extract_min(ctxt_t *c)
     return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
 }
 
-extern void cp_csg2_op_poly(
-    cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_poly_t *r,
-    cp_loc_t loc,
-    cp_csg2_poly_t *a,
-    cp_csg2_poly_t *b,
-    cp_bool_op_t op)
-{
-    TRACE("#a.path=%"_Pz"u #b.path=%"_Pz"u", a->path.size, b->path.size);
-
-#if OPT >= 1
-    /* trivial case: empty polygon */
-    if ((a->path.size == 0) || (b->path.size == 0)) {
-        LOG("one polygon is empty\n");
-        switch (op) {
-        case CP_OP_CUT:
-            return;
-
-        case CP_OP_SUB:
-            CP_SWAP(r, a);
-            return;
-
-        case CP_OP_ADD:
-        case CP_OP_XOR:
-            CP_SWAP(r, a->path.size == 0 ? b : a);
-            return;
-        }
-        CP_DIE("Unrecognised operation");
-    }
-#endif
-
-    /* make context */
-    ctxt_t c = {
-        .pool = pool,
-        .err = t,
-        .op = op,
-        .bb = { CP_MINMAX_EMPTY, CP_MINMAX_EMPTY },
-        .mask_all = 3,
-        .mask_neg = (op == CP_OP_SUB) ? 2 : 0,
-    };
-    cp_list_init(&c.poly);
-
-    /* trivial case: bounding box does not overlap */
-    cp_csg2_poly_minmax(&c.bb[0], a);
-    cp_csg2_poly_minmax(&c.bb[1], b);
-    c.minmaxx = cp_min(c.bb[0].max.x, c.bb[1].max.x);
-
-#if OPT >= 2
-    if (cp_gt(c.bb[0].min.x, c.bb[1].max.x) ||
-        cp_gt(c.bb[1].min.x, c.bb[0].max.x) ||
-        cp_gt(c.bb[0].min.y, c.bb[1].max.y) ||
-        cp_gt(c.bb[1].min.y, c.bb[0].max.y))
-    {
-        LOG("bounding boxes do not overlap: copy\n");
-        switch (op) {
-        case CP_OP_CUT:
-            return;
-
-        case CP_OP_SUB:
-            CP_SWAP(r, a);
-            return;
-
-        case CP_OP_ADD:
-        case CP_OP_XOR:
-            CP_SWAP(r, a);
-            cp_csg2_poly_merge(r, b);
-            return;
-        }
-        assert(0 && "Unrecognised operation");
-    }
-#endif
-
-    /* initialise queue */
-    LOG("poly 0: #path=%"_Pz"u\n", a->path.size);
-    for (cp_v_each(i, &a->path)) {
-        cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            cp_vec2_loc_t *pj = cp_csg2_path_nth(a, p, j);
-            cp_vec2_loc_t *pk = cp_csg2_path_nth(a, p, cp_wrap_add1(j, p->point_idx.size));
-            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 0);
-        }
-    }
-    LOG("poly 1: #path=%"_Pz"u\n", b->path.size);
-    for (cp_v_each(i, &b->path)) {
-        cp_csg2_path_t *p = &cp_v_nth(&b->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            cp_vec2_loc_t *pj = cp_csg2_path_nth(b, p, j);
-            cp_vec2_loc_t *pk = cp_csg2_path_nth(b, p, cp_wrap_add1(j, p->point_idx.size));
-            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 1);
-        }
-    }
-    LOG("start\n");
-
-    /* run algorithm */
-    size_t ev_cnt __unused = 0;
-    for (;;) {
-        event_t *e = q_extract_min(&c);
-        if (e == NULL) {
-            break;
-        }
-
-        LOG("\nevent %"_Pz"u: %s o=(%#"_Pz"x %#"_Pz"x)\n",
-            ++ev_cnt,
-            ev_str(e),
-            e->other->in.owner,
-            e->other->in.below);
-
-#if OPT >= 3
-        /* trivial: all the rest is cut away */
-        if ((op == CP_OP_CUT && cp_pt_gt(e->p->coord.x, c.minmaxx)) ||
-            (op == CP_OP_SUB && cp_pt_gt(e->p->coord.x, c.bb[0].max.x)))
-        {
-            break;
-        }
-#endif
-
-#if OPT >= 4
-        /* trivial: nothing more to merge */
-        if ((op == CP_OP_ADD && cp_pt_gt(e->p->coord.x, c.minmaxx))) {
-            if (!e->left) {
-                CP_ZERO(&e->node_s);
-                CP_ZERO(&e->other->node_s);
-                chain_add(&c, e);
-            }
-            while ((e = q_extract_min(&c)) != NULL) {
-                if (!e->left) {
-                    CP_ZERO(&e->node_s);
-                    CP_ZERO(&e->other->node_s);
-                    chain_add(&c, e);
-                }
-            }
-            break;
-        }
-#endif
-
-        /* do real work on event */
-        if (e->left) {
-            ev_left(&c, e);
-        }
-        else {
-            ev_right(&c, e);
-        }
-    }
-
-    poly_make(r, &c, loc);
-}
-
 static bool csg2_op_poly(
     cp_csg2_poly_t *o,
     cp_csg2_poly_t *a)
@@ -1994,6 +1846,213 @@ static bool csg2_op_csg2(
     return false;
 }
 
+/* ********************************************************************** */
+/* extern */
+
+/**
+ * Boolean operation on two polygons.
+ *
+ * This uses the path information, not the triangles.
+ *
+ * 'r' will be overwritten and initialised (it may be passed uninitialised).
+ *
+ * \p a and/or \p b are reused and cleared to construct r.
+ *
+ * Uses \p pool for all temporary allocations (but not for constructing r).
+ *
+ * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
+ * Bentley-Ottmann plain sweep.  The algorithm is modified:
+ *
+ * (1) The original algorithm (both paper and sample implementation)
+ *     does not focus on reassembling into polygons the sequence of edges
+ *     the algorithm produces.  This library replaces the polygon
+ *     reassembling by an O(n log n) algorithm.
+ *
+ * (2) The original algorithm's in/out determination strategy is not
+ *     extensible to processing multiple polygons in one algorithm run.
+ *     It was replaceds by a bitmask xor based algorithm.  This also lifts
+ *     the restriction that no self-overlapping polygons may exist.
+ *
+ * (3) There is handling of corner cases in than what Martinez implemented.
+ *     The float business is really tricky...
+ *
+ * (4) Intersection points are always computed from the original line slope
+ *     and offset to avoid adding up rounding errors for edges with many
+ *     intersections.
+ *
+ * (5) Float operations have all been mapped to epsilon aware versions.
+ *     (The reference implementation failed on one of my tests because of
+ *     using plain floating point '<' comparison.)
+ *
+ * Runtime: O(k log k),
+ * Space: O(k)
+ * Where
+ *     k = n + m + s,
+ *     n = number of edges in a,
+ *     m = number of edges in b,
+ *     s = number of intersection points.
+ */
+extern void cp_csg2_op_poly(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_poly_t *r,
+    cp_loc_t loc,
+    cp_csg2_poly_t *a,
+    cp_csg2_poly_t *b,
+    cp_bool_op_t op)
+{
+    TRACE("#a.path=%"_Pz"u #b.path=%"_Pz"u", a->path.size, b->path.size);
+
+#if OPT >= 1
+    /* trivial case: empty polygon */
+    if ((a->path.size == 0) || (b->path.size == 0)) {
+        LOG("one polygon is empty\n");
+        switch (op) {
+        case CP_OP_CUT:
+            return;
+
+        case CP_OP_SUB:
+            CP_SWAP(r, a);
+            return;
+
+        case CP_OP_ADD:
+        case CP_OP_XOR:
+            CP_SWAP(r, a->path.size == 0 ? b : a);
+            return;
+        }
+        CP_DIE("Unrecognised operation");
+    }
+#endif
+
+    /* make context */
+    ctxt_t c = {
+        .pool = pool,
+        .err = t,
+        .op = op,
+        .bb = { CP_MINMAX_EMPTY, CP_MINMAX_EMPTY },
+        .mask_all = 3,
+        .mask_neg = (op == CP_OP_SUB) ? 2 : 0,
+    };
+    cp_list_init(&c.poly);
+
+    /* trivial case: bounding box does not overlap */
+    cp_csg2_poly_minmax(&c.bb[0], a);
+    cp_csg2_poly_minmax(&c.bb[1], b);
+    c.minmaxx = cp_min(c.bb[0].max.x, c.bb[1].max.x);
+
+#if OPT >= 2
+    if (cp_gt(c.bb[0].min.x, c.bb[1].max.x) ||
+        cp_gt(c.bb[1].min.x, c.bb[0].max.x) ||
+        cp_gt(c.bb[0].min.y, c.bb[1].max.y) ||
+        cp_gt(c.bb[1].min.y, c.bb[0].max.y))
+    {
+        LOG("bounding boxes do not overlap: copy\n");
+        switch (op) {
+        case CP_OP_CUT:
+            return;
+
+        case CP_OP_SUB:
+            CP_SWAP(r, a);
+            return;
+
+        case CP_OP_ADD:
+        case CP_OP_XOR:
+            CP_SWAP(r, a);
+            cp_csg2_poly_merge(r, b);
+            return;
+        }
+        assert(0 && "Unrecognised operation");
+    }
+#endif
+
+    /* initialise queue */
+    LOG("poly 0: #path=%"_Pz"u\n", a->path.size);
+    for (cp_v_each(i, &a->path)) {
+        cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
+        for (cp_v_each(j, &p->point_idx)) {
+            cp_vec2_loc_t *pj = cp_csg2_path_nth(a, p, j);
+            cp_vec2_loc_t *pk = cp_csg2_path_nth(a, p, cp_wrap_add1(j, p->point_idx.size));
+            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 0);
+        }
+    }
+    LOG("poly 1: #path=%"_Pz"u\n", b->path.size);
+    for (cp_v_each(i, &b->path)) {
+        cp_csg2_path_t *p = &cp_v_nth(&b->path, i);
+        for (cp_v_each(j, &p->point_idx)) {
+            cp_vec2_loc_t *pj = cp_csg2_path_nth(b, p, j);
+            cp_vec2_loc_t *pk = cp_csg2_path_nth(b, p, cp_wrap_add1(j, p->point_idx.size));
+            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 1);
+        }
+    }
+    LOG("start\n");
+
+    /* run algorithm */
+    size_t ev_cnt __unused = 0;
+    for (;;) {
+        event_t *e = q_extract_min(&c);
+        if (e == NULL) {
+            break;
+        }
+
+        LOG("\nevent %"_Pz"u: %s o=(%#"_Pz"x %#"_Pz"x)\n",
+            ++ev_cnt,
+            ev_str(e),
+            e->other->in.owner,
+            e->other->in.below);
+
+#if OPT >= 3
+        /* trivial: all the rest is cut away */
+        if ((op == CP_OP_CUT && cp_pt_gt(e->p->coord.x, c.minmaxx)) ||
+            (op == CP_OP_SUB && cp_pt_gt(e->p->coord.x, c.bb[0].max.x)))
+        {
+            break;
+        }
+#endif
+
+#if OPT >= 4
+        /* trivial: nothing more to merge */
+        if ((op == CP_OP_ADD && cp_pt_gt(e->p->coord.x, c.minmaxx))) {
+            if (!e->left) {
+                CP_ZERO(&e->node_s);
+                CP_ZERO(&e->other->node_s);
+                chain_add(&c, e);
+            }
+            while ((e = q_extract_min(&c)) != NULL) {
+                if (!e->left) {
+                    CP_ZERO(&e->node_s);
+                    CP_ZERO(&e->other->node_s);
+                    chain_add(&c, e);
+                }
+            }
+            break;
+        }
+#endif
+
+        /* do real work on event */
+        if (e->left) {
+            ev_left(&c, e);
+        }
+        else {
+            ev_right(&c, e);
+        }
+    }
+
+    poly_make(r, &c, loc);
+}
+
+/**
+ * Add a layer to a tree by reducing it from another tree.
+ *
+ * The tree must have been initialised by cp_csg2_op_tree_init(),
+ * and the layer ID must be in range.
+ *
+ * r is filled from a.  In the process, a is cleared/reused, if necessary.
+ *
+ * Runtime: O(j * k log k)
+ * Space O(k)
+ *    k = see cp_csg2_op_poly()
+ *    j = number of polygons + number of bool operations in tree
+ */
 extern bool cp_csg2_op_add_layer(
     cp_pool_t *pool,
     cp_err_t *t,
@@ -2033,6 +2092,16 @@ extern bool cp_csg2_op_add_layer(
     return true;
 }
 
+/**
+ * Initialise a tree for cp_csg2_op_add_layer() operations.
+ *
+ * The tree is initialised with a single stack of layers of the given
+ * size taken from \p a.  Also, the z values are copied from \p a.
+ *
+ * Runtime: O(n)
+ * Space O(n)
+ *    n = number of layers
+ */
 extern void cp_csg2_op_tree_init(
     cp_csg2_tree_t *r,
     cp_csg2_tree_t const *a)

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <cpmat/vchar.h>
 
+/**
+ * Finalise/discard a vector.
+ */
 extern void cp_vchar_fini(
     cp_vchar_t *v)
 {
@@ -35,6 +38,8 @@ static void __grow(
     vec->alloc = new_alloc;
 }
 
+/**
+ * Clear to size 0, but keep allocated size. */
 extern void cp_vchar_clear(
     cp_vchar_t *v)
 {
@@ -45,6 +50,8 @@ extern void cp_vchar_clear(
     v->data[0] = 0;
 }
 
+/**
+ * Append raw string */
 extern void cp_vchar_append_arr(
     cp_vchar_t *v,
     char const *data,
@@ -56,6 +63,8 @@ extern void cp_vchar_append_arr(
     v->data[v->size] = 0;
 }
 
+/**
+ * Swap contents of two vectors */
 extern void cp_vchar_swap(
     cp_vchar_t *a,
     cp_vchar_t *b)
@@ -65,6 +74,9 @@ extern void cp_vchar_swap(
     *b = h;
 }
 
+/**
+ * Formatted printing into a string */
+__attribute__((format(printf,2,0)))
 extern int cp_vchar_vprintf(
     cp_vchar_t *v,
     char const *format,
@@ -96,6 +108,9 @@ extern int cp_vchar_vprintf(
     }
 }
 
+/**
+ * Formatted printing into a string */
+__attribute__((format(printf,2,3)))
 extern int cp_vchar_printf(
     cp_vchar_t *v,
     char const *format,

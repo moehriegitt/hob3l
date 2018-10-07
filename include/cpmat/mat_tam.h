@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
+ * @file
  * Some matrix and vector type/macro definitions.
  *
  * We have many matrix types here to be able to use the minimum amount

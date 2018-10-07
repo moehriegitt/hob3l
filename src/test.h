@@ -52,16 +52,14 @@
         (test); \
     })
 
+/**
+ * Function to be called when a test fails.
+ */
 __attribute__((noreturn))
 extern void __cp_test_fail(
     char const *file,
     int line,
     char const *msg1,
     char const *msg2);
-
-extern void cp_math_test(void);
-extern void cp_dict_test(void);
-extern void cp_list_test(void);
-extern void cp_ring_test(void);
 
 #endif /* __CP_TEST_H */

@@ -7,12 +7,18 @@
 #include <cpmat/mat_gen_tam.h>
 #include <csg2plane/gc_tam.h>
 
-/**
- * Paper size */
 #ifndef CP_PS_PAPER_NAME
+/**
+ * Paper size name */
 #  define CP_PS_PAPER_NAME "a4"
+/**
+ * Paper width in PostScript points */
 #  define CP_PS_PAPER_X 595
+/**
+ * Paper height in PostScript points */
 #  define CP_PS_PAPER_Y 842
+/**
+ * Paper margin in PostScript points */
 #  define CP_PS_PAPER_MARGIN 56
 #endif
 

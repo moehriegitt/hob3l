@@ -770,6 +770,30 @@ static bool cp_scad_read_file(
     return true;
 }
 
+static int cmp_line(
+    char const *key, char const *const *elem, char const **_end __unused)
+{
+    if (key < elem[0]) {
+        return -1;
+    }
+    if (key == elem[0]) {
+        return 0;
+    }
+    assert(&elem[1] < _end);
+    /* We know that we can access the next array element,
+     * because if we point to the last entry, we know that
+     * key == elem[0] as the last line is empty. */
+    if (key > elem[1]) {
+        return +1;
+    }
+    return 0;
+}
+
+/* ********************************************************************** */
+
+/**
+ * Parse a file into a SCAD syntax tree.
+ */
 extern bool cp_syn_parse(
     cp_syn_tree_t *r,
     char const *filename,
@@ -812,25 +836,27 @@ extern bool cp_syn_parse(
     return true;
 }
 
-static int cmp_line(
-    char const *key, char const *const *elem, char const **_end __unused)
-{
-    if (key < elem[0]) {
-        return -1;
-    }
-    if (key == elem[0]) {
-        return 0;
-    }
-    assert(&elem[1] < _end);
-    /* We know that we can access the next array element,
-     * because if we point to the last entry, we know that
-     * key == elem[0] as the last line is empty. */
-    if (key > elem[1]) {
-        return +1;
-    }
-    return 0;
-}
-
+/**
+ * Return a file location for a pointer to a token or any
+ * other pointer into the file contents.
+ *
+ * This returns file and line number, but not posititon on the line,
+ * because which position it is depends on tab width, so this is left
+ * to the caller.
+ *
+ * To make it possible to count the position of the line, the original
+ * contents of the line and an end-pointer of that line can be used:
+ * loc->file->contents_orig can be indexed with loc-line for that.
+ *
+ * Note that lines are not NUL terminated, but the pointer at index
+ * loc->line+1 (start of next line) defines the end of the line.
+ *
+ * For convenience, the cp_syn_loc_t already contains pointers to
+ * orig line, orig line end, copied line (with parser inserted NULs),
+ * copied line end.
+ *
+ * Returns whether the location was found.
+ */
 extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
     cp_syn_tree_t *tree,

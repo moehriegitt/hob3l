@@ -4,6 +4,7 @@
 #include <cpmat/def.h>
 #include <cpmat/ring.h>
 #include "test.h"
+#include "ring-test.h"
 
 #define TEST_ORDER1(a) \
     ({ \
@@ -98,6 +99,9 @@ static void show(cp_ring_t *base, cp_ring_t *a, cp_ring_t *b)
     fprintf(stderr, "\n");
 }
 
+/**
+ * Unit tests for ring data structure.
+ */
 extern void cp_ring_test(void)
 {
     cp_ring_t n[5];

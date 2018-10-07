@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
+ * @file
  * A list that is non-directional: there are two neighbours to
  * each node, but there is no predefined direction.
  *

@@ -144,6 +144,11 @@
         (__n != __n->next); \
     })
 
+/**
+ * Internal function to swap two elements.
+ *
+ * Use cp_list_swap() instead.
+ */
 extern void __cp_list_swap(
     void *a, void *b, size_t offset_next, size_t offset_prev);
 

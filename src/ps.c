@@ -7,6 +7,9 @@
 
 cp_ps_xform_t const ps_mm = CP_PS_XFORM_MM;
 
+/**
+ * Inititalise xform from bounding box to get maximum view on paper.
+ */
 extern void cp_ps_xform_from_bb(
     cp_ps_xform_t *d,
     cp_dim_t x_min,
@@ -30,6 +33,10 @@ extern void cp_ps_xform_from_bb(
     }
 }
 
+/**
+ * Maps coordinates to PostScript center page.
+ * If d is NULL, uses MM scale and centers on page.
+ */
 extern double cp_ps_x(cp_ps_xform_t const *d, double x)
 {
     if (d == NULL) {
@@ -38,6 +45,10 @@ extern double cp_ps_x(cp_ps_xform_t const *d, double x)
     return d->add_x + (x * d->mul_x);
 }
 
+/**
+ * Maps coordinates to PostScript center page.
+ * If d is NULL, uses MM scale and centers on page.
+ */
 extern double cp_ps_y(cp_ps_xform_t const *d, double y)
 {
     if (d == NULL) {
@@ -46,6 +57,13 @@ extern double cp_ps_y(cp_ps_xform_t const *d, double y)
     return d->add_y + (y * d->mul_y);
 }
 
+/**
+ * Prints document header.
+ *
+ * If page_dnt is CP_SIZE_MAX, prints 'atend'.
+ *
+ * If x2 < x1, prints 'atend'.
+ */
 extern void cp_ps_doc_begin(
     cp_stream_t *s,
     cp_ps_opt_t const *opt __unused,
@@ -84,6 +102,15 @@ extern void cp_ps_doc_begin(
         "%%%%EndComments\n");
 }
 
+/**
+ * Prints document trailer.
+ *
+ * If page_cnt is CP_SIZE_MAX, does not print any page count indicator,
+ * assuming cp_ps_doc_begin() has.
+ *
+ * If x2 < x1, does not print any bounding box, assumeing
+ * cp_ps_doc_begin() has.
+ */
 extern void cp_ps_doc_end(
     cp_stream_t *s,
     size_t page_cnt,
@@ -108,6 +135,9 @@ extern void cp_ps_doc_end(
         "%%%%EOF\n");
 }
 
+/**
+ * Begin a PostScript page
+ */
 extern void cp_ps_page_begin(
     cp_stream_t *s,
     cp_ps_opt_t const *opt,
@@ -125,6 +155,9 @@ extern void cp_ps_page_begin(
         opt->line_width);
 }
 
+/**
+ * Restrict the PostScript clip box.
+ */
 extern void cp_ps_clip_box(
     cp_stream_t *s,
     double x1, double y1, double x2, double y2)
@@ -137,6 +170,9 @@ extern void cp_ps_clip_box(
         x2, y1);
 }
 
+/**
+ * End a PostScript page
+ */
 extern void cp_ps_page_end(
     cp_stream_t *s)
 {

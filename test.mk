@@ -146,6 +146,3 @@ TEST_TRIANGLE.scad := \
 TEST_STL.scad := \
     scad-test/uselessbox+body.scad \
     scad-test/curry.scad
-
-# BROKEN:
-#    scad-test/curry.scad

@@ -256,6 +256,9 @@ static void v_scad_put_scad(
     }
 }
 
+/**
+ * Dump in SCAD format.
+ */
 extern void cp_scad_tree_put_scad(
     cp_stream_t *s,
     cp_scad_tree_t *r)

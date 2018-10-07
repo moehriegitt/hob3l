@@ -3,6 +3,10 @@
 
 #include <cpmat/stream.h>
 
+/**
+ * Formatted printing into a stream.
+ */
+__attribute__((format(printf,2,3)))
 extern int cp_printf(
     cp_stream_t *s,
     char const *form,

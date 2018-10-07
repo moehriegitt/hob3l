@@ -45,7 +45,13 @@ static inline void cp_dict_collapse_edge(
     r->edge[i] = e;
 }
 
-
+/**
+ * Start to iterate.
+ * back=0 finds the first element, back=1 finds the last.
+ *
+ * Runtime: O(log n) (for top-down leaf search)
+ * For whole tree iteration, start + n*step have runtime O(n).
+ */
 extern cp_dict_t *cp_dict_start(
     cp_dict_t *n,
     unsigned dir)
@@ -58,6 +64,14 @@ extern cp_dict_t *cp_dict_start(
     return p;
 }
 
+/**
+ * Get the root node of a tree from an arbitrary node.
+ *
+ * This can be used if the root point is not stored for some reason,
+ * to find the root for any node in the tree.
+ *
+ * Runtime: O(log n) (for bottom-up parent search)
+ */
 extern cp_dict_t *cp_dict_root(
     cp_dict_t *n)
 {
@@ -69,6 +83,14 @@ extern cp_dict_t *cp_dict_root(
     return n;
 }
 
+/**
+ * Iterate a tree: do one step.
+ * back=0 does a step forward, back=1 does a step backward.
+ *
+ * Runtime: O(log n) (for bottom-up/top-down search for next)
+ * For whole tree iteration, start + n*step have runtime O(n),
+ * i.e., ammortized costs for step are O(1).
+ */
 extern cp_dict_t *cp_dict_step(
     cp_dict_t *n,
     unsigned dir)
@@ -138,6 +160,11 @@ static void _balance_insert(
     }
 }
 
+/**
+ * Internal, type-unsafe variant of cp_dict_find_ref().
+ *
+ * Do not use, use cp_dict_find_ref() or cp_dict_find() instead.
+ */
 extern cp_dict_t *__cp_dict_find_ref(
     cp_dict_ref_t *ref,
     void *idx,
@@ -170,6 +197,44 @@ extern cp_dict_t *__cp_dict_find_ref(
     return n;
 }
 
+/**
+ * Insert a node into a predefined location in the tree, then rebalance.
+ *
+ * In contrast to find + insert, this avoids one search operation.
+ *
+ * This does not search for the location, so no cmp function
+ * is needed, but it uses the \p ref argument for direct
+ * insertion.
+ *
+ * The \p ref argument can be retrieved by a using cp_dict_find_ref().
+ *
+ * There is no principle problem modifying the tree between finding
+ * the reference and doing the insertion, however, the insertion
+ * position is relative to a parent node, and it may be that after
+ * inserting something else, cp_dict_find_ref() would find a different
+ * node, because, e.g., by the given cmp criterion, the new key is
+ * between the reference and \p nnew, so this may not be what you
+ * want.  OTOH, it may be exactly what you want because you do want to
+ * control the insertion manually.  Also, when the reference node is
+ * removed from a tree after finding the reference, then effectively a
+ * new tree is started by this insertion -- again, this works in
+ * principle, but might not be what you want.
+ *
+ * The reference child index determines the direction of insertion:
+ * if i is 0, this inserts a node smaller than the reference node, if
+ * i is 1, this inserts a node larger than the reference node.
+ *
+ * If the reference/parent node is NULL, this assumes an imaginary
+ * node that is outside of the tree, representing a node larger than
+ * the absolute maximum or smaller than the absolute minimum that can
+ * be inserted.  In this case, the child index is interpreted the same
+ * way as with a normal node: it defines at which end of the tree this
+ * assumes the reference node: if child is 0, the this inserts a new
+ * maximum (i.e., a node smaller than the absolute maximum).  If child
+ * is 1, this inserts a new minimum.
+ *
+ * Runtime: O(log n) (for bottom-up rebalance)
+ */
 extern void cp_dict_insert_ref(
     cp_dict_t *node,
     cp_dict_ref_t const *ref,
@@ -221,6 +286,11 @@ extern void cp_dict_insert_ref(
     assert(!r->red);
 }
 
+/**
+ * Internal, type-unsafe variant of cp_dict_insert_by().
+ *
+ * Do not use, use cp_dict_insert_by() or cp_dict_insert() instead.
+ */
 extern cp_dict_t *__cp_dict_insert_by(
     cp_dict_t *node,
     void *key,
@@ -400,6 +470,25 @@ static void balance_remove(
     x->red = 0;
 }
 
+/**
+ * Remove a node from the tree.
+ *
+ * If the root changes, this will update *root.
+ *
+ * This function does not read *root; it is a pure output
+ * parameter.  In some situations, the caller might not
+ * know the root when removing a key, in which case it is
+ * OK to initialise *root to NULL.  If it changes to non-NULL,
+ * the caller then knows that the root was updated.
+ *
+ * Because root is a pure output parameter, it may even be NULL.
+ * In some special cases, e.g. when iterating and restructing
+ * a tree at the same time, the root may not be needed anymore
+ * be the caller, and to simplify the code, this function
+ * accepts root=NULL.
+ *
+ * Runtime: O(log n) (for bottom-up rebalance)
+ */
 extern void cp_dict_remove(
     cp_dict_t *c,
     cp_dict_t **root)
@@ -470,6 +559,13 @@ static inline void swap_update_parent(
     }
 }
 
+/**
+ * Swap two nodes from same or different tree.
+ *
+ * This can also exchange a node that's in the tree by one that is not.
+ *
+ * Runtime: O(1).
+ */
 extern void cp_dict_swap(
     cp_dict_t *a,
     cp_dict_t *b)
@@ -501,6 +597,9 @@ extern void cp_dict_swap(
     swap_update_parent(b, 1);
 }
 
+/**
+ * Swap two nodes, also updating root.
+ */
 extern void cp_dict_swap_update_root(
     cp_dict_t **r,
     cp_dict_t *a,
@@ -516,6 +615,9 @@ extern void cp_dict_swap_update_root(
     }
 }
 
+/**
+ * Swap two nodes, also updating roots of two trees.
+ */
 extern void cp_dict_swap_update_root2(
     cp_dict_t **r1,
     cp_dict_t **r2,

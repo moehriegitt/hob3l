@@ -19,49 +19,22 @@ typedef struct {
 } cp_vchar_t;
 
 /**
- * Initialise a character vector.
- *
- * Zeroing is good initialisation.
+ * Finalise/discard a vector.
  */
-static inline void cp_vchar_init(
-    cp_vchar_t *v)
-{
-    CP_ZERO(v);
-}
-
 extern void cp_vchar_fini(
     cp_vchar_t *v);
 
 /**
  * Clear to size 0, but keep allocated size. */
 extern void cp_vchar_clear(
-    cp_vchar_t *);
+    cp_vchar_t *v);
 
 /**
  * Append raw string */
 extern void cp_vchar_append_arr(
-    cp_vchar_t *,
+    cp_vchar_t *v,
     char const *data,
     size_t size);
-
-/**
- * Append a character */
-static inline void cp_vchar_push(
-    cp_vchar_t *v,
-    char data)
-{
-    cp_vchar_append_arr(v, &data, 1);
-}
-
-/**
- * Append another vector */
-static inline void cp_vchar_append(
-    cp_vchar_t *v,
-    cp_vchar_t const *w)
-{
-    assert(w != NULL);
-    cp_vchar_append_arr(v, w->data, w->size);
-}
 
 /**
  * Swap contents of two vectors */
@@ -84,5 +57,35 @@ extern int cp_vchar_printf(
     cp_vchar_t *v,
     char const *format,
     ...);
+
+/**
+ * Initialise a character vector.
+ *
+ * Zeroing is good initialisation.
+ */
+static inline void cp_vchar_init(
+    cp_vchar_t *v)
+{
+    CP_ZERO(v);
+}
+
+/**
+ * Append a character */
+static inline void cp_vchar_push(
+    cp_vchar_t *v,
+    char data)
+{
+    cp_vchar_append_arr(v, &data, 1);
+}
+
+/**
+ * Append another vector */
+static inline void cp_vchar_append(
+    cp_vchar_t *v,
+    cp_vchar_t const *w)
+{
+    assert(w != NULL);
+    cp_vchar_append_arr(v, w->data, w->size);
+}
 
 #endif /* __CP_VCHAR_H */

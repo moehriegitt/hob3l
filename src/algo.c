@@ -5,6 +5,16 @@
 #include <cpmat/arith.h>
 #include <cpmat/mat.h>
 
+/**
+ * Rotate around u by an angle given as sin+cos components.
+ *
+ * This is THE generic rotation matrix generator for this libray which
+ * is used to fill in both mat3 and mat4 matrix structures.
+ *
+ * Asserts that u and sc are both unit or [0,0].
+ *
+ * Returns a rotation matrix as three row vectors r0,r1,r2.
+ */
 extern void cp_dim3_rot_unit(
     cp_vec3_t *r0,
     cp_vec3_t *r1,
@@ -34,6 +44,11 @@ extern void cp_dim3_rot_unit(
     CP_INIT(r2, x_z_d - y_s, y_z_d + x_s, z*z_d + c);
 }
 
+/**
+ * Mirror matrix.
+ *
+ * Asserts that u is unit or [0,0].
+ */
 extern void cp_dim2_mirror_unit(
     cp_vec2_t *r0,
     cp_vec2_t *r1,
@@ -49,6 +64,11 @@ extern void cp_dim2_mirror_unit(
     CP_INIT(r1, m2xy,    1+m2y*y);
 }
 
+/**
+ * Mirror matrix.
+ *
+ * Asserts that u is unit or [0,0].
+ */
 extern void cp_dim3_mirror_unit(
     cp_vec3_t *r0,
     cp_vec3_t *r1,
@@ -70,6 +90,15 @@ extern void cp_dim3_mirror_unit(
     CP_INIT(r2, m2xz,    m2yz,    1+m2z*z);
 }
 
+/**
+ * Rotate the unit vector u into the [0,0,1] axis.
+ *
+ * The rotation is around the ([0,0,1] x u) axis.
+ *
+ * Asserts that u is unit or [0,0].
+ *
+ * Returns the rotation matrix as three row vectors r0,r1,r2.
+ */
 extern void cp_dim3_rot_unit_into_z(
     cp_vec3_t *r0,
     cp_vec3_t *r1,

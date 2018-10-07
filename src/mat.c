@@ -9,6 +9,9 @@
 
 #include <stdio.h>
 
+/**
+ * Cross product (which is right-handed, see above)
+ */
 extern void cp_vec3_cross(
     cp_vec3_t *r,
     cp_vec3_t const *a,
@@ -26,6 +29,9 @@ extern void cp_vec3_cross(
     *r = *q;
 }
 
+/**
+ * cross(a - o, b - o)
+ */
 extern void cp_vec3_right_cross3(
     cp_vec3_t *r,
     cp_vec3_t const *a,
@@ -46,6 +52,7 @@ extern void cp_vec3_right_cross3(
     *r = *q;
 }
 
+/** unit(cross(a,b)), returns success (i.e., whether vector is not len0) */
 extern bool cp_vec3_normal(
     cp_vec3_t *r,
     cp_vec3_t const *a,
@@ -66,6 +73,7 @@ extern bool cp_vec3_normal(
     return cp_vec3_unit(r,r);
 }
 
+/** unit(cross3(a,o,b)), returns success (i.e., whether vector is not len0) */
 extern bool cp_vec3_right_normal3(
     cp_vec3_t *r,
     cp_vec3_t const *a,
@@ -79,6 +87,7 @@ extern bool cp_vec3_right_normal3(
     return cp_vec3_normal(r, &ao, &bo);
 }
 
+/** 4D matrix determinant */
 extern cp_dim_t cp_mat4_det(
     cp_mat4_t const *m)
 {
@@ -99,6 +108,7 @@ extern cp_dim_t cp_mat4_det(
     return d;
 }
 
+/** 4D matrix inverse, returns the determinant. */
 extern double cp_mat4_inv(
     cp_mat4_t *r,
     cp_mat4_t const *m)
@@ -159,6 +169,7 @@ extern double cp_mat4_inv(
     return d;
 }
 
+/** 3D matrix determinant */
 extern cp_dim_t cp_mat3_det(
     cp_mat3_t const *m)
 {
@@ -173,12 +184,14 @@ extern cp_dim_t cp_mat3_det(
     return d;
 }
 
+/** Determinant of 3D matrix with translation vector */
 extern cp_dim_t cp_mat3w_det(
     cp_mat3w_t const *m)
 {
     return cp_mat3_det(&m->b);
 }
 
+/** 3D matrix inverse, returns the determinant. */
 extern double cp_mat3_inv(
     cp_mat3_t *r,
     cp_mat3_t const *m)
@@ -220,6 +233,7 @@ extern double cp_mat3_inv(
     return d;
 }
 
+/** 2D matrix determinant */
 extern cp_dim_t cp_mat2_det(
     cp_mat2_t const *m)
 {
@@ -227,12 +241,14 @@ extern cp_dim_t cp_mat2_det(
     return d;
 }
 
+/** Determinant of 2D matrix with translation vector */
 extern cp_dim_t cp_mat2w_det(
     cp_mat2w_t const *m)
 {
     return cp_mat2_det(&m->b);
 }
 
+/** 3D matrix inverse, returns the determinant */
 extern double cp_mat2_inv(
     cp_mat2_t *r,
     cp_mat2_t const *m)
@@ -257,6 +273,7 @@ extern double cp_mat2_inv(
     return d;
 }
 
+/** Inverse of 3D matrix with translation vector, returns the determinant */
 extern double cp_mat3w_inv(
     cp_mat3w_t *r,
     cp_mat3w_t const *m)
@@ -307,6 +324,7 @@ extern double cp_mat3w_inv(
     return d;
 }
 
+/** Inverse of 2D matrix with translation vector, returns the determinant */
 extern double cp_mat2w_inv(
     cp_mat2w_t *r,
     cp_mat2w_t const *m)
@@ -338,6 +356,7 @@ extern double cp_mat2w_inv(
     return d;
 }
 
+/** Copy 4D matrix into 3D matrix with translation vector, if possible */
 extern bool cp_mat3w_from_mat4(
     cp_mat3w_t *r,
     cp_mat4_t const *q)
@@ -356,6 +375,7 @@ extern bool cp_mat3w_from_mat4(
         cp_equ(q->m[3][3], 1);
 }
 
+/** Copy 3D matrix into 2D matrix with translation vector, if possible */
 extern bool cp_mat2w_from_mat3(
     cp_mat2w_t *r,
     cp_mat3_t const *q)
@@ -373,6 +393,7 @@ extern bool cp_mat2w_from_mat3(
         cp_equ(q->m[2][2], 1);
 }
 
+/** Copy 3D matrix with translation vector into 4D matrix */
 extern void cp_mat4_from_mat3w(
     cp_mat4_t *r,
     cp_mat3w_t const *q)
@@ -387,6 +408,7 @@ extern void cp_mat4_from_mat3w(
     r->m[3][3] = 1;
 }
 
+/** Copy 2D matrix with translation vector into 3D matrix */
 extern void cp_mat3_from_mat2w(
     cp_mat3_t *r,
     cp_mat2w_t const *q)
@@ -401,6 +423,7 @@ extern void cp_mat3_from_mat2w(
     r->m[2][2] = 1;
 }
 
+/** Copy 4D matrix w/ inverse into 3D matrix w/ translation vector and inverse, if possible */
 extern bool cp_mat3wi_from_mat4i(
     cp_mat3wi_t *r,
     cp_mat4i_t const *q)
@@ -411,6 +434,7 @@ extern bool cp_mat3wi_from_mat4i(
         cp_mat3w_from_mat4(&r->i, &q->i);
 }
 
+/** Copy 3D matrix w/ inverse into 2D matrix w/ translation vector and inverse, if possible */
 extern bool cp_mat2wi_from_mat3i(
     cp_mat2wi_t *r,
     cp_mat3i_t const *q)
@@ -421,6 +445,7 @@ extern bool cp_mat2wi_from_mat3i(
         cp_mat2w_from_mat3(&r->i, &q->i);
 }
 
+/** Copy 3D matrix w/ inverse into 4D matrix w/ inverse */
 extern void cp_mat4i_from_mat3wi(
     cp_mat4i_t *r,
     cp_mat3wi_t const *q)
@@ -430,6 +455,7 @@ extern void cp_mat4i_from_mat3wi(
     r->d = q->d;
 }
 
+/** Copy 2D matrix w/ inverse into 3D matrix w/ inverse */
 extern void cp_mat3i_from_mat2wi(
     cp_mat3i_t *r,
     cp_mat2wi_t const *q)
@@ -439,6 +465,7 @@ extern void cp_mat3i_from_mat2wi(
     r->d = q->d;
 }
 
+/** Copy 2D matrix into 2D matrix w/ inverse, if possible */
 extern bool cp_mat2i_from_mat2(
     cp_mat2i_t *r,
     cp_mat2_t const *q)
@@ -449,6 +476,7 @@ extern bool cp_mat2i_from_mat2(
     return !cp_sqr_equ(r->d, 0);
 }
 
+/** Copy 3D matrix into 3D matrix w/ inverse, if possible */
 extern bool cp_mat3i_from_mat3(
     cp_mat3i_t *r,
     cp_mat3_t const *q)
@@ -459,6 +487,7 @@ extern bool cp_mat3i_from_mat3(
     return !cp_sqr_equ(r->d, 0);
 }
 
+/** Copy 4D matrix into 4D matrix w/ inverse, if possible */
 extern bool cp_mat4i_from_mat4(
     cp_mat4i_t *r,
     cp_mat4_t const *q)
@@ -469,6 +498,10 @@ extern bool cp_mat4i_from_mat4(
     return !cp_sqr_equ(r->d, 0);
 }
 
+/**
+ * Copy 2D matrix w/ translation vector into 2D matrix w/ inverse &
+ * translation vector, if possible
+ */
 extern bool cp_mat2wi_from_mat2w(
     cp_mat2wi_t *r,
     cp_mat2w_t const *q)
@@ -479,6 +512,10 @@ extern bool cp_mat2wi_from_mat2w(
     return !cp_sqr_equ(r->d, 0);
 }
 
+/**
+ * Copy 3D matrix w/ translation vector into 3D matrix w/ inverse &
+ * translation vector, if possible
+ */
 extern bool cp_mat3wi_from_mat3w(
     cp_mat3wi_t *r,
     cp_mat3w_t const *q)
@@ -498,26 +535,32 @@ extern bool cp_mat3wi_from_mat3w(
  *
  *  Criterion: Slopes are equal.  (We already know that p2 is on both edges, so no
  *  parallelism is possible.)
- *
- *  Slopes:
- *
- *  a1 = (y2 - y1) / (x2 - x1)
- *  a2 = (y3 - y2) / (x3 - x2)
- *
- *  Collinear if a1 == a2.  Eliminate division by 0:
- *
- *       (y2 - y1) / (x2 - x1) == (y3 - y2) / (x3 - x2)
- *  <=>  (y2 - y1) * (x3 - x2) == (y3 - y2) * (x2 - x1)
- *
  */
 extern bool cp_vec2_in_line(
     cp_vec2_t const *p1,
     cp_vec2_t const *p2,
     cp_vec2_t const *p3)
 {
+    /*
+     *
+     *  Slopes:
+     *
+     *  a1 = (y2 - y1) / (x2 - x1)
+     *  a2 = (y3 - y2) / (x3 - x2)
+     *
+     *  Collinear if a1 == a2.  Eliminate division by 0:
+     *
+     *       (y2 - y1) / (x2 - x1) == (y3 - y2) / (x3 - x2)
+     *  <=>  (y2 - y1) * (x3 - x2) == (y3 - y2) * (x2 - x1)
+     *
+     */
     return cp_sqr_equ((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x));
 }
 
+/**
+ * Whether tree points in 3D are in one line.
+ * Criterion: slopes in XY, YZ and ZX planes.
+ */
 extern bool cp_vec3_in_line(
     cp_vec3_t const *p1,
     cp_vec3_t const *p2,

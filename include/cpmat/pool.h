@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
+ * @file
  * Allocator for temporary objects.
  *
  * This allocates large blocks, has a very fast 'alloc', but not free.
@@ -22,30 +23,6 @@
 #define CP_POOL_CALLOC(p, x)        CP_POOL_CALLOC_ARR(p, x, 1)
 
 /**
- * Initialises a new allocator together with a first block of memory to
- * allocate from.
- */
-static inline void cp_pool_init(
-    /**
-     * Pointer to a pool for initialisation.
-     */
-    cp_pool_t *pool,
-
-    /**
-     * Block size of each block to allocate.  By making this large,
-     * less overhead occurs if a large object does not fit anymore.
-     * If this is small, there is less waste if a block is not used
-     * completely.
-     *
-     * Just pass 0 for a sensible default.
-     */
-    size_t block_size)
-{
-    CP_ZERO(pool);
-    pool->block_size = block_size;
-}
-
-/**
  * Empty the allocator, i.e., throw away all content.
  *
  * This does not deallocate any block, it only clears the allocator
@@ -56,13 +33,13 @@ static inline void cp_pool_init(
  * objects again.
  */
 extern void cp_pool_clear(
-    cp_pool_t *pool);
+    cp_pool_t *a);
 
 /**
  * Throw away all blocks (and hence, all allocated objects) of the allocator.
  */
 extern void cp_pool_fini(
-    cp_pool_t *pool);
+    cp_pool_t *a);
 
 /**
  * Allocate an array of elements from the allocator.
@@ -90,5 +67,29 @@ extern void *cp_pool_calloc(
     size_t nmemb,
     size_t size,
     size_t align);
+
+/**
+ * Initialises a new allocator together with a first block of memory to
+ * allocate from.
+ */
+static inline void cp_pool_init(
+    /**
+     * Pointer to a pool for initialisation.
+     */
+    cp_pool_t *pool,
+
+    /**
+     * Block size of each block to allocate.  By making this large,
+     * less overhead occurs if a large object does not fit anymore.
+     * If this is small, there is less waste if a block is not used
+     * completely.
+     *
+     * Just pass 0 for a sensible default.
+     */
+    size_t block_size)
+{
+    CP_ZERO(pool);
+    pool->block_size = block_size;
+}
 
 #endif /*__CP_POOL_H */

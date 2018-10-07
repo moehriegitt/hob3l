@@ -11,47 +11,6 @@
 #include <csg2plane/ps.h>
 #include "internal.h"
 
-extern void cp_csg2_init(
-    cp_csg2_t *r,
-    cp_csg2_type_t type,
-    cp_loc_t loc)
-{
-    r->type = type;
-    r->loc = loc;
-}
-
-extern void cp_csg2_add_init_perhaps(
-    cp_csg2_add_t *r,
-    cp_loc_t loc)
-{
-    assert((r->type == 0) || (r->type == CP_CSG2_ADD));
-    if (r->type == CP_CSG2_ADD) {
-        return;
-    }
-    cp_csg2_init((cp_csg2_t*)r, CP_CSG2_ADD, loc);
-}
-
-extern cp_csg2_t *__cp_csg2_new(
-    char const *file,
-    int line,
-    cp_csg2_type_t type,
-    cp_loc_t loc)
-{
-    static const size_t size[] = {
-        [CP_CSG2_CIRCLE]   = sizeof(cp_csg2_circle_t),
-        [CP_CSG2_POLY]     = sizeof(cp_csg2_poly_t),
-        [CP_CSG2_ADD]      = sizeof(cp_csg2_add_t),
-        [CP_CSG2_SUB]      = sizeof(cp_csg2_sub_t),
-        [CP_CSG2_CUT]      = sizeof(cp_csg2_cut_t),
-        [CP_CSG2_STACK]    = sizeof(cp_csg2_stack_t),
-    };
-    assert(type < cp_countof(size));
-    assert(size[type] != 0);
-    cp_csg2_t *r = cp_calloc(file, line, 1, size[type]);
-    cp_csg2_init(r, type, loc);
-    return r;
-}
-
 static cp_csg2_t *csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_range_t const *s,
@@ -151,7 +110,74 @@ static cp_csg2_t *csg2_tree_from_csg3(
     CP_DIE("3D object type");
 }
 
+/* ********************************************************************** */
+/* extern */
 
+/**
+ * Manual initialisation for stack allocated objects.
+ *
+ * Note: This does not zero the object, this has to be done before (with the
+ * right size of the corresponding struct type).
+ */
+extern void cp_csg2_init(
+    cp_csg2_t *r,
+    cp_csg2_type_t type,
+    cp_loc_t loc)
+{
+    r->type = type;
+    r->loc = loc;
+}
+
+/**
+ * Initialise a cp_csg2_add_t object unless it is initialised
+ * already.
+ *
+ * For this to work, the data must be zeroed first, then this
+ * function can be used to initialise it, if it is not yet
+ * initialised.
+ */
+extern void cp_csg2_add_init_perhaps(
+    cp_csg2_add_t *r,
+    cp_loc_t loc)
+{
+    assert((r->type == 0) || (r->type == CP_CSG2_ADD));
+    if (r->type == CP_CSG2_ADD) {
+        return;
+    }
+    cp_csg2_init((cp_csg2_t*)r, CP_CSG2_ADD, loc);
+}
+
+/**
+ * Internal: allocate a new CSG2 object.
+ */
+extern cp_csg2_t *__cp_csg2_new(
+    char const *file,
+    int line,
+    cp_csg2_type_t type,
+    cp_loc_t loc)
+{
+    static const size_t size[] = {
+        [CP_CSG2_CIRCLE]   = sizeof(cp_csg2_circle_t),
+        [CP_CSG2_POLY]     = sizeof(cp_csg2_poly_t),
+        [CP_CSG2_ADD]      = sizeof(cp_csg2_add_t),
+        [CP_CSG2_SUB]      = sizeof(cp_csg2_sub_t),
+        [CP_CSG2_CUT]      = sizeof(cp_csg2_cut_t),
+        [CP_CSG2_STACK]    = sizeof(cp_csg2_stack_t),
+    };
+    assert(type < cp_countof(size));
+    assert(size[type] != 0);
+    cp_csg2_t *r = cp_calloc(file, line, 1, size[type]);
+    cp_csg2_init(r, type, loc);
+    return r;
+}
+
+/**
+ * Initialises a CSG2 structure with a tree derived from a CSG3
+ * structure, and reserves, for each simple object in the tree, an
+ * array of layers of size layer_cnt.
+ *
+ * This assumes a freshly zeroed r to be initialised.
+ */
 extern void cp_csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_csg3_tree_t const *d,

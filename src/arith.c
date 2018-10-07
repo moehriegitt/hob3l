@@ -18,6 +18,7 @@ static unsigned cp_gcd_1(unsigned a, unsigned b)
     return a;
 }
 
+/** gcd */
 extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size)
 {
     for (cp_size_each(i, size)) {
@@ -26,6 +27,11 @@ extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size)
     return g;
 }
 
+/**
+ * Comparison using cp_equ_epsilon
+ *
+ * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
+ */
 extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
@@ -36,6 +42,12 @@ extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
     return 0;
 }
 
+/**
+ * Comparison using cp_pt_epsilon.
+ *
+ * This should be used to compare new point coordinates to old coordinates,
+ * or to rasterize them.
+ */
 extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
@@ -46,6 +58,9 @@ extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
     return 0;
 }
 
+/**
+ * Swap contents of memory.
+ */
 extern void cp_memswap(
     void *a,
     void *b,
@@ -67,7 +82,9 @@ extern void cp_memswap(
     }
 }
 
-bool cp_mem_is0(void *data, size_t size)
+/**
+ * Return whether a piece of memory is zeroed */
+extern bool cp_mem_is0(void *data, size_t size)
 {
     for (char const *i = data, *e = i + size; i != e; i++) {
         if (*i != 0) {
@@ -128,6 +145,10 @@ static bool split_float(
     return true;
 }
 
+/**
+ * This returns true if \p f is an integers, and
+ * then returns that integer in \p i.
+ */
 extern bool cp_f_get_int(
     long long *ip,
     cp_f_t f)
@@ -184,6 +205,11 @@ static cp_f_t const *exact_sin(long long ai)
     return NULL;
 }
 
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_sin_deg(180) == 0, not just close
+ * to 0, but 0.
+ */
 extern cp_f_t cp_sin_deg(cp_f_t a)
 {
     long long ai;
@@ -196,6 +222,11 @@ extern cp_f_t cp_sin_deg(cp_f_t a)
     return sin(cp_deg(a));
 }
 
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_cos_deg(180) == 1, not just close
+ * to 1, but 1.
+ */
 extern cp_f_t cp_cos_deg(cp_f_t a)
 {
     long long ai;

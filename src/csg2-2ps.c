@@ -261,6 +261,19 @@ static void v_csg2_put_ps(
     }
 }
 
+/* ********************************************************************** */
+
+/**
+ * Print as PS file.
+ *
+ * Each layer is printed on a separate page.
+ *
+ * This prints both the triangle and the path data in different
+ * colours, overlayed so that the shape can be debugged.
+ *
+ * If xform is NULL, this assumes that the input is in MM.  Otherwise,
+ * any other scaling transformation can be applied.
+ */
 extern void cp_csg2_tree_put_ps(
     cp_stream_t *s,
     cp_ps_opt_t const *opt,

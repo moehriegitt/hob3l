@@ -58,6 +58,16 @@ static void block_clear(
     }
 }
 
+/**
+ * Empty the allocator, i.e., throw away all content.
+ *
+ * This does not deallocate any block, it only clears the allocator
+ * from all objects inside so that the whole allocated area can be
+ * used again for more allocations.
+ *
+ * This also clears memory so that the cp_alloc() returns zeroed
+ * objects again.
+ */
 extern void cp_pool_clear(
     cp_pool_t *a)
 {
@@ -69,6 +79,9 @@ extern void cp_pool_clear(
     }
 }
 
+/**
+ * Throw away all blocks (and hence, all allocated objects) of the allocator.
+ */
 extern void cp_pool_fini(
     cp_pool_t *a)
 {
@@ -132,6 +145,25 @@ static void *try_block_calloc(
     return a->brk;
 }
 
+/**
+ * Allocate an array of elements from the allocator.
+ *
+ * If you don't know about the alignment, just pass 0 -- the
+ * alignment will be derived from size by using the largest
+ * power-of-2 factor in size.  Note: for this to work, it is vital
+ * not to mix the nmemb and the align parameters!
+ *
+ * The returned memory is always zeroed.
+ *
+ * If nmemb is 0, this returns NULL.  I.e., NULL is not an indication
+ * of an error, just an indication of an empty array that must not be
+ * accessed.
+ *
+ * If nmemb > 0, this never returns NULL, but will assert fail in case
+ * of it runs out of memory.
+ *
+ * size must not be 0.
+ */
 extern void *cp_pool_calloc(
     char const *file,
     int line,

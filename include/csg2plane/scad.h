@@ -2,7 +2,8 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
- * SCAD actional commands that are supported.
+ * @file
+ * SCAD format defined by OpenSCAD.
  *
  * There are some differences wrt. OpenSCAD:
  *   - parameters not specified in OpenSCAD documentation as of 08/2018
@@ -15,9 +16,10 @@
 #ifndef __CP_SCAD_H
 #define __CP_SCAD_H
 
+#include <cpmat/stream.h>
 #include <csg2plane/scad_tam.h>
 #include <csg2plane/syn_tam.h>
-#include <cpmat/stream.h>
+#include <csg2plane/scad-2scad.h>
 
 /**
  * Same as cp_scad_from_syn_func, applied to each element
@@ -28,15 +30,6 @@
  */
 extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
-    cp_syn_tree_t *tree);
-
-/**
- * Dump in SCAD format.
- *
- * If present (triangle list size > 0), prefers the triangles over the path.
- */
-extern void cp_scad_tree_put_scad(
-    cp_stream_t *s,
-    cp_scad_tree_t *result);
+    cp_syn_tree_t *syn);
 
 #endif /* __CP_SCAD_H */

@@ -5,6 +5,7 @@
 #include <cpmat/dict.h>
 #include <cpmat/alloc.h>
 #include "test.h"
+#include "dict-test.h"
 
 typedef struct {
     size_t value;
@@ -70,6 +71,9 @@ static size_t irand(size_t n)
     return (size_t)lrint(drand((unsigned)rand(), RAND_MAX, cp_double(n)));
 }
 
+/**
+ * Unit tests for dictionary data structure
+ */
 extern void cp_dict_test(void)
 {
     cp_dict_t *r = NULL;

@@ -7,18 +7,23 @@
 #include <cpmat/def.h>
 #include <cpmat/arith_tam.h>
 
+/** gcd */
+#define cp_gcd(...) \
+    ({ \
+        unsigned CP_GENSYM(__d)[] = { __VA_ARGS__ }; \
+        cp_gcd_a(CP_GENSYM(__d)[0], CP_GENSYM(__d)+1, cp_countof(CP_GENSYM(__d))-1); \
+    })
+
 /**
  * Epsilon for identifying point coordinates, i.e., granularity of coordinates
  * of points. */
 extern cp_f_t cp_pt_epsilon;
-
 /**
  * General epsilon for comparisons.
  *
  * Typically the square of cp_pt_epsilon.
  */
 extern cp_f_t cp_equ_epsilon;
-
 /**
  * Epsilon for comparison of squared values, or two coordinates multiplied,
  * or determinants.
@@ -26,6 +31,57 @@ extern cp_f_t cp_equ_epsilon;
  * Typically the square of cp_equ_epsilon.
  */
 extern cp_f_t cp_sqr_epsilon;
+/** gcd */
+extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size);
+
+/**
+ * Comparison using cp_equ_epsilon
+ *
+ * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
+ */
+extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
+
+/**
+ * Comparison using cp_pt_epsilon.
+ *
+ * This should be used to compare new point coordinates to old coordinates,
+ * or to rasterize them.
+ */
+extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
+
+/**
+ * Swap contents of memory.
+ */
+extern void cp_memswap(
+    void *a,
+    void *b,
+    size_t esz);
+
+/**
+ * Return whether a piece of memory is zeroed */
+extern bool cp_mem_is0(void *data, size_t size);
+
+/**
+ * This returns true if \p f is an integers, and
+ * then returns that integer in \p i.
+ */
+extern bool cp_f_get_int(
+    long long *ip,
+    cp_f_t f);
+
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_sin_deg(180) == 0, not just close
+ * to 0, but 0.
+ */
+extern cp_f_t cp_sin_deg(cp_f_t a);
+
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.  E.g. cp_cos_deg(180) == 1, not just close
+ * to 1, but 1.
+ */
+extern cp_f_t cp_cos_deg(cp_f_t a);
 
 /* min */
 static inline cp_f_t __cp_min_f(cp_f_t a, cp_f_t b)
@@ -79,22 +135,7 @@ static inline size_t __cp_max_z(size_t a, size_t b)
         *__ap = cp_max(*__ap, __VA_ARGS__); \
     }while(0)
 
-/** gcd */
-extern unsigned cp_gcd_a(unsigned data0, unsigned const *data, size_t size);
-
-#define cp_gcd(...) \
-    ({ \
-        unsigned CP_GENSYM(__d)[] = { __VA_ARGS__ }; \
-        cp_gcd_a(CP_GENSYM(__d)[0], CP_GENSYM(__d)+1, cp_countof(CP_GENSYM(__d))-1); \
-    })
-
-/**
- * Comparison using cp_equ_epsilon
- *
- * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
- */
-extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
-
+/* comparisons using cp_equ_epsilon */
 static inline bool cp_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_equ_epsilon; }
 static inline bool cp_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_equ_epsilon; }
 static inline bool cp_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_equ_epsilon; }
@@ -102,26 +143,7 @@ static inline bool cp_geq(cp_f_t a, cp_f_t b) { return cp_leq(b,a); }
 static inline bool cp_gt (cp_f_t a, cp_f_t b) { return cp_lt(b,a); }
 static inline int  cp_cmp(cp_f_t a, cp_f_t b) { return cp_equ(a,b) ? 0 : a < b ? -1 : +1; }
 
-/**
- * Comparison using cp_sqr_epsilon.
- *
- * This should be used of you are dealing with squared values.
- */
-static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_sqr_epsilon; }
-static inline bool cp_sqr_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_sqr_epsilon; }
-static inline bool cp_sqr_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_sqr_epsilon; }
-static inline bool cp_sqr_geq(cp_f_t a, cp_f_t b) { return cp_sqr_leq(b,a); }
-static inline bool cp_sqr_gt (cp_f_t a, cp_f_t b) { return cp_sqr_lt(b,a); }
-static inline int  cp_sqr_cmp(cp_f_t a, cp_f_t b) { return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1; }
-
-/**
- * Comparison using cp_pt_epsilon.
- *
- * This should be used to compare new point coordinates to old coordinates,
- * or to rasterize them.
- */
-extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size);
-
+/* comparisons using cp_pt_epsilon */
 static inline bool cp_pt_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_pt_epsilon; }
 static inline bool cp_pt_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_pt_epsilon; }
 static inline bool cp_pt_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_pt_epsilon; }
@@ -129,46 +151,13 @@ static inline bool cp_pt_geq(cp_f_t a, cp_f_t b) { return cp_pt_leq(b,a); }
 static inline bool cp_pt_gt (cp_f_t a, cp_f_t b) { return cp_pt_lt(b,a); }
 static inline int  cp_pt_cmp(cp_f_t a, cp_f_t b) { return cp_pt_equ(a,b) ? 0 : a < b ? -1 : +1; }
 
-/**
- * Divide, avoiding division by zero by returning 0.  This is often a
- * sound error propagation with matrices, e.g., if a determinant gets
- * 0, the inverted matrix also has determinant 0.  If a vector has
- * length 0, then its unit is also length 0.  Because this happens to
- * be useful often, it is a service function here, and many utility
- * functions, instead of assert failing or raising div-by-0, they just
- * work by continuing with 0.
- */
-static inline cp_f_t cp_div0(cp_f_t a, cp_f_t b)
-{
-    return cp_equ(b,0) ? 0 : a / b;
-}
-
-/**
- * This returns true if \p f is an integers, and
- * then returns that integer in \p i.
- */
-extern bool cp_f_get_int(
-    long long *i,
-    cp_f_t f);
-
-/**
- * For angles that have exact rational results, this will return
- * exactly those results.  E.g. cp_sin_deg(180) == 0, not just close
- * to 0, but 0.
- */
-extern cp_f_t cp_sin_deg(cp_f_t a);
-
-/**
- * For angles that have exact rational results, this will return
- * exactly those results.  E.g. cp_cos_deg(180) == 1, not just close
- * to 1, but 1.
- */
-extern cp_f_t cp_cos_deg(cp_f_t a);
-
-static inline bool cp_between(cp_f_t x, cp_f_t a, cp_f_t b)
-{
-    return (a < b) ? ((x >= a) && (x <= b)) : ((x >= b) && (x <= a));
-}
+/* comparisons using cp_sqr_epsilon */
+static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_sqr_epsilon; }
+static inline bool cp_sqr_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_sqr_epsilon; }
+static inline bool cp_sqr_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_sqr_epsilon; }
+static inline bool cp_sqr_geq(cp_f_t a, cp_f_t b) { return cp_sqr_leq(b,a); }
+static inline bool cp_sqr_gt (cp_f_t a, cp_f_t b) { return cp_sqr_lt(b,a); }
+static inline int  cp_sqr_cmp(cp_f_t a, cp_f_t b) { return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1; }
 
 static inline size_t cp_wrap_add1(size_t i, size_t n)
 {
@@ -221,6 +210,20 @@ static inline cp_f_t cp_lerp_pm(cp_f_t a, cp_f_t b, cp_f_t t)
 }
 
 /**
+ * Divide, avoiding division by zero by returning 0.  This is often a
+ * sound error propagation with matrices, e.g., if a determinant gets
+ * 0, the inverted matrix also has determinant 0.  If a vector has
+ * length 0, then its unit is also length 0.  Because this happens to
+ * be useful often, it is a service function here, and many utility
+ * functions, instead of assert failing or raising div-by-0, they just
+ * work by continuing with 0.
+ */
+static inline cp_f_t cp_div0(cp_f_t a, cp_f_t b)
+{
+    return cp_equ(b,0) ? 0 : a / b;
+}
+
+/**
  * Get lerp index 0..1 of val between src and dst.
  *
  * With t = cp_t01(a,x,b) it will hold that x = cp_lerp(a,b,t).
@@ -243,15 +246,6 @@ static inline cp_f_t cp_t_pm(cp_f_t src, cp_f_t val, cp_f_t dst)
 {
     return (cp_t01(src, val, dst) * 2) - 1;
 }
-
-/**
- * Swap contents of memory.
- */
-extern void cp_memswap(void *a, void *b, size_t esz);
-
-/**
- * Return whether a piece of memory is zeroed */
-bool cp_mem_is0(void *data, size_t size);
 
 /**
  * Initialise a discrete range.

@@ -220,6 +220,9 @@ static void v_csg3_put_scad(
     }
 }
 
+/**
+ * Dump a CSG3 tree in SCAD format
+ */
 extern void cp_csg3_tree_put_scad(
     cp_stream_t *s,
     cp_csg3_tree_t *r)

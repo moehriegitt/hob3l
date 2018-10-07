@@ -4,6 +4,9 @@
 #include <csg2plane/gc.h>
 #include <cpmat/stream.h>
 
+/**
+ * Print a string of characters that respresent a modifier in scad syntax.
+ */
 extern void cp_gc_modifier_put_scad(
     cp_stream_t *s,
     unsigned modifier)

@@ -102,6 +102,7 @@ typedef enum {
         ((__x != 0) && ((__x & (__x - 1)) == 0)); \
     })
 
+#ifndef CP_ZERO
 /**
  * Zero a structure and return the given pointer.
  *
@@ -110,7 +111,6 @@ typedef enum {
  * by C to be a pointer to the first element, so only the first
  * element is cleared.  This is a problem of the C language, sorry.
  */
-#ifndef CP_ZERO
 #define CP_ZERO(obj) memset(obj, 0, sizeof(*(obj)))
 #endif
 

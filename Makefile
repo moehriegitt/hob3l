@@ -216,7 +216,7 @@ MOD_D.libcsg2plane.a := $(addprefix out/,$(MOD_C.libcsg2plane.a:.c=.d))
 # Tests:
 # libcptest.a:
 MOD_C.libcptest.a := \
-    test-lib.c \
+    test.c \
     math-test.c \
     dict-test.c \
     list-test.c \
@@ -236,7 +236,7 @@ MOD_D.csg2plane.x := $(addprefix out/,$(MOD_C.csg2plane.x:.c=.d))
 # Test Executable:
 # cptest.x:
 MOD_C.cptest.x := \
-    test.c
+    test-main.c
 
 MOD_O.cptest.x := $(addprefix out/,$(MOD_C.cptest.x:.c=.o))
 MOD_D.cptest.x := $(addprefix out/,$(MOD_C.cptest.x:.c=.d))
@@ -383,6 +383,13 @@ scad-test/%-r90.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 scad-test/%-r30.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad --rotate=30 $< > $@.new
 	mv $@.new $@
+
+.PHONY: update-header
+update-header: script/xproto
+	$(srcdir)/script/xproto \
+	    $(srcdir)/src/*.c \
+	    $(srcdir)/src/*.h \
+	    $(srcdir)/include/*/*.h
 
 ######################################################################
 # installation, the usual ceremony.

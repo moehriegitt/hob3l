@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
+ * @file
  * Stream abstraction
  *
  * To print to file or vchar.
@@ -20,6 +21,18 @@
 #define CP_STREAM_FROM_VCHAR(vchar) \
     (&(cp_stream_t){ .data = (vchar), .vprintf = (cp_stream_vprintf_t)cp_vchar_printf })
 
+/**
+ * Formatted printing into a stream.
+ */
+__attribute__((format(printf,2,3)))
+extern int cp_printf(
+    cp_stream_t *s,
+    char const *form,
+    ...);
+
+/**
+ * Print into stream via va list
+ */
 __attribute__((format(printf,2,0)))
 static inline int cp_vprintf(
     cp_stream_t *s,
@@ -28,11 +41,5 @@ static inline int cp_vprintf(
 {
     return s->vprintf(s->data, form, va);
 }
-
-__attribute__((format(printf,2,3)))
-extern int cp_printf(
-    cp_stream_t *s,
-    char const *form,
-    ...);
 
 #endif /* __CP_STREAM_H */

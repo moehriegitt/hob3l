@@ -2,15 +2,20 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include "test.h"
 
-int main(void)
+/**
+ * Function to be called when a test fails.
+ */
+__attribute__((noreturn))
+extern void __cp_test_fail(
+    char const *file,
+    int line,
+    char const *msg1,
+    char const *msg2)
 {
-    TEST_RUN(cp_math_test());
-    TEST_RUN(cp_dict_test());
-    TEST_RUN(cp_list_test());
-    TEST_RUN(cp_ring_test());
-
-    fprintf(stderr, "TEST:OK\n");
-    return 0;
+    fprintf(stderr, "%s:%d: Error: %s %s\n", file, line, msg1, msg2);
+    fprintf(stderr, "TEST FAILED.\n");
+    exit(1);
 }

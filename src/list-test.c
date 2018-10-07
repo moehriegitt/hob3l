@@ -4,6 +4,7 @@
 #include <cpmat/def.h>
 #include <cpmat/list.h>
 #include "test.h"
+#include "list-test.h"
 
 typedef struct num num_t;
 
@@ -64,6 +65,9 @@ static void show(num_t *base, num_t *start)
     fprintf(stderr, "\n");
 }
 
+/**
+ * Unit tests for list data structure
+ */
 extern void cp_list_test(void)
 {
     num_t n[5];

@@ -648,14 +648,6 @@ extern void cp_mat4i_mul(
     cp_mat4i_t const* a,
     cp_mat4i_t const* b);
 
-extern cp_det_t cp_mat2_inv(
-    cp_mat2_t * r,
-    cp_mat2_t const* a);
-
-extern cp_det_t cp_mat2w_inv(
-    cp_mat2w_t * r,
-    cp_mat2w_t const* a);
-
 extern void cp_mat2i_inv(
     cp_mat2i_t * r,
     cp_mat2i_t const* a);
@@ -663,14 +655,6 @@ extern void cp_mat2i_inv(
 extern void cp_mat2wi_inv(
     cp_mat2wi_t * r,
     cp_mat2wi_t const* a);
-
-extern cp_det_t cp_mat3_inv(
-    cp_mat3_t * r,
-    cp_mat3_t const* a);
-
-extern cp_det_t cp_mat3w_inv(
-    cp_mat3w_t * r,
-    cp_mat3w_t const* a);
 
 extern void cp_mat3i_inv(
     cp_mat3i_t * r,
@@ -680,27 +664,8 @@ extern void cp_mat3wi_inv(
     cp_mat3wi_t * r,
     cp_mat3wi_t const* a);
 
-extern cp_det_t cp_mat4_inv(
-    cp_mat4_t * r,
-    cp_mat4_t const* a);
-
 extern void cp_mat4i_inv(
     cp_mat4i_t * r,
     cp_mat4i_t const* a);
-
-extern cp_det_t cp_mat2_det(
-    cp_mat2_t const* a);
-
-extern cp_det_t cp_mat2w_det(
-    cp_mat2w_t const* a);
-
-extern cp_det_t cp_mat3_det(
-    cp_mat3_t const* a);
-
-extern cp_det_t cp_mat3w_det(
-    cp_mat3w_t const* a);
-
-extern cp_det_t cp_mat4_det(
-    cp_mat4_t const* a);
 
 #endif /* __CP_MAT_GEN_H */

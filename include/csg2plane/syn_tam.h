@@ -1,10 +1,6 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-/**
- * SCAD input file.
- */
-
 #ifndef __CP_SYN_TAM_H
 #define __CP_SYN_TAM_H
 

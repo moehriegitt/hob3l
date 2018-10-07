@@ -11,6 +11,11 @@ static void **get_ptr(void *a, size_t o)
     return (void**)((char*)a + o);
 }
 
+/**
+ * Internal function to swap two elements.
+ *
+ * Use cp_list_swap() instead.
+ */
 extern void __cp_list_swap(
     void *a, void *b, size_t offset_next, size_t offset_prev)
 {

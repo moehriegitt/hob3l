@@ -5,6 +5,7 @@
 #include <cpmat/arith.h>
 #include <cpmat/mat.h>
 #include "test.h"
+#include "math-test.h"
 
 static cp_f_t simple_sin_deg(cp_f_t a)
 {
@@ -23,6 +24,9 @@ static cp_f_t simple_cos_deg(cp_f_t a)
     TEST_EQ(cp_cos_deg((a) - 90), b); \
     TEST_FEQ(cp_sin_deg(a), simple_sin_deg(a));
 
+/**
+ * Unit tests of basic math functionality.
+ */
 extern void cp_math_test(void)
 {
     long long ll;

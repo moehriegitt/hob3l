@@ -1519,7 +1519,7 @@ static void csg3_fini_tree(
     csg3_add_minmax(t->root);
 }
 
-extern bool cp_csg3_from_scad(
+static bool cp_csg3_from_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     cp_scad_t *s)
@@ -1543,7 +1543,7 @@ extern bool cp_csg3_from_scad(
     return true;
 }
 
-extern bool cp_csg3_from_v_scad(
+static bool cp_csg3_from_v_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     cp_v_scad_p_t *ss)
@@ -1569,18 +1569,6 @@ extern bool cp_csg3_from_v_scad(
 
     csg3_fini_tree(t);
     return true;
-}
-
-extern bool cp_csg3_from_scad_tree(
-    cp_csg3_tree_t *r,
-    cp_err_t *t,
-    cp_scad_tree_t *scad)
-{
-    assert(scad != NULL);
-    if (scad->root != NULL) {
-        return cp_csg3_from_scad(r, t, scad->root);
-    }
-    return cp_csg3_from_v_scad(r, t, &scad->toplevel);
 }
 
 static void get_max_bb_csg3(
@@ -1660,6 +1648,14 @@ static void get_max_bb_csg3(
     }
 }
 
+/* ********************************************************************** */
+
+/**
+ * Get bounding box of all points, including those that are
+ * in subtracted parts that will be outside of the final solid.
+ *
+ * bb will not be cleared, but only updated.
+ */
 extern void cp_csg3_tree_max_bb(
     cp_vec3_minmax_t *bb,
     cp_csg3_tree_t const *r)
@@ -1667,4 +1663,19 @@ extern void cp_csg3_tree_max_bb(
     if (r->root) {
         get_max_bb_add(bb, r->root);
     }
+}
+
+/**
+ * Convert a SCAD AST into a CSG3 tree.
+ */
+extern bool cp_csg3_from_scad_tree(
+    cp_csg3_tree_t *r,
+    cp_err_t *t,
+    cp_scad_tree_t *scad)
+{
+    assert(scad != NULL);
+    if (scad->root != NULL) {
+        return cp_csg3_from_scad(r, t, scad->root);
+    }
+    return cp_csg3_from_v_scad(r, t, &scad->toplevel);
 }

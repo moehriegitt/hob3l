@@ -1,6 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+
 /**
+ * @file
  * Dictionary.
  *
  * Implemented by binary search trees using the red/black algorithm.
@@ -45,19 +47,6 @@ typedef struct {
     cp_dict_t *parent;
     unsigned child;
 } cp_dict_ref_t;
-
-/**
- * Internal, type-unsafe variant of cp_dict_find_ref().
- *
- * Do not use, use cp_dict_find_ref() or cp_dict_find() instead.
- */
-extern cp_dict_t *__cp_dict_find_ref(
-    cp_dict_ref_t *ref,
-    void *idx,
-    cp_dict_t *root,
-    __cp_dict_cmp_t cmp,
-    void *user,
-    int duplicate);
 
 /**
  * Find a node in the tree.
@@ -130,30 +119,6 @@ extern cp_dict_t *__cp_dict_find_ref(
     })
 
 /**
- * Get the root node of a tree from an arbitrary node.
- *
- * This can be used if the root point is not stored for some reason,
- * to find the root for any node in the tree.
- *
- * Runtime: O(log n) (for bottom-up parent search)
- */
-extern cp_dict_t *cp_dict_root(
-    cp_dict_t *n);
-
-/**
- * Internal, type-unsafe variant of cp_dict_insert_by().
- *
- * Do not use, use cp_dict_insert_by() or cp_dict_insert() instead.
- */
-extern cp_dict_t *__cp_dict_insert_by(
-    cp_dict_t *nnew,
-    void *idx,
-    cp_dict_t **root,
-    __cp_dict_cmp_t,
-    void *user,
-    int duplicate);
-
-/**
  * Insert a new node, then rebalance.
  *
  * This takes a pointer to the root.  The root may be updated by the operation.
@@ -200,6 +165,53 @@ extern cp_dict_t *__cp_dict_insert_by(
     })
 
 /**
+ * Start to iterate.
+ * back=0 finds the first element, back=1 finds the last.
+ *
+ * Runtime: O(log n) (for top-down leaf search)
+ * For whole tree iteration, start + n*step have runtime O(n).
+ */
+extern cp_dict_t *cp_dict_start(
+    cp_dict_t *n,
+    unsigned dir);
+
+/**
+ * Get the root node of a tree from an arbitrary node.
+ *
+ * This can be used if the root point is not stored for some reason,
+ * to find the root for any node in the tree.
+ *
+ * Runtime: O(log n) (for bottom-up parent search)
+ */
+extern cp_dict_t *cp_dict_root(
+    cp_dict_t *n);
+
+/**
+ * Iterate a tree: do one step.
+ * back=0 does a step forward, back=1 does a step backward.
+ *
+ * Runtime: O(log n) (for bottom-up/top-down search for next)
+ * For whole tree iteration, start + n*step have runtime O(n),
+ * i.e., ammortized costs for step are O(1).
+ */
+extern cp_dict_t *cp_dict_step(
+    cp_dict_t *n,
+    unsigned dir);
+
+/**
+ * Internal, type-unsafe variant of cp_dict_find_ref().
+ *
+ * Do not use, use cp_dict_find_ref() or cp_dict_find() instead.
+ */
+extern cp_dict_t *__cp_dict_find_ref(
+    cp_dict_ref_t *ref,
+    void *idx,
+    cp_dict_t *n,
+    __cp_dict_cmp_t cmp,
+    void *user,
+    int duplicate);
+
+/**
  * Insert a node into a predefined location in the tree, then rebalance.
  *
  * In contrast to find + insert, this avoids one search operation.
@@ -238,32 +250,22 @@ extern cp_dict_t *__cp_dict_insert_by(
  * Runtime: O(log n) (for bottom-up rebalance)
  */
 extern void cp_dict_insert_ref(
-    cp_dict_t *nnew,
+    cp_dict_t *node,
     cp_dict_ref_t const *ref,
     cp_dict_t **root);
 
 /**
- * Start to iterate.
- * back=0 finds the first element, back=1 finds the last.
+ * Internal, type-unsafe variant of cp_dict_insert_by().
  *
- * Runtime: O(log n) (for top-down leaf search)
- * For whole tree iteration, start + n*step have runtime O(n).
+ * Do not use, use cp_dict_insert_by() or cp_dict_insert() instead.
  */
-extern cp_dict_t *cp_dict_start(
-    cp_dict_t *root,
-    unsigned back);
-
-/**
- * Iterate a tree: do one step.
- * back=0 does a step forward, back=1 does a step backward.
- *
- * Runtime: O(log n) (for bottom-up/top-down search for next)
- * For whole tree iteration, start + n*step have runtime O(n),
- * i.e., ammortized costs for step are O(1).
- */
-extern cp_dict_t *cp_dict_step(
-    cp_dict_t *last,
-    unsigned back);
+extern cp_dict_t *__cp_dict_insert_by(
+    cp_dict_t *node,
+    void *key,
+    cp_dict_t **root,
+    __cp_dict_cmp_t cmp,
+    void *user,
+    int duplicate);
 
 /**
  * Remove a node from the tree.
@@ -287,7 +289,6 @@ extern cp_dict_t *cp_dict_step(
 extern void cp_dict_remove(
     cp_dict_t *c,
     cp_dict_t **root);
-
 
 /**
  * Swap two nodes from same or different tree.

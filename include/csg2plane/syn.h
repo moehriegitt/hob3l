@@ -2,7 +2,8 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
- * SCAD input file.
+ * @file
+ * SCAD input file format, syntax layer.
  */
 
 #ifndef __CP_SYN_H
@@ -10,14 +11,15 @@
 
 #include <stdio.h>
 #include <cpmat/vec.h>
-#include <csg2plane/syn_tam.h>
 #include <cpmat/stream_tam.h>
+#include <csg2plane/syn_tam.h>
+#include <csg2plane/syn-2scad.h>
 
 /**
  * Parse a file into a SCAD syntax tree.
  */
 extern bool cp_syn_parse(
-    cp_syn_tree_t *result,
+    cp_syn_tree_t *r,
     char const *filename,
     FILE *file);
 
@@ -43,20 +45,8 @@ extern bool cp_syn_parse(
  * Returns whether the location was found.
  */
 extern bool cp_syn_get_loc(
-    /**
-     * OUT: location */
     cp_syn_loc_t *loc,
-    /**
-     * IN: The tree as filled in by cp_scad_parse */
     cp_syn_tree_t *tree,
-    /**
-     * IN: The location pointer from the tree. */
     char const *token);
-
-/**
- * Dump in SCAD format */
-extern void cp_syn_tree_put_scad(
-    cp_stream_t *s,
-    cp_syn_tree_t *result);
 
 #endif /* __CP_SCAD_H */
