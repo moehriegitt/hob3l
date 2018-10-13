@@ -424,6 +424,11 @@ Doing the same with `csg2plane` is about 50 times faster:
     0m0.824s
 ```
 
+The most complex part of the i3 MK3 printer, the `extruder-body.scad`,
+before it was reimplemented as `step` file, takes 2m42s in openscad to
+convert to STL, while `csg2plane` takes 1.24s.  That is 130 times
+faster.
+
 For one of my own parts `useless-box+body`, which is less complex, but
 does not care much about making rendering fast (I definitely set up
 cylinders with too many polygon corners):
@@ -444,7 +449,7 @@ only takes 0.23s.
 
 The difference of the conversion technique is visible in the model
 view of the STL, where the 2D CSG slicing technique clearly shows the
-layers already:
+layers:
 
 ![OpenSCAD model](img/useless-model-openscad.jpg)
 ![Eins model](img/useless-model-eins.jpg)

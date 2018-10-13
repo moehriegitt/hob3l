@@ -20,6 +20,12 @@
 
 #define cp_static_assert(x) _Static_assert(x,#x)
 
+/* some assumptions about the environment */
+cp_static_assert(sizeof(short)     == 2);
+cp_static_assert(sizeof(int)       == 4);
+cp_static_assert(sizeof(long long) == 8);
+cp_static_assert(sizeof(void*)     == sizeof(size_t));
+
 #define CP_IND 2
 
 #define __CP_STRINGIFY2(x) #x
