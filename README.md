@@ -382,17 +382,44 @@ To convert to STL using openscad 3D CSG takes a while:
 
 ```
     time openscad x-carriage.csg -o x-carriage.stl
-    0m46.372s
+    0m45.208s
 ```
 
-Doing the same with `csg2plane` is about 18 times faster:
+Doing the same with `csg2plane` is about 28 times faster:
 
 ```
     time csg2plane x-carriage.csg -o x-carriage.stl
-    0m2.549s
+    0m1.611s
 ```
 
 For one of my own parts `useless-box+body`, which is less complex, but
 does not care much about making rendering fast (I definitely set up
-cylinders with too many polygon corners), 3D CSG rendering takes 90s,
-and `csg2plane` takes 0.4s, which is a speed-up of 200.
+cylinders with too many polygon corners):
+
+```
+    time openscad uselessbox+body.scad -o uselessbox+body.stl
+    0m53.433s
+
+    time csg2plane uselessbox+body.scad -o uselessbox+body.stl
+    0m0.690s
+```
+
+This is 77 times faster.  Over half of the time is spent on writing
+the STL file, which is 23MB -- STL is huge.  Loading and converting
+only takes 0.35s.
+
+## Rendering Differences
+
+The difference of the conversion technique is visible in the model
+view of the STL, where the 2D CSG slicing technique clearly shows the
+layers already:
+
+![OpenSCAD model](img/useless-model-openscad.png)
+![Eins model](img/useless-model-eins.png)
+
+The final result of the slicer, however, is indistinguishable (I was
+unable to replicate the exact same view, so the Moir&eacute; patterns are
+different -- but the result is really the same):
+
+![OpenSCAD preview](img/useless-preview-openscad.png)
+![Eins preview](img/useless-preview-eins.png)
