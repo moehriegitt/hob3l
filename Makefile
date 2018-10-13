@@ -76,7 +76,7 @@ UNINSTALL_DIR := rmdir
 
 CFLAGS_OPT   := -O$(OPT) -g3
 CFLAGS_ARCH  := -march=core2 -mfpmath=sse
-CFLAGS_SAFE  := -fno-delete-null-pointer-checks -fwrapv
+CFLAGS_SAFE  := -fno-delete-null-pointer-checks -fwrapv -fno-strict-overflow
 
 ifeq ($(FRAME),0)
 CFLAGS_DEBUG += -fomit-frame-pointer
@@ -89,58 +89,63 @@ ifeq ($(NDEBUG),1)
 CFLAGS_DEBUG += -DNDEBUG
 endif
 ifeq ($(PSTRACE),1)
-CPPFLAGS += -DPSTRACE
+CPPFLAGS_DEF += -DPSTRACE
 endif
-
-CFLAGS     += $(CFLAGS_OPT)
-CFLAGS     += $(CFLAGS_ARCH)
-CFLAGS     += $(CFLAGS_SAFE)
-CFLAGS     += $(CFLAGS_DEBUG)
 
 CSTD=c11
 CPPFLAGS_STD := -std=$(CSTD)
 
-CPPFLAGS += $(CPPFLAGS_STD)
-CPPFLAGS += -I$(srcdir)/include
-CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
+CPPFLAGS_INC += -I$(srcdir)/include
+CPPFLAGS_DEF += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 
 # warnings:
-CFLAGS   += -W -Wall -Wextra
+CFLAGS_WARN   += -W -Wall -Wextra
 
-CFLAGS   += -Wstrict-prototypes
-CFLAGS   += -Wmissing-prototypes
-CPPFLAGS += -Wundef
-CFLAGS   += -Wold-style-definition
-CFLAGS   += -Wnested-externs
-CFLAGS   += -Wmissing-prototypes
-CFLAGS   += -Wstrict-prototypes
-CFLAGS   += -Waggregate-return
-CFLAGS   += -Wpointer-arith
-CFLAGS   += -Wcast-qual
-CFLAGS   += -Wcast-align
-CFLAGS   += -Wwrite-strings
-CFLAGS   += -Wshadow
-CFLAGS   += -Wdeprecated
-CFLAGS   += -Wlogical-op
-CFLAGS   += -Wtrampolines
-CFLAGS   += -Wsuggest-attribute=format
-CFLAGS   += -Wsuggest-attribute=noreturn
-CFLAGS   += -Wconversion
-CFLAGS   += -Wsign-conversion
-CFLAGS   += -Wstrict-overflow=5
-CPPFLAGS += -finput-charset=us-ascii
-CFLAGS   += -Wshadow
-CFLAGS   += -Wmultichar
-CFLAGS   += -Wfloat-equal
-CFLAGS   += -Wshift-overflow=2
-CFLAGS   += -Wbad-function-cast
-CFLAGS   += -Wjump-misses-init
-CFLAGS   += -Wredundant-decls
-CFLAGS   += -Wvla
+CFLAGS_WARN   += -Wstrict-prototypes
+CFLAGS_WARN   += -Wmissing-prototypes
+CPPFLAGS_WARN += -Wundef
+CFLAGS_WARN   += -Wold-style-definition
+CFLAGS_WARN   += -Wnested-externs
+CFLAGS_WARN   += -Wmissing-prototypes
+CFLAGS_WARN   += -Wstrict-prototypes
+CFLAGS_WARN   += -Waggregate-return
+CFLAGS_WARN   += -Wpointer-arith
+CFLAGS_WARN   += -Wcast-qual
+CFLAGS_WARN   += -Wcast-align
+CFLAGS_WARN   += -Wwrite-strings
+CFLAGS_WARN   += -Wshadow
+CFLAGS_WARN   += -Wdeprecated
+CFLAGS_WARN   += -Wlogical-op
+CFLAGS_WARN   += -Wtrampolines
+CFLAGS_WARN   += -Wsuggest-attribute=format
+CFLAGS_WARN   += -Wsuggest-attribute=noreturn
+CFLAGS_WARN   += -Wconversion
+CFLAGS_WARN   += -Wsign-conversion
+CFLAGS_WARN   += -Wstrict-overflow=5
+CPPFLAGS_WARN += -finput-charset=us-ascii
+CFLAGS_WARN   += -Wshadow
+CFLAGS_WARN   += -Wmultichar
+CFLAGS_WARN   += -Wfloat-equal
+CFLAGS_WARN   += -Wshift-overflow=2
+CFLAGS_WARN   += -Wbad-function-cast
+CFLAGS_WARN   += -Wjump-misses-init
+CFLAGS_WARN   += -Wredundant-decls
+CFLAGS_WARN   += -Wvla
 
 ifeq ($(WERROR),1)
-CFLAGS   += -Werror
+CFLAGS_WARN   += -Werror
 endif
+
+CFLAGS   += $(CFLAGS_OPT)
+CFLAGS   += $(CFLAGS_WARN)
+CFLAGS   += $(CFLAGS_ARCH)
+CFLAGS   += $(CFLAGS_SAFE)
+CFLAGS   += $(CFLAGS_DEBUG)
+
+CPPFLAGS += $(CPPFLAGS_STD)
+CPPFLAGS += $(CPPFLAGS_DEF)
+CPPFLAGS += $(CPPFLAGS_INC)
+CPPFLAGS += $(CPPFLAGS_WARN)
 
 ######################################################################
 

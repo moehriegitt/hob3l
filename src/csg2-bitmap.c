@@ -158,6 +158,10 @@ extern void cp_csg2_op_bitmap_repeat(
             r->b[0] |= (unsigned char)(r->b[0] << 4);
             break;
 
+#if CP_CSG2_MAX_LAZY <= 3
+        default:
+            CP_DIE();
+#else
         case 3:
             r->b[1] = r->b[0];
             break;
@@ -186,6 +190,7 @@ extern void cp_csg2_op_bitmap_repeat(
                 r->w[i] = r->w[i - skip];
             }
             return;/*!*/}
+#endif
         }
         have++;
     }
