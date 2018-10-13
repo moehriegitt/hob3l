@@ -414,12 +414,12 @@ The difference of the conversion technique is visible in the model
 view of the STL, where the 2D CSG slicing technique clearly shows the
 layers already:
 
-![OpenSCAD model](img/useless-model-openscad.png)
-![Eins model](img/useless-model-eins.png)
+![OpenSCAD model](img/useless-model-openscad.jpg)
+![Eins model](img/useless-model-eins.jpg)
 
 The final result of the slicer, however, is indistinguishable (I was
 unable to replicate the exact same view, so the Moir&eacute; patterns are
 different -- but the result is really the same):
 
-![OpenSCAD preview](img/useless-preview-openscad.png)
-![Eins preview](img/useless-preview-eins.png)
+![OpenSCAD preview](img/useless-preview-openscad.jpg)
+![Eins preview](img/useless-preview-eins.jpg)
