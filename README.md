@@ -142,7 +142,7 @@ corner cases are handled.
 For further speed-up, the polygon clipping algorithm was extended to
 support processing more than two polygons at the same time, because
 with a runtime of O(n log n), it benefits from larger n.  Currently,
-it works with max. 3 polygons (there are still bugs otherwise...), and
+it works with max. 4 polygons (there are still bugs otherwise...), and
 this already speeds up some examples by a factor of 2.
 
 ## Status, Stability, Limitations, Future Work, TODO
