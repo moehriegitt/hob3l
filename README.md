@@ -124,6 +124,11 @@ are positive and which ones are negative.
 
 ## Algorithmic Improvements
 
+The triangulation algorithm of Hertel & Mehlhorn (1983) was
+extended to support coincident vertices, because this is what the
+polygon clipping outputs.  Also, sequences of collinear edges are
+fully supported, because, again, this may happen.
+
 The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
 was improved to have less computational instability by deriving
 crossing points always from the original edge (although currently,
@@ -134,10 +139,11 @@ O(n log n) runtime was implemented -- the original paper and reference
 implementation do not focus on this part.  Also, several additional
 corner cases are handled.
 
-The triangulation algorithm of Hertel & Mehlhorn (1983) was
-extended to support coincident vertices, because this is what the
-polygon clipping outputs.  Also, sequences of collinear edges are
-fully supported, because, again, this may happen.
+For further speed-up, the polygon clipping algorithm was extended to
+support processing more than two polygons at the same time, because
+with a runtime of O(n log n), it benefits from larger n.  Currently,
+it works with max. 3 polygons (there are still bugs otherwise...), and
+this already speeds up some examples by a factor of 2.
 
 ## Status, Stability, Limitations, Future Work, TODO
 
