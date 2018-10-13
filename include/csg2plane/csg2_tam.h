@@ -332,7 +332,7 @@ struct cp_csg2_3edge {
 /**
  * Maximum number of polygons to delay.
  */
-#define CP_CSG2_MAX_LAZY 10
+#define CP_CSG2_MAX_LAZY 6
 
 /**
  * Bitmap to store boolean function

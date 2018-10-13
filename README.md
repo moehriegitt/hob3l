@@ -142,8 +142,9 @@ corner cases are handled.
 For further speed-up, the polygon clipping algorithm was extended to
 support processing more than two polygons at the same time, because
 with a runtime of O(n log n), it benefits from larger n.  Currently,
-it works with max. 4 polygons (there are still bugs otherwise...), and
-this already speeds up some examples by a factor of 2.
+it usually works with max. 6 polygons (there are still bugs
+otherwise...), and this already speeds up some examples by a factor of
+2.
 
 ## Status, Stability, Limitations, Future Work, TODO
 
@@ -416,11 +417,11 @@ To convert to STL using openscad 3D CSG takes a while:
     0m45.208s
 ```
 
-Doing the same with `csg2plane` is about 50 times faster:
+Doing the same with `csg2plane` is about 45 times faster:
 
 ```
     time csg2plane x-carriage.csg -o x-carriage.stl
-    0m0.865s
+    0m1.036s
 ```
 
 For one of my own parts `useless-box+body`, which is less complex, but
