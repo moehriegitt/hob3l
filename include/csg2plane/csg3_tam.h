@@ -260,7 +260,7 @@ union cp_csg3 {
     cp_csg2_poly_t poly2;
 };
 
-#define CP_CSG3_CIRCULAR_CYLINDER 1
+#define CP_CSG3_CIRCULAR_CYLINDER 0
 
 typedef struct {
     size_t max_fn;

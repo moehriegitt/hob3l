@@ -1384,13 +1384,14 @@ static bool csg3_from_cylinder(
     }
 
     /* possibly generate a polyhedron */
-    if ((s->_fn >= 3)
-#if CP_CSG3_CIRCULAR_CYLINDER
-        && (s->_fn <= t->opt.max_fn)
-#endif
-        )
+    if (!CP_CSG3_CIRCULAR_CYLINDER ||
+        ((s->_fn >= 3) && (s->_fn <= t->opt.max_fn)))
     {
-        return csg3_poly_cylinder(r, t, e, m, s, mo, r2, s->_fn);
+        size_t fn = s->_fn;
+        if (fn < 3) {
+            fn = t->opt.max_fn;
+        }
+        return csg3_poly_cylinder(r, t, e, m, s, mo, r2, fn);
     }
 
     /* create a real cylinder */

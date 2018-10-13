@@ -374,6 +374,12 @@ test-out/%.stl: scad-test/%.scad csg2plane.x
 	$(CSG2PLANE) $< -o $@.new.stl
 	mv $@.new.stl $@
 
+test-out/%.stl: $(SCAD_DIR)/%.scad csg2plane.x
+	openscad $< -o $@.new.csg
+	$(CSG2PLANE) $@.new.csg -o $@.new.stl
+	mv $@.new.stl $@
+	rm -f $@.new.csg
+
 scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad $< > $@.new
 	mv $@.new $@
@@ -396,6 +402,11 @@ update-header: script/xproto
 	    $(srcdir)/src/*.c \
 	    $(srcdir)/src/*.h \
 	    $(srcdir)/include/*/*.h
+
+SCAD_SCAD := $(wildcard $(SCAD_DIR)/*.scad)
+
+.PHONY: test-scad
+test-scad: $(addprefix test-out/,$(notdir $(SCAD_SCAD:.scad=.stl)))
 
 .PHONY: speed-test
 speed-test:
