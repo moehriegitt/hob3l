@@ -1260,7 +1260,13 @@ static bool pt_between(
     return coord_between(&a->coord, &b->coord, &c->coord);
 }
 
-static bool ev4_overlap(
+/**
+ * Returns 3 on overlap
+ * Returns 1 if eh is on el--ol.
+ * Returns 2 if el is on eh--oh.
+ * Returns 0 otherwise.
+ */
+static unsigned ev4_overlap(
     event_t *el,
     event_t *ol,
     event_t *eh,
@@ -1286,26 +1292,29 @@ static bool ev4_overlap(
      * (5) el...ol            (10) eh...oh
      *          eh...oh                 el...ol
      */
+    unsigned result = 0;
     if (pt_between(el->p, eh->p, ol->p)) { /* (1),(2),(3),(4),(5),(7) */
         if (pt_between(el->p, oh->p, ol->p)) { /* (1),(2),(3) */
-            return true;
+            return 3;
         }
         if (pt_between(eh->p, ol->p, oh->p)) { /* (4),(5) */
-            return ol->p != eh->p; /* exclude (5) */
+            return (ol->p != eh->p) ? 3 : 1; /* exclude (5) */
         }
+        result = 1;
         /* (7) needs to be checked, so no 'return false' here */
     }
 
     if (pt_between(eh->p, el->p, oh->p)) { /* (2),(6),(7),(8),(9),(10) */
         if (pt_between(eh->p, ol->p, oh->p)) { /* (6),(7),(8) */
-            return true;
+            return 3;
         }
         if (pt_between(el->p, oh->p, ol->p)) { /* (9),(10) */
-            return oh->p != el->p;
+            return (oh->p != el->p) ? 3 : 2;
         }
+        return 2;
     }
 
-    return false;
+    return result;
 }
 
 static void ev_ignore(
@@ -1365,9 +1374,21 @@ static void check_intersection(
      * correctly.
      */
 
-    if (!ev4_overlap(el, ol, eh, oh)) {
-        bool collinear;
-        point_t *ip = find_intersection(&collinear, c, el, eh);
+    unsigned u = ev4_overlap(el, ol, eh, oh);
+    if (u != 3) {
+        bool collinear = false;
+        point_t *ip = NULL;
+        switch (u) {
+        default:
+            ip = find_intersection(&collinear, c, el, eh);
+            break;
+        case 1:
+            ip = eh->p;
+            break;
+        case 2:
+            ip = el->p;
+            break;
+        }
 
         if (ip != NULL) {
             LOG("Rel: intersect, collinear=%u (%s -- %s)\n",
@@ -2024,6 +2045,7 @@ extern void cp_csg2_op_lazy(
     cp_bool_op_t op)
 {
     assert(opt->max_simultaneous >= 2);
+    size_t max_sim = cp_min(opt->max_simultaneous, cp_countof(r->data));
     TRACE();
     for (size_t loop = 0; loop < 3; loop++) {
 #if OPT >= 1
@@ -2043,9 +2065,7 @@ extern void cp_csg2_op_lazy(
 #endif
 
         /* if we can fit the result into one structure, then try that */
-        if (((r->size + b->size) <= opt->max_simultaneous) ||
-            ((r->size + b->size) <= cp_countof(r->data)))
-        {
+        if ((r->size + b->size) <= max_sim) {
             break;
         }
 

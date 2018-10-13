@@ -83,7 +83,7 @@ CFLAGS_DEBUG += -fomit-frame-pointer
 endif
 ifeq ($(SANITIZE),1)
 CFLAGS_DEBUG += -fsanitize=undefined
-# CFLAGS_DEBUG += -fsanitize=address # currently needs ASAN_OPTIONS=detect-leaks=0
+# CFLAGS_DEBUG += -fsanitize=address # currently needs ASAN_OPTIONS=detect_leaks=0
 endif
 ifeq ($(NDEBUG),1)
 CFLAGS_DEBUG += -DNDEBUG
@@ -396,6 +396,27 @@ update-header: script/xproto
 	    $(srcdir)/src/*.c \
 	    $(srcdir)/src/*.h \
 	    $(srcdir)/include/*/*.h
+
+.PHONY: speed-test
+speed-test:
+	rm -f .mode.d.old && mv .mode.d .mode.d.old
+	$(MAKE) clean MODE=release
+	$(MAKE) -j
+	$(MAKE) -j test
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/curry.scad -o out.stl'
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/curry.scad -o out.stl'
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad -o out.stl'
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad -o out.stl'
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad'
+	sync && sleep 1
+	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad'
+	rm -f .mode.d && mv .mode.d.old .mode.d
+	$(MAKE) clean
 
 ######################################################################
 # installation, the usual ceremony.
