@@ -391,11 +391,11 @@ To convert to STL using openscad 3D CSG takes a while:
     0m45.208s
 ```
 
-Doing the same with `csg2plane` is about 28 times faster:
+Doing the same with `csg2plane` is about 50 times faster:
 
 ```
     time csg2plane x-carriage.csg -o x-carriage.stl
-    0m1.611s
+    0m0.865s
 ```
 
 For one of my own parts `useless-box+body`, which is less complex, but
