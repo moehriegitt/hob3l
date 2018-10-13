@@ -366,6 +366,29 @@ This can then be used in your favorite tool for computing print paths.
     slic3r thing.stl
 ```
 
+The underlying technique is still computationally difficult, because
+it relies on floating point operations.  The goal was stability, but
+it turned out to be really difficult to achieve, so this tool might
+still occasionally fail.  If this happens, the following command line
+options change internal settings that might push the tool back on
+track:
+
+```
+    --max-simultaneous=N    # decrease for better stability; min. is 2
+```
+
+The following options also have an influence, but neither large nor
+small is really better -- changing them causes different perturbations
+and thus different results, some of which might be more likely to
+succeed.  A good heuristics is to keep `gran` larger than `eps` and
+let `eps2` be about the square of `eps`.
+
+```
+    --gran=X
+    --eps=X
+    --eps2=X
+```
+
 ## Speed comparison
 
 Depending on the complexity of the model, this tool is much faster

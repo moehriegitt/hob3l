@@ -213,6 +213,12 @@ typedef struct {
      * coplanar, which is not well-formed.
      */
     double layer_gap;
+
+    /**
+     * How many polygons to process at once, maximally.
+     * Must be at least 2.
+     */
+    size_t max_simultaneous;
 } cp_csg2_tree_opt_t;
 
 typedef struct {

@@ -68,6 +68,16 @@ case "round-fn": size &opt->csg3.max_fn {
 
 help_section "Advanced Options";
 
+case "max-simultaneous": size &opt->tree.max_simultaneous {
+    "maximum number of polygons to process at once";
+    "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY)", using larger values is ignored)";
+
+    if (opt->tree.max_simultaneous < 2) {
+        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
+            opt->tree.max_simultaneous);
+        my_exit(1);
+    }
+}
 case "gran": dim &cp_pt_epsilon {
     "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
 }

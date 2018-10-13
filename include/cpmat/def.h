@@ -20,9 +20,11 @@
 
 #define cp_static_assert(x) _Static_assert(x,#x)
 
-/* *** float type *** */
-
 #define CP_IND 2
+
+#define __CP_STRINGIFY2(x) #x
+#define __CP_STRINGIFY1(x) __CP_STRINGIFY2(x)
+#define CP_STRINGIFY(x)    __CP_STRINGIFY1(x)
 
 /**
  * Make a bit mask of all ones for a given type, be sure to

@@ -73,6 +73,7 @@ extern void cp_csg2_op_reduce(
  * follows.  Best case runtime for delaying the operation is O(1).
  */
 extern void cp_csg2_op_lazy(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_lazy_t *r,
     cp_csg2_lazy_t *b,
@@ -92,6 +93,7 @@ extern void cp_csg2_op_lazy(
  *    j = number of polygons + number of bool operations in tree
  */
 extern void cp_csg2_op_add_layer(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,

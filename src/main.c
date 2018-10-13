@@ -103,7 +103,7 @@ static bool process_stack(
             return false;
         }
         if (!opt->no_csg) {
-            cp_csg2_op_add_layer(pool, csg2b, csg2, i);
+            cp_csg2_op_add_layer(&opt->tree, pool, csg2b, csg2, i);
         }
         if (!opt->no_tri) {
             if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
@@ -469,6 +469,7 @@ int main(int argc, char **argv)
     opt.ps.line_width = 0.4;
     opt.csg3.max_fn = 200;
     opt.tree.layer_gap = 0.01;
+    opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
     opt.verbose = 1;
 
     /* parse command line */

@@ -1659,6 +1659,7 @@ static void csg2_op_poly(
 }
 
 static void csg2_op_csg2(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1666,6 +1667,7 @@ static void csg2_op_csg2(
     cp_csg2_t *a);
 
 static void csg2_op_v_csg2(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1677,18 +1679,19 @@ static void csg2_op_v_csg2(
     for (cp_v_each(i, a)) {
         cp_csg2_t *ai = cp_v_nth(a,i);
         if (i == 0) {
-            csg2_op_csg2(pool, r, zi, o, ai);
+            csg2_op_csg2(opt, pool, r, zi, o, ai);
         }
         else {
             cp_csg2_lazy_t oi = { 0 };
-            csg2_op_csg2(pool, r, zi, &oi, ai);
+            csg2_op_csg2(opt, pool, r, zi, &oi, ai);
             LOG("ADD\n");
-            cp_csg2_op_lazy(pool, o, &oi, CP_OP_ADD);
+            cp_csg2_op_lazy(opt, pool, o, &oi, CP_OP_ADD);
         }
     }
 }
 
 static void csg2_op_add(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1697,10 +1700,11 @@ static void csg2_op_add(
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_v_csg2(pool, r, zi, o, &a->add);
+    csg2_op_v_csg2(opt, pool, r, zi, o, &a->add);
 }
 
 static void csg2_op_cut(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1712,18 +1716,19 @@ static void csg2_op_cut(
     for (cp_v_each(i, &a->cut)) {
         cp_csg2_add_t *b = cp_v_nth(&a->cut, i);
         if (i == 0) {
-            csg2_op_add(pool, r, zi, o, b);
+            csg2_op_add(opt, pool, r, zi, o, b);
         }
         else {
             cp_csg2_lazy_t oc = {0};
-            csg2_op_add(pool, r, zi, &oc, b);
+            csg2_op_add(opt, pool, r, zi, &oc, b);
             LOG("CUT\n");
-            cp_csg2_op_lazy(pool, o, &oc, CP_OP_CUT);
+            cp_csg2_op_lazy(opt, pool, o, &oc, CP_OP_CUT);
         }
     }
 }
 
 static void csg2_op_layer(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_csg2_lazy_t *o,
@@ -1731,10 +1736,11 @@ static void csg2_op_layer(
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_add(pool, r, a->zi, o, &a->root);
+    csg2_op_add(opt, pool, r, a->zi, o, &a->root);
 }
 
 static void csg2_op_sub(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1743,15 +1749,16 @@ static void csg2_op_sub(
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_add(pool, r, zi, o, &a->add);
+    csg2_op_add(opt, pool, r, zi, o, &a->add);
 
     cp_csg2_lazy_t os = {0};
-    csg2_op_add(pool, r, zi, &os, &a->sub);
+    csg2_op_add(opt, pool, r, zi, &os, &a->sub);
     LOG("SUB\n");
-    cp_csg2_op_lazy(pool, o, &os, CP_OP_SUB);
+    cp_csg2_op_lazy(opt, pool, o, &os, CP_OP_SUB);
 }
 
 static void csg2_op_stack(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1771,10 +1778,11 @@ static void csg2_op_stack(
     }
 
     assert(zi == l->zi);
-    csg2_op_layer(pool, r, o, l);
+    csg2_op_layer(opt, pool, r, o, l);
 }
 
 static void csg2_op_csg2(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
@@ -1794,19 +1802,19 @@ static void csg2_op_csg2(
         return;
 
     case CP_CSG2_ADD:
-        csg2_op_add(pool, r, zi, o, cp_csg2_add(a));
+        csg2_op_add(opt, pool, r, zi, o, cp_csg2_add(a));
         return;
 
     case CP_CSG2_SUB:
-        csg2_op_sub(pool, r, zi, o, cp_csg2_sub(a));
+        csg2_op_sub(opt, pool, r, zi, o, cp_csg2_sub(a));
         return;
 
     case CP_CSG2_CUT:
-        csg2_op_cut(pool, r, zi, o, cp_csg2_cut(a));
+        csg2_op_cut(opt, pool, r, zi, o, cp_csg2_cut(a));
         return;
 
     case CP_CSG2_STACK:
-        csg2_op_stack(pool, r, zi, o, cp_csg2_stack(a));
+        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_stack(a));
         return;
     }
 
@@ -2009,11 +2017,13 @@ extern void cp_csg2_op_reduce(
  * follows.  Best case runtime for delaying the operation is O(1).
  */
 extern void cp_csg2_op_lazy(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_lazy_t *r,
     cp_csg2_lazy_t *b,
     cp_bool_op_t op)
 {
+    assert(opt->max_simultaneous >= 2);
     TRACE();
     for (size_t loop = 0; loop < 3; loop++) {
 #if OPT >= 1
@@ -2033,7 +2043,9 @@ extern void cp_csg2_op_lazy(
 #endif
 
         /* if we can fit the result into one structure, then try that */
-        if ((r->size + b->size) <= cp_countof(r->data)) {
+        if (((r->size + b->size) <= opt->max_simultaneous) ||
+            ((r->size + b->size) <= cp_countof(r->data)))
+        {
             break;
         }
 
@@ -2088,6 +2100,7 @@ extern void cp_csg2_op_lazy(
  *    j = number of polygons + number of bool operations in tree
  */
 extern void cp_csg2_op_add_layer(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
@@ -2099,7 +2112,7 @@ extern void cp_csg2_op_add_layer(
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
-    csg2_op_csg2(pool, r, zi, &ol, a->root);
+    csg2_op_csg2(opt, pool, r, zi, &ol, a->root);
     cp_csg2_op_reduce(pool, &ol);
 
     cp_csg2_poly_t *o = ol.data[0];

@@ -38,6 +38,9 @@ static char const *opt_help =
     "        and not converted to polyhedra.\n"
 #endif
     "Advanced Options\n"
+    "    --max-simultaneous=ARG\n"
+    "        maximum number of polygons to process at once\n"
+    "        (minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY)", using larger values is ignored)\n"
     "    --gran=ARG\n"
     "        rasterization granularity for point coordinates [mm] (default: 0x1p-9)\n"
     "    --eps=ARG\n"
@@ -368,6 +371,20 @@ static void get_opt_max(
 {
     get_arg_dim(&opt->z_max, name, arg);
     opt->have_z_max = true;
+}
+
+static void get_opt_max_simultaneous(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_size(&opt->tree.max_simultaneous, name, arg);
+
+    if (opt->tree.max_simultaneous < 2) {
+        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
+            opt->tree.max_simultaneous);
+        my_exit(1);
+    }
 }
 
 static void get_opt_min(
@@ -774,6 +791,11 @@ cp_get_opt_t opt_list[] = {
     {
         "max",
         get_opt_max,
+        2,
+    },
+    {
+        "max-simultaneous",
+        get_opt_max_simultaneous,
         2,
     },
     {
