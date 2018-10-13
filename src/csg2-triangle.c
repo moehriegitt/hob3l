@@ -615,7 +615,7 @@ static case_t find(
      */
     double z = cp_vec2_right_cross3_z(
         left_e1->coord, p->coord, left_e2->coord);
-    assert(!cp_eq(z, 0));
+    assert(!cp_sqr_eq(z, 0));
     if (z > 0) {
         *s = e1;
         *t = e2;
@@ -765,7 +765,7 @@ static void chain_tri(
         else {
             /* pe--pq--pw is CCW if !back, CW if back. */
             double z = cp_vec2_left_cross3_z(p[back], p[!back], p[2]);
-            if (cp_le(z, 0)) {
+            if (cp_sqr_le(z, 0)) {
                 LOG("collinear: %s %s %s\n",
                     coord_str(p[0]),
                     coord_str(p[1]),

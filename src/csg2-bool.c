@@ -466,11 +466,7 @@ static int pt_cmp_d(
 
 static cp_dim_t rasterize(cp_dim_t v)
 {
-#if 0
-    return v;
-#else
     return cp_pt_epsilon * round(v / cp_pt_epsilon);
-#endif
 }
 
 /**
@@ -818,9 +814,17 @@ static void __divide_segment(
         l->left = false;
     }
 
-    /* For e--r, we cannot handle this case here: blame the caller. */
-    assert((ev_cmp(e,r) < 0) ||
-        CONFESS("%s:%d:\n\tp=%s\n\te=%s\n\tl=%s", file, line, pt_str(p), ev_str(e), ev_str(l)));
+    /* For e--r, if we encounter the same corner case, remove the edges from S
+     * and put it back into Q -- this should work because the edges were adjacent,
+     * we we can process them again. */
+    if (ev_cmp(e, r) > 0) {
+        r->left = true;
+        e->left = false;
+        if (cp_dict_is_member(&e->node_s)) {
+            s_remove(c, e);
+            q_insert(c, e);
+        }
+    }
 
     /* handle new events later */
     q_insert(c, l);
@@ -1059,14 +1063,18 @@ static void chain_add(
     case 3: /* both found: closed */
         /* close chain */
         chain_join(o1, o2);
-        assert(!cp_ring_is_end(&o1->node_chain));
-        assert(!cp_ring_is_end(&o2->node_chain));
-        /* put in poly list */
-        poly_add(c, o2);
-        /* At this point, from o2->in.below and the z normal of the triangle
-         * o1, o2, o2->other, we can derive what is inside and what is
-         * outside. */
-        assert(o1 != o2->other);
+        /* On small scales, points may collapse in unfortunate ways, creating
+         * degenerate polygons.  This filters out a-b* rings. */
+        if (!cp_ring_is_pair(&o1->node_chain, &o2->node_chain)) {
+            assert(!cp_ring_is_end(&o1->node_chain));
+            assert(!cp_ring_is_end(&o2->node_chain));
+            /* put in poly list */
+            poly_add(c, o2);
+            /* At this point, from o2->in.below and the z normal of the triangle
+             * o1, o2, o2->other, we can derive what is inside and what is
+             * outside. */
+            assert(o1 != o2->other);
+        }
         break;
 
     case 1: /* o1 found, o2 not found: connect */
@@ -1188,7 +1196,6 @@ static point_t *find_intersection(
         e0->line.a, e0->line.b, e0->line.swap,
         e1->line.a, e1->line.b, e1->line.swap);
 
-    cp_vec2_t i_orig = i;
     i.x = rasterize(i.x);
     i.y = rasterize(i.y);
 
@@ -1201,36 +1208,10 @@ static point_t *find_intersection(
         return NULL;
     }
 
-    /* Now possibly move the new point so that the relationship between
-     * eX->p and i remains the same as between eX->p and eX->other->p.
-     * If the relationship changes, we are probably very close to a vertical
-     * line, so increase i.x.   This needs to be done before hashing the
-     * point using pt_new.  Other parts of the code rely on the fact that this
-     * is done here, because it may not be changable later.  We only need to do
-     * this if i is close to the left point, because the right ones are
-     * not inserted yet. */
-    int cmp_p0_i = cp_vec2_lex_pt_cmp(&p0->coord, &i);
-    if (cmp_p0_i == 0) {
-        return p0;
-    }
-    assert(cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) < 0);
-    if (cmp_p0_i > 0) {
-        i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
-    }
-    assert((cp_vec2_lex_pt_cmp(&p0->coord, &p0b->coord) == cp_vec2_lex_pt_cmp(&p0->coord, &i)) ||
-        CONFESS("e0=%s, i=%s", ev_str(e0), coord_str(&i)));
-
-    /* same fixing for other edge */
-    int cmp_p1_i = cp_vec2_lex_pt_cmp(&p1->coord, &i);
-    if (cmp_p1_i == 0) {
-        return p1;
-    }
-    assert(cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) < 0);
-    if (cmp_p1_i > 0) {
-        i.x = rasterize(i_orig.x + 1.5*cp_pt_epsilon);
-    }
-    assert((cp_vec2_lex_pt_cmp(&p1->coord, &p1b->coord) == cp_vec2_lex_pt_cmp(&p1->coord, &i)) ||
-        CONFESS("e1=%s, i=%s", ev_str(e1), coord_str(&i)));
+    /* Due to rounding, the relationship between eX->p and i may become different
+     * from the one between eX->p and eX->other->p.  This will be handles in divide_segment
+     * by removing and reinserting edges for reprocessing.
+     */
 
     /* Finally, make a new point (or an old point -- pt_new will check whether we have
      * this already) */
@@ -1275,9 +1256,7 @@ static bool pt_between(
     if (b == c) {
         return true;
     }
-    if (a == b) {
-        return false;
-    }
+    assert(a != c);
     return coord_between(&a->coord, &b->coord, &c->coord);
 }
 
@@ -1312,7 +1291,7 @@ static bool ev4_overlap(
             return true;
         }
         if (pt_between(eh->p, ol->p, oh->p)) { /* (4),(5) */
-            return ol != eh; /* exclude (5) */
+            return ol->p != eh->p; /* exclude (5) */
         }
         /* (7) needs to be checked, so no 'return false' here */
     }
@@ -1322,7 +1301,7 @@ static bool ev4_overlap(
             return true;
         }
         if (pt_between(el->p, oh->p, ol->p)) { /* (9),(10) */
-            return oh != el;
+            return oh->p != el->p;
         }
     }
 
@@ -1390,9 +1369,10 @@ static void check_intersection(
         bool collinear;
         point_t *ip = find_intersection(&collinear, c, el, eh);
 
-        LOG("#intersect = %p %u\n", ip, collinear);
-
         if (ip != NULL) {
+            LOG("Rel: intersect, collinear=%u (%s -- %s)\n",
+                collinear, ev_str(el), ev_str(eh));
+
             /* If the lines meet in one point, it's ok */
             if ((el->p == eh->p) || (ol->p == oh->p)) {
                 return;
@@ -1423,6 +1403,7 @@ static void check_intersection(
         }
 
         /* collinear means parallel here, i.e., no intersection */
+        LOG("Rel: unrelated, parallel=%u (%s -- %s)\n", collinear, ev_str(el), ev_str(eh));
         return;
     }
 
@@ -1447,6 +1428,8 @@ static void check_intersection(
     /* We do not need to care about resetting other->in.below, because it is !left
      * and is not part of S yet, and in.below will be reset upon insertion. */
     if (sev_cnt == 2) {
+        LOG("Rel: overlap same (%s -- %s)\n", ev_str(el), ev_str(eh));
+
         /*  eh.....oh
          *  el.....ol
          */
@@ -1462,6 +1445,8 @@ static void check_intersection(
         return;
     }
     if (sev_cnt == 3) {
+        LOG("Rel: overlap joint end (%s -- %s)\n", ev_str(el), ev_str(eh));
+
         /* sev:  0    1    2
          *       eh........NULL    ; sh == eh, shl == eh
          *            el...NULL
@@ -1510,6 +1495,8 @@ static void check_intersection(
         ((sev[2] == oh) && (sev[3] == ol)));
 
     if (sev[0] != sev[3]->other) {
+        LOG("Rel: overlap opposite ends (%s -- %s)\n", ev_str(el), ev_str(eh));
+
         /*        0   1   2   3
          *            eh......oh
          *        el......ol
@@ -1534,6 +1521,9 @@ static void check_intersection(
         ev_ignore(c, sev[1]);
         return;
     }
+
+    LOG("Rel: overlap subsumed (%s -- %s)\n", ev_str(el), ev_str(eh));
+
 
     /*        0   1   2   3
      *            eh..oh
@@ -1631,6 +1621,8 @@ static void ev_right(
     event_t *sli = e->other;
     event_t *next = s_next(sli);
     event_t *prev = s_prev(sli);
+
+    debug_print_s(c, "right before intersect", e, prev, next);
 
     /* first remove from s */
     LOG("remove_s: %p (%p)\n", e->other, e);
