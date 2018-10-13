@@ -18,24 +18,27 @@
  * Epsilon for identifying point coordinates, i.e., granularity of coordinates
  * of points. */
 extern cp_f_t cp_pt_epsilon;
+
 /**
  * General epsilon for comparisons.
  *
  * Typically the square of cp_pt_epsilon.
  */
-extern cp_f_t cp_equ_epsilon;
+extern cp_f_t cp_eq_epsilon;
+
 /**
  * Epsilon for comparison of squared values, or two coordinates multiplied,
  * or determinants.
  *
- * Typically the square of cp_equ_epsilon.
+ * Typically the square of cp_eq_epsilon.
  */
 extern cp_f_t cp_sqr_epsilon;
+
 /** gcd */
 extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size);
 
 /**
- * Comparison using cp_equ_epsilon
+ * Comparison using cp_eq_epsilon
  *
  * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
  */
@@ -135,29 +138,40 @@ static inline size_t __cp_max_z(size_t a, size_t b)
         *__ap = cp_max(*__ap, __VA_ARGS__); \
     }while(0)
 
-/* comparisons using cp_equ_epsilon */
-static inline bool cp_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_equ_epsilon; }
-static inline bool cp_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_equ_epsilon; }
-static inline bool cp_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_equ_epsilon; }
-static inline bool cp_geq(cp_f_t a, cp_f_t b) { return cp_leq(b,a); }
-static inline bool cp_gt (cp_f_t a, cp_f_t b) { return cp_lt(b,a); }
-static inline int  cp_cmp(cp_f_t a, cp_f_t b) { return cp_equ(a,b) ? 0 : a < b ? -1 : +1; }
+/* comparisons using any epsilon */
+static inline bool cp_e_eq (cp_f_t e, cp_f_t a, cp_f_t b) { return cp_abs(a - b) < e; }
+static inline bool cp_e_le (cp_f_t e, cp_f_t a, cp_f_t b) { return (a - b) < e; }
+static inline bool cp_e_lt (cp_f_t e, cp_f_t a, cp_f_t b) { return (a - b) < -e; }
+static inline bool cp_e_ge (cp_f_t e, cp_f_t a, cp_f_t b) { return cp_e_le(e, b, a); }
+static inline bool cp_e_gt (cp_f_t e, cp_f_t a, cp_f_t b) { return cp_e_lt(e, b, a); }
+static inline int  cp_e_cmp(cp_f_t e, cp_f_t a, cp_f_t b)
+{
+    return cp_e_eq(e, a, b) ? 0 : a < b ? -1 : +1;
+}
+
+/* comparisons using cp_eq_epsilon */
+static inline bool cp_eq (cp_f_t a, cp_f_t b) { return cp_e_eq (cp_eq_epsilon, a, b); }
+static inline bool cp_le (cp_f_t a, cp_f_t b) { return cp_e_le (cp_eq_epsilon, a, b); }
+static inline bool cp_lt (cp_f_t a, cp_f_t b) { return cp_e_lt (cp_eq_epsilon, a, b); }
+static inline bool cp_ge (cp_f_t a, cp_f_t b) { return cp_e_ge (cp_eq_epsilon, a, b); }
+static inline bool cp_gt (cp_f_t a, cp_f_t b) { return cp_e_gt (cp_eq_epsilon, a, b); }
+static inline int  cp_cmp(cp_f_t a, cp_f_t b) { return cp_e_cmp(cp_eq_epsilon, a, b); }
 
 /* comparisons using cp_pt_epsilon */
-static inline bool cp_pt_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_pt_epsilon; }
-static inline bool cp_pt_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_pt_epsilon; }
-static inline bool cp_pt_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_pt_epsilon; }
-static inline bool cp_pt_geq(cp_f_t a, cp_f_t b) { return cp_pt_leq(b,a); }
-static inline bool cp_pt_gt (cp_f_t a, cp_f_t b) { return cp_pt_lt(b,a); }
-static inline int  cp_pt_cmp(cp_f_t a, cp_f_t b) { return cp_pt_equ(a,b) ? 0 : a < b ? -1 : +1; }
+static inline bool cp_pt_eq (cp_f_t a, cp_f_t b) { return cp_e_eq (cp_pt_epsilon, a, b); }
+static inline bool cp_pt_le (cp_f_t a, cp_f_t b) { return cp_e_le (cp_pt_epsilon, a, b); }
+static inline bool cp_pt_lt (cp_f_t a, cp_f_t b) { return cp_e_lt (cp_pt_epsilon, a, b); }
+static inline bool cp_pt_ge (cp_f_t a, cp_f_t b) { return cp_e_ge (cp_pt_epsilon, a, b); }
+static inline bool cp_pt_gt (cp_f_t a, cp_f_t b) { return cp_e_gt (cp_pt_epsilon, a, b); }
+static inline int  cp_pt_cmp(cp_f_t a, cp_f_t b) { return cp_e_cmp(cp_pt_epsilon, a, b); }
 
 /* comparisons using cp_sqr_epsilon */
-static inline bool cp_sqr_equ(cp_f_t a, cp_f_t b) { return cp_abs(a - b) < cp_sqr_epsilon; }
-static inline bool cp_sqr_leq(cp_f_t a, cp_f_t b) { return (a - b) < cp_sqr_epsilon; }
-static inline bool cp_sqr_lt (cp_f_t a, cp_f_t b) { return (a - b) < -cp_sqr_epsilon; }
-static inline bool cp_sqr_geq(cp_f_t a, cp_f_t b) { return cp_sqr_leq(b,a); }
-static inline bool cp_sqr_gt (cp_f_t a, cp_f_t b) { return cp_sqr_lt(b,a); }
-static inline int  cp_sqr_cmp(cp_f_t a, cp_f_t b) { return cp_sqr_equ(a,b) ? 0 : a < b ? -1 : +1; }
+static inline bool cp_sqr_eq (cp_f_t a, cp_f_t b) { return cp_e_eq (cp_sqr_epsilon, a, b); }
+static inline bool cp_sqr_le (cp_f_t a, cp_f_t b) { return cp_e_le (cp_sqr_epsilon, a, b); }
+static inline bool cp_sqr_lt (cp_f_t a, cp_f_t b) { return cp_e_lt (cp_sqr_epsilon, a, b); }
+static inline bool cp_sqr_ge (cp_f_t a, cp_f_t b) { return cp_e_ge (cp_sqr_epsilon, a, b); }
+static inline bool cp_sqr_gt (cp_f_t a, cp_f_t b) { return cp_e_gt (cp_sqr_epsilon, a, b); }
+static inline int  cp_sqr_cmp(cp_f_t a, cp_f_t b) { return cp_e_cmp(cp_sqr_epsilon, a, b); }
 
 static inline size_t cp_wrap_add1(size_t i, size_t n)
 {
@@ -220,7 +234,7 @@ static inline cp_f_t cp_lerp_pm(cp_f_t a, cp_f_t b, cp_f_t t)
  */
 static inline cp_f_t cp_div0(cp_f_t a, cp_f_t b)
 {
-    return cp_equ(b,0) ? 0 : a / b;
+    return cp_eq(b,0) ? 0 : a / b;
 }
 
 /**
@@ -259,7 +273,7 @@ static inline void cp_range_init(
     r->step = step;
     r->min = min;
     r->cnt = 0;
-    long cnt_i = lrint(ceil(((max - min) / step) - cp_equ_epsilon));
+    long cnt_i = lrint(ceil(((max - min) / step) - cp_eq_epsilon));
     if (cnt_i > 0) {
         r->cnt = cnt_i & CP_MAX_OF(cnt_i);
     }

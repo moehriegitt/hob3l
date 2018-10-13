@@ -150,7 +150,7 @@ extern void cp_ps_page_begin(
         "1 setlinejoin\n"
         "%g setlinewidth\n"
         "0 setgray\n"
-        "/Helvetica findfont 18 scalefont setfont\n",
+        "/Helvetica findfont 14 scalefont setfont\n",
         page, page,
         opt->line_width);
 }

@@ -315,7 +315,7 @@ static void dump_ey(
         for (cp_dict_each(_e, c->ey)) {
             edge_t *e = get_ey(_e);
             cp_printf(cp_debug_ps,
-                "0 %g 0 setrgbcolor\n", (e->type % 3) * 0.5);
+                "0 %g 0 setrgbcolor\n", three_steps(e->type));
             cp_printf(cp_debug_ps,
                 "newpath %g %g moveto %g %g lineto stroke\n",
                 CP_PS_XY(*e->src->coord),
@@ -342,7 +342,7 @@ static void dump_ey(
         /* triangles */
         cp_printf(cp_debug_ps, "2 setlinewidth\n");
         for (cp_v_each(i, c->tri)) {
-            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", cp_double(i % 3) * 0.5);
+            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", three_steps(i));
             cp_size3_t *t = &c->tri->data[i];
             cp_vec2_t *p0 = cp_vec2_arr_ref(c->point_arr, t->p[0]);
             cp_vec2_t *p1 = cp_vec2_arr_ref(c->point_arr, t->p[1]);
@@ -382,7 +382,7 @@ static void top_bottom2(
     node_t *u,
     node_t *v)
 {
-    assert(!cp_equ(u->coord->y, v->coord->y));
+    assert(!cp_eq(u->coord->y, v->coord->y));
     if (u->coord->y < v->coord->y) {
         *b = u;
         *t = v;
@@ -501,10 +501,10 @@ static int cmp_ey_pe(
     assert(p != r); /* why can this not happen? */
 
     /* p should be between l and r. */
-    assert(cp_leq(l->x, p->x) && cp_leq(p->x, r->x));
+    assert(cp_le(l->x, p->x) && cp_le(p->x, r->x));
 
     /* equal x coord: compare y coord */
-    if (cp_equ(l->x, r->x)) {
+    if (cp_eq(l->x, r->x)) {
         /* should not be in between l and r: it would mean we have collinear
          * adjacent edges.  It should also not be equal, because then p should
          * be equal to either l or r, and we tested that already above. */
@@ -518,15 +518,15 @@ static int cmp_ey_pe(
     /* get y value at p's x coord: */
     double t01 = cp_t01(l->x, p->x, r->x);
     /* exactify at ends */
-    if (cp_equ(t01, 0)) { t01 = 0; }
-    if (cp_equ(t01, 1)) { t01 = 1; }
+    if (cp_eq(t01, 0)) { t01 = 0; }
+    if (cp_eq(t01, 1)) { t01 = 1; }
     assert(t01 >= 0);
     assert(t01 <= 1);
     double y = cp_lerp(l->y, r->y, t01);
 
     /* p should not be right on the edge, unless equal to an end point,
      * which we checked already. */
-    assert(!cp_equ(p->y, y));
+    assert(!cp_eq(p->y, y));
 
     return p->y < y ? -1 : +1;
 }
@@ -615,7 +615,7 @@ static case_t find(
      */
     double z = cp_vec2_right_cross3_z(
         left_e1->coord, p->coord, left_e2->coord);
-    assert(!cp_equ(z, 0));
+    assert(!cp_eq(z, 0));
     if (z > 0) {
         *s = e1;
         *t = e2;
@@ -765,7 +765,7 @@ static void chain_tri(
         else {
             /* pe--pq--pw is CCW if !back, CW if back. */
             double z = cp_vec2_left_cross3_z(p[back], p[!back], p[2]);
-            if (cp_leq(z, 0)) {
+            if (cp_le(z, 0)) {
                 LOG("collinear: %s %s %s\n",
                     coord_str(p[0]),
                     coord_str(p[1]),
@@ -799,7 +799,7 @@ static void start_lh(
     assert(right(l)->coord == l->src->coord);
     double z = cp_vec2_right_cross3_z(
         l->src->coord, p->coord, h->dst->coord);
-    assert(!cp_sqr_equ(z, 0) ||
+    assert(!cp_sqr_eq(z, 0) ||
         CONFESS("%s--%s--%s => %.13f", node_str(l->src), node_str(p), node_str(h->dst), z));
 
     if (z < 0) {

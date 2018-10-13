@@ -59,4 +59,5 @@ extern void cp_debug_ps_dot(double x, double y, double sz)
             x, y, sz);
     }
 }
+
 #endif /* PSTRACE */

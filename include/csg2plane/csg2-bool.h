@@ -9,13 +9,30 @@
 #include <csg2plane/csg2_tam.h>
 
 /**
- * Boolean operation on two polygons.
+ * Actually reduce a lazy poly to a single poly.
  *
- * This uses the path information, not the triangles.
+ * The result is either empty (r->size == 0) or will have a single entry
+ * (r->size == 1) stored in r->data[0].  If the result is empty, this
+ * ensures that r->data[0] is NULL.
  *
- * 'r' will be overwritten and initialised (it may be passed uninitialised).
+ * Note that because lazy polygon structures have no dedicated space to store
+ * a polygon, so they must reuse the space of the input polygons, so applying
+ * this function with more than 2 polygons in the lazy structure will reuse
+ * space from the polygons for storing the result.
+ */
+extern void cp_csg2_op_reduce(
+    cp_pool_t *pool,
+    cp_csg2_lazy_t *r);
+
+/**
+ * Boolean operation on two lazy polygons.
  *
- * \p a and/or \p b are reused and cleared to construct r.
+ * This does 'r = r op b'.
+ *
+ * Only the path information is used, not the triangles.
+ *
+ * \p r and/or \p b are reused and cleared to construct r.  This may happen
+ * immediately or later in cp_csg2_op_reduce().
  *
  * Uses \p pool for all temporary allocations (but not for constructing r).
  *
@@ -47,17 +64,18 @@
  * Space: O(k)
  * Where
  *     k = n + m + s,
- *     n = number of edges in a,
+ *     n = number of edges in r,
  *     m = number of edges in b,
  *     s = number of intersection points.
+ *
+ * Note: the operation may not actually be performed, but may be delayed until
+ * cp_csg2_apply.  The runtimes are given under the assumption that cp_csg2_apply
+ * follows.  Best case runtime for delaying the operation is O(1).
  */
-extern void cp_csg2_op_poly(
+extern void cp_csg2_op_lazy(
     cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_poly_t *r,
-    cp_loc_t loc,
-    cp_csg2_poly_t *a,
-    cp_csg2_poly_t *b,
+    cp_csg2_lazy_t *r,
+    cp_csg2_lazy_t *b,
     cp_bool_op_t op);
 
 /**
@@ -73,9 +91,8 @@ extern void cp_csg2_op_poly(
  *    k = see cp_csg2_op_poly()
  *    j = number of polygons + number of bool operations in tree
  */
-extern bool cp_csg2_op_add_layer(
+extern void cp_csg2_op_add_layer(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
     size_t zi);

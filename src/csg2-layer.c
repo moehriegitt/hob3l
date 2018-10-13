@@ -109,10 +109,10 @@ static void point_on_edge(
     cp_vec3_t const *src = &e->src->ref->coord;
     cp_vec3_t const *dst = &e->dst->ref->coord;
 
-    assert(!cp_equ(dst->z, src->z));
+    assert(!cp_eq(dst->z, src->z));
     double t01 = cp_t01(src->z, z, dst->z);
-    if (cp_equ(t01, 0)) { t01 = 0; }
-    if (cp_equ(t01, 1)) { t01 = 1; }
+    if (cp_eq(t01, 0)) { t01 = 0; }
+    if (cp_eq(t01, 1)) { t01 = 1; }
     assert(t01 >= 0);
     assert(t01 <= 1);
     p->loc = e->src->loc;
@@ -222,7 +222,7 @@ static unsigned edge_z_cat(
     cp_csg3_edge_t const *e,
     double z)
 {
-    assert(cp_equ(e->src->ref->coord.z, e->dst->ref->coord.z));
+    assert(cp_eq(e->src->ref->coord.z, e->dst->ref->coord.z));
     switch (CMP2(face_cmp_z(f, z), face_cmp_z(edge_buddy_face(f,e), z))) {
     case CMP2(0,0):
     case CMP2(+1,+1):
@@ -283,8 +283,8 @@ static unsigned src_cw_search(
     cp_csg3_edge_t const *e = *e_p;
     for (;;) {
         /* must be below z plane, with src in z plane */
-        assert(cp_equ(edge_src(f,e)->ref->coord.z, z));
-        assert(cp_leq(e->src->ref->coord.z, z));
+        assert(cp_eq(edge_src(f,e)->ref->coord.z, z));
+        assert(cp_le(e->src->ref->coord.z, z));
 
         /* get next edge in CW direction = buddy_of(previous_edge(e)) */
         cp_csg3_edge_t const *e2 = edge_prev(f,e);
@@ -397,7 +397,7 @@ static void edge_find_path(
 
         case CMP2(-1,0):    /* up touching */
             if (h == NULL) {
-                if (cp_leq(edge_dst(f,edge_next(f,e))->ref->coord.z, q->z)) {
+                if (cp_le(edge_dst(f,edge_next(f,e))->ref->coord.z, q->z)) {
                     /* wait for another edge to start the path */
                     return;
                 }

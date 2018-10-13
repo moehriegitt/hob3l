@@ -323,4 +323,34 @@ struct cp_csg2_3edge {
     cp_csg2_3list_t *rm;
 };
 
+/**
+ * Maximum number of polygons to delay.
+ */
+#define CP_CSG2_MAX_LAZY 3
+
+/**
+ * Bitmap to store boolean function
+ */
+typedef union {
+    unsigned char      b[((1U << CP_CSG2_MAX_LAZY) +  7) /  8];
+    unsigned short     s[((1U << CP_CSG2_MAX_LAZY) + 15) / 16];
+    unsigned int       i[((1U << CP_CSG2_MAX_LAZY) + 31) / 32];
+    unsigned long long w[((1U << CP_CSG2_MAX_LAZY) + 63) / 64];
+} cp_csg2_op_bitmap_t;
+
+/**
+ * An unresolved polygon combination.
+ */
+typedef struct {
+    /** Number of polygons to be combined (valid entries in \a data) */
+    size_t size;
+    /** Polygons to be combined */
+    cp_csg2_poly_t *data[CP_CSG2_MAX_LAZY];
+    /**
+     * Boolean combination map to decide from a mask of inside bits for each
+     * polygon whether the result is inside.  This is indexed bitwise with the
+     * mask of bits.  The number of entries is (1U << size) bits. */
+    cp_csg2_op_bitmap_t comb;
+} cp_csg2_lazy_t;
+
 #endif /* __CP_CSG2_TAM_H */

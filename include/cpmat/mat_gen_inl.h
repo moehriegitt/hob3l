@@ -100,91 +100,91 @@ static inline int cp_mat4i_lex_cmp(
     return cp_mat4_lex_cmp(&a->n, &b->n);
 }
 
-static inline bool cp_vec2_equ(
+static inline bool cp_vec2_eq(
     cp_vec2_t const* a,
     cp_vec2_t const* b)
 {
     return cp_vec2_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_vec3_equ(
+static inline bool cp_vec3_eq(
     cp_vec3_t const* a,
     cp_vec3_t const* b)
 {
     return cp_vec3_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_vec4_equ(
+static inline bool cp_vec4_eq(
     cp_vec4_t const* a,
     cp_vec4_t const* b)
 {
     return cp_vec4_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat2_equ(
+static inline bool cp_mat2_eq(
     cp_mat2_t const* a,
     cp_mat2_t const* b)
 {
     return cp_mat2_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat2w_equ(
+static inline bool cp_mat2w_eq(
     cp_mat2w_t const* a,
     cp_mat2w_t const* b)
 {
     return cp_mat2w_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat2i_equ(
+static inline bool cp_mat2i_eq(
     cp_mat2i_t const* a,
     cp_mat2i_t const* b)
 {
     return cp_mat2i_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat2wi_equ(
+static inline bool cp_mat2wi_eq(
     cp_mat2wi_t const* a,
     cp_mat2wi_t const* b)
 {
     return cp_mat2wi_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat3_equ(
+static inline bool cp_mat3_eq(
     cp_mat3_t const* a,
     cp_mat3_t const* b)
 {
     return cp_mat3_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat3w_equ(
+static inline bool cp_mat3w_eq(
     cp_mat3w_t const* a,
     cp_mat3w_t const* b)
 {
     return cp_mat3w_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat3i_equ(
+static inline bool cp_mat3i_eq(
     cp_mat3i_t const* a,
     cp_mat3i_t const* b)
 {
     return cp_mat3i_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat3wi_equ(
+static inline bool cp_mat3wi_eq(
     cp_mat3wi_t const* a,
     cp_mat3wi_t const* b)
 {
     return cp_mat3wi_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat4_equ(
+static inline bool cp_mat4_eq(
     cp_mat4_t const* a,
     cp_mat4_t const* b)
 {
     return cp_mat4_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_mat4i_equ(
+static inline bool cp_mat4i_eq(
     cp_mat4i_t const* a,
     cp_mat4i_t const* b)
 {
@@ -212,21 +212,21 @@ static inline int cp_vec4_lex_pt_cmp(
     return cp_lex_pt_cmp(a->v, b->v, cp_countof(a->v));
 }
 
-static inline bool cp_vec2_pt_equ(
+static inline bool cp_vec2_pt_eq(
     cp_vec2_t const* a,
     cp_vec2_t const* b)
 {
     return cp_vec2_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_vec3_pt_equ(
+static inline bool cp_vec3_pt_eq(
     cp_vec3_t const* a,
     cp_vec3_t const* b)
 {
     return cp_vec3_lex_cmp(a,b) == 0;
 }
 
-static inline bool cp_vec4_pt_equ(
+static inline bool cp_vec4_pt_eq(
     cp_vec4_t const* a,
     cp_vec4_t const* b)
 {
@@ -272,19 +272,19 @@ static inline cp_dim_t cp_vec4_len(
 static inline bool cp_vec2_has_len1(
     cp_vec2_t const* a)
 {
-    return cp_sqr_equ(cp_vec2_sqr_len(a), 1);
+    return cp_sqr_eq(cp_vec2_sqr_len(a), 1);
 }
 
 static inline bool cp_vec3_has_len1(
     cp_vec3_t const* a)
 {
-    return cp_sqr_equ(cp_vec3_sqr_len(a), 1);
+    return cp_sqr_eq(cp_vec3_sqr_len(a), 1);
 }
 
 static inline bool cp_vec4_has_len1(
     cp_vec4_t const* a)
 {
-    return cp_sqr_equ(cp_vec4_sqr_len(a), 1);
+    return cp_sqr_eq(cp_vec4_sqr_len(a), 1);
 }
 
 static inline bool cp_vec2_has_len0_or_1(

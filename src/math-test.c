@@ -197,8 +197,8 @@ extern void cp_math_test(void)
         /* STL facet from Wikipedia: also uses 'left normal' */
         /* This requires an epsilon of 0.02 to work, maybe this is an artistic
          * error or done for some shaping fanciness. */
-        double old_epsilon = cp_equ_epsilon;
-        cp_equ_epsilon = 0.02;
+        double old_epsilon = cp_eq_epsilon;
+        cp_eq_epsilon = 0.02;
 
         cp_vec3_t n = {{ 0.70675, -0.70746, 0 }};
         cp_vec3_t a = {{ 1000, 0, 0 }};
@@ -211,7 +211,7 @@ extern void cp_math_test(void)
         TEST_FEQ(n.y, p.y);
         TEST_FEQ(n.z, p.z);
 
-        cp_equ_epsilon = old_epsilon;
+        cp_eq_epsilon = old_epsilon;
     }
     {
         /* Test of own STL output */

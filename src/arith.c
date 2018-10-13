@@ -5,7 +5,7 @@
 #include <cpmat/arith.h>
 
 cp_f_t cp_pt_epsilon  = CP_PT_EPSILON_DEFAULT;
-cp_f_t cp_equ_epsilon = CP_EQU_EPSILON_DEFAULT;
+cp_f_t cp_eq_epsilon  = CP_EQ_EPSILON_DEFAULT;
 cp_f_t cp_sqr_epsilon = CP_SQR_EPSILON_DEFAULT;
 
 static unsigned cp_gcd_1(unsigned a, unsigned b)
@@ -28,14 +28,14 @@ extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size)
 }
 
 /**
- * Comparison using cp_equ_epsilon
+ * Comparison using cp_eq_epsilon
  *
  * This should be the default way to compare cp_dim_t, cp_scale_t, and cp_f_t.
  */
 extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
-        if (!cp_equ(a[i], b[i])) {
+        if (!cp_eq(a[i], b[i])) {
             return a[i] < b[i] ? -1 : +1;
         }
     }
@@ -51,7 +51,7 @@ extern int cp_lex_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 extern int cp_lex_pt_cmp(cp_f_t const *a, cp_f_t const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
-        if (!cp_pt_equ(a[i], b[i])) {
+        if (!cp_pt_eq(a[i], b[i])) {
             return a[i] < b[i] ? -1 : +1;
         }
     }

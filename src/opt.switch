@@ -71,7 +71,7 @@ help_section "Advanced Options";
 case "gran": dim &cp_pt_epsilon {
     "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
 }
-case "eps": dim &cp_equ_epsilon {
+case "eps": dim &cp_eq_epsilon {
     "generic comparison epsilon (default: 0x1p-15)";
 }
 case "eps2": dim &cp_sqr_epsilon {

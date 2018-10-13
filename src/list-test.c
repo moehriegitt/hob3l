@@ -70,8 +70,7 @@ static void show(num_t *base, num_t *start)
  */
 extern void cp_list_test(void)
 {
-    num_t n[5];
-    TEST_VOID(CP_ZERO(&n));
+    num_t n[5] = {{0}};
 
     TEST_EQ(n[0].next, NULL);
     TEST_EQ(n[0].prev, NULL);

@@ -83,7 +83,7 @@ CFLAGS_DEBUG += -fomit-frame-pointer
 endif
 ifeq ($(SANITIZE),1)
 CFLAGS_DEBUG += -fsanitize=undefined
-# CFLAGS_DEBUG += -fsanitize=address # FIXME: after using pools correctly, debug leaks
+# CFLAGS_DEBUG += -fsanitize=address # currently needs ASAN_OPTIONS=detect-leaks=0
 endif
 ifeq ($(NDEBUG),1)
 CFLAGS_DEBUG += -DNDEBUG
@@ -203,6 +203,7 @@ MOD_C.libcsg2plane.a := \
     csg2-tree.c \
     csg2-layer.c \
     csg2-triangle.c \
+    csg2-bitmap.c \
     csg2-bool.c \
     csg2-2scad.c \
     csg2-2stl.c \
@@ -447,4 +448,4 @@ uninstall:
 
 # check installation by running 'test' with installed binary
 check: clean-test
-	$(MAKE) CSG2PLANE=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) test-triangle
+	$(MAKE) CSG2PLANE=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) no-unit-test

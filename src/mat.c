@@ -127,7 +127,7 @@ extern double cp_mat4_inv(
     cp_sqrdim_t b11 = (m->m[2][2] * m->m[3][3]) - (m->m[3][2] * m->m[2][3]);
 
     cp_dim_t d = (b00 * b11) - (b01 * b10) + (b02 * b09) + (b03 * b08) - (b04 * b07) + (b05 * b06);
-    if (cp_sqr_equ(d,0)) {
+    if (cp_sqr_eq(d,0)) {
         CP_ZERO(r);
         return 0;
     }
@@ -205,7 +205,7 @@ extern double cp_mat3_inv(
 
     cp_dim_t d = (b00 * b11) - (b01 * b10) + (b03 * b08);
 
-    if (cp_sqr_equ(d, 0)) {
+    if (cp_sqr_eq(d, 0)) {
         CP_ZERO(r);
         return 0;
     }
@@ -255,7 +255,7 @@ extern double cp_mat2_inv(
 {
     cp_sqrdim_t d = (m->m[0][0] * m->m[1][1]) - (m->m[1][0] * m->m[0][1]);
 
-    if (cp_sqr_equ(d, 0)) {
+    if (cp_sqr_eq(d, 0)) {
         CP_ZERO(r);
         return 0;
     }
@@ -290,7 +290,7 @@ extern double cp_mat3w_inv(
 
     cp_dim_t d = (b00 * b11) - (b01 * b10) + (b03 * b08);
 
-    if (cp_sqr_equ(d, 0)) {
+    if (cp_sqr_eq(d, 0)) {
         CP_ZERO(r);
         return 0;
     }
@@ -334,7 +334,7 @@ extern double cp_mat2w_inv(
     cp_dim_t b08 = m->w.v[0];
     cp_dim_t b10 = m->w.v[1];
 
-    if (cp_sqr_equ(d, 0)) {
+    if (cp_sqr_eq(d, 0)) {
         CP_ZERO(r);
         return 0;
     }
@@ -369,10 +369,10 @@ extern bool cp_mat3w_from_mat4(
     }
 
     return
-        cp_equ(q->m[3][0], 0) &&
-        cp_equ(q->m[3][1], 0) &&
-        cp_equ(q->m[3][2], 0) &&
-        cp_equ(q->m[3][3], 1);
+        cp_eq(q->m[3][0], 0) &&
+        cp_eq(q->m[3][1], 0) &&
+        cp_eq(q->m[3][2], 0) &&
+        cp_eq(q->m[3][3], 1);
 }
 
 /** Copy 3D matrix into 2D matrix with translation vector, if possible */
@@ -388,9 +388,9 @@ extern bool cp_mat2w_from_mat3(
     }
 
     return
-        cp_equ(q->m[2][0], 0) &&
-        cp_equ(q->m[2][1], 0) &&
-        cp_equ(q->m[2][2], 1);
+        cp_eq(q->m[2][0], 0) &&
+        cp_eq(q->m[2][1], 0) &&
+        cp_eq(q->m[2][2], 1);
 }
 
 /** Copy 3D matrix with translation vector into 4D matrix */
@@ -473,7 +473,7 @@ extern bool cp_mat2i_from_mat2(
     cp_mat2_t n = *q;
     r->n = n;
     r->d = cp_mat2_inv(&r->i, &r->n);
-    return !cp_sqr_equ(r->d, 0);
+    return !cp_sqr_eq(r->d, 0);
 }
 
 /** Copy 3D matrix into 3D matrix w/ inverse, if possible */
@@ -484,7 +484,7 @@ extern bool cp_mat3i_from_mat3(
     cp_mat3_t n = *q;
     r->n = n;
     r->d = cp_mat3_inv(&r->i, &r->n);
-    return !cp_sqr_equ(r->d, 0);
+    return !cp_sqr_eq(r->d, 0);
 }
 
 /** Copy 4D matrix into 4D matrix w/ inverse, if possible */
@@ -495,7 +495,7 @@ extern bool cp_mat4i_from_mat4(
     cp_mat4_t n = *q;
     r->n = n;
     r->d = cp_mat4_inv(&r->i, &r->n);
-    return !cp_sqr_equ(r->d, 0);
+    return !cp_sqr_eq(r->d, 0);
 }
 
 /**
@@ -509,7 +509,7 @@ extern bool cp_mat2wi_from_mat2w(
     cp_mat2w_t n = *q;
     r->n = n;
     r->d = cp_mat2w_inv(&r->i, &r->n);
-    return !cp_sqr_equ(r->d, 0);
+    return !cp_sqr_eq(r->d, 0);
 }
 
 /**
@@ -523,7 +523,7 @@ extern bool cp_mat3wi_from_mat3w(
     cp_mat3w_t n = *q;
     r->n = n;
     r->d = cp_mat3w_inv(&r->i, &r->n);
-    return !cp_sqr_equ(r->d, 0);
+    return !cp_sqr_eq(r->d, 0);
 }
 
 /**
@@ -554,7 +554,7 @@ extern bool cp_vec2_in_line(
      *  <=>  (y2 - y1) * (x3 - x2) == (y3 - y2) * (x2 - x1)
      *
      */
-    return cp_sqr_equ((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x));
+    return cp_sqr_eq((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x));
 }
 
 /**
@@ -567,7 +567,7 @@ extern bool cp_vec3_in_line(
     cp_vec3_t const *p3)
 {
     return
-        cp_sqr_equ((p2->y - p1->y) * (p3->z - p2->z), (p3->y - p2->y) * (p2->z - p1->z)) &&
-        cp_sqr_equ((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x)) &&
-        cp_sqr_equ((p2->z - p1->z) * (p3->x - p2->x), (p3->z - p2->z) * (p2->x - p1->x));
+        cp_sqr_eq((p2->y - p1->y) * (p3->z - p2->z), (p3->y - p2->y) * (p2->z - p1->z)) &&
+        cp_sqr_eq((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x)) &&
+        cp_sqr_eq((p2->z - p1->z) * (p3->x - p2->x), (p3->z - p2->z) * (p2->x - p1->x));
 }

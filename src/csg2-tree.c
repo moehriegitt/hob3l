@@ -114,21 +114,6 @@ static cp_csg2_t *csg2_tree_from_csg3(
 /* extern */
 
 /**
- * Manual initialisation for stack allocated objects.
- *
- * Note: This does not zero the object, this has to be done before (with the
- * right size of the corresponding struct type).
- */
-extern void cp_csg2_init(
-    cp_csg2_t *r,
-    cp_csg2_type_t type,
-    cp_loc_t loc)
-{
-    r->type = type;
-    r->loc = loc;
-}
-
-/**
  * Initialise a cp_csg2_add_t object unless it is initialised
  * already.
  *
@@ -144,7 +129,7 @@ extern void cp_csg2_add_init_perhaps(
     if (r->type == CP_CSG2_ADD) {
         return;
     }
-    cp_csg2_init((cp_csg2_t*)r, CP_CSG2_ADD, loc);
+    CP_CSG2_INIT(r, CP_CSG2_ADD, loc);
 }
 
 /**
@@ -167,7 +152,7 @@ extern cp_csg2_t *__cp_csg2_new(
     assert(type < cp_countof(size));
     assert(size[type] != 0);
     cp_csg2_t *r = cp_calloc(file, line, 1, size[type]);
-    cp_csg2_init(r, type, loc);
+    CP_CSG2_INIT(r, type, loc);
     return r;
 }
 

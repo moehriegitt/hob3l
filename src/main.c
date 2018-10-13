@@ -103,9 +103,7 @@ static bool process_stack(
             return false;
         }
         if (!opt->no_csg) {
-            if (!cp_csg2_op_add_layer(pool, err, csg2b, csg2, i)) {
-                return false;
-            }
+            cp_csg2_op_add_layer(pool, csg2b, csg2, i);
         }
         if (!opt->no_tri) {
             if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
@@ -491,13 +489,13 @@ int main(int argc, char **argv)
     }
 
     /* post-process options */
-    if (cp_equ_epsilon > cp_pt_epsilon) {
-        cp_equ_epsilon = cp_pt_epsilon;
+    if (cp_eq_epsilon > cp_pt_epsilon) {
+        cp_eq_epsilon = cp_pt_epsilon;
     }
-    if (cp_sqr_epsilon > cp_equ_epsilon) {
-        cp_sqr_epsilon = cp_equ_epsilon;
+    if (cp_sqr_epsilon > cp_eq_epsilon) {
+        cp_sqr_epsilon = cp_eq_epsilon;
     }
-    if (!cp_equ(opt.ps_persp,0)) {
+    if (!cp_eq(opt.ps_persp,0)) {
         cp_mat4_t m;
         cp_mat4_unit(&m);
         m.m[3][2] = opt.ps_persp / -1000.0;

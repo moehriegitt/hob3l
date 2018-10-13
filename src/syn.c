@@ -290,6 +290,9 @@ static const char *get_tok_description(
     case ' ': case '\t': case '\r': case '\n':
         return "white space";
 
+    case T_STRING:
+        return "string";
+
     case T_EOF:
         return "end of file";
 
@@ -528,6 +531,7 @@ static bool looking_at_value(
     switch (p->tok_type) {
     case T_INT:
     case T_FLOAT:
+    case T_STRING:
     case T_ID:
     case '[':
         return true;

@@ -36,14 +36,14 @@
     ({ \
         fprintf(stderr, "%s:%d: X %-20s===%s\n", __FILE__, __LINE__, #val, #expr); \
         __typeof__(expr) __res = (expr); \
-        __TEST_CHECK(cp_equ(__res, val), "(" #expr ") === " #val); \
+        __TEST_CHECK(cp_eq(__res, val), "(" #expr ") === " #val); \
     })
 
 #define TEST_FNE(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s!==%s\n", __FILE__, __LINE__, #val, #expr); \
         __typeof__(expr) __res = (expr); \
-        __TEST_CHECK(!cp_equ(__res, val), "(" #expr ") !== " #val); \
+        __TEST_CHECK(!cp_eq(__res, val), "(" #expr ") !== " #val); \
     })
 
 #define TEST_RUN(test) \

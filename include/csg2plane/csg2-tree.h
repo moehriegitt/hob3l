@@ -10,15 +10,17 @@
 #include <csg2plane/csg3_tam.h>
 
 /**
- * Manual initialisation for stack allocated objects.
+ * Manual initialisation of CSG2 objects.
  *
  * Note: This does not zero the object, this has to be done before (with the
  * right size of the corresponding struct type).
  */
-extern void cp_csg2_init(
-    cp_csg2_t *r,
-    cp_csg2_type_t type,
-    cp_loc_t loc);
+#define CP_CSG2_INIT(_r, _type, _loc) \
+    ({ \
+        __typeof__(*(_r)) *__r = (_r); \
+        __r->type = (_type); \
+        __r->loc = (_loc); \
+    })
 
 /**
  * Initialise a cp_csg2_add_t object unless it is initialised

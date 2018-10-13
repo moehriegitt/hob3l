@@ -104,8 +104,7 @@ static void show(cp_ring_t *base, cp_ring_t *a, cp_ring_t *b)
  */
 extern void cp_ring_test(void)
 {
-    cp_ring_t n[5];
-    TEST_VOID(CP_ZERO(&n));
+    cp_ring_t n[5] = {0};
 
     for (cp_arr_each(i, n)) {
         TEST_VOID(cp_ring_init(&n[i]));

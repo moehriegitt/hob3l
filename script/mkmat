@@ -373,7 +373,7 @@ sub gen_lex_cmp_matw($$$)
 
 #### EQU ####
 
-sub gen_equ($$$)
+sub gen_eq($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $p = proto($t, 'bool', $elem, a=>$t, b=>$t);
@@ -412,7 +412,7 @@ sub gen_unit_vec($$$)
     my $s = '';
     $s .= "    X_dim_t l = ${name}_len(a);\n";
     $s .= "    ${name}_div(r, a, l);\n";
-    $s .= "    return !X_sqr_equ(l,0);\n";
+    $s .= "    return !X_sqr_eq(l,0);\n";
     publish_extern($oc, $p, $s);
 }
 
@@ -579,7 +579,7 @@ sub gen_has_len1_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $p = proto($t, 'bool', $elem, a=>$t);
-    my $s = "    return X_sqr_equ(X_$t->{name}_sqr_len(a), 1);\n";
+    my $s = "    return X_sqr_eq(X_$t->{name}_sqr_len(a), 1);\n";
     publish_inline($oc, $p, $s);
 }
 
@@ -591,9 +591,9 @@ sub gen_has_len0_vec($$$)
     my $p = proto($t, 'bool', $elem, a=>$t);
     my $s = '';
     $s .= "    return\n";
-    $s .= "        X_equ(a->v[0], 0)";
+    $s .= "        X_eq(a->v[0], 0)";
     for my $i (1..$t->{dim}-1) {
-        $s .= " &&\n        X_equ(a->v[$i], 0)";
+        $s .= " &&\n        X_eq(a->v[$i], 0)";
     }
     $s .= ";\n";
     publish_extern($oc, $p, $s);
@@ -1395,17 +1395,17 @@ my @gen = (
         matw => \&gen_lex_cmp,
         mati => \&gen_lex_cmp_mati,
     }],
-    ['equ', {
-        vec => \&gen_equ,
-        mat => \&gen_equ,
-        mati => \&gen_equ,
-        matw => \&gen_equ,
+    ['eq', {
+        vec => \&gen_eq,
+        mat => \&gen_eq,
+        mati => \&gen_eq,
+        matw => \&gen_eq,
     }],
     ['lex_pt_cmp', {
         vec => \&gen_lex_cmp,
     }],
-    ['pt_equ', {
-        vec => \&gen_equ,
+    ['pt_eq', {
+        vec => \&gen_eq,
     }],
     ['rev', {
         vec => \&gen_rev_vec,

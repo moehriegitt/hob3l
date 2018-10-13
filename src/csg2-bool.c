@@ -43,6 +43,7 @@
 #include <cpmat/panic.h>
 #include <csg2plane/csg2.h>
 #include <csg2plane/ps.h>
+#include <csg2plane/csg2-bitmap.h>
 #include "internal.h"
 
 /**
@@ -55,7 +56,7 @@
  * 3 = x-coordinate max optimisation => nothing more to do
  * 4 = x-coordinate max optimisation => copy all the rest
  */
-#define OPT 3 /* FIXME: 4 is currently buggy */
+#define OPT 1 /* FIXME: 4 is currently buggy */
 
 typedef enum {
     E_NORMAL,
@@ -220,22 +221,11 @@ typedef struct {
       * may be inserted multiple times) */
     cp_list_t poly;
 
-    /** bounding boxes of polygons */
-    cp_vec2_minmax_t bb[2];
+    /** Bool function bitmap */
+    cp_csg2_op_bitmap_t *comb;
 
-    /** minimal max x coordinate of input polygons */
-    cp_dim_t minmaxx;
-
-    /** io: which bool operation? */
-    cp_bool_op_t op;
-
-    /** in: mark of all negated polygons */
-    size_t mask_neg;
-
-    /** in: mark of all polygons */
-    size_t mask_all;
-
-    /** current z height (for debugging) */
+    /** Number of valid bits in comb */
+    size_t comb_size;
 } ctxt_t;
 
 __unused
@@ -283,14 +273,14 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
         return "NULL";
     }
     if (x->left) {
-        snprintf(s, n, "#("FD2"--"FD2")  %#"_Pz"x %#"_Pz"x",
+        snprintf(s, n, "#("FD2"--"FD2")  o0x%"_Pz"x b0x%"_Pz"x",
             CP_V01(x->p->coord),
             CP_V01(x->other->p->coord),
             x->in.owner,
             x->in.below);
     }
     else {
-        snprintf(s, n, " ("FD2"--"FD2")# %#"_Pz"x %#"_Pz"x",
+        snprintf(s, n, " ("FD2"--"FD2")# o0x%"_Pz"x b0x%"_Pz"x",
             CP_V01(x->other->p->coord),
             CP_V01(x->p->coord),
             x->in.owner,
@@ -361,7 +351,9 @@ static void debug_print_chain(
 static void debug_print_s(
     ctxt_t *c,
     char const *msg,
-    event_t *es)
+    event_t *es,
+    event_t *epr __unused,
+    event_t *ene __unused)
 {
 #if DEBUG
     LOG("S %s\n", msg);
@@ -376,7 +368,9 @@ static void debug_print_s(
     if (cp_debug_ps_page_begin()) {
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (CSG: %s) show\n", msg);
-        cp_printf(cp_debug_ps, "30 55 moveto (%s) show\n", ev_str(es));
+        cp_printf(cp_debug_ps, "30 45 moveto (%s =prev) show\n", epr ? ev_str(epr) : "NULL");
+        cp_printf(cp_debug_ps, "30 60 moveto (%s =this) show\n", es  ? ev_str(es)  : "NULL");
+        cp_printf(cp_debug_ps, "30 75 moveto (%s =next) show\n", ene ? ev_str(ene) : "NULL");
 
         /* sweep line */
         cp_printf(cp_debug_ps, "0.8 setgray 1 setlinewidth\n");
@@ -404,7 +398,7 @@ static void debug_print_s(
         for (cp_dict_each(_e, c->s)) {
             event_t *e = CP_BOX_OF(_e, event_t, node_s);
             cp_printf(cp_debug_ps,
-                "0 %g 0 setrgbcolor\n", cp_double(i % 3) * 0.5);
+                "0 %g 0 setrgbcolor\n", three_steps(i));
             cp_debug_ps_dot(CP_PS_XY(e->p->coord), 3);
             cp_printf(cp_debug_ps,
                 "newpath %g %g moveto %g %g lineto stroke\n",
@@ -417,7 +411,7 @@ static void debug_print_s(
         cp_printf(cp_debug_ps, "4 setlinewidth\n");
         i = 0;
         for (cp_dict_each(_e, c->end)) {
-            cp_printf(cp_debug_ps, "1 %g 0 setrgbcolor\n", cp_double(i % 3) * 0.3);
+            cp_printf(cp_debug_ps, "1 %g 0 setrgbcolor\n", three_steps(i) * 0.6);
             event_t *e0 = CP_BOX_OF(_e, event_t, node_end);
             cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
             debug_print_chain(e0, cp_debug_ps_page_cnt);
@@ -428,7 +422,7 @@ static void debug_print_s(
         cp_printf(cp_debug_ps, "2 setlinewidth\n");
         i = 0;
         for (cp_list_each(_e, &c->poly)) {
-            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", cp_double(i % 3) * 0.5);
+            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", three_steps(i));
             event_t *e0 = CP_BOX_OF(_e, event_t, node_poly);
             cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
             debug_print_chain(e0, ~cp_debug_ps_page_cnt);
@@ -495,8 +489,8 @@ static point_t *pt_new(
     };
 
     /* normalise coordinates around 0 to avoid funny floats */
-    if (cp_equ(coord.x, 0)) { coord.x = 0; }
-    if (cp_equ(coord.y, 0)) { coord.y = 0; }
+    if (cp_eq(coord.x, 0)) { coord.x = 0; }
+    if (cp_eq(coord.y, 0)) { coord.y = 0; }
 
     cp_dict_ref_t ref;
     cp_dict_t *pt = cp_dict_find_ref(&ref, &coord, c->pt, pt_cmp_d, NULL, 0);
@@ -509,7 +503,7 @@ static point_t *pt_new(
     p->coord = coord;
     p->idx = CP_SIZE_MAX;
 
-    LOG("new pt: %s\n", pt_str(p));
+    LOG("new pt: %s (orig: "FD2")\n", pt_str(p), CP_V01(*_coord));
 
     cp_dict_insert_ref(&p->node_pt, &ref, &c->pt);
     return p;
@@ -673,6 +667,18 @@ static void q_insert(
     cp_dict_insert(&e->node_q, &c->q, ev_cmp_q, NULL, 1);
 }
 
+static void q_remove(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_remove(&e->node_q, &c->q);
+}
+
+static inline event_t *q_extract_min(ctxt_t *c)
+{
+    return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
+}
+
 static void s_insert(
     ctxt_t *c,
     event_t *e)
@@ -703,7 +709,7 @@ static void q_add_orig(
     cp_loc_t loc,
     cp_vec2_t *coord1,
     cp_vec2_t *coord2,
-    unsigned poly_id)
+    size_t poly_id)
 {
     point_t *p1 = pt_new(c, loc, coord1);
     point_t *p2 = pt_new(c, loc, coord2);
@@ -733,8 +739,8 @@ static void q_add_orig(
     e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
     e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
     e1->line.b = LINE_Y(e1, &e1->p->coord) - (e1->line.a * LINE_X(e1, &e1->p->coord));
-    assert(cp_leq(e1->line.a, +1));
-    assert(cp_geq(e1->line.a, -1) ||
+    assert(cp_le(e1->line.a, +1));
+    assert(cp_ge(e1->line.a, -1) ||
         CONFESS("a=%g (%g,%g--%g,%g)",
             e1->line.a, e1->p->coord.x, e1->p->coord.y, e2->p->coord.x, e2->p->coord.y));
 
@@ -745,9 +751,9 @@ static void q_add_orig(
     /* check computation */
     cp_vec2_t g;
     get_coord_on_line(&g, e1, &e2->p->coord);
-    assert(cp_vec2_equ(&g, &e2->p->coord));
+    assert(cp_vec2_eq(&g, &e2->p->coord));
     get_coord_on_line(&g, e2, &e1->p->coord);
-    assert(cp_vec2_equ(&g, &e1->p->coord));
+    assert(cp_vec2_eq(&g, &e1->p->coord));
 #endif
 
     /* Insert.  For 'equal' entries, order does not matter */
@@ -959,7 +965,7 @@ static void poly_make(
     cp_loc_t loc)
 {
     CP_ZERO(r);
-    cp_csg2_init((cp_csg2_t*)r, CP_CSG2_POLY, loc);
+    CP_CSG2_INIT(r, CP_CSG2_POLY, loc);
 
     assert((c->end == NULL) && "Some poly chains are still open");
 
@@ -1111,21 +1117,21 @@ static void intersection_point(
     /* ka is closer to +-1 than ma; ma is closer to 0 than ka */
 
     if (ks != ms) {
-        if (cp_equ(ma,0)) {
+        if (cp_eq(ma,0)) {
             _LINE_X(ks,r) = mb;
             _LINE_Y(ks,r) = (ka * mb) + kb;
             return;
         }
         /* need to switch one of the two into opposite axis.  better do this
          * with ka/kb/ks, because we're closer to +-1 there */
-        assert(!cp_equ(ka,0));
+        assert(!cp_eq(ka,0));
         ka = 1/ka;
         kb *= -ka;
         ks = ms;
     }
 
-    assert(!cp_equ(ka, ma) && "parallel lines should be handled in find_intersection, not here");
-    assert((ks == ms) || cp_equ(ma,0));
+    assert(!cp_eq(ka, ma) && "parallel lines should be handled in find_intersection, not here");
+    assert((ks == ms) || cp_eq(ma,0));
     double q = (mb - kb) / (ka - ma);
     _LINE_X(ks,r) = q;
     _LINE_Y(ks,r) = (ka * q) + kb;
@@ -1133,7 +1139,7 @@ static void intersection_point(
 
 static bool dim_between(cp_dim_t a, cp_dim_t b, cp_dim_t c)
 {
-    return (a < c) ? (cp_leq(a,b) && cp_leq(b,c)) : (cp_geq(a,b) && cp_geq(b,c));
+    return (a < c) ? (cp_le(a,b) && cp_le(b,c)) : (cp_ge(a,b) && cp_ge(b,c));
 }
 
 /**
@@ -1169,9 +1175,9 @@ static point_t *find_intersection(
      * no errors add up. */
 
     /* parallel/collinear? */
-    if ((e0->line.swap == e1->line.swap) && cp_equ(e0->line.a, e1->line.a)) {
+    if ((e0->line.swap == e1->line.swap) && cp_eq(e0->line.a, e1->line.a)) {
         /* properly parallel? */
-        *collinear = cp_equ(e0->line.b, e1->line.b);
+        *collinear = cp_eq(e0->line.b, e1->line.b);
         return NULL;
     }
 
@@ -1245,16 +1251,16 @@ static bool coord_between(
     cp_dim_t dx = c->x - a->x;
     cp_dim_t dy = c->y - a->y;
     if (fabs(dx) > fabs(dy)) {
-        assert(!cp_pt_equ(a->x, c->x));
+        assert(!cp_pt_eq(a->x, c->x));
         cp_dim_t t = (b->x - a->x) / dx;
         cp_dim_t y = a->y + (t * dy);
-        return cp_pt_equ(y, b->y);
+        return cp_e_eq(cp_pt_epsilon * 1.5, y, b->y);
     }
     else {
-        assert(!cp_pt_equ(a->y, c->y));
+        assert(!cp_pt_eq(a->y, c->y));
         cp_dim_t t = (b->y - a->y) / dy;
         cp_dim_t x = a->x + (t * dx);
-        return cp_pt_equ(x, b->x);
+        return cp_e_eq(cp_pt_epsilon * 1.5, x, b->x);
     }
 }
 
@@ -1323,6 +1329,26 @@ static bool ev4_overlap(
     return false;
 }
 
+static void ev_ignore(
+    ctxt_t *c,
+    event_t *e)
+{
+    assert(e->in.owner == 0);
+    assert(e->other->in.owner == 0);
+    if (cp_dict_is_member(&e->node_s)) {
+        s_remove(c, e);
+    }
+    if (cp_dict_is_member(&e->other->node_s)) {
+        s_remove(c, e->other);
+    }
+    if (cp_dict_is_member(&e->node_q)) {
+        q_remove(c, e);
+    }
+    if (cp_dict_is_member(&e->other->node_q)) {
+        q_remove(c, e->other);
+    }
+}
+
 static void check_intersection(
     ctxt_t *c,
     /** the lower edge in s */
@@ -1353,7 +1379,7 @@ static void check_intersection(
      * will not overlap.
      *
      * The whole 'overlap' check explicitly does not use the 'normal_z' or 'line.a'
-     * checks to really base this on cp_pt_equ().
+     * checks to really base this on cp_pt_eq().
      *
      * Now, if el and eh are indeed overlapping, Whether el or eh is the 'upper' edge
      * may have been decided based on a rounding error, so either case must be handled
@@ -1376,7 +1402,7 @@ static void check_intersection(
                 /* This means that we need to reclassify the upper line again (which
                  * we thought was below, but due to rounding, it now turns out to be
                  * completely above).  The easiest is to remove it again from S
-                 * and through it back into Q to try again later. */
+                 * and throw it back into Q to try again later. */
                 s_remove(c, el);
                 q_insert(c, el);
             }
@@ -1396,10 +1422,8 @@ static void check_intersection(
             return;
         }
 
-        if (!collinear) {
-            return;
-        }
-        assert(0);
+        /* collinear means parallel here, i.e., no intersection */
+        return;
     }
 
     /* check */
@@ -1434,6 +1458,7 @@ static void check_intersection(
         el->in.owner = ol->in.owner = 0;
         assert(el->in.below == below);
 
+        ev_ignore(c, el);
         return;
     }
     if (sev_cnt == 3) {
@@ -1467,6 +1492,8 @@ static void check_intersection(
         }
 
         divide_segment(c, shl, sev[1]->p);
+
+        ev_ignore(c, sev[1]);
         return;
     }
 
@@ -1503,6 +1530,8 @@ static void check_intersection(
 
         divide_segment(c, sev[0], sev[1]->p);
         divide_segment(c, sev[1], sev[2]->p);
+
+        ev_ignore(c, sev[1]);
         return;
     }
 
@@ -1527,6 +1556,8 @@ static void check_intersection(
     sev[3]->other->in.owner = owner;
     sev[3]->other->in.below = below;
     divide_segment(c, sev[3]->other, sev[2]->p);
+
+    ev_ignore(c, sev[1]);
 }
 
 static inline event_t *s_next(
@@ -1557,6 +1588,7 @@ static void ev_left(
     s_insert(c, e);
 
     event_t *prev = s_prev(e);
+    event_t *next = s_next(e);
     assert(e->left);
     assert((prev == NULL) || prev->left);
 
@@ -1569,9 +1601,8 @@ static void ev_left(
         e->in.below = prev->in.below ^ prev->in.owner;
     }
 
-    debug_print_s(c, "left after insert", e);
+    debug_print_s(c, "left after insert", e, prev, next);
 
-    event_t *next = s_next(e);
     if (next != NULL) {
         check_intersection(c, e, next);
     }
@@ -1582,20 +1613,15 @@ static void ev_left(
         check_intersection(c, prev, e);
     }
 
-    debug_print_s(c, "left after intersect", e);
+    debug_print_s(c, "left after intersect", e, prev, next);
 }
 
-static bool odd_parity(size_t s)
+static bool op_bitmap_get(
+    ctxt_t *c,
+    size_t i)
 {
-    s ^= s << 1;
-    s ^= s << 2;
-    s ^= s << 4;
-    s ^= s << 8;
-    s ^= s << 16;
-#if __SIZEOF_POINTER__ == 8
-    s ^= s << 32;
-#endif
-    return s & 1;
+    assert(i < c->comb_size);
+    return cp_csg2_op_bitmap_get(c->comb, i);
 }
 
 static void ev_right(
@@ -1613,41 +1639,10 @@ static void ev_right(
     assert(!cp_dict_is_member(&e->other->node_s));
 
     /* now add to out */
-    /*
-     * xor is done: popcount(owner)&1 ==  1
-     *
-     * Others are done by comparing below and above masks: if both lead to different
-     * results about in/out, then we need this edge.
-     *
-     *                         ~(ab)==00   ab!=00   ~(ab)^1==00   popcount(owner)&1==1
-     *    ab  ~(ab)  ~(ab)^1   a&b         a|b      a&~b          xor
-     *    00  11     10        0           0        0
-     *    01  10     11        0           1        0
-     *    10  01     00        0           1        1
-     *    11  00     01        1           1        0
-     */
-    size_t below = sli->in.below;
-    size_t above = sli->in.below ^ sli->in.owner;
-    bool below_in = false;
-    bool above_in = false;
-    switch (c->op) {
-    case CP_OP_ADD:
-        below_in = (below != 0);
-        above_in = (above != 0);
-        break;
-
-    case CP_OP_CUT:
-    case CP_OP_SUB:
-        below_in = ((below ^ c->mask_neg ^ c->mask_all) == 0);
-        above_in = ((above ^ c->mask_neg ^ c->mask_all) == 0);
-        break;
-
-    case CP_OP_XOR:
-        below_in = odd_parity(below);
-        above_in = odd_parity(above);
-        break;
-    }
+    bool below_in = op_bitmap_get(c, sli->in.below);
+    bool above_in = op_bitmap_get(c, sli->in.below ^ sli->in.owner);
     if (below_in != above_in) {
+        assert(sli->in.owner != 0);
         e->in.below = e->other->in.below = below_in;
         chain_add(c, e);
     }
@@ -1656,285 +1651,191 @@ static void ev_right(
         check_intersection(c, prev, next);
     }
 
-    debug_print_s(c, "right after intersect", e);
+    debug_print_s(c, "right after intersect", e, prev, next);
 }
 
-static inline event_t *q_extract_min(ctxt_t *c)
-{
-    return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
-}
-
-static bool csg2_op_poly(
-    cp_csg2_poly_t *o,
+static void csg2_op_poly(
+    cp_csg2_lazy_t *o,
     cp_csg2_poly_t *a)
 {
-    TRACE();
-    CP_SWAP(o, a);
-    return true;
+    assert(cp_mem_is0(o, sizeof(*o)));
+    if (a->path.size > 0) {
+        o->size = 1;
+        o->data[0] = a;
+        o->comb.b[0] = 2; /* == 0b10 */
+    }
 }
 
-static bool csg2_op_csg2(
+static void csg2_op_csg2(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t *o,
     cp_csg2_t *a);
 
-#define AUTO_POLY(oi, loc) \
-    cp_csg2_poly_t oi; \
-    CP_ZERO(&oi); \
-    cp_csg2_init((cp_csg2_t*)&oi, CP_CSG2_POLY, loc);
-
-static bool csg2_op_v_csg2(
+static void csg2_op_v_csg2(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
-    cp_loc_t loc,
+    cp_csg2_lazy_t *o,
     cp_v_csg2_p_t *a)
 {
     TRACE("n=%"_Pz"u", a->size);
+    assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, a)) {
         cp_csg2_t *ai = cp_v_nth(a,i);
-
         if (i == 0) {
-            if (!csg2_op_csg2(pool, t, r, zi, o, ai)) {
-                return false;
-            }
+            csg2_op_csg2(pool, r, zi, o, ai);
         }
         else {
-            AUTO_POLY(oi, ai->loc);
-            if (!csg2_op_csg2(pool, t, r, zi, &oi, ai)) {
-                return false;
-            }
-
-            cp_csg2_op_poly(pool, t, o, loc, o, &oi, CP_OP_ADD);
+            cp_csg2_lazy_t oi = { 0 };
+            csg2_op_csg2(pool, r, zi, &oi, ai);
+            LOG("ADD\n");
+            cp_csg2_op_lazy(pool, o, &oi, CP_OP_ADD);
         }
     }
-    return true;
 }
 
-static bool csg2_op_add(
+static void csg2_op_add(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t *o,
     cp_csg2_add_t *a)
 {
     TRACE();
-    return csg2_op_v_csg2(pool, t, r, zi, o, a->loc, &a->add);
+    assert(cp_mem_is0(o, sizeof(*o)));
+    csg2_op_v_csg2(pool, r, zi, o, &a->add);
 }
 
-static bool csg2_op_layer(
+static void csg2_op_cut(
     cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_tree_t *r,
-    cp_csg2_poly_t *o,
-    cp_csg2_layer_t *a)
-{
-    TRACE();
-    return csg2_op_add(pool, t, r, a->zi, o, &a->root);
-}
-
-static bool csg2_op_sub(
-    cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
-    cp_csg2_sub_t *a)
-{
-    TRACE();
-    if (!csg2_op_add(pool, t, r, zi, o, &a->add)) {
-        return false;
-    }
-
-    AUTO_POLY(os, a->sub.loc);
-    if (!csg2_op_add(pool, t, r, zi, &os, &a->sub)) {
-        return false;
-    }
-
-    cp_csg2_op_poly(pool, t, o, a->loc, o, &os, CP_OP_SUB);
-    return true;
-}
-
-static bool csg2_op_cut(
-    cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t *o,
     cp_csg2_cut_t *a)
 {
     TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, &a->cut)) {
         cp_csg2_add_t *b = cp_v_nth(&a->cut, i);
         if (i == 0) {
-            if (!csg2_op_add(pool, t, r, zi, o, b)) {
-                return false;
-            }
+            csg2_op_add(pool, r, zi, o, b);
         }
         else {
-            AUTO_POLY(oc, b->loc);
-            if (!csg2_op_add(pool, t, r, zi, &oc, b)) {
-                return false;
-            }
-            cp_csg2_op_poly(pool, t, o, b->loc, o, &oc, CP_OP_CUT);
+            cp_csg2_lazy_t oc = {0};
+            csg2_op_add(pool, r, zi, &oc, b);
+            LOG("CUT\n");
+            cp_csg2_op_lazy(pool, o, &oc, CP_OP_CUT);
         }
     }
-
-    return true;
 }
 
-static bool csg2_op_stack(
+static void csg2_op_layer(
     cp_pool_t *pool,
-    cp_err_t *t,
+    cp_csg2_tree_t *r,
+    cp_csg2_lazy_t *o,
+    cp_csg2_layer_t *a)
+{
+    TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
+    csg2_op_add(pool, r, a->zi, o, &a->root);
+}
+
+static void csg2_op_sub(
+    cp_pool_t *pool,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t *o,
+    cp_csg2_sub_t *a)
+{
+    TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
+    csg2_op_add(pool, r, zi, o, &a->add);
+
+    cp_csg2_lazy_t os = {0};
+    csg2_op_add(pool, r, zi, &os, &a->sub);
+    LOG("SUB\n");
+    cp_csg2_op_lazy(pool, o, &os, CP_OP_SUB);
+}
+
+static void csg2_op_stack(
+    cp_pool_t *pool,
+    cp_csg2_tree_t *r,
+    size_t zi,
+    cp_csg2_lazy_t *o,
     cp_csg2_stack_t *a)
 {
     TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
 
     cp_csg2_layer_t *l = cp_csg2_stack_get_layer(a, zi);
     if (l == NULL) {
-        return true;
+        return;
     }
     if (zi != l->zi) {
         assert(l->zi == 0); /* not visited: must be empty */
-        return true;
+        return;
     }
 
     assert(zi == l->zi);
-    return csg2_op_layer(pool, t, r, o, l);
+    csg2_op_layer(pool, r, o, l);
 }
 
-static bool csg2_op_csg2(
+static void csg2_op_csg2(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi,
-    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t *o,
     cp_csg2_t *a)
 {
     TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
     switch (a->type) {
     case CP_CSG2_CIRCLE:
         CP_NYI("circle");
-        return false;
+        CP_ZERO(o);
+        return;
 
     case CP_CSG2_POLY:
-        return csg2_op_poly(o, cp_csg2_poly(a));
+        csg2_op_poly(o, cp_csg2_poly(a));
+        return;
 
     case CP_CSG2_ADD:
-        return csg2_op_add(pool, t, r, zi, o, cp_csg2_add(a));
+        csg2_op_add(pool, r, zi, o, cp_csg2_add(a));
+        return;
 
     case CP_CSG2_SUB:
-        return csg2_op_sub(pool, t, r, zi, o, cp_csg2_sub(a));
+        csg2_op_sub(pool, r, zi, o, cp_csg2_sub(a));
+        return;
 
     case CP_CSG2_CUT:
-        return csg2_op_cut(pool, t, r, zi, o, cp_csg2_cut(a));
+        csg2_op_cut(pool, r, zi, o, cp_csg2_cut(a));
+        return;
 
     case CP_CSG2_STACK:
-        return csg2_op_stack(pool, t, r, zi, o, cp_csg2_stack(a));
+        csg2_op_stack(pool, r, zi, o, cp_csg2_stack(a));
+        return;
     }
 
     CP_DIE("2D object type");
-    return false;
+    CP_ZERO(o);
 }
 
-/* ********************************************************************** */
-/* extern */
-
-/**
- * Boolean operation on two polygons.
- *
- * This uses the path information, not the triangles.
- *
- * 'r' will be overwritten and initialised (it may be passed uninitialised).
- *
- * \p a and/or \p b are reused and cleared to construct r.
- *
- * Uses \p pool for all temporary allocations (but not for constructing r).
- *
- * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
- * Bentley-Ottmann plain sweep.  The algorithm is modified:
- *
- * (1) The original algorithm (both paper and sample implementation)
- *     does not focus on reassembling into polygons the sequence of edges
- *     the algorithm produces.  This library replaces the polygon
- *     reassembling by an O(n log n) algorithm.
- *
- * (2) The original algorithm's in/out determination strategy is not
- *     extensible to processing multiple polygons in one algorithm run.
- *     It was replaceds by a bitmask xor based algorithm.  This also lifts
- *     the restriction that no self-overlapping polygons may exist.
- *
- * (3) There is handling of corner cases in than what Martinez implemented.
- *     The float business is really tricky...
- *
- * (4) Intersection points are always computed from the original line slope
- *     and offset to avoid adding up rounding errors for edges with many
- *     intersections.
- *
- * (5) Float operations have all been mapped to epsilon aware versions.
- *     (The reference implementation failed on one of my tests because of
- *     using plain floating point '<' comparison.)
- *
- * Runtime: O(k log k),
- * Space: O(k)
- * Where
- *     k = n + m + s,
- *     n = number of edges in a,
- *     m = number of edges in b,
- *     s = number of intersection points.
- */
-extern void cp_csg2_op_poly(
+static void cp_csg2_op_poly(
     cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_poly_t *r,
-    cp_loc_t loc,
-    cp_csg2_poly_t *a,
-    cp_csg2_poly_t *b,
-    cp_bool_op_t op)
+    cp_csg2_lazy_t *r)
 {
-    TRACE("#a.path=%"_Pz"u #b.path=%"_Pz"u", a->path.size, b->path.size);
-
-#if OPT >= 1
-    /* trivial case: empty polygon */
-    if ((a->path.size == 0) || (b->path.size == 0)) {
-        LOG("one polygon is empty\n");
-        switch (op) {
-        case CP_OP_CUT:
-            return;
-
-        case CP_OP_SUB:
-            CP_SWAP(r, a);
-            return;
-
-        case CP_OP_ADD:
-        case CP_OP_XOR:
-            CP_SWAP(r, a->path.size == 0 ? b : a);
-            return;
-        }
-        CP_DIE("Unrecognised operation");
-    }
-#endif
-
+    TRACE();
     /* make context */
     ctxt_t c = {
         .pool = pool,
-        .err = t,
-        .op = op,
-        .bb = { CP_MINMAX_EMPTY, CP_MINMAX_EMPTY },
-        .mask_all = 3,
-        .mask_neg = (op == CP_OP_SUB) ? 2 : 0,
+        .comb = &r->comb,
+        .comb_size = (1U << r->size),
     };
     cp_list_init(&c.poly);
 
+#if 0
     /* trivial case: bounding box does not overlap */
     cp_csg2_poly_minmax(&c.bb[0], a);
     cp_csg2_poly_minmax(&c.bb[1], b);
@@ -1964,24 +1865,19 @@ extern void cp_csg2_op_poly(
         assert(0 && "Unrecognised operation");
     }
 #endif
+#endif
 
     /* initialise queue */
-    LOG("poly 0: #path=%"_Pz"u\n", a->path.size);
-    for (cp_v_each(i, &a->path)) {
-        cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            cp_vec2_loc_t *pj = cp_csg2_path_nth(a, p, j);
-            cp_vec2_loc_t *pk = cp_csg2_path_nth(a, p, cp_wrap_add1(j, p->point_idx.size));
-            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 0);
-        }
-    }
-    LOG("poly 1: #path=%"_Pz"u\n", b->path.size);
-    for (cp_v_each(i, &b->path)) {
-        cp_csg2_path_t *p = &cp_v_nth(&b->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            cp_vec2_loc_t *pj = cp_csg2_path_nth(b, p, j);
-            cp_vec2_loc_t *pk = cp_csg2_path_nth(b, p, cp_wrap_add1(j, p->point_idx.size));
-            q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, 1);
+    for (cp_size_each(m, r->size)) {
+        cp_csg2_poly_t *a = r->data[m];
+        LOG("poly %"_Pz"d: #path=%"_Pz"u\n", m, a->path.size);
+        for (cp_v_each(i, &a->path)) {
+            cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
+            for (cp_v_each(j, &p->point_idx)) {
+                cp_vec2_loc_t *pj = cp_csg2_path_nth(a, p, j);
+                cp_vec2_loc_t *pk = cp_csg2_path_nth(a, p, cp_wrap_add1(j, p->point_idx.size));
+                q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, m);
+            }
         }
     }
     LOG("start\n");
@@ -1994,7 +1890,7 @@ extern void cp_csg2_op_poly(
             break;
         }
 
-        LOG("\nevent %"_Pz"u: %s o=(%#"_Pz"x %#"_Pz"x)\n",
+        LOG("\nevent %"_Pz"u: %s o=(0x%"_Pz"x 0x%"_Pz"x)\n",
             ++ev_cnt,
             ev_str(e),
             e->other->in.owner,
@@ -2037,7 +1933,153 @@ extern void cp_csg2_op_poly(
         }
     }
 
-    poly_make(r, &c, loc);
+    poly_make(r->data[0], &c, r->data[0]->loc);
+    if (r->data[0]->point.size == 0) {
+        CP_ZERO(r);
+        return;
+    }
+    r->size = 1;
+    r->comb.b[0] = 2;
+}
+
+/* ********************************************************************** */
+/* extern */
+
+/**
+ * Actually reduce a lazy poly to a single poly.
+ *
+ * The result is either empty (r->size == 0) or will have a single entry
+ * (r->size == 1) stored in r->data[0].  If the result is empty, this
+ * ensures that r->data[0] is NULL.
+ *
+ * Note that because lazy polygon structures have no dedicated space to store
+ * a polygon, so they must reuse the space of the input polygons, so applying
+ * this function with more than 2 polygons in the lazy structure will reuse
+ * space from the polygons for storing the result.
+ */
+extern void cp_csg2_op_reduce(
+    cp_pool_t *pool,
+    cp_csg2_lazy_t *r)
+{
+    TRACE();
+    if (r->size <= 1) {
+        return;
+    }
+    cp_csg2_op_poly(pool, r);
+}
+
+/**
+ * Boolean operation on two lazy polygons.
+ *
+ * This does 'r = r op b'.
+ *
+ * Only the path information is used, not the triangles.
+ *
+ * \p r and/or \p b are reused and cleared to construct r.  This may happen
+ * immediately or later in cp_csg2_op_reduce().
+ *
+ * Uses \p pool for all temporary allocations (but not for constructing r).
+ *
+ * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
+ * Bentley-Ottmann plain sweep.  The algorithm is modified:
+ *
+ * (1) The original algorithm (both paper and sample implementation)
+ *     does not focus on reassembling into polygons the sequence of edges
+ *     the algorithm produces.  This library replaces the polygon
+ *     reassembling by an O(n log n) algorithm.
+ *
+ * (2) The original algorithm's in/out determination strategy is not
+ *     extensible to processing multiple polygons in one algorithm run.
+ *     It was replaceds by a bitmask xor based algorithm.  This also lifts
+ *     the restriction that no self-overlapping polygons may exist.
+ *
+ * (3) There is handling of corner cases in than what Martinez implemented.
+ *     The float business is really tricky...
+ *
+ * (4) Intersection points are always computed from the original line slope
+ *     and offset to avoid adding up rounding errors for edges with many
+ *     intersections.
+ *
+ * (5) Float operations have all been mapped to epsilon aware versions.
+ *     (The reference implementation failed on one of my tests because of
+ *     using plain floating point '<' comparison.)
+ *
+ * Runtime: O(k log k),
+ * Space: O(k)
+ * Where
+ *     k = n + m + s,
+ *     n = number of edges in r,
+ *     m = number of edges in b,
+ *     s = number of intersection points.
+ *
+ * Note: the operation may not actually be performed, but may be delayed until
+ * cp_csg2_apply.  The runtimes are given under the assumption that cp_csg2_apply
+ * follows.  Best case runtime for delaying the operation is O(1).
+ */
+extern void cp_csg2_op_lazy(
+    cp_pool_t *pool,
+    cp_csg2_lazy_t *r,
+    cp_csg2_lazy_t *b,
+    cp_bool_op_t op)
+{
+    TRACE();
+    for (size_t loop = 0; loop < 3; loop++) {
+#if OPT >= 1
+        /* empty? */
+        if (b->size == 0) {
+            if (op == CP_OP_CUT) {
+                CP_ZERO(r);
+            }
+            return;
+        }
+        if (r->size == 0) {
+            if ((op == CP_OP_ADD) || (op == CP_OP_XOR)) {
+                CP_SWAP(r, b);
+            }
+            return;
+        }
+#endif
+
+        /* if we can fit the result into one structure, then try that */
+        if ((r->size + b->size) <= cp_countof(r->data)) {
+            break;
+        }
+
+        /* reduction will be necessary max 2 times */
+        assert(loop < 2);
+
+        /* otherwise reduce the larger one */
+        if (r->size > b->size) {
+            cp_csg2_op_reduce(pool, r);
+            assert(r->size <= 1);
+        }
+        else {
+            cp_csg2_op_reduce(pool, b);
+            assert(b->size <= 1);
+        }
+    }
+
+    /* it should now fit into the first one */
+    assert((r->size + b->size) <= cp_countof(r->data));
+
+    /* append b's polygons to r */
+    for (cp_size_each(i, b->size)) {
+        assert((r->size + i) < cp_countof(r->data));
+        assert(i < cp_countof(b->data));
+        r->data[r->size + i] = b->data[i];
+    }
+
+    cp_csg2_op_bitmap_repeat(&r->comb, r->size, b->size);
+    cp_csg2_op_bitmap_spread(&b->comb, b->size, r->size);
+
+    r->size += b->size;
+
+    cp_csg2_op_bitmap_combine(&r->comb, &b->comb, r->size, op);
+
+#ifndef NDEBUG
+    /* clear with garbage to trigger bugs when accessed */
+    memset(b, 170, sizeof(*b));
+#endif
 }
 
 /**
@@ -2053,9 +2095,8 @@ extern void cp_csg2_op_poly(
  *    k = see cp_csg2_op_poly()
  *    j = number of polygons + number of bool operations in tree
  */
-extern bool cp_csg2_op_add_layer(
+extern void cp_csg2_op_add_layer(
     cp_pool_t *pool,
-    cp_err_t *t,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
     size_t zi)
@@ -2064,13 +2105,15 @@ extern bool cp_csg2_op_add_layer(
     cp_csg2_stack_t *s = cp_csg2_stack(r->root);
     assert(zi < s->layer.size);
 
-    AUTO_POLY(o, NULL);
-    if (!csg2_op_csg2(pool, t, r, zi, &o, a->root)) {
-        return false;
-    }
-    LOG("#o.point: %"_Pz"u\n", o.point.size);
+    cp_csg2_lazy_t ol;
+    CP_ZERO(&ol);
+    csg2_op_csg2(pool, r, zi, &ol, a->root);
+    cp_csg2_op_reduce(pool, &ol);
 
-    if (o.point.size > 0) {
+    cp_csg2_poly_t *o = ol.data[0];
+    if (o != NULL) {
+        assert(o->point.size > 0);
+
         /* new layer */
         cp_csg2_layer_t *layer = cp_csg2_stack_get_layer(s, zi);
         assert(layer != NULL);
@@ -2080,16 +2123,9 @@ extern bool cp_csg2_op_add_layer(
 
         cp_v_nth(&r->flag, zi) |= CP_CSG2_FLAG_NON_EMPTY;
 
-        /* use new polygon */
-        cp_csg2_t *_o2 = cp_csg2_new(CP_CSG2_POLY, NULL);
-        cp_csg2_poly_t *o2 = &_o2->poly;
-        CP_SWAP(&o, o2);
-
         /* single polygon per layer */
-        cp_v_push(&layer->root.add, _o2);
+        cp_v_push(&layer->root.add, (cp_csg2_t*)o);
     }
-
-    return true;
 }
 
 /**

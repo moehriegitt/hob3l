@@ -334,7 +334,7 @@ static void get_opt_eps(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_dim(&cp_equ_epsilon, name, arg);
+    get_arg_dim(&cp_eq_epsilon, name, arg);
 }
 
 static void get_opt_eps2(

@@ -341,27 +341,27 @@ extern bool cp_vec2_has_len0(
     cp_vec2_t const* a)
 {
     return
-        cp_equ(a->v[0], 0) &&
-        cp_equ(a->v[1], 0);
+        cp_eq(a->v[0], 0) &&
+        cp_eq(a->v[1], 0);
 }
 
 extern bool cp_vec3_has_len0(
     cp_vec3_t const* a)
 {
     return
-        cp_equ(a->v[0], 0) &&
-        cp_equ(a->v[1], 0) &&
-        cp_equ(a->v[2], 0);
+        cp_eq(a->v[0], 0) &&
+        cp_eq(a->v[1], 0) &&
+        cp_eq(a->v[2], 0);
 }
 
 extern bool cp_vec4_has_len0(
     cp_vec4_t const* a)
 {
     return
-        cp_equ(a->v[0], 0) &&
-        cp_equ(a->v[1], 0) &&
-        cp_equ(a->v[2], 0) &&
-        cp_equ(a->v[3], 0);
+        cp_eq(a->v[0], 0) &&
+        cp_eq(a->v[1], 0) &&
+        cp_eq(a->v[2], 0) &&
+        cp_eq(a->v[3], 0);
 }
 
 extern bool cp_vec2_unit(
@@ -370,7 +370,7 @@ extern bool cp_vec2_unit(
 {
     cp_dim_t l = cp_vec2_len(a);
     cp_vec2_div(r, a, l);
-    return !cp_sqr_equ(l,0);
+    return !cp_sqr_eq(l,0);
 }
 
 extern bool cp_vec3_unit(
@@ -379,7 +379,7 @@ extern bool cp_vec3_unit(
 {
     cp_dim_t l = cp_vec3_len(a);
     cp_vec3_div(r, a, l);
-    return !cp_sqr_equ(l,0);
+    return !cp_sqr_eq(l,0);
 }
 
 extern bool cp_vec4_unit(
@@ -388,7 +388,7 @@ extern bool cp_vec4_unit(
 {
     cp_dim_t l = cp_vec4_len(a);
     cp_vec4_div(r, a, l);
-    return !cp_sqr_equ(l,0);
+    return !cp_sqr_eq(l,0);
 }
 
 extern cp_sqrdim_t cp_vec2_sqr_dist(

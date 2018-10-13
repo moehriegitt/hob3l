@@ -423,17 +423,17 @@ static bool good_scale(
     cp_vec3_t const *v)
 {
     return
-        !cp_equ(v->x, 0) &&
-        !cp_equ(v->y, 0) &&
-        !cp_equ(v->z, 0);
+        !cp_eq(v->x, 0) &&
+        !cp_eq(v->y, 0) &&
+        !cp_eq(v->z, 0);
 }
 
 static bool good_scale2(
     cp_vec2_t const *v)
 {
     return
-        !cp_equ(v->x, 0) &&
-        !cp_equ(v->y, 0);
+        !cp_eq(v->x, 0) &&
+        !cp_eq(v->y, 0);
 }
 
 static bool csg3_from_scale(
@@ -777,13 +777,13 @@ static bool csg3_from_sphere(
     mat_ctxt_t const *mo,
     cp_scad_sphere_t *s)
 {
-    if (cp_leq(s->r, 0)) {
+    if (cp_le(s->r, 0)) {
         cp_vchar_printf(&e->msg, "Sphere scale is zero or negative.\n");
         e->loc = s->loc;
         return false;
     }
     cp_mat3wi_t const *m = mo->mat;
-    if (!cp_equ(s->r, 1)) {
+    if (!cp_eq(s->r, 1)) {
         cp_mat3wi_t *m1 = mat_new(t);
         cp_mat3wi_scale1(m1, s->r);
         cp_mat3wi_mul(m1, m, m1);
@@ -886,7 +886,7 @@ static bool csg3_from_polyhedron(
     for (cp_v_each(i, &o->point, 1)) {
         cp_vec3_loc_t const *a = &cp_v_nth(&o->point, i-1);
         cp_vec3_loc_t const *b = &cp_v_nth(&o->point, i);
-        if (cp_vec3_equ(&a->coord, &b->coord)) {
+        if (cp_vec3_eq(&a->coord, &b->coord)) {
             cp_vchar_printf(&e->msg, "Duplicate point in polyhedron.\n");
             e->loc = a->loc;
             e->loc2 = b->loc;
@@ -1009,7 +1009,7 @@ static bool csg3_from_polygon(
     for (cp_v_each(i, &o->point, 1)) {
         cp_vec2_loc_t const *a = &cp_v_nth(&o->point, i-1);
         cp_vec2_loc_t const *b = &cp_v_nth(&o->point, i);
-        if (cp_vec2_equ(&a->coord, &b->coord)) {
+        if (cp_vec2_eq(&a->coord, &b->coord)) {
             cp_vchar_printf(&e->msg, "Duplicate point in polygon.\n");
             e->loc = a->loc;
             e->loc2 = b->loc;
@@ -1062,9 +1062,9 @@ static bool csg3_from_cube(
     cp_mat3wi_t const *m = mo->mat;
 
     /* possibly scale */
-    if (!cp_equ(s->size.x, 1) ||
-        !cp_equ(s->size.y, 1) ||
-        !cp_equ(s->size.z, 1))
+    if (!cp_eq(s->size.x, 1) ||
+        !cp_eq(s->size.y, 1) ||
+        !cp_eq(s->size.z, 1))
     {
         cp_mat3wi_t *m1 = mat_new(t);
         cp_mat3wi_scale_v(m1, &s->size);
@@ -1154,8 +1154,8 @@ static bool csg3_from_square(
     cp_mat3wi_t const *m = mo->mat;
 
     /* possibly scale */
-    if (!cp_equ(s->size.x, 1) ||
-        !cp_equ(s->size.y, 1))
+    if (!cp_eq(s->size.x, 1) ||
+        !cp_eq(s->size.y, 1))
     {
         cp_mat3wi_t *m1 = mat_new(t);
         cp_mat3wi_scale(m1, s->size.x, s->size.y, 1);
@@ -1307,7 +1307,7 @@ static bool csg3_poly_cylinder(
     cp_csg3_poly_t *o = &_o->poly;
     o->gc = mo->gc;
 
-    if (cp_equ(r2, 0)) {
+    if (cp_eq(r2, 0)) {
         csg3_poly_make_cone(o, m, s, fn);
     }
     else {
@@ -1336,12 +1336,12 @@ static bool csg3_from_cylinder(
     cp_scale_t r1 = s->r1;
     cp_scale_t r2 = s->r2;
 
-    if (cp_leq(s->h, 0)) {
+    if (cp_le(s->h, 0)) {
         cp_vchar_printf(&e->msg, "Cylinder length is zero or negative.\n");
         e->loc = s->loc;
         return false;
     }
-    if (cp_leq(r1, 0) && cp_leq(r2, 0)) {
+    if (cp_le(r1, 0) && cp_le(r2, 0)) {
         cp_vchar_printf(&e->msg, "Cylinder scale is zero or negative.\n");
         e->loc = s->loc;
         return false;
@@ -1350,7 +1350,7 @@ static bool csg3_from_cylinder(
     cp_mat3wi_t const *m = mo->mat;
 
     /* normalise height */
-    if (!cp_equ(s->h, 1)) {
+    if (!cp_eq(s->h, 1)) {
         cp_mat3wi_t *m1 = mat_new(t);
         cp_mat3wi_scale(m1, 1, 1, s->h);
         cp_mat3wi_mul(m1, m, m1);
@@ -1375,7 +1375,7 @@ static bool csg3_from_cylinder(
         CP_SWAP(&r1, &r2);
     }
 
-    if (!cp_equ(r1, 1)) {
+    if (!cp_eq(r1, 1)) {
         cp_mat3wi_t *m1 = mat_new(t);
         cp_mat3wi_scale(m1, r1, r1, 1);
         cp_mat3wi_mul(m1, m, m1);

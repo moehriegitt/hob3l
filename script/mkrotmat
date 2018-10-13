@@ -25,7 +25,7 @@ sub ind($)
 sub is0($$)
 {
     my ($x,$y) = @_;
-    return "cp_equ(m->m[$y][$x], 0)";
+    return "cp_eq(m->m[$y][$x], 0)";
 }
 
 sub write_test($$@);

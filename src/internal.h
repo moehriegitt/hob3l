@@ -56,6 +56,15 @@ extern bool cp_debug_ps_dots;
 extern bool cp_debug_ps_page_begin(void);
 extern void cp_debug_ps_dot(double x, double y, double sz);
 
+static inline double three_steps(size_t i)
+{
+    switch (i % 3) {
+    case 0:  return 0;
+    case 1:  return 0.75;
+    default: return 1;
+    }
+}
+
 #endif /* PSTRACE */
 
 #if defined(DEBUG) && DEBUG
@@ -98,6 +107,8 @@ static void trace_func_leave(trace_func_t *t)
 /**
  * To print info in an assert */
 #define CONFESS(...) \
-    (fprintf(stderr, "ASSERT FAIL: " __VA_ARGS__), fprintf(stderr,"\n"), 0)
+    (fprintf(stderr, "ASSERT FAIL: " __VA_ARGS__), \
+     fprintf(stderr,"\n"), \
+     0)
 
 #endif /* __CP_SRC_INTERNAL_H */
