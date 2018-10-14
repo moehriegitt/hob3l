@@ -1,4 +1,4 @@
-# eins
+# hob3l
 Fast Slicing of SCAD Files for 3D Printing
 
 ## Replace 3D CSG by Fast 2D Polygon Clipping
@@ -449,11 +449,11 @@ view of the STL, where the 2D CSG slicing technique clearly shows the
 layers:
 
 ![OpenSCAD model](img/useless-model-openscad.jpg)
-![Eins model](img/useless-model-eins.jpg)
+![Hob3l model](img/useless-model-hob3l.jpg)
 
 The final result of the slicer, however, is indistinguishable (I was
 unable to replicate the exact same view, so the Moir&eacute; patterns are
 different -- but the result is really the same):
 
 ![OpenSCAD preview](img/useless-preview-openscad.jpg)
-![Eins preview](img/useless-preview-eins.jpg)
+![Hob3l preview](img/useless-preview-hob3l.jpg)
