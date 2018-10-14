@@ -744,18 +744,4 @@ extern cp_dim_t cp_csg2_layer_thickness(
 {
     /* Currently, all layers have uniform thickness. */
     return t->thick;
-#if 0
-    if (t->z.size <= 1) {
-        return 1.0;
-    }
-    if (zi <= 0) {
-       zi = 1;
-    }
-    if (zi >= t->z.size) {
-       zi = t->z.size - 1;
-    }
-    double th = t->z.data[zi] - t->z.data[zi - 1];
-    assert(th > 0);
-    return th;
-#endif
 }

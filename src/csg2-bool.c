@@ -55,8 +55,9 @@
  * 2 = bounding box optimisation
  * 3 = x-coordinate max optimisation => nothing more to do
  * 4 = x-coordinate max optimisation => copy all the rest
+ * FIXME: Anything but OPT=1 is not implemented since multi polygon processing.
  */
-#define OPT 1 /* FIXME: 4 is currently buggy */
+#define OPT 1
 
 typedef enum {
     E_NORMAL,
@@ -1856,38 +1857,6 @@ static void cp_csg2_op_poly(
     };
     cp_list_init(&c.poly);
 
-#if 0
-    /* trivial case: bounding box does not overlap */
-    cp_csg2_poly_minmax(&c.bb[0], a);
-    cp_csg2_poly_minmax(&c.bb[1], b);
-    c.minmaxx = cp_min(c.bb[0].max.x, c.bb[1].max.x);
-
-#if OPT >= 2
-    if (cp_gt(c.bb[0].min.x, c.bb[1].max.x) ||
-        cp_gt(c.bb[1].min.x, c.bb[0].max.x) ||
-        cp_gt(c.bb[0].min.y, c.bb[1].max.y) ||
-        cp_gt(c.bb[1].min.y, c.bb[0].max.y))
-    {
-        LOG("bounding boxes do not overlap: copy\n");
-        switch (op) {
-        case CP_OP_CUT:
-            return;
-
-        case CP_OP_SUB:
-            CP_SWAP(r, a);
-            return;
-
-        case CP_OP_ADD:
-        case CP_OP_XOR:
-            CP_SWAP(r, a);
-            cp_csg2_poly_merge(r, b);
-            return;
-        }
-        assert(0 && "Unrecognised operation");
-    }
-#endif
-#endif
-
     /* initialise queue */
     for (cp_size_each(m, r->size)) {
         cp_csg2_poly_t *a = r->data[m];
@@ -1916,34 +1885,6 @@ static void cp_csg2_op_poly(
             ev_str(e),
             e->other->in.owner,
             e->other->in.below);
-
-#if OPT >= 3
-        /* trivial: all the rest is cut away */
-        if ((op == CP_OP_CUT && cp_pt_gt(e->p->coord.x, c.minmaxx)) ||
-            (op == CP_OP_SUB && cp_pt_gt(e->p->coord.x, c.bb[0].max.x)))
-        {
-            break;
-        }
-#endif
-
-#if OPT >= 4
-        /* trivial: nothing more to merge */
-        if ((op == CP_OP_ADD && cp_pt_gt(e->p->coord.x, c.minmaxx))) {
-            if (!e->left) {
-                CP_ZERO(&e->node_s);
-                CP_ZERO(&e->other->node_s);
-                chain_add(&c, e);
-            }
-            while ((e = q_extract_min(&c)) != NULL) {
-                if (!e->left) {
-                    CP_ZERO(&e->node_s);
-                    CP_ZERO(&e->other->node_s);
-                    chain_add(&c, e);
-                }
-            }
-            break;
-        }
-#endif
 
         /* do real work on event */
         if (e->left) {

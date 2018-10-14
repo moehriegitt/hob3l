@@ -1485,6 +1485,7 @@ static bool csg3_from_scad(
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
+        CP_NYI("circle");
         object(no);
         return true;
 #if 0

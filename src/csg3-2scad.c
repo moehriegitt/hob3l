@@ -1,8 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <csg2plane/csg3.h>
 #include <cpmat/mat.h>
+#include <cpmat/panic.h>
+#include <csg2plane/csg3.h>
 #include <csg2plane/gc.h>
 #include "internal.h"
 
@@ -195,10 +196,7 @@ static void csg3_put_scad(
         break;
 
     case CP_CSG2_CIRCLE:
-#if 0
-        /* FIXME: continue */
-        circle_put_scad(s, d, &r->circle);
-#endif
+        CP_NYI("circle");
         break;
 
     case CP_CSG2_POLY:
@@ -206,7 +204,7 @@ static void csg3_put_scad(
         break;
 
     default:
-        assert(0 && "Unrecognized CSG3 object type");
+        CP_DIE("Unrecognized CSG3 object type");
     }
 }
 

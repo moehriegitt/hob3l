@@ -235,29 +235,11 @@ static bool is_comment(unsigned tok_type)
     return (tok_type == T_LCOM) || (tok_type == T_BCOM);
 }
 
-static void tok_next_aux(parse_t *p)
+static void tok_next(parse_t *p)
 {
     do {
         tok_next_aux2(p);
     } while (is_comment(p->tok_type));
-}
-
-static void tok_next(parse_t *p)
-{
-    tok_next_aux(p);
-
-#if 0 /* DEBUG */
-    char c[2];
-    c[0] = p->tok_type & 127;
-    c[1] = '\0';
-    fprintf(stderr, "DEBUG: tok_type = %4u, tok_string = '%s'\n",
-        p->tok_type,
-        (p->tok_type >= 32) && (p->tok_type <= 127) ?
-            c
-        : p->tok_string ?
-            p->tok_string
-        :   "");
-#endif
 }
 
 static bool expect(
