@@ -7,7 +7,7 @@ Preparing a 3D model in CSG format (e.g., when using
 [OpenSCAD](http://www.openscad.org/)) for
 printing may take a long time and is often computationally instable.
 
-So this tool wants to replace a workflow 'apply 3D CSG, then slice, then print':
+So `hob3l` wants to replace a workflow 'apply 3D CSG, then slice, then print':
 ![3D CSG](img/csg1-old.png)
 
 by a workflow 'slice, then apply 2D CSG, then print':
@@ -68,7 +68,7 @@ $fs are ignored, but accepted in the input file for compatibility with
 existing files.  Both named and positional arguments are supported
 just like in OpenSCAD.
 
-Usually the default for a missing argument is '1', but this tool may
+Usually the default for a missing argument is '1', but `hob3l` may
 be more restrictive than OpenSCAD: if the OpenSCAD documentation lists
 an argument as mandatory, it will be rejected if missing, while
 OpenSCAD may still accept it and assume '1'.
@@ -113,14 +113,10 @@ the 'first non-empty' child, because even an empty `group(){}` is
 skipped, and even recursively so.  Essentially, you need semantics to
 identify the children correctly, which is an ugly mix of meta levels.
 
-So the parser of this tool spends quite some effort on determining
-which one is the first non-empty child of `difference`.  Whether it
-does that in the same way as OpenSCAD, I can only hope for.  I think
-this part of the SCAD syntax is broken.
-
-Whenever this tool prints SCAD format, it will state its intended
-meaning by using comments `// add` and `// sub` to mark which parts
-are positive and which ones are negative.
+The parser of `hob3l` spends quite some effort on determining which
+one is the first non-empty child of `difference`.  Whether it does
+that in the same way as OpenSCAD, I can only hope for.  I think this
+part of the SCAD syntax is broken.
 
 ## Algorithmic Improvements
 
@@ -156,7 +152,7 @@ OTOH, the basic workflow is implemented and tested, i.e., the tool can
 read the specified subset of SCAD (e.g. from OpenSCAD's CSG output),
 it can slice the input object, it can apply the 2D boolean operations
 (AKA polygon clipping), and it can triangulate the resulting
-polgygons, and write STL.  Slic3r can read the STL files this tool
+polgygons, and write STL.  Slic3r can read the STL files `hob3l`
 produces.
 
 Corner cases in the algorithms have been dealt with (except for
@@ -187,8 +183,8 @@ slic3r, you'll get hundreds of separate layer objects -- which is not
 useful.
 
 Memory management has leaks.  I admit I don't care enough, because
-this tool basically starts, allocates, exits, i.e., it does not run
-for long, so the memory leaks do not build up.  The goal is to have a
+`hob3l` basically starts, allocates, exits, i.e., it does not run for
+long, so the memory leaks do not build up.  The goal is to have a
 proper, fast pool based allocation.  This is prepared, but incomplete.
 
 There are not enough tests.
@@ -343,9 +339,9 @@ not work as the name is explicitly used in the header files.
 
 In general, use `hob3l --help`.
 
-To convert a normal scad file into the subset this tool can ready,
+To convert a normal scad file into the subset this `hob3l` can read,
 start by using OpenSCAD to convert to a flat 3D CSG structure with all
-the syntactic sugar removed.
+the syntactic sugar removed.  This conversion is fast.
 
 ```
     openscad thing.scad -o thing.csg
@@ -366,12 +362,12 @@ This can then be used in your favorite tool for computing print paths.
 
 ### Tweaking Command Line Settings
 
-The underlying technique of this tool is computationally difficult,
+The underlying technique of `hob3l` is computationally difficult,
 because it relies on floating point operations.  The goal was
 stability, but it turned out to be really difficult to achieve, so
-this tool might still occasionally fail.  If this happens, the
-following command line options change internal settings that might
-push the tool back on track:
+`hob3l` might still occasionally fail.  If this happens, the following
+command line options change internal settings that might push the tool
+back on track:
 
 ```
     --max-simultaneous=N    # decrease for better stability; min. is 2
@@ -391,16 +387,15 @@ let `eps2` be about the square of `eps`.
 
 ## Speed comparison
 
-Depending on the complexity of the model, this tool is much faster
-than using OpenSCAD with CGAL rendering.  Extracting the flat CSG tree
-with openscad is very fast.  This step is usually needed because
-`hob3l` reads only a restricted set of SCAD.
+Depending on the complexity of the model, `hob3l` may be much faster
+than using OpenSCAD with CGAL rendering.
 
 Some examples:
 
 The x-carriage.scad part of my [Prusa](https://www.prusa3d.com/) i3
-MK3 printer from the Prusa github repository: let's first convert to
-`.csg` (flat SCAD format that this tool can read):
+MK3 printer from the Prusa github repository: let's first convert it
+to `.csg`.  This conversion is quickly done with OpenSCAD, and the
+resulting flat SCAD format is what `hob3l` can read:
 
 ```
     time openscad x-carriage.scad -o x-carriage.csg
