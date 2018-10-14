@@ -334,13 +334,10 @@ separate `-dev` package as in Debian distributions).
 
 Unfortunately, there is no `install-doc` yet.  FIXME.
 
-The package and the binary are currently called `hob3l` -- the
-name is work in progress.  The github repository is called `eins` and,
-thus, not really more imaginative.  The package name can be changed
-during installation using the `package_name` variable, but this only
-changes the executable name and the library name, but not the include
-subdirectory, because this would not work as the name is explicitly
-used in the header files.
+The package name `hob3l` can be changed during installation using the
+`package_name` variable, but this only changes the executable name and
+the library name, but not the include subdirectory, because this would
+not work as the name is explicitly used in the header files.
 
 ## Using This Tool, Command Line Options
 
