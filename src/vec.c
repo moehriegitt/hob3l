@@ -6,8 +6,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <cpmat/arith.h>
-#include <cpmat/vec.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/vec.h>
 
 /**
  * Internal: Shallow delete a vector: remove all sub-structures, but not the

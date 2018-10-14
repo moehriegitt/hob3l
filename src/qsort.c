@@ -4,7 +4,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
-#include <cpmat/qsort.h>
+#include <hob3lbase/qsort.h>
 
 #ifndef cp_qsort_r
 

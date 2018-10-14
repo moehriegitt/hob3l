@@ -1,10 +1,10 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <csg2plane/scad.h>
-#include <cpmat/vchar.h>
-#include <cpmat/mat.h>
-#include <csg2plane/gc.h>
+#include <hob3l/scad.h>
+#include <hob3lbase/vchar.h>
+#include <hob3lbase/mat.h>
+#include <hob3l/gc.h>
 #include "internal.h"
 
 static void v_scad_put_scad(

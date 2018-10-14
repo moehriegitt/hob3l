@@ -1,9 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/def.h>
-#include <cpmat/arith.h>
-#include <cpmat/mat.h>
+#include <hob3lbase/def.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/mat.h>
 #include "test.h"
 #include "math-test.h"
 

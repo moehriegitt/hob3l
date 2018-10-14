@@ -1,7 +1,7 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/ring.h>
+#include <hob3lbase/ring.h>
 
 /**
  * Cut a ring at a given pair, i.e., make each of the nodes an end.

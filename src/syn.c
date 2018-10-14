@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <csg2plane/syn.h>
-#include <cpmat/vchar.h>
-#include <cpmat/alloc.h>
+#include <hob3l/syn.h>
+#include <hob3lbase/vchar.h>
+#include <hob3lbase/alloc.h>
 #include "internal.h"
 
 /* Token types 1..127 are reserved for single character syntax tokens. */

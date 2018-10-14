@@ -1,7 +1,7 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <csg2plane/ps.h>
+#include <hob3l/ps.h>
 #include "internal.h"
 
 #ifdef PSTRACE

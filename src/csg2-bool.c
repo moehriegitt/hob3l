@@ -33,17 +33,17 @@
 #define DEBUG 0
 
 #include <stdio.h>
-#include <cpmat/dict.h>
-#include <cpmat/list.h>
-#include <cpmat/ring.h>
-#include <cpmat/mat.h>
-#include <cpmat/pool.h>
-#include <cpmat/alloc.h>
-#include <cpmat/vec.h>
-#include <cpmat/panic.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/ps.h>
-#include <csg2plane/csg2-bitmap.h>
+#include <hob3lbase/dict.h>
+#include <hob3lbase/list.h>
+#include <hob3lbase/ring.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/pool.h>
+#include <hob3lbase/alloc.h>
+#include <hob3lbase/vec.h>
+#include <hob3lbase/panic.h>
+#include <hob3l/csg2.h>
+#include <hob3l/ps.h>
+#include <hob3l/csg2-bitmap.h>
 #include "internal.h"
 
 /**

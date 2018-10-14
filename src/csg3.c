@@ -1,10 +1,10 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/mat.h>
-#include <cpmat/alloc.h>
-#include <csg2plane/gc.h>
-#include <csg2plane/csg3.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/alloc.h>
+#include <hob3l/gc.h>
+#include <hob3l/csg3.h>
 #include "internal.h"
 
 typedef struct {

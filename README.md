@@ -217,7 +217,7 @@ E.g.:
     make test
 ```
 
-The resulting executable is called 'csg2plane.x'.
+The resulting executable is called 'hob3l.x'.
 
 Parallel building should be fully supported using the `-j` option to
 make.
@@ -286,7 +286,7 @@ CFLAGS_ARCH  := -march=core2 -mfpmath=sse
 
 ## Running Tests
 
-After building, tests can be run, provided that the 'csg2plane.x'
+After building, tests can be run, provided that the 'hob3l.x'
 executable can actually be executed.  It may be (e.g. under Windows)
 that the local executable does not have the necessary file extension
 (e.g. `.exe`), so `make test` will not work.  On systems where it
@@ -334,7 +334,7 @@ separate `-dev` package as in Debian distributions).
 
 Unfortunately, there is no `install-doc` yet.  FIXME.
 
-The package and the binary are currently called `csg2plane` -- the
+The package and the binary are currently called `hob3l` -- the
 name is work in progress.  The github repository is called `eins` and,
 thus, not really more imaginative.  The package name can be changed
 during installation using the `package_name` variable, but this only
@@ -344,7 +344,7 @@ used in the header files.
 
 ## Using This Tool, Command Line Options
 
-In general, use `csg2plane --help`.
+In general, use `hob3l --help`.
 
 To convert a normal scad file into the subset this tool can ready,
 start by using OpenSCAD to convert to a flat 3D CSG structure with all
@@ -354,11 +354,11 @@ the syntactic sugar removed.
     openscad thing.scad -o thing.csg
 ```
 
-You can now use `csg2plane` to slice this directly instead of applying
+You can now use `hob3l` to slice this directly instead of applying
 3D CSG:
 
 ```
-    csg2plane thing.csg -o thing.stl
+    hob3l thing.csg -o thing.stl
 ```
 
 This can then be used in your favorite tool for computing print paths.
@@ -397,7 +397,7 @@ let `eps2` be about the square of `eps`.
 Depending on the complexity of the model, this tool is much faster
 than using OpenSCAD with CGAL rendering.  Extracting the flat CSG tree
 with openscad is very fast.  This step is usually needed because
-`csg2plane` reads only a restricted set of SCAD.
+`hob3l` reads only a restricted set of SCAD.
 
 Some examples:
 
@@ -417,16 +417,16 @@ To convert to STL using openscad 3D CSG takes a while:
     0m45.208s
 ```
 
-Doing the same with `csg2plane` is about 50 times faster:
+Doing the same with `hob3l` is about 50 times faster:
 
 ```
-    time csg2plane x-carriage.csg -o x-carriage.stl
+    time hob3l x-carriage.csg -o x-carriage.stl
     0m0.824s
 ```
 
 The most complex part of the i3 MK3 printer, the `extruder-body.scad`,
 before it was reimplemented as `step` file, takes 2m42s in openscad to
-convert to STL, while `csg2plane` takes 1.24s.  That is 130 times
+convert to STL, while `hob3l` takes 1.24s.  That is 130 times
 faster.
 
 For one of my own parts `useless-box+body`, which is less complex, but
@@ -437,7 +437,7 @@ cylinders with too many polygon corners):
     time openscad uselessbox+body.scad -o uselessbox+body.stl
     0m53.433s
 
-    time csg2plane uselessbox+body.scad -o uselessbox+body.stl
+    time hob3l uselessbox+body.scad -o uselessbox+body.stl
     0m0.610s
 ```
 

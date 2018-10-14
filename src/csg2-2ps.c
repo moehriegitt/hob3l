@@ -3,14 +3,14 @@
 
 /* print in PS format */
 
-#include <cpmat/arith.h>
-#include <cpmat/vec.h>
-#include <cpmat/mat.h>
-#include <cpmat/stream.h>
-#include <cpmat/panic.h>
-#include <csg2plane/gc.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/ps.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/vec.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/stream.h>
+#include <hob3lbase/panic.h>
+#include <hob3l/gc.h>
+#include <hob3l/csg2.h>
+#include <hob3l/ps.h>
 #include "internal.h"
 
 #define RGB(x) ((x).r / 255.0), ((x).g / 255.0),  ((x).b / 255.0)

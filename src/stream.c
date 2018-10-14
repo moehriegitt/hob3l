@@ -1,7 +1,7 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/stream.h>
+#include <hob3lbase/stream.h>
 
 /**
  * Formatted printing into a stream.

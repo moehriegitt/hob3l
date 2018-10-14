@@ -2,8 +2,8 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
-#include <cpmat/panic.h>
-#include <csg2plane/csg2-bitmap.h>
+#include <hob3lbase/panic.h>
+#include <hob3l/csg2-bitmap.h>
 
 static unsigned char spread1[16] = {
     0x00,0x03,0x0c,0x0f,0x30,0x33,0x3c,0x3f,0xc0,0xc3,0xcc,0xcf,0xf0,0xf3,0xfc,0xff

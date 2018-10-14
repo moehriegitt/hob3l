@@ -4,13 +4,13 @@
 #define DEBUG 0
 
 #include <stdio.h>
-#include <cpmat/dict.h>
-#include <cpmat/mat.h>
-#include <cpmat/list.h>
-#include <cpmat/panic.h>
-#include <cpmat/pool.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/ps.h>
+#include <hob3lbase/dict.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/list.h>
+#include <hob3lbase/panic.h>
+#include <hob3lbase/pool.h>
+#include <hob3l/csg2.h>
+#include <hob3l/ps.h>
 #include "internal.h"
 
 typedef enum {

@@ -1,11 +1,11 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/mat.h>
-#include <cpmat/arith.h>
-#include <cpmat/mat_gen_tam.h>
-#include <cpmat/mat_gen_ext.h>
-#include <cpmat/mat_gen_inl.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/mat_gen_tam.h>
+#include <hob3lbase/mat_gen_ext.h>
+#include <hob3lbase/mat_gen_inl.h>
 
 #include <stdio.h>
 

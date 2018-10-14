@@ -2,18 +2,18 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
-#include <cpmat/mat.h>
-#include <cpmat/pool.h>
-#include <cpmat/alloc.h>
-#include <csg2plane/syn.h>
-#include <csg2plane/scad.h>
-#include <csg2plane/csg3.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/ps.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/pool.h>
+#include <hob3lbase/alloc.h>
+#include <hob3l/syn.h>
+#include <hob3l/scad.h>
+#include <hob3l/csg3.h>
+#include <hob3l/csg2.h>
+#include <hob3l/ps.h>
 #include "internal.h"
 
 #ifndef CP_PROG_NAME
-#define CP_PROG_NAME "csg2plane"
+#define CP_PROG_NAME "hob3l"
 #endif
 
 typedef struct {

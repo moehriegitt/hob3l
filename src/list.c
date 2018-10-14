@@ -1,7 +1,7 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/list.h>
+#include <hob3lbase/list.h>
 
 #define NEXT(n) (*get_ptr(n, offset_next))
 #define PREV(n) (*get_ptr(n, offset_prev))

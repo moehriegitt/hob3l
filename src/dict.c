@@ -8,7 +8,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <cpmat/dict.h>
+#include <hob3lbase/dict.h>
 
 static cp_dict_t old_root = { NULL, { NULL, NULL }, false };
 

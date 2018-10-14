@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <csg2plane/gc.h>
-#include <cpmat/stream.h>
+#include <hob3l/gc.h>
+#include <hob3lbase/stream.h>
 
 /**
  * Print a string of characters that respresent a modifier in scad syntax.

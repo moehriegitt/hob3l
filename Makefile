@@ -1,7 +1,7 @@
 # -*- Mode: Makefile -*-
 # Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file
 
-package_name := csg2plane
+package_name := hob3l
 package_version := test
 
 ######################################################################
@@ -151,7 +151,7 @@ CPPFLAGS += $(CPPFLAGS_WARN)
 
 package_dir  := $(package_name)-$(package-version)
 
-CSG2PLANE := ./csg2plane.x
+CSG2PLANE := ./hob3l.x
 
 ######################################################################
 
@@ -169,14 +169,14 @@ TEST_STL.stl := \
 ######################################################################
 # header files
 
-H_CPMAT     := $(notdir $(wildcard include/cpmat/*.h))
-H_CSG2PLANE := $(notdir $(wildcard include/csg2plane/*.h))
+H_CPMAT     := $(notdir $(wildcard include/hob3lbase/*.h))
+H_CSG2PLANE := $(notdir $(wildcard include/hob3l/*.h))
 
 ######################################################################
 
 # Basic Algorithms and Data Structures:
-# libcpmat.a:
-MOD_C.libcpmat.a := \
+# libhob3lbase.a:
+MOD_C.libhob3lbase.a := \
     mat.c \
     mat_gen_ext.c \
     mat_is_rot.c \
@@ -193,12 +193,12 @@ MOD_C.libcpmat.a := \
     internal.c \
     qsort.c
 
-MOD_O.libcpmat.a := $(addprefix out/,$(MOD_C.libcpmat.a:.c=.o))
-MOD_D.libcpmat.a := $(addprefix out/,$(MOD_C.libcpmat.a:.c=.d))
+MOD_O.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.o))
+MOD_D.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.d))
 
 # Main Functionality:
-# libcsg2plane.a:
-MOD_C.libcsg2plane.a := \
+# libhob3l.a:
+MOD_C.libhob3l.a := \
     syn.c \
     syn-2scad.c \
     scad.c \
@@ -216,8 +216,8 @@ MOD_C.libcsg2plane.a := \
     ps.c \
     gc.c
 
-MOD_O.libcsg2plane.a := $(addprefix out/,$(MOD_C.libcsg2plane.a:.c=.o))
-MOD_D.libcsg2plane.a := $(addprefix out/,$(MOD_C.libcsg2plane.a:.c=.d))
+MOD_O.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.o))
+MOD_D.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.d))
 
 # Tests:
 # libcptest.a:
@@ -232,12 +232,12 @@ MOD_O.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.o))
 MOD_D.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.d))
 
 # Command Line Executable:
-# csg2plane.x:
-MOD_C.csg2plane.x := \
+# hob3l.x:
+MOD_C.hob3l.x := \
     main.c
 
-MOD_O.csg2plane.x := $(addprefix out/,$(MOD_C.csg2plane.x:.c=.o))
-MOD_D.csg2plane.x := $(addprefix out/,$(MOD_C.csg2plane.x:.c=.d))
+MOD_O.hob3l.x := $(addprefix out/,$(MOD_C.hob3l.x:.c=.o))
+MOD_D.hob3l.x := $(addprefix out/,$(MOD_C.hob3l.x:.c=.d))
 
 # Test Executable:
 # cptest.x:
@@ -263,11 +263,11 @@ all: \
     libcptest.a
 
 bin: \
-    csg2plane.x
+    hob3l.x
 
 lib: \
-    libcsg2plane.a \
-    libcpmat.a
+    libhob3l.a \
+    libhob3lbase.a
 
 maintainer-clean: zap
 
@@ -279,10 +279,10 @@ sweep:
 	rm -f src/*.bak
 	rm -f include/*~
 	rm -f include/*.bak
-	rm -f include/cpmat/*~
-	rm -f include/cpmat/*.bak
-	rm -f include/csg2plane/*~
-	rm -f include/csg2plane/*.bak
+	rm -f include/hob3lbase/*~
+	rm -f include/hob3lbase/*.bak
+	rm -f include/hob3l/*~
+	rm -f include/hob3l/*.bak
 
 .PHONY: zap
 zap: sweep clean
@@ -300,12 +300,12 @@ clean: clean-test
 	rm -f *.a
 	rm -f *.x
 
-libcsg2plane.a: $(MOD_O.libcsg2plane.a)
+libhob3l.a: $(MOD_O.libhob3l.a)
 	$(AR) cr $@.new.a $+
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
-libcpmat.a: $(MOD_O.libcpmat.a)
+libhob3lbase.a: $(MOD_O.libhob3lbase.a)
 	$(AR) cr $@.new.a $+
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
@@ -315,11 +315,11 @@ libcptest.a: $(MOD_O.libcptest.a)
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
-csg2plane.x: $(MOD_O.csg2plane.x) libcsg2plane.a libcpmat.a
-	$(CC) -o $@ $(MOD_O.csg2plane.x) -L. -lcsg2plane -lcpmat $(LIBS) -lm $(CFLAGS)
+hob3l.x: $(MOD_O.hob3l.x) libhob3l.a libhob3lbase.a
+	$(CC) -o $@ $(MOD_O.hob3l.x) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
-cptest.x: $(MOD_O.cptest.x) libcpmat.a libcptest.a
-	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lcpmat $(LIBS) -lm $(CFLAGS)
+cptest.x: $(MOD_O.cptest.x) libhob3lbase.a libcptest.a
+	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
 src/mat_gen_ext.c: $(srcdir)/script/mkmat
 	$(srcdir)/script/mkmat
@@ -366,15 +366,15 @@ test-out/%.png: test-out/%.ps
 	gm convert -border 10x10 -bordercolor '#ffffff' -density 144x144 $< $@.new.png
 	mv $@.new.png $@
 
-test-out/%.ps: scad-test/%.scad csg2plane.x
+test-out/%.ps: scad-test/%.scad hob3l.x
 	$(CSG2PLANE) $< -z=2.0 -o $@.new.ps
 	mv $@.new.ps $@
 
-test-out/%.stl: scad-test/%.scad csg2plane.x
+test-out/%.stl: scad-test/%.scad hob3l.x
 	$(CSG2PLANE) $< -o $@.new.stl
 	mv $@.new.stl $@
 
-test-out/%.stl: $(SCAD_DIR)/%.scad csg2plane.x
+test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.x
 	openscad $< -o $@.new.csg
 	$(CSG2PLANE) $@.new.csg -o $@.new.stl
 	mv $@.new.stl $@
@@ -442,46 +442,46 @@ installdirs-lib:
 
 installdirs-include:
 	$(NORMAL_INSTALL)
-	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/cpmat
-	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/csg2plane
+	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3lbase
+	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3l
 
 installdirs: installdirs-bin installdirs-lib installdirs-include
 
 install-bin: installdirs-bin
 	$(NORMAL_INSTALL)
-	$(INSTALL_BIN) csg2plane.x $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
+	$(INSTALL_BIN) hob3l.x $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
 
 install-lib: installdirs-lib
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) libcpmat.a $(DESTDIR)$(libdir)/$(LIB_)cpmat$(_LIB)
-	$(INSTALL_DATA) libcsg2plane.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
+	$(INSTALL_DATA) libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
+	$(INSTALL_DATA) libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 
 install-include: installdirs-include
 	$(NORMAL_INSTALL)
 	for H in $(H_CPMAT); do \
 	    $(INSTALL_DATA) \
-	        include/cpmat/$$H \
-	        $(DESTDIR)$(includedir)/cpmat/$$H; \
+	        include/hob3lbase/$$H \
+	        $(DESTDIR)$(includedir)/hob3lbase/$$H; \
 	done
 	for H in $(H_CSG2PLANE); do \
 	    $(INSTALL_DATA) \
-	        include/csg2plane/$$H \
-	        $(DESTDIR)$(includedir)/csg2plane/$$H; \
+	        include/hob3l/$$H \
+	        $(DESTDIR)$(includedir)/hob3l/$$H; \
 	done
 
 uninstall:
 	$(NORMAL_UNINSTALL)
 	$(UNINSTALL) $(DESTDIR)$(bindir)/$(package_name)$(EXE)
-	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)cpmat$(_LIB)
+	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 	for H in $(H_CPMAT); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/cpmat/$$H; \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3lbase/$$H; \
 	done
 	for H in $(H_CSG2PLANE); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/csg2plane/$$H; \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H; \
 	done
-	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/cpmat
-	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/csg2plane
+	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3lbase
+	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3l
 
 # check installation by running 'test' with installed binary
 check: clean-test

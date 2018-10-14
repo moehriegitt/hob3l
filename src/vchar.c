@@ -2,7 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
-#include <cpmat/vchar.h>
+#include <hob3lbase/vchar.h>
 
 /**
  * Finalise/discard a vector.

@@ -6,9 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <cpmat/vchar.h>
-#include <cpmat/stream.h>
-#include <csg2plane/syn.h>
+#include <hob3lbase/vchar.h>
+#include <hob3lbase/stream.h>
+#include <hob3l/syn.h>
 #include "internal.h"
 
 static void cp_syn_func_put_scad(

@@ -5,9 +5,9 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include <cpmat/def.h>
-#include <cpmat/stream.h>
-#include <csg2plane/ps_tam.h>
+#include <hob3lbase/def.h>
+#include <hob3lbase/stream.h>
+#include <hob3l/ps_tam.h>
 
 /* standard print parameters */
 

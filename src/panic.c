@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <cpmat/panic.h>
+#include <hob3lbase/panic.h>
 
 /**
  * Panic exit w/ message.

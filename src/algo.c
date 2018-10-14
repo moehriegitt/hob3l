@@ -1,9 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/algo.h>
-#include <cpmat/arith.h>
-#include <cpmat/mat.h>
+#include <hob3lbase/algo.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/mat.h>
 
 /**
  * Rotate around u by an angle given as sin+cos components.

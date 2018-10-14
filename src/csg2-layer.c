@@ -3,14 +3,14 @@
 
 #define DEBUG 0
 
-#include <cpmat/arith.h>
-#include <cpmat/vec.h>
-#include <cpmat/mat.h>
-#include <cpmat/alloc.h>
-#include <cpmat/pool.h>
-#include <csg2plane/gc.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/csg3.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/vec.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/alloc.h>
+#include <hob3lbase/pool.h>
+#include <hob3l/gc.h>
+#include <hob3l/csg2.h>
+#include <hob3l/csg3.h>
 #include "internal.h"
 
 /** Combine multiple comparisions into one value */

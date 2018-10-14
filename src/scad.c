@@ -1,12 +1,12 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/vchar.h>
-#include <cpmat/mat.h>
-#include <cpmat/alloc.h>
-#include <csg2plane/gc.h>
-#include <csg2plane/scad.h>
-#include <csg2plane/syn.h>
+#include <hob3lbase/vchar.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/alloc.h>
+#include <hob3l/gc.h>
+#include <hob3l/scad.h>
+#include <hob3l/syn.h>
 #include "internal.h"
 
 typedef struct {

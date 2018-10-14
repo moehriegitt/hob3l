@@ -2,8 +2,8 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdlib.h>
-#include <cpmat/dict.h>
-#include <cpmat/alloc.h>
+#include <hob3lbase/dict.h>
+#include <hob3lbase/alloc.h>
 #include "test.h"
 #include "dict-test.h"
 

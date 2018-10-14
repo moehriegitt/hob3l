@@ -3,12 +3,12 @@
 
 /* print in STL format */
 
-#include <cpmat/arith.h>
-#include <cpmat/vec.h>
-#include <cpmat/mat.h>
-#include <cpmat/panic.h>
-#include <csg2plane/csg2.h>
-#include <csg2plane/gc.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/vec.h>
+#include <hob3lbase/mat.h>
+#include <hob3lbase/panic.h>
+#include <hob3l/csg2.h>
+#include <hob3l/gc.h>
 #include "internal.h"
 
 static void v_csg2_put_stl(

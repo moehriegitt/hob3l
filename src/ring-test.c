@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/def.h>
-#include <cpmat/ring.h>
+#include <hob3lbase/def.h>
+#include <hob3lbase/ring.h>
 #include "test.h"
 #include "ring-test.h"
 

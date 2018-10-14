@@ -1,9 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#include <cpmat/arith.h>
-#include <cpmat/stream.h>
-#include <csg2plane/ps.h>
+#include <hob3lbase/arith.h>
+#include <hob3lbase/stream.h>
+#include <hob3l/ps.h>
 
 cp_ps_xform_t const ps_mm = CP_PS_XFORM_MM;
 
@@ -72,8 +72,8 @@ extern void cp_ps_doc_begin(
 {
     cp_printf(s,
         "%%!PS-Adobe-3.0\n"
-        "%%%%Title: csg2plane\n"
-        "%%%%Creator: csg2plane\n"
+        "%%%%Title: hob3l\n"
+        "%%%%Creator: hob3l\n"
         "%%%%Orientation: Portrait\n");
 
     if (page_cnt != ~(size_t)0) {

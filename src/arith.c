@@ -2,7 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
-#include <cpmat/arith.h>
+#include <hob3lbase/arith.h>
 
 cp_f_t cp_pt_epsilon  = CP_PT_EPSILON_DEFAULT;
 cp_f_t cp_eq_epsilon  = CP_EQ_EPSILON_DEFAULT;
