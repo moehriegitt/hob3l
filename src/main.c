@@ -470,6 +470,7 @@ int main(int argc, char **argv)
     opt.csg3.max_fn = 200;
     opt.tree.layer_gap = 0.01;
     opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
+    opt.tree.optimise = CP_CSG2_OPT_DEFAULT;
     opt.verbose = 1;
 
     /* parse command line */

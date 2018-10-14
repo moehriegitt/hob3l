@@ -66,6 +66,16 @@ case "round-fn": size &opt->csg3.max_fn {
 }
 #endif
 
+case "opt-no-skip-empty": bool neg_bool &a {
+    "(do not) skip empty polygons (default: do skip)";
+    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
+}
+
+case "opt-no-drop-collinear": bool neg_bool &a {
+    "(do not) drop inner vertices of two adjacent collinear edges (default: do drop)";
+    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
+}
+
 help_section "Advanced Options";
 
 case "max-simultaneous": size &opt->tree.max_simultaneous {

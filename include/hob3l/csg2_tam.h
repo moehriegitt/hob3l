@@ -202,7 +202,33 @@ union cp_csg2 {
     cp_csg2_stack_t stack;
 };
 
-#define CP_CSG2_FLAG_NON_EMPTY 1
+/**
+ * Empty polygon optimisation.
+ */
+#define CP_CSG2_OPT_SKIP_EMPTY 0x01
+
+/**
+ * Optimise base on bounding box.
+ * FIXME: currently not implemented.
+ */
+#define CP_CSG2_OPT_DISJOINT_BB 0x02
+
+/**
+ * Bounding box x-coord check to terminate early
+ * FIXME: currently not implemented.
+ */
+#define CP_CSG2_OPT_SWEEP_END 0x04
+
+/**
+ * Drop inner vertices of collinear lines
+ */
+#define CP_CSG2_OPT_DROP_COLLINEAR 0x08
+
+/**
+ * Default set of optimisations
+ */
+#define CP_CSG2_OPT_DEFAULT (CP_CSG2_OPT_SKIP_EMPTY | CP_CSG2_OPT_DROP_COLLINEAR)
+
 
 typedef struct {
     /**
@@ -219,7 +245,17 @@ typedef struct {
      * Must be at least 2.
      */
     size_t max_simultaneous;
+
+    /**
+     * Optimisation */
+    unsigned optimise;
 } cp_csg2_tree_opt_t;
+
+
+/**
+ * Whether the layer polygon is empty
+ */
+#define CP_CSG2_FLAG_NON_EMPTY 1
 
 typedef struct {
     /**

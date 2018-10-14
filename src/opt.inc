@@ -37,6 +37,12 @@ static char const *opt_help =
     "        At $fn values larger than this, cylinders will be sliced as circular cylinders\n"
     "        and not converted to polyhedra.\n"
 #endif
+    "    --opt-no-skip-empty\n"
+    "    --opt-skip-empty\n"
+    "        (do not) skip empty polygons (default: do skip)\n"
+    "    --opt-no-drop-collinear\n"
+    "    --opt-drop-collinear\n"
+    "        (do not) drop inner vertices of two adjacent collinear edges (default: do drop)\n"
     "Advanced Options\n"
     "    --max-simultaneous=ARG\n"
     "        maximum number of polygons to process at once\n"
@@ -418,6 +424,44 @@ static void get_opt_o(
     char const *fn __unused)
 {
     opt->out_file_name = fn;
+}
+
+static void get_opt_opt_drop_collinear(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    bool a;
+    get_arg_bool(&a, name, arg);
+}
+
+static void get_opt_opt_no_drop_collinear(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    bool a;
+    get_arg_neg_bool(&a, name, arg);
+    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
+}
+
+static void get_opt_opt_no_skip_empty(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    bool a;
+    get_arg_neg_bool(&a, name, arg);
+    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
+}
+
+static void get_opt_opt_skip_empty(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    bool a;
+    get_arg_bool(&a, name, arg);
 }
 
 static void get_opt_ps_color_fill(
@@ -817,6 +861,26 @@ cp_get_opt_t opt_list[] = {
         "o",
         get_opt_o,
         2,
+    },
+    {
+        "opt-drop-collinear",
+        get_opt_opt_drop_collinear,
+        1,
+    },
+    {
+        "opt-no-drop-collinear",
+        get_opt_opt_no_drop_collinear,
+        1,
+    },
+    {
+        "opt-no-skip-empty",
+        get_opt_opt_no_skip_empty,
+        1,
+    },
+    {
+        "opt-skip-empty",
+        get_opt_opt_skip_empty,
+        1,
     },
     {
         "ps-color-fill",

@@ -37,7 +37,7 @@ subset is supported.
 The general idea is that all basic polyhedra 3D objects are supported,
 all basic transformations, and all boolean operations.  No operations
 are supported that invoke the CGAL rendering, e.g. complex ones like
-`minkovsky`.  I haven't used them anyway because they are so slow.
+`minkowsky`.  I haven't used them anyway because they are so slow.
 
 The following SCAD abstract syntax tree (AST) structures are supported:
 

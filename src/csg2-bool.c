@@ -11,7 +11,9 @@
  * The Conelly idea is also a bit complicated, and this library uses xor based
  * bit masks instead, which may be less obvious, but also allows the algorithm
  * to handle polygons with self-overlapping edges.  This feature is not
- * exploited, but I could remove an error case.
+ * exploited, but I could remove an error case.  The bitmasks allow extension
+ * to more than 2 polygons.  The boolean function is stored in a bitmask that
+ * maps in/out masks for multiple polygons to a single bit.
  *
  * This implements most of the algorithm using dictionaries instead of, say,
  * a heap for the pqueue.  This avoids 'realloc' and makes it easier to use
@@ -45,26 +47,6 @@
 #include <hob3l/ps.h>
 #include <hob3l/csg2-bitmap.h>
 #include "internal.h"
-
-/**
- * Whether to optimise some trivial cases.
- * This can be disabled to debug the main algorithm.
- *
- * 0 = no optimisations
- * 1 = empty polygon optimisation
- * 2 = bounding box optimisation
- * 3 = x-coordinate max optimisation => nothing more to do
- * 4 = x-coordinate max optimisation => copy all the rest
- * FIXME: Anything but OPT=1 is not implemented since multi polygon processing.
- */
-#define OPT 1
-
-typedef enum {
-    E_NORMAL,
-    E_IGNORE,
-    E_SAME,
-    E_DIFF
-} event_type_t;
 
 typedef struct event event_t;
 
@@ -227,6 +209,10 @@ typedef struct {
 
     /** Number of valid bits in comb */
     size_t comb_size;
+
+    /** Whether to output all points or to drop those of adjacent collinear
+     * lines. */
+    bool all_points;
 } ctxt_t;
 
 __unused
@@ -254,18 +240,6 @@ static char const *__pt_str(char *s, size_t n, point_t const *x)
 }
 
 #define pt_str(p) __pt_str((char[50]){}, 50, p)
-
-__unused
-static char const *ev_type_str(unsigned x)
-{
-    switch (x) {
-    case E_NORMAL: return "normal";
-    case E_IGNORE: return "ignore";
-    case E_SAME:   return "same";
-    case E_DIFF:   return "diff";
-    }
-    return "?";
-}
 
 __unused
 static char const *__ev_str(char *s, size_t n, event_t const *x)
@@ -920,10 +894,26 @@ static void path_add_point(
     cp_v_push(&p->point_idx, idx);
 }
 
+static void path_add_point3(
+    ctxt_t *c,
+    cp_csg2_poly_t *r,
+    cp_csg2_path_t *p,
+    event_t *prev,
+    event_t *cur,
+    event_t *next)
+{
+    if (c->all_points ||
+        (cur->p->path_cnt > 1) ||
+        !cp_vec2_in_line(&prev->p->coord, &cur->p->coord, &next->p->coord))
+    {
+        path_add_point(r, p, cur);
+    }
+}
+
 /**
  * Construct the poly from the chains */
 static void path_make(
-    ctxt_t *c __unused,
+    ctxt_t *c,
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
     event_t *e0)
@@ -951,6 +941,7 @@ static void path_make(
         CP_SWAP(&e0, &e1);
     }
 
+#if 0
     /* first and second point */
     path_add_point(r, p, e0);
     path_add_point(r, p, e1);
@@ -958,6 +949,19 @@ static void path_make(
         event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
         path_add_point(r, p, ei);
     }
+#else
+    /* handle triples in order to add points that are not collinear */
+    event_t *ea = e0;
+    event_t *eb = e1;
+    for (cp_ring_each(_ec, &e0->node_chain, &e1->node_chain)) {
+        event_t *ec = CP_BOX_OF(_ec, event_t, node_chain);
+        path_add_point3(c, r, p, ea, eb, ec);
+        ea = eb;
+        eb = ec;
+    }
+    path_add_point3(c, r, p, ea, eb, e0);
+    path_add_point3(c, r, p, eb, e0, e1);
+#endif
 
     assert((p->point_idx.size >= 3) && "Polygon chain is too short");
 }
@@ -1989,21 +1993,21 @@ extern void cp_csg2_op_lazy(
     size_t max_sim = cp_min(opt->max_simultaneous, cp_countof(r->data));
     TRACE();
     for (size_t loop = 0; loop < 3; loop++) {
-#if OPT >= 1
-        /* empty? */
-        if (b->size == 0) {
-            if (op == CP_OP_CUT) {
-                CP_ZERO(r);
+        if (opt->optimise & CP_CSG2_OPT_SKIP_EMPTY) {
+            /* empty? */
+            if (b->size == 0) {
+                if (op == CP_OP_CUT) {
+                    CP_ZERO(r);
+                }
+                return;
             }
-            return;
-        }
-        if (r->size == 0) {
-            if ((op == CP_OP_ADD) || (op == CP_OP_XOR)) {
-                CP_SWAP(r, b);
+            if (r->size == 0) {
+                if ((op == CP_OP_ADD) || (op == CP_OP_XOR)) {
+                    CP_SWAP(r, b);
+                }
+                return;
             }
-            return;
         }
-#endif
 
         /* if we can fit the result into one structure, then try that */
         if ((r->size + b->size) <= max_sim) {

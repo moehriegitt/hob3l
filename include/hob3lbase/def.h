@@ -156,6 +156,16 @@ typedef enum {
     })
 
 /**
+ * Bit-clear, &~ operation without sign conversion issues
+ */
+#define CP_BIC(a,b) (((__typeof__((a)|(b)))(a)) & (~((__typeof__((a)|(b)))(b))))
+
+/**
+ * If c, then set bit b in a, otherwise delete bit b in a
+ */
+#define CP_BIT_COPY(a,b,c) ((c) ? ((a) | (b)) : CP_BIC(a,b))
+
+/**
  * Helper macro to allos cp_range_each to have optional arguments.
  */
 #define __cp_size_each(i,n,skipA,skipZ,...) \
