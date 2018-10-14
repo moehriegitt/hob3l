@@ -151,7 +151,7 @@ CPPFLAGS += $(CPPFLAGS_WARN)
 
 package_dir  := $(package_name)-$(package-version)
 
-CSG2PLANE := ./hob3l.x
+HOB3L := ./hob3l.x
 
 ######################################################################
 
@@ -169,8 +169,8 @@ TEST_STL.stl := \
 ######################################################################
 # header files
 
-H_CPMAT     := $(notdir $(wildcard include/hob3lbase/*.h))
-H_CSG2PLANE := $(notdir $(wildcard include/hob3l/*.h))
+H_CPMAT := $(notdir $(wildcard include/hob3lbase/*.h))
+H_HOB3L := $(notdir $(wildcard include/hob3l/*.h))
 
 ######################################################################
 
@@ -367,16 +367,16 @@ test-out/%.png: test-out/%.ps
 	mv $@.new.png $@
 
 test-out/%.ps: scad-test/%.scad hob3l.x
-	$(CSG2PLANE) $< -z=2.0 -o $@.new.ps
+	$(HOB3L) $< -z=2.0 -o $@.new.ps
 	mv $@.new.ps $@
 
 test-out/%.stl: scad-test/%.scad hob3l.x
-	$(CSG2PLANE) $< -o $@.new.stl
+	$(HOB3L) $< -o $@.new.stl
 	mv $@.new.stl $@
 
 test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.x
 	openscad $< -o $@.new.csg
-	$(CSG2PLANE) $@.new.csg -o $@.new.stl
+	$(HOB3L) $@.new.csg -o $@.new.stl
 	mv $@.new.stl $@
 	rm -f $@.new.csg
 
@@ -415,17 +415,17 @@ speed-test:
 	$(MAKE) -j
 	$(MAKE) -j test
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/curry.scad -o out.stl'
+	bash -c 'time $(HOB3L) scad-test/curry.scad -o out.stl'
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/curry.scad -o out.stl'
+	bash -c 'time $(HOB3L) scad-test/curry.scad -o out.stl'
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad -o out.stl'
+	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad -o out.stl'
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad -o out.stl'
+	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad -o out.stl'
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad'
+	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
 	sync && sleep 1
-	bash -c 'time $(CSG2PLANE) scad-test/uselessbox+body.scad'
+	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
 	rm -f .mode.d && mv .mode.d.old .mode.d
 	$(MAKE) clean
 
@@ -463,7 +463,7 @@ install-include: installdirs-include
 	        include/hob3lbase/$$H \
 	        $(DESTDIR)$(includedir)/hob3lbase/$$H; \
 	done
-	for H in $(H_CSG2PLANE); do \
+	for H in $(H_HOB3L); do \
 	    $(INSTALL_DATA) \
 	        include/hob3l/$$H \
 	        $(DESTDIR)$(includedir)/hob3l/$$H; \
@@ -477,7 +477,7 @@ uninstall:
 	for H in $(H_CPMAT); do \
 	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3lbase/$$H; \
 	done
-	for H in $(H_CSG2PLANE); do \
+	for H in $(H_HOB3L); do \
 	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H; \
 	done
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3lbase
@@ -485,4 +485,4 @@ uninstall:
 
 # check installation by running 'test' with installed binary
 check: clean-test
-	$(MAKE) CSG2PLANE=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) no-unit-test
+	$(MAKE) HOB3L=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) no-unit-test
