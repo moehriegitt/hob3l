@@ -457,3 +457,9 @@ different -- but the result is really the same):
 
 ![OpenSCAD preview](img/useless-preview-openscad.jpg)
 ![Hob3l preview](img/useless-preview-hob3l.jpg)
+
+## Name
+
+The name `hob3l` derives from the German word 'Hobel', which is a
+'planer' (as in 'wood planer') in English.  The 'e' was turned to `3`
+in recognition of the `slic3r' program.
