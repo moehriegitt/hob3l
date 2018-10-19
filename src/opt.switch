@@ -25,7 +25,7 @@ case "verbose": {
 case "o": fn {
     "sets the output file.  File ending selects default output format:";
     ".stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,";
-    ".ps selects --dump-ps format.";
+    ".ps selects --dump-ps, .js selects --dump-js.";
     opt->out_file_name = fn;
 }
 
@@ -122,6 +122,10 @@ case "dump-ps": bool &opt->dump_ps {
 }
 case "dump-stl": bool &opt->dump_stl {
     "print after stage 4: final 2D polygon stack in STL format";
+    opt->have_dump = true;
+}
+case "dump-js": bool &opt->dump_js {
+    "print after stage 4: final 2D polygon stack in JavaScript/WebGL format";
     opt->have_dump = true;
 }
 

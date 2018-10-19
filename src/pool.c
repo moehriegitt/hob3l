@@ -133,13 +133,13 @@ static void *try_block_calloc(
     if (CP_PTRDIFF(a->brk, a->heap) < size) {
         return NULL;
     }
-    a->brk -= size;
+    char *new_brk = a->brk - size;
 
-    size_t align_diff = cp_align_down_diff((size_t)a->brk, align);
-    if (CP_PTRDIFF(a->brk, a->heap) < align_diff) {
+    size_t align_diff = cp_align_down_diff((size_t)new_brk, align);
+    if (CP_PTRDIFF(new_brk, a->heap) < align_diff) {
         return NULL;
     }
-    a->brk -= align_diff;
+    a->brk = new_brk - align_diff;
 
     assert(cp_mem_is0(a->brk, size));
     return a->brk;

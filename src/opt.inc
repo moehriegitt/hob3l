@@ -16,7 +16,7 @@ static char const *opt_help =
     "    --o=ARG\n"
     "        sets the output file.  File ending selects default output format:\n"
     "        .stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,\n"
-    "        .ps selects --dump-ps format.\n"
+    "        .ps selects --dump-ps, .js selects --dump-js.\n"
     "    --layer-gap=ARG\n"
     "        gap between layers in STL and SCAD output to ensure 2-manifold [mm]\n"
     "        (default: 0.01)\n"
@@ -66,6 +66,8 @@ static char const *opt_help =
     "        print after stage 4: final 2D polygon stack in PostScript format\n"
     "    --dump-stl\n"
     "        print after stage 4: final 2D polygon stack in STL format\n"
+    "    --dump-js\n"
+    "        print after stage 4: final 2D polygon stack in JavaScript/WebGL format\n"
     "    --no-csg\n"
     "    --csg\n"
     "        for stage 4: do (not) run 2D boolean operation pass\n"
@@ -299,6 +301,15 @@ static void get_opt_dump_csg3(
     char const *arg __unused)
 {
     get_arg_bool(&opt->dump_csg3, name, arg);
+    opt->have_dump = true;
+}
+
+static void get_opt_dump_js(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_bool(&opt->dump_js, name, arg);
     opt->have_dump = true;
 }
 
@@ -780,6 +791,11 @@ cp_get_opt_t opt_list[] = {
     {
         "dump-csg3",
         get_opt_dump_csg3,
+        1,
+    },
+    {
+        "dump-js",
+        get_opt_dump_js,
         1,
     },
     {

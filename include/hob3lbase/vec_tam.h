@@ -35,6 +35,8 @@ typedef CP_VEC_T(size_t) cp_v_size_t;
 typedef CP_ARR_T(double) cp_a_double_t;
 typedef CP_ARR_T(size_t) cp_a_size_t;
 
+typedef CP_ARR_T(unsigned short) cp_a_u16_t;
+
 typedef struct {
     size_t p[3];
 } cp_size3_t;

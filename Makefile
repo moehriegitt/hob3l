@@ -212,6 +212,7 @@ MOD_C.libhob3l.a := \
     csg2-bool.c \
     csg2-2scad.c \
     csg2-2stl.c \
+    csg2-2js.c \
     csg2-2ps.c \
     ps.c \
     gc.c

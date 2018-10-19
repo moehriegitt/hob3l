@@ -1,8 +1,6 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-/* print in STL format */
-
 #include <hob3lbase/arith.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat.h>
@@ -20,9 +18,9 @@ static void v_csg2_put_stl(
 static inline void triangle_put_stl(
     cp_stream_t *s,
     double xn, double yn, double zn,
-    double x1, double y1, double z1,
-    double x2, double y2, double z2,
-    double x3, double y3, double z3)
+    cp_vec2_loc_t const *xy1, double z1,
+    cp_vec2_loc_t const *xy2, double z2,
+    cp_vec2_loc_t const *xy3, double z3)
 {
     cp_printf(s,
         "  facet normal "FF" "FF" "FF"\n"
@@ -33,9 +31,9 @@ static inline void triangle_put_stl(
         "    endloop\n"
         "  endfacet\n",
         xn, yn, zn,
-        x1, y1, z1,
-        x2, y2, z2,
-        x3, y3, z3);
+        xy1->coord.x, xy1->coord.y, z1,
+        xy2->coord.x, xy2->coord.y, z2,
+        xy3->coord.x, xy3->coord.y, z3);
 }
 
 static void poly_put_stl(
@@ -44,8 +42,8 @@ static void poly_put_stl(
     size_t zi,
     cp_csg2_poly_t *r)
 {
-    double z1 = cp_v_nth(&t->z, zi);
-    double z2 = z1 + cp_csg2_layer_thickness(t, zi) - t->opt.layer_gap;
+    double z0 = cp_v_nth(&t->z, zi);
+    double z1 = z0 + cp_csg2_layer_thickness(t, zi) - t->opt.layer_gap;
 
     cp_v_vec2_loc_t const *point = &r->point;
 
@@ -54,9 +52,9 @@ static void poly_put_stl(
         size_t const *p = cp_v_nth(&r->triangle, i).p;
         triangle_put_stl(s,
             0., 0., 1.,
-            cp_v_nth(point, p[1]).coord.x, cp_v_nth(point, p[1]).coord.y, z2,
-            cp_v_nth(point, p[0]).coord.x, cp_v_nth(point, p[0]).coord.y, z2,
-            cp_v_nth(point, p[2]).coord.x, cp_v_nth(point, p[2]).coord.y, z2);
+            &cp_v_nth(point, p[1]), z1,
+            &cp_v_nth(point, p[0]), z1,
+            &cp_v_nth(point, p[2]), z1);
     }
 
     /* bottom */
@@ -64,9 +62,9 @@ static void poly_put_stl(
         size_t const *p = cp_v_nth(&r->triangle, i).p;
         triangle_put_stl(s,
             0., 0., -1.,
-            cp_v_nth(point, p[0]).coord.x, cp_v_nth(point, p[0]).coord.y, z1,
-            cp_v_nth(point, p[1]).coord.x, cp_v_nth(point, p[1]).coord.y, z1,
-            cp_v_nth(point, p[2]).coord.x, cp_v_nth(point, p[2]).coord.y, z1);
+            &cp_v_nth(point, p[0]), z0,
+            &cp_v_nth(point, p[1]), z0,
+            &cp_v_nth(point, p[2]), z0);
     }
 
     /* sides */
@@ -83,30 +81,30 @@ static void poly_put_stl(
              * All paths are viewed from above, and pj, pk are in CW order =>
              * Side view from outside:
              *
-             *     (pk,z2)-------(pj,z2)
+             *     (pk,z[1])-------(pj,z[1])
              *     |                   |
-             *     (pk,z1)-------(pj,z1)
+             *     (pk,z[0])-------(pj,z[0])
              *
              * Triangles in STL are CCW, so:
-             *     (pk,z1)--(pj,z2)--(pk,z2)
-             * and (pk,z1)..(pj,z1)--(pj,z2)
+             *     (pk,z[0])--(pj,z[1])--(pk,z[1])
+             * and (pk,z[0])..(pj,z[0])--(pj,z[1])
              */
             cp_vec3_t n;
             cp_vec3_left_normal3(&n,
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z1 }},
-                &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z2 }},
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z2 }});
+                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z0 }},
+                &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z1 }},
+                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z1 }});
 
             triangle_put_stl(s,
                 n.x, n.y, n.z,
-                pk->coord.x, pk->coord.y, z1,
-                pj->coord.x, pj->coord.y, z2,
-                pk->coord.x, pk->coord.y, z2);
+                pk, z0,
+                pj, z1,
+                pk, z1);
             triangle_put_stl(s,
                 n.x, n.y, n.z,
-                pk->coord.x, pk->coord.y, z1,
-                pj->coord.x, pj->coord.y, z1,
-                pj->coord.x, pj->coord.y, z2);
+                pk, z0,
+                pj, z0,
+                pj, z1);
         }
     }
 }
@@ -208,7 +206,7 @@ static void csg2_put_stl(
         return;
     }
 
-    assert(0);
+    CP_DIE();
 }
 
 static void v_csg2_put_stl(

@@ -14,6 +14,7 @@
 #include <hob3l/csg2-2ps.h>
 #include <hob3l/csg2-2scad.h>
 #include <hob3l/csg2-2stl.h>
+#include <hob3l/csg2-2js.h>
 
 /**
  * Allocate a new CSG2 object.

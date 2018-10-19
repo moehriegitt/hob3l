@@ -28,6 +28,7 @@ typedef struct {
     bool dump_csg2;
     bool dump_ps;
     bool dump_stl;
+    bool dump_js;
     bool have_dump;
     bool no_tri;
     bool no_csg;
@@ -219,6 +220,10 @@ static bool do_file(
     }
     if (opt->dump_stl) {
         cp_csg2_tree_put_stl(sout, csg2_out);
+        return true;
+    }
+    if (opt->dump_js) {
+        cp_csg2_tree_put_js(sout, csg2_out);
         return true;
     }
     if (opt->dump_ps) {
@@ -519,6 +524,9 @@ int main(int argc, char **argv)
         if (!opt.have_dump) {
             if (has_suffix(opt.out_file_name, ".stl")) {
                 opt.dump_stl = true;
+            }
+            else if (has_suffix(opt.out_file_name, ".js")) {
+                opt.dump_js = true;
             }
             else if (
                 has_suffix(opt.out_file_name, ".scad") ||
