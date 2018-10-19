@@ -1,5 +1,5 @@
 #! /bin/sh
-pkgdatadir='@pkgdatadir@'
+pkgdatadir=${pkgdatadir-'@pkgdatadir@'}
 
 FILE="$1"
 if test -z "$FILE"
@@ -25,6 +25,8 @@ cat "$pkgdatadir/js-hob3l.local.html" \
     > "$DIR/$NAME.local.html"
 
 rm -f "$DIR/$NAME.html"
-cat "$pkgdatadir/js-hob3l.html" \
+cat "$pkgdatadir/js-hob3l.local.html" \
     | sed "s@js-hob3l@$NAME@" \
+    | sed 's@LOCAL.*@-->@' \
+    | sed 's@REMOTE --- \(.*\)-->@-->\1@' \
     > "$DIR/$NAME.html"

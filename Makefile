@@ -152,6 +152,7 @@ CPPFLAGS += $(CPPFLAGS_WARN)
 package_dir := $(package_name)
 
 HOB3L := ./hob3l.x
+HOB3L_JS_COPY_AUX := pkgdatadir=./share sh ./script/hob3l-js-copy-aux.in
 
 ######################################################################
 
@@ -165,6 +166,9 @@ TEST_TRIANGLE.png := \
 
 TEST_STL.stl := \
     $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.stl)))
+
+TEST_STL.js := \
+    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js)))
 
 ######################################################################
 # header files
@@ -180,9 +184,6 @@ SHARE_DATA := \
     gl-matrix/mat4.js \
     gl-matrix/vec3.js \
     js-hob3l.local.html
-
-OUT_DATA := \
-    js-hob3l.html
 
 ######################################################################
 
@@ -342,12 +343,6 @@ out/%: script/%.in
 	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
 	mv $@.new $@
 
-out/%.html: share/%.local.html
-	cat $< | \
-	     sed 's@LOCAL.*@-->@' | \
-	     sed 's@REMOTE --- \(.*\)-->@-->\1@' > $@.new
-	mv $@.new $@
-
 src/mat_gen_ext.c: $(srcdir)/script/mkmat
 	$(srcdir)/script/mkmat
 
@@ -374,7 +369,7 @@ out/main.o: src/main.c src/opt.inc
 test: unit-test no-unit-test
 
 .PHONY: no-unit-test
-no-unit-test: test-triangle test-triangle-prepare test-stl
+no-unit-test: test-triangle test-triangle-prepare test-stl test-js
 
 .PHONY: unit-test
 unit-test: cptest.x
@@ -385,6 +380,9 @@ test-triangle: $(TEST_TRIANGLE.png)
 
 .PHONY: test-stl
 test-stl: $(TEST_STL.stl)
+
+.PHONY: test-js
+test-js: $(TEST_STL.js)
 
 .PHONY: test-triangle-prepare
 test-triangle-prepare: $(TEST_TRIANGLE.scad)
@@ -406,6 +404,18 @@ test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.x
 	$(HOB3L) $@.new.csg -o $@.new.stl
 	mv $@.new.stl $@
 	rm -f $@.new.csg
+
+test-out/%.js: scad-test/%.scad hob3l.x
+	$(HOB3L) $< -o $@.new.js
+	mv $@.new.js $@
+	$(HOB3L_JS_COPY_AUX) $@
+
+test-out/%.js: $(SCAD_DIR)/%.scad hob3l.x
+	openscad $< -o $@.new.csg
+	$(HOB3L) $@.new.csg -o $@.new.js
+	mv $@.new.js $@
+	rm -f $@.new.csg
+	$(HOB3L_JS_COPY_AUX) $@
 
 scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad $< > $@.new
@@ -493,11 +503,6 @@ install-data: installdirs-data
 	        share/$$F \
 	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
 	done
-	for F in $(OUT_DATA); do \
-	    $(INSTALL_DATA) \
-	        out/$$F \
-	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
-	done
 
 install-lib: installdirs-lib
 	$(NORMAL_INSTALL)
@@ -528,7 +533,7 @@ uninstall:
 	for H in $(H_HOB3L); do \
 	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H || exit 1; \
 	done
-	for F in $(DATA); do \
+	for F in $(SHARE_DATA); do \
 	    $(UNINSTALL) $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
 	done
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3lbase
@@ -538,4 +543,7 @@ uninstall:
 
 # check installation by running 'test' with installed binary
 check: clean-test
-	$(MAKE) HOB3L=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) no-unit-test
+	$(MAKE) \
+	    HOB3L=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) \
+	    HOB3L_JS_COPY_AUX=$(DESTDIR)$(bindir)/$(package_name)-js-copy-aux \
+	    no-unit-test

@@ -71,6 +71,8 @@ static char const *opt_help =
     "        print after stage 4: final 2D polygon stack in STL format\n"
     "    --dump-js\n"
     "        print after stage 4: final 2D polygon stack in JavaScript/WebGL format\n"
+    "        The script 'hob3l-js-copy-aux' will add files needed to view the model\n"
+    "        in a WebGL enabled web browser.\n"
     "    --no-csg\n"
     "    --csg\n"
     "        for stage 4: do (not) run 2D boolean operation pass (default: do)\n"

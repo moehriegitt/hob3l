@@ -20,10 +20,12 @@
 
 #define SHIFT_I 0
 
-#define O_HORIZ 0
-#define O_VERT  1
+#define O_HORIZ  0
+#define O_VERT_A 1
+#define O_VERT_B 2
+#define O_CNT    3
 
-#define PER_VERTEX 4
+#define PER_VERTEX (2 * O_CNT)
 #define VERTEX_CNT 65535
 
 typedef struct {
@@ -48,18 +50,6 @@ typedef struct {
     size_t tri_cnt;
     size_t scene_cnt;
 } ctxt_t;
-
-static inline unsigned short *idx_ptr(
-    ctxt_t *c,
-    size_t pi,
-    unsigned zi,
-    unsigned oi)
-{
-    assert(zi < 2);
-    assert(oi < 2);
-    size_t i = (pi * PER_VERTEX) + (zi * 2) + oi;
-    return &cp_v_nth(&c->idx, i);
-}
 
 static void v_csg2_put_js(
     ctxt_t *c,
@@ -156,16 +146,27 @@ static void scene_flush(
     c->tri_cnt = 0;
 }
 
+static inline unsigned short *idx_ptr(
+    ctxt_t *c,
+    size_t pi,
+    unsigned zi,
+    unsigned oi)
+{
+    assert(zi < 2);
+    assert(oi < O_CNT);
+    size_t i = (pi * PER_VERTEX) + (zi * O_CNT) + oi;
+    return &cp_v_nth(&c->idx, i);
+}
+
 static void triangle_put_js(
     ctxt_t *c,
     cp_stream_t *s,
     cp_v_vec2_loc_t const *point,
     cp_dim_t const z[],
-    unsigned oi,
     cp_dim_t xn, cp_dim_t yn, cp_dim_t zn,
-    size_t k1, unsigned i1,
-    size_t k2, unsigned i2,
-    size_t k3, unsigned i3)
+    size_t k1, unsigned i1, unsigned o1,
+    size_t k2, unsigned i2, unsigned o2,
+    size_t k3, unsigned i3, unsigned o3)
 {
     if (((c->v_cnt   + 3) > cp_countof(c->v)) ||
         ((c->tri_cnt + 1) > cp_countof(c->tri)))
@@ -179,9 +180,9 @@ static void triangle_put_js(
 
     assert(c->tri_cnt < cp_countof(c->tri));
     u16_3_t *t = &c->tri[c->tri_cnt++];
-    t->i[0] = store_vertex(c, idx_ptr(c, k1, i1, oi), xn, yn, zn, xy1, z[i1]);
-    t->i[1] = store_vertex(c, idx_ptr(c, k2, i2, oi), xn, yn, zn, xy2, z[i2]);
-    t->i[2] = store_vertex(c, idx_ptr(c, k3, i3, oi), xn, yn, zn, xy3, z[i3]);
+    t->i[0] = store_vertex(c, idx_ptr(c, k1, i1, o1), xn, yn, zn, xy1, z[i1]);
+    t->i[1] = store_vertex(c, idx_ptr(c, k2, i2, o2), xn, yn, zn, xy2, z[i2]);
+    t->i[2] = store_vertex(c, idx_ptr(c, k3, i3, o3), xn, yn, zn, xy3, z[i3]);
 }
 
 static inline cp_dim_t layer_gap(cp_dim_t x)
@@ -209,21 +210,21 @@ static void poly_put_js(
     /* top */
     for (cp_v_each(i, &r->triangle)) {
         size_t const *p = cp_v_nth(&r->triangle, i).p;
-        triangle_put_js(c, s, point, z, O_HORIZ,
+        triangle_put_js(c, s, point, z,
             0., 0., 1.,
-            p[1], 1,
-            p[0], 1,
-            p[2], 1);
+            p[1], 1, O_HORIZ,
+            p[0], 1, O_HORIZ,
+            p[2], 1, O_HORIZ);
     }
 
     /* bottom */
     for (cp_v_each(i, &r->triangle)) {
         size_t const *p = cp_v_nth(&r->triangle, i).p;
-        triangle_put_js(c, s, point, z, O_HORIZ,
+        triangle_put_js(c, s, point, z,
             0., 0., -1.,
-            p[0], 0,
-            p[1], 0,
-            p[2], 0);
+            p[0], 0, O_HORIZ,
+            p[1], 0, O_HORIZ,
+            p[2], 0, O_HORIZ);
     }
 
     /* sides */
@@ -254,16 +255,16 @@ static void poly_put_js(
                 &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z[1] }},
                 &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[1] }});
 
-            triangle_put_js(c, s, point, z, O_VERT,
+            triangle_put_js(c, s, point, z,
                 n.x, n.y, n.z,
-                ik, 0,
-                ij, 1,
-                ik, 1);
-            triangle_put_js(c, s, point, z, O_VERT,
+                ik, 0, O_VERT_A,
+                ij, 1, O_VERT_B,
+                ik, 1, O_VERT_A);
+            triangle_put_js(c, s, point, z,
                 n.x, n.y, n.z,
-                ik, 0,
-                ij, 0,
-                ij, 1);
+                ik, 0, O_VERT_A,
+                ij, 0, O_VERT_B,
+                ij, 1, O_VERT_B);
         }
     }
 }
