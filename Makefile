@@ -176,7 +176,6 @@ H_HOB3L := $(notdir $(wildcard include/hob3l/*.h))
 # data files
 
 SHARE_DATA := \
-    gl-matrix/README.txt \
     gl-matrix/common.js \
     gl-matrix/mat4.js \
     gl-matrix/vec3.js \
