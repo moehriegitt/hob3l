@@ -169,7 +169,7 @@ static void triangle_put_js(
     cp_vec2_loc_t const *xy2 = &cp_v_nth(point, k2);
     cp_vec2_loc_t const *xy3 = &cp_v_nth(point, k3);
 
-    assert(v->tri_cnt < cp_countof(v->tri));
+    assert(c->tri_cnt < cp_countof(c->tri));
     u16_3_t *t = &c->tri[c->tri_cnt++];
     t->i[0] = store_vertex(c, idx_ptr(c, k1, i1, oi), xn, yn, zn, xy1, z[i1]);
     t->i[1] = store_vertex(c, idx_ptr(c, k2, i2, oi), xn, yn, zn, xy2, z[i2]);
