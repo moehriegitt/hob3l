@@ -1,0 +1,30 @@
+#! /bin/sh
+pkgdatadir='@pkgdatadir@'
+
+FILE="$1"
+if test -z "$FILE"
+then
+    echo "Usage: $0 FILE.js" 1>&2
+    exit 1
+fi
+DIR=$(dirname "$FILE")
+NAME=$(basename "$FILE" .js)
+
+rm -f "$FILE.gz"
+gzip -c "$FILE" > "$FILE.gz"
+
+mkdir -p "$DIR/gl-matrix"
+
+cp "$pkgdatadir/gl-matrix/common.js" "$DIR/gl-matrix"
+cp "$pkgdatadir/gl-matrix/mat4.js"   "$DIR/gl-matrix"
+cp "$pkgdatadir/gl-matrix/vec3.js"   "$DIR/gl-matrix"
+
+rm -f "$DIR/$NAME.local.html"
+cat "$pkgdatadir/js-hob3l.local.html" \
+    | sed "s@js-hob3l@$NAME@" \
+    > "$DIR/$NAME.local.html"
+
+rm -f "$DIR/$NAME.html"
+cat "$pkgdatadir/js-hob3l.html" \
+    | sed "s@js-hob3l@$NAME@" \
+    > "$DIR/$NAME.html"

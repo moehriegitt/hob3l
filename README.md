@@ -325,8 +325,8 @@ and all `*dir` options and also `DESTDIR` support as well as
 ```
 
 For better package separation, the `install` target is split into
-`install-bin`, `install-lib`, `install-include` (e.g. to have a
-separate `-dev` package as in Debian distributions).
+`install-bin`, `install-data`, `install-lib`, `install-include`
+(e.g. to have a separate `-dev` package as in Debian distributions).
 
 Unfortunately, there is no `install-doc` yet.  FIXME.
 

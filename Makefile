@@ -149,7 +149,7 @@ CPPFLAGS += $(CPPFLAGS_WARN)
 
 ######################################################################
 
-package_dir  := $(package_name)-$(package-version)
+package_dir := $(package_name)
 
 HOB3L := ./hob3l.x
 
@@ -171,6 +171,19 @@ TEST_STL.stl := \
 
 H_CPMAT := $(notdir $(wildcard include/hob3lbase/*.h))
 H_HOB3L := $(notdir $(wildcard include/hob3l/*.h))
+
+######################################################################
+# data files
+
+SHARE_DATA := \
+    gl-matrix/README.txt \
+    gl-matrix/common.js \
+    gl-matrix/mat4.js \
+    gl-matrix/vec3.js \
+    js-hob3l.local.html
+
+OUT_DATA := \
+    js-hob3l.html
 
 ######################################################################
 
@@ -264,11 +277,15 @@ all: \
     libcptest.a
 
 bin: \
-    hob3l.x
+    hob3l.x \
+    out/hob3l-js-copy-aux
 
 lib: \
     libhob3l.a \
     libhob3lbase.a
+
+data: \
+    $(addprefix out/,$(OUT_DATA))
 
 maintainer-clean: zap
 
@@ -321,6 +338,16 @@ hob3l.x: $(MOD_O.hob3l.x) libhob3l.a libhob3lbase.a
 
 cptest.x: $(MOD_O.cptest.x) libhob3lbase.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
+
+out/%: script/%.in
+	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
+	mv $@.new $@
+
+out/%.html: share/%.local.html
+	cat $< | \
+	     sed 's@LOCAL.*@-->@' | \
+	     sed 's@REMOTE --- \(.*\)-->@-->\1@' > $@.new
+	mv $@.new $@
 
 src/mat_gen_ext.c: $(srcdir)/script/mkmat
 	$(srcdir)/script/mkmat
@@ -437,6 +464,11 @@ installdirs-bin:
 	$(NORMAL_INSTALL)
 	$(MKINSTALLDIR) $(DESTDIR)$(bindir)
 
+installdirs-data:
+	$(NORMAL_INSTALL)
+	$(MKINSTALLDIR) $(DESTDIR)$(pkgdatadir)
+	$(MKINSTALLDIR) $(DESTDIR)$(pkgdatadir)/gl-matrix
+
 installdirs-lib:
 	$(NORMAL_INSTALL)
 	$(MKINSTALLDIR) $(DESTDIR)$(libdir)
@@ -446,11 +478,27 @@ installdirs-include:
 	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3lbase
 	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3l
 
-installdirs: installdirs-bin installdirs-lib installdirs-include
-
 install-bin: installdirs-bin
 	$(NORMAL_INSTALL)
-	$(INSTALL_BIN) hob3l.x $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
+	$(INSTALL_BIN) \
+	    hob3l.x \
+	    $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
+	$(INSTALL_SCRIPT) \
+	    out/hob3l-js-copy-aux \
+	    $(DESTDIR)$(bindir)/$(package_name)-js-copy-aux
+
+install-data: installdirs-data
+	$(NORMAL_INSTALL)
+	for F in $(SHARE_DATA); do \
+	    $(INSTALL_DATA) \
+	        share/$$F \
+	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
+	done
+	for F in $(OUT_DATA); do \
+	    $(INSTALL_DATA) \
+	        out/$$F \
+	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
+	done
 
 install-lib: installdirs-lib
 	$(NORMAL_INSTALL)
@@ -462,12 +510,12 @@ install-include: installdirs-include
 	for H in $(H_CPMAT); do \
 	    $(INSTALL_DATA) \
 	        include/hob3lbase/$$H \
-	        $(DESTDIR)$(includedir)/hob3lbase/$$H; \
+	        $(DESTDIR)$(includedir)/hob3lbase/$$H || exit 1; \
 	done
 	for H in $(H_HOB3L); do \
 	    $(INSTALL_DATA) \
 	        include/hob3l/$$H \
-	        $(DESTDIR)$(includedir)/hob3l/$$H; \
+	        $(DESTDIR)$(includedir)/hob3l/$$H || exit 1; \
 	done
 
 uninstall:
@@ -476,13 +524,18 @@ uninstall:
 	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 	for H in $(H_CPMAT); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3lbase/$$H; \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3lbase/$$H || exit 1; \
 	done
 	for H in $(H_HOB3L); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H; \
+	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H || exit 1; \
+	done
+	for F in $(DATA); do \
+	    $(UNINSTALL) $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
 	done
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3lbase
 	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3l
+	$(UNINSTALL_DIR) $(DESTDIR)$(pkgdatadir)/gl-matrix
+	$(UNINSTALL_DIR) $(DESTDIR)$(pkgdatadir)
 
 # check installation by running 'test' with installed binary
 check: clean-test

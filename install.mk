@@ -38,6 +38,8 @@ localedir        := $(datarootdir)/locale
 mandir           := $(datarootdir)/man
 lispdir          := $(datarootdir)/emacs/site-lisp
 
+pkgdatadir       := $(datadir)/$(package_dir)
+
 htmldir          := $(docdir)
 dvidir           := $(docdir)
 pdfdir           := $(docdir)
@@ -57,6 +59,9 @@ man2ext          := .2
 .PHONY: install-bin
 install-bin:
 
+.PHONY: install-data
+install-data:
+
 .PHONY: install-lib
 install-lib:
 
@@ -67,7 +72,7 @@ install-include:
 install-doc: doc
 
 .PHONY: install
-install: install-bin install-lib install-include install-doc
+install: install-bin install-data install-lib install-include install-doc
 
 .PHONY: uninstall
 uninstall:
@@ -78,6 +83,9 @@ install-lib: lib installdirs-lib
 .PHONY: install-bin
 install-bin: bin installdirs-bin
 
+.PHONY: install-data
+install-data: data installdirs-data
+
 .PHONY: install-include
 install-include: installdirs-include
 
@@ -85,10 +93,14 @@ install-include: installdirs-include
 install-doc: install-man install-info install-html install-dvi install-ps install-pdf
 
 .PHONY: installdirs
-installdirs: installdirs-bin installdirs-lib installdirs-include installdirs-doc
+installdirs: \
+    installdirs-bin installdirs-data installdirs-lib installdirs-include installdirs-doc
 
 .PHONY: installdirs-bin
 installdirs-bin:
+
+.PHONY: installdirs-data
+installdirs-data:
 
 .PHONY: installdirs-lib
 installdirs-lib:
@@ -158,13 +170,16 @@ distclean: clean
 maintainer-clean: distclean
 
 .PHONY: all
-all: bin lib doc
+all: bin data lib doc
 
 .PHONY: doc
 doc: info man html dvi ps pdf
 
 .PHONY: bin
 bin:
+
+.PHONY: data
+data:
 
 .PHONY: lib
 lib:

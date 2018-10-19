@@ -129,6 +129,8 @@ case "dump-stl": bool &opt->dump_stl {
 }
 case "dump-js": bool &opt->dump_js {
     "print after stage 4: final 2D polygon stack in JavaScript/WebGL format";
+    "The script 'hob3l-js-copy-aux' will add files needed to view the model";
+    "in a WebGL enabled web browser.";
     opt->have_dump = true;
 }
 

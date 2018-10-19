@@ -1,4 +1,4 @@
-# Top Level Structures
+# JavaScript/WebGL Scene Format
 
 The top-level has the following variables (declared with 'var' or by
 assigning to an identifier):
@@ -178,9 +178,9 @@ supports uint16 indices.
 
 ## Example
 
-The following draw a centred cuboid with edge length 8 cm in x
-direction, 6 cm in y direction and 4 cm in z direction in orange at
-full opacity.  Groups are not used in this example.
+The following represents a centred cuboid with edge length 8 cm in x
+direction, 6 cm in y direction and 4 cm in z direction in bright
+orange colour at full opacity.  Groups are not used in this example.
 
 ```
 var group = {};
