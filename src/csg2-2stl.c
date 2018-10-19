@@ -36,6 +36,11 @@ static inline void triangle_put_stl(
         xy3->coord.x, xy3->coord.y, z3);
 }
 
+static inline cp_dim_t layer_gap(cp_dim_t x)
+{
+    return cp_eq(x,-1) ? 0.01 : x;
+}
+
 static void poly_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
@@ -43,7 +48,7 @@ static void poly_put_stl(
     cp_csg2_poly_t *r)
 {
     double z0 = cp_v_nth(&t->z, zi);
-    double z1 = z0 + cp_csg2_layer_thickness(t, zi) - t->opt.layer_gap;
+    double z1 = z0 + cp_csg2_layer_thickness(t, zi) - layer_gap(t->opt.layer_gap);
 
     cp_v_vec2_loc_t const *point = &r->point;
 

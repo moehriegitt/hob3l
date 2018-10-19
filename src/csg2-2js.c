@@ -6,7 +6,6 @@
  *   - color
  *   - groups (needs SCAD extension) with all bells and whistles (movement, on/off, ...)
  *   - XOR of layers to get inner part of solids right
- *   - with XOR: ignore layer_gap or have a different default than for STL
  *   - compression using auxiliary values
  */
 
@@ -185,6 +184,11 @@ static void triangle_put_js(
     t->i[2] = store_vertex(c, idx_ptr(c, k3, i3, oi), xn, yn, zn, xy3, z[i3]);
 }
 
+static inline cp_dim_t layer_gap(cp_dim_t x)
+{
+    return cp_eq(x,-1) ? 0 : x;
+}
+
 static void poly_put_js(
     ctxt_t *c,
     cp_stream_t *s,
@@ -198,7 +202,7 @@ static void poly_put_js(
 
     cp_dim_t z[2];
     z[0] = cp_v_nth(&t->z, zi);
-    z[1] = z[0] + cp_csg2_layer_thickness(t, zi) - t->opt.layer_gap;
+    z[1] = z[0] + cp_csg2_layer_thickness(t, zi) - layer_gap(t->opt.layer_gap);
 
     cp_v_vec2_loc_t const *point = &r->point;
 

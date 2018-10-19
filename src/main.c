@@ -288,8 +288,6 @@ static void help(void)
     PRI("\n");
     PRI("Options:\n");
     PRI("%s", opt_help);
-    PRI("Note: --dump-csg2 without --no-tri does not work well with OpenSCAD, because\n"
-        "the triangles are interpreted in a funny way.\n");
 #undef PRI
     my_exit(0);
 }
@@ -473,7 +471,7 @@ int main(int argc, char **argv)
     opt.ps.color_mark   = (cp_color_rgb_t){   0,   0, 255 };
     opt.ps.line_width = 0.4;
     opt.csg3.max_fn = 200;
-    opt.tree.layer_gap = 0.01;
+    opt.tree.layer_gap = -1;
     opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
     opt.tree.optimise = CP_CSG2_OPT_DEFAULT;
     opt.verbose = 1;

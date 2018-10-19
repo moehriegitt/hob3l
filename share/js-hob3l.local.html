@@ -1,0 +1,1634 @@
+<!DOCTYPE html><!-- -*- Mode: JavaScript -*- -->
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>3D Sample</title>
+
+    <script>
+    var worldPos = [];
+    </script>
+
+    <script src="gl-matrix/common.js"></script>
+    <script src="gl-matrix/mat4.js"></script>
+    <script src="gl-matrix/vec3.js"></script>
+    <!-- LOCAL  --> <script src="js-hob3l.js"></script>
+    <!-- REMOTE --- <script src="js-hob3l.js.gz"></script> -->
+
+    <style type="text/css"><!--
+        .but {
+            background-color: #e8e8e8;
+            border: 1px solid black;
+            border-radius: 7px;
+            color: black;
+            padding: 0px 3px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 0px 0px;
+        }
+    --></style>
+
+    <script id="shader-vs" type="x-shader/x-vertex">
+        attribute highp vec3  aVertexNormal;
+        attribute highp vec3  aVertexPosition;
+        attribute highp vec4  aVertexColor;
+        attribute highp float aScaleAlpha;
+
+        uniform highp mat4 uNormalMatrix;
+        uniform highp mat4 uMVMatrix;
+        uniform highp mat4 uPMatrix;
+
+        varying highp vec4  vColor;
+        varying highp vec3  vLighting;
+
+        void main(void)
+        {
+            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            vColor = aVertexColor;
+            vColor.a *= aScaleAlpha;
+
+            highp vec3 ambientLight = vec3(0.3, 0.3, 0.3);
+            highp vec3 directionalLightColor = vec3(0.8, 0.8, 0.8);
+            highp vec3 directionalVector = vec3(0.85, 0.8, 0.75);
+
+            highp vec4 transformedNormal =
+                normalize(uNormalMatrix * vec4(aVertexNormal, 1.0));
+
+            highp float dir =
+                max(dot(transformedNormal.xyz, directionalVector), 0.0);
+
+            vLighting = clamp(
+                ambientLight + (directionalLightColor * dir), 0.0, 1.0);
+       }
+    </script>
+
+    <script id="shader-fs" type="x-shader/x-fragment">
+        varying highp vec4 vColor;
+        varying highp vec3 vLighting;
+        void main(void)
+        {
+            /*
+            if (!gl_FrontFacing) {
+                discard;
+            }
+            */
+            gl_FragColor =
+                clamp(vec4(vColor.rgb * vLighting, vColor.a), 0.0, 1.0);
+        }
+    </script>
+
+    <script>
+    var body;
+    var canvas;
+    var ctrltable;
+    var gl;
+    var shaderProgram;
+    var vertexPositionAttr;
+    var vertexColorAttr;
+    var vertexNormalAttr;
+    var scaleAlphaAttr;
+    var updateTime = 0.0;
+    var buffer = [];
+    var anim = true;
+    var matView = mat4.create();
+    var matWorld = mat4.create();
+    var turnDeg = 10;
+    var camPos0 = [0, 0, 1.2];
+    var camPos = camPos0.slice();
+    var camStep = 0.1;
+    var inputTurnDeg;
+    var inputCamStep;
+    var inputPosName;
+    var inputLoadPos;
+    var inputScaleAlpha;
+    var inputToggleAnim;
+    var inputTogglePersp;
+    var inputToggleCtrl;
+    var outputFrameNo;
+    var divScrollBars;
+    var enableAlpha = 0;
+    var allPos = {};
+    var change = 1;
+    var perspective = 1;
+    var frameNo = 0;
+    var clickDown = 0;
+    var clickShift = 0;
+    var clickX = 0;
+    var clickY = 0;
+    var clickOrigX = 0;
+    var clickOrigY = 0;
+    var clickCamRotX = 0;
+    var clickCamRotY = 0;
+    var clickMatView;
+    var curFocus = 0;
+    var ctrlOn = 1;
+
+    function camMove(x, y, z)
+    {
+        change = 1;
+        camPos[0] += x;
+        camPos[1] += y;
+        camPos[2] += z;
+    }
+
+    function midMove(x, y, z)
+    {
+        change = 1;
+        var r = mat4.create();
+        mat4.translate(r, r, [-x, -y, -z]);
+        mat4.mul(matView, r, matView);
+    }
+
+    function camDist()
+    {
+        return camPos[2];
+    }
+
+    function rotZ(w)
+    {
+        var inv = mat4.invert(mat4.create(), matView);
+
+        /* 0 4  8 12
+         * 1 5  9 13
+         * 2 6 10 14
+         * 3 7 11 15 */
+        var x = inv[12];
+        var y = inv[13];
+        var z = 0;
+
+        var r = mat4.create();
+        mat4.translate(r, r, [+x, +y, +z]);
+        mat4.rotateZ(r, r, w);
+        mat4.translate(r, r, [-x, -y, -z]);
+
+        mat4.mul(matView, matView, r);
+    }
+
+    function alertMat4(text, mat)
+    {
+        alert(
+            text + "\n" +
+            mat[0] + " " + mat[4] + " " + mat[8]  + " " + mat[12] + "\n" +
+            mat[1] + " " + mat[5] + " " + mat[9]  + " " + mat[13] + "\n" +
+            mat[2] + " " + mat[6] + " " + mat[10] + " " + mat[14] + "\n" +
+            mat[3] + " " + mat[7] + " " + mat[11] + " " + mat[15]);
+    }
+
+    function alertVec3(text, vec)
+    {
+        alert(
+            text + "\n" +
+            vec[0] + " " + vec[1] + " " + vec[3]);
+    }
+
+    function tryGetContext(canvas, which)
+    {
+        try{
+            return(canvas.getContext(which));
+        }
+        catch(e){}
+    }
+
+    function initWebGL(canvas)
+    {
+        return(
+            tryGetContext(canvas, "webgl") ||
+            tryGetContext(canvas, "experimental-webgl") ||
+            tryGetContext(canvas, "webkit-3d") ||
+            tryGetContext(canvas, "moz-webgl"));
+    }
+
+    function getShader(gl, id)
+    {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var theSource = "";
+        var currentChild = shaderScript.firstChild;
+        while(currentChild) {
+            if (currentChild.nodeType == currentChild.TEXT_NODE) {
+                  theSource += currentChild.textContent;
+            }
+            currentChild = currentChild.nextSibling;
+        }
+
+        if (shaderScript.type == "x-shader/x-fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } else if (shaderScript.type == "x-shader/x-vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } else {
+            return null;
+        }
+
+        gl.shaderSource(shader, theSource);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert("An error occurred compiling the shaders: " +
+                gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+    function initShaders()
+    {
+        var fragmentShader = getShader(gl, "shader-fs");
+        var vertexShader = getShader(gl, "shader-vs");
+        if (!fragmentShader || !vertexShader) {
+            alert("No shaders found");
+            return;
+        }
+
+        // Create the shader program
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        // If creating the shader program failed, alert
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Unable to initialize the shader program.");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        vertexPositionAttr =
+            gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(vertexPositionAttr);
+
+        vertexColorAttr =
+            gl.getAttribLocation(shaderProgram, "aVertexColor");
+        gl.enableVertexAttribArray(vertexColorAttr);
+
+        vertexNormalAttr =
+            gl.getAttribLocation(shaderProgram, "aVertexNormal");
+        gl.enableVertexAttribArray(vertexNormalAttr);
+
+        scaleAlphaAttr =
+            gl.getAttribLocation(shaderProgram, "aScaleAlpha");
+    }
+
+    function getNormal(m3)
+    {
+        var v1 = m3.slice(0, 3);
+        var v2 = m3.slice(3, 6);
+        var v3 = m3.slice(6, 9);
+
+        var a = vec3.sub(vec3.create(), v2, v1);
+        var b = vec3.sub(vec3.create(), v1, v3);
+
+        var r = vec3.cross(vec3.create(), a, b);
+        vec3.scale(r, r, 1 / vec3.length(r));
+
+        return r;
+    }
+
+    function newF32Arr(a, s)
+    {
+        for (var i = 0; i < a.length; i++)
+            a[i] /= s;
+        return new Float32Array(a);
+    }
+
+    function newU16Arr(a)
+    {
+        var last = 0;
+        for (var i = 0; i < a.length; i++) {
+            a[i] = (a[i] - sceneShiftI) + last;
+            last = a[i];
+        }
+        return new Uint16Array(a);
+    }
+
+    function initBuffers()
+    {
+        buffer = [];
+        for (var i = 0; i < scene.length; i++) {
+            var s = scene[i];
+            var b = {};
+
+            b.vertex = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.vertex);
+            gl.bufferData(
+                gl.ARRAY_BUFFER, newF32Arr(s.vertex, sceneScaleV),
+                gl.STATIC_DRAW);
+
+            b.color = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.color);
+            gl.bufferData(
+                gl.ARRAY_BUFFER, newF32Arr(s.color, sceneScaleC),
+                gl.STATIC_DRAW);
+
+            b.normal = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.normal);
+            gl.bufferData(
+                gl.ARRAY_BUFFER, newF32Arr(s.normal, sceneScaleV),
+                gl.STATIC_DRAW);
+
+            b.index = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.index);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
+                newU16Arr(s.index), gl.STATIC_DRAW);
+
+            buffer.push(b);
+        }
+    }
+
+    function rad(deg)
+    {
+        return 2*Math.PI * (deg / 360.0);
+    }
+
+    function makePerspective(fovy, aspect, znear, zfar)
+    {
+        var ymax = znear * Math.tan(fovy * Math.PI / 360.0);
+        var ymin = -ymax;
+        var xmin = ymin * aspect;
+        var xmax = ymax * aspect;
+        var m = mat4.create();
+        if (perspective) {
+            mat4.frustum(m, xmin, xmax, ymin, ymax, znear, zfar);
+        }
+        else {
+            mat4.ortho(m, xmin, xmax, ymin, ymax, znear, zfar);
+
+            // repair a bit to scale depending on camera position...
+            var t = mat4.create();
+            // 0 4  8 12
+            // 1 5  9 13
+            // 2 6 10 14
+            // 3 7 11 15
+
+            // 0.2 in the following expression is quite arbitrary.
+            // but to do it right, we'd need one control for moving
+            // the camera and another to change the fovy angle, which
+            // would probably be confusing.
+            t[0] = t[5] = Math.abs(0.5/Math.pow(camPos[2] + 0.6,2));
+            mat4.multiply(m, m, t);
+        }
+        return m;
+    }
+
+    function setMatrixUniforms(mv, pm)
+    {
+        var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        gl.uniformMatrix4fv(pUniform, false, pm);
+
+        var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+        gl.uniformMatrix4fv(mvUniform, false, mv);
+
+        var normalMatrix = mat4.invert(mat4.create(), mv);
+        mat4.transpose(normalMatrix, normalMatrix);
+
+        var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
+        gl.uniformMatrix4fv(nUniform, false, normalMatrix);
+    }
+
+    function lerp(a,b,t)
+    {
+        return a + ((b-a) * t);
+    }
+
+    function drawScene()
+    {
+        if (!change && !anim) {
+            return;
+        }
+
+        // document.getElementById("debugInfo").innerHTML = ' '+camDist();
+
+        change = 0;
+        frameNo++;
+        outputFrameNo.innerHTML = frameNo.toString();
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        if (enableAlpha) {
+            // This does not work properly: we probably need to sort
+            // the input before using blending.
+            gl.enable(gl.DEPTH_TEST);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        }
+        else {
+            gl.enable(gl.DEPTH_TEST);
+            gl.disable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+        }
+
+        // draw
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        var horizAspect = canvas.height / canvas.width;
+        var pm = makePerspective(45, 1/horizAspect, 0.01, 100.0);
+
+        for (var i = 0; i < buffer.length; i++) {
+            var s = scene[i];
+            var b = buffer[i];
+
+            /* if any group is switched off, don't show the group
+             * unless it is a major group and that group is on. */
+            var off = -1;
+            var on = -1;
+            for (var gid in group) {
+                var g = group[gid];
+                if (s.group[gid]) {
+                    if (g.off) {
+                        if (g.prio > off) {
+                            off = g.prio;
+                        }
+                    }
+                    else {
+                        if (g.prio > on) {
+                            on = g.prio;
+                        }
+                    }
+                }
+            }
+            if (off > on) {
+                continue;
+            }
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.vertex);
+            gl.vertexAttribPointer(
+                vertexPositionAttr, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.normal);
+            gl.vertexAttribPointer(
+                vertexNormalAttr, 3, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, b.color);
+            gl.vertexAttribPointer(
+                vertexColorAttr, 4, gl.FLOAT, false, 0, 0);
+
+            gl.vertexAttrib1f(scaleAlphaAttr, 1.0);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.index);
+
+            var mv = mat4.create();
+
+            var fixed = false;
+            for (var gid in group) {
+                var g = group[gid];
+                if (s.group[gid]) {
+                    if (g.fixed) {
+                        fixed = true;
+                        break;
+                    }
+                }
+            }
+
+            if (fixed) {
+                if (perspective) {
+                    continue;
+                }
+            }
+            else {
+                mat4.translate(mv, mv, [ -camPos[0], -camPos[1], -camPos[2] ]);
+                mat4.mul(mv, mv, matView);
+            }
+
+            mat4.mul(mv, mv, matWorld);
+
+            // Possibly special movement
+            // Group order determines order of movement, however,
+            // since movements add, there is no difference.  Once
+            // we rotate, the order will become significant.
+            for (var gid in group) {
+                var g = group[gid];
+                if (s.group[gid]) {
+                    if (g.move) {
+                        if (g.move.get) {
+                            g.move.set(g.move.get(g));
+                        }
+                        mat4.translate(mv, mv, g.move.cur);
+                    }
+                    if (g.rot) {
+                        if (g.rot.get) {
+                            g.rot.angle = g.rot.get(g);
+                        }
+                        mat4.translate(mv, mv, g.rot.center);
+                        mat4.rotate(
+                            mv,
+                            mv,
+                            g.rot.angle,
+                            g.rot.unit);
+                        mat4.translate(mv, mv,
+                            [
+                                -g.rot.center[0],
+                                -g.rot.center[1],
+                                -g.rot.center[2]
+                            ]);
+                    }
+                    if (g.scale) {
+                        if (g.scale.get) {
+                            g.scale.mul = g.scale.get(g);
+                        }
+                        mat4.translate(mv, mv, g.scale.center);
+                        mat4.scale(
+                            mv,
+                            mv,
+                            [
+                                lerp(1, g.scale.mul, g.scale.unit[0]),
+                                lerp(1, g.scale.mul, g.scale.unit[1]),
+                                lerp(1, g.scale.mul, g.scale.unit[2])
+                            ]);
+                        mat4.translate(mv, mv,
+                            [
+                                -g.scale.center[0],
+                                -g.scale.center[1],
+                                -g.scale.center[2]
+                            ]);
+                    }
+                }
+            }
+
+            setMatrixUniforms(mv, pm);
+            gl.drawElements(
+                gl.TRIANGLES, s.index.length, gl.UNSIGNED_SHORT, 0);
+        }
+
+        // update
+        var now = (new Date).getTime();
+        if (updateTime) {
+            var delta = (now - updateTime) * 2;
+
+            if (anim) {
+                rotZ(rad(delta / 50.1));
+                mat4.rotateX(matView, matView, rad(delta / 135.2));
+            }
+        }
+        updateTime = (new Date).getTime();
+    }
+
+    function updateInput()
+    {
+        inputTurnDeg.value = turnDeg;
+        inputCamStep.value = camStep * 1000;
+        inputTogglePersp.checked = perspective;
+        inputToggleCtrl.checked = ctrlOn;
+    }
+
+    function setTurnDeg(v)
+    {
+        turnDeg = v;
+        updateInput();
+    }
+
+    function setCamStep(v)
+    {
+        camStep = v;
+        updateInput();
+    }
+
+    function setScaleAlpha(v)
+    {
+        updateInput();
+        change = 1;
+    }
+
+    function cmp_alpha_num(a,b)
+    {
+        var ma = a.match(/^[0-9]+/);
+        var mb = b.match(/^[0-9]+/);
+        if (ma && mb) {
+            var na = Number(ma[0]);
+            var nb = Number(mb[0]);
+            return na < nb ? -1 : na > nb ? +1 : 0;
+        }
+
+        var pa = a.search(/[0-9]/);
+        var pb = b.search(/[0-9]/);
+        if ((pa >= 1) && (pb >= 1)) {
+            var i = cmp_alpha_num(a.substr(0,pa), b.substr(0,pb));
+            if (i != 0)
+                return i;
+            return cmp_alpha_num(a.substr(pa), b.substr(pb));
+        }
+
+        return a < b ? -1 : a > b ? +1 : 0;
+    }
+
+    function haveLocalStorage()
+    {
+        return ('localStorage' in window) &&
+               window.localStorage;
+    }
+
+    function learnPos(str)
+    {
+        if (!str) {
+            return;
+        }
+        var cs = str.split(";");
+        for (var i = 0; i < cs.length; i++) {
+            var c = cs[i].trim();
+            var ms = c.match(/^pos_([a-zA-Z0-9_.]+)=(.*)$/);
+            if (ms) {
+                var m = ms[0];
+                var eq = m.search("=");
+                var key = m.substr(4, eq - 4);
+                var val = m.substr(eq + 1);
+                allPos[key] = val;
+            }
+        }
+    }
+
+    function makePosButtons()
+    {
+        // read cookies
+        learnPos(document.cookie);
+
+        // read HTML5 local storage
+        if (haveLocalStorage()) {
+            learnPos(localStorage.getItem("pos"));
+        }
+
+        var keys = [];
+        for (var key in allPos) {
+            keys.push(key);
+        }
+        keys.sort(cmp_alpha_num);
+
+        var buttons = [];
+        for (var i = 0; i < keys.length; i++) {
+            var n = keys[i];
+            buttons.push(
+                "<button class=\"but\" type=\"button\" onclick=\"loadPos('"+n+"')\">"+
+                n+"</button>");
+        }
+
+        inputLoadPos.innerHTML = buttons.join(" ");
+    }
+
+    function setWorldPos(p)
+    {
+        for (var i = 0; i < 16; i++) {
+            matWorld[i] = worldPos[p].mat[i];
+        }
+        change = 1;
+    }
+
+    function makeWorldButtons()
+    {
+        var buttons = [];
+        for (var i = 0; i < worldPos.length; i++) {
+            var n = worldPos[i];
+            buttons.push(
+                "<button class=\"but\" type=\"button\" onclick=\"setWorldPos('"+i+"')\">"+
+                n.name+"</button>");
+        }
+        inputWorldPos.innerHTML = buttons.join(" ");
+    }
+
+
+    function scrollButtonHTML(ids, pos, text)
+    {
+        return "<button class=\"but\""+
+            " type=\"button\""+
+            " onclick=\"scrollSet('"+ids+"', "+pos+")\">" +
+            text +
+            "</button>";
+    }
+
+    function scrollBarHTML(id, unit)
+    {
+        var ids = id.toString();
+        return(
+            "<input"+
+            " id=\"id-"+ids+"-pos\""+
+            " type=\"text\""+
+            " value=\"0\""+
+            " style=\"width:5em;\""+
+            " onchange=\"scrollEdit('"+ids+"')\"/>" + unit +
+            " "+
+            scrollButtonHTML(ids, 0.0, "-") +
+            scrollButtonHTML(ids, 0.5, "0") +
+            scrollButtonHTML(ids, 1.0, "+") +
+            "</div>" +
+            "<div id=\"id-"+ids+"-bar\""+
+            " onscroll=\"scrollChange('"+ids+"')\""+
+            " style=\""+
+                "width:270px; "+
+                "max-width:270px; "+
+                "overflow-x:scroll;\">"+
+            " <div style=\""+
+                "min-width:3200px; "+
+                "max-height:1px;\">"+
+            "  &nbsp;"+
+            " </div>"+
+            "</div>");
+    }
+
+    function checkboxHTML(id, text, off)
+    {
+        var ids = id.toString();
+        return "<label style=\"white-space:nowrap;\"><input"+
+            " type=\"checkbox\""+
+            (off ?
+                ""
+             :  " checked=\"checked\"") +
+            " id=\"id-"+ids+"-check\""+
+            " onchange=\"checkboxChange('"+ids+"')\""+
+            "/>"+text+"</label>";
+    }
+
+    function scrollGetRatio(input)
+    {
+        return input.scrollLeft / (input.scrollWidth - input.clientWidth);
+    }
+
+    function scrollSetRatio(input, value)
+    {
+        var l = Math.round(value * (input.scrollWidth - input.clientWidth));
+        if (l == input.scrollLeft) {
+            return;
+        }
+        input.scrollLeft = l;
+    }
+
+    function scrollChange(id)
+    {
+        var ids   = id.toString();
+        var edit  = document.getElementById("id-" + ids + "-pos");
+        var bar   = document.getElementById("id-" + ids + "-bar");
+        var m     = group[id].move;
+        var ratio = scrollGetRatio(bar);
+        var value = m.pos2value(ratio);
+
+        // update edit
+        if (m.editing || (edit.value == value)) {
+            m.editing = false;
+            return;
+        }
+
+        // update current value
+        m.set(ratio);
+
+        edit.value = value;
+        change = 1;
+    }
+
+    function scrollSet(id, ratio)
+    {
+        var ids = id.toString();
+        var edit  = document.getElementById("id-" + ids + "-pos");
+        if (edit) {
+            var m     = group[id].move;
+            var value = m.pos2value(ratio);
+            edit.value = value;
+            scrollEdit(id);
+        }
+    }
+
+    function scrollEdit(id)
+    {
+        var ids = id.toString();
+        var edit  = document.getElementById("id-" + ids + "-pos");
+        var bar   = document.getElementById("id-" + ids + "-bar");
+        var m     = group[id].move;
+
+        var s     = edit.value;
+        var value = Number(s) || 0;
+        m.editing = true;
+        var ratio = m.value2pos(value);
+        if (s == '+') {
+            ratio = 1;
+            edit.value = m.pos2value(ratio);
+        }
+        if (s == '-') {
+            ratio = 0;
+            edit.value = m.pos2value(ratio);
+        }
+
+        if (m.enforce) {
+            if (ratio < 0) {
+                scrollSet(id, 0);
+                return;
+            }
+            if (ratio > 1) {
+                scrollSet(id, 1);
+                return;
+            }
+        }
+
+        // update current value
+        m.set(ratio);
+        change = 1;
+
+        // update scroll bar
+        scrollSetRatio(bar, ratio);
+    }
+
+    function checkboxChange(id)
+    {
+        var ids   = id.toString();
+        var check = document.getElementById("id-" + ids + "-check");
+        var g     = group[id];
+        g.off = !check.checked;
+        change = 1;
+    }
+
+    function updateCheckbox(id)
+    {
+        var ids   = id.toString();
+        var check = document.getElementById("id-" + ids + "-check");
+        if (check) {
+            var g = group[id];
+            check.checked = !g.off;
+        }
+    }
+
+    function makeMoveFunc(g, m)
+    {
+        m.pos2value = function(p) {
+            var v = ((p * 2) - 1) * m.amount * 1000;
+            return Math.round(v * 10) / 10;
+        };
+        m.value2pos = function(v) {
+            return ((v / 1000 / m.amount) + 1) / 2;
+        };
+        m.set = function(v) {
+            var p = ((v * 2) - 1) * m.amount;
+            m.ratio = v;
+            m.pos = p;
+            if (m.xlat) {
+                m.cur = m.xlat(g);
+            }
+            else {
+                m.cur = [
+                    m.unit[0] * p,
+                    m.unit[1] * p,
+                    m.unit[2] * p
+                ];
+            }
+        };
+    }
+
+    function makeGroupCtrls()
+    {
+        var keys = [];
+        for (var id in group) {
+            keys.push(id);
+            var g = group[id];
+            g.html = "";
+            var o = g.optional;
+            var m = g.move;
+            if (m || o) {
+                var haveLabel = false;
+                if (o) {
+                    g.html += checkboxHTML(id, g.name, g.default_off);
+                    g.off = g.default_off;
+                    haveLabel = true;
+                }
+                if (m) {
+                    if (!m.get) {
+                        if (!haveLabel) {
+                            g.html += g.name;
+                            haveLabel = true;
+                        }
+                        g.html += ": " + scrollBarHTML(id, m.name || "mm");
+                        g.own_div = 1;
+                    }
+                    makeMoveFunc(g, m);
+                }
+            }
+        }
+        keys.sort(cmp_alpha_num);
+
+        // put HTML into div:
+        var vals = [];
+        var div = 0;
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            var g = group[key];
+            var html = "";
+            if (g.own_div && div) {
+                html += "</div>\n";
+                div = 0;
+            }
+            if (!div) {
+                html += "<div style=\"width:299px;\">";
+                div = 1;
+            }
+
+            html += g.html;
+
+            if (g.own_div || (i == keys.length-1)) {
+                html += "</div>\n";
+                div = 0;
+            }
+
+            vals.push(html);
+        }
+
+        divScrollBars.innerHTML = vals.join(" ");
+    }
+
+    function initGroups()
+    {
+        for (var id in group) {
+            var g = group[id];
+            if (g.move) {
+                scrollSet(id, 0.5);
+            }
+            if (g.scale) {
+                g.scale.cur = 1;
+            }
+        }
+    }
+
+    function changeAnim()
+    {
+        anim = inputToggleAnim.checked;
+        change = 1;
+        if (anim) {
+            updateTime = (new Date).getTime();
+        }
+    }
+
+    function setAnim(v)
+    {
+        inputToggleAnim.checked = v;
+        changeAnim();
+    }
+
+    function mousedown(ev)
+    {
+        clickX = clickOrigX = ev.clientX;
+        clickY = clickOrigY = ev.clientY;
+        clickDown = ev.buttons;
+        clickShift = ev.shiftKey;
+        clickMatView = mat4.clone(matView);
+        return false;
+    }
+
+    function mouseup(ev)
+    {
+        clickDown = 0;
+        return false;
+    }
+
+    function mousemove(ev)
+    {
+        if (!clickDown) {
+            return;
+        }
+        var deltaX     = (ev.clientX - clickX) / canvas.width;
+        var deltaY     = (ev.clientY - clickY) / canvas.height;
+        var deltaOrigX = (ev.clientX - clickOrigX) / canvas.width;
+        var deltaOrigY = (ev.clientY - clickOrigY) / canvas.height;
+
+        posChange();
+
+        if (clickShift) {
+            /* reference = center of machine */
+            if (clickDown == 1) {
+                var camStep = 0.3 * camDist();
+                midMove(0, 0, +5 * camStep * deltaY);
+            }
+        }
+        else { /* !clickShift: reference = camera */
+            if (clickDown == 1) {
+                rotZ(rad(360 * deltaX));
+
+                var r = mat4.create();
+                mat4.rotateX(r, r, rad(360 * deltaY));
+                mat4.mul(matView, r, matView);
+            }
+            if ((clickDown == 2) || (clickDown == 5)) {
+                var camStep = 0.3 * camDist();
+                midMove(-5 * camStep * deltaX, +5 * camStep * deltaY, 0);
+            }
+            if (clickDown == 4) {
+                var camStep = 0.3 * camDist();
+                camMove(0, 0, +5 * camStep * deltaY);
+            }
+        }
+
+        clickX = ev.clientX;
+        clickY = ev.clientY;
+        return false;
+    }
+
+    function inFocus(v)
+    {
+        curFocus = v.target;
+        return false;
+    }
+
+    function outFocus(v)
+    {
+        curFocus = 0;
+        return false;
+    }
+
+    function keydown(v)
+    {
+        if (curFocus != canvas) {
+            return;
+        }
+        if (v.key == 'Left' || v.key == 'ArrowLeft') {
+            midMove(+camStep, 0, 0);
+        }
+        if (v.key == 'Right' || v.key == 'ArrowRight') {
+            midMove(-camStep, 0, 0);
+        }
+        if (v.key == 'Up' || v.key == 'ArrowUp') {
+            midMove(0, -camStep, 0);
+        }
+        if (v.key == 'Down' || v.key == 'ArrowDown') {
+            midMove(0, +camStep, 0);
+        }
+        return false;
+    }
+
+    function keypress(v)
+    {
+        if (curFocus != canvas) {
+            return;
+        }
+        var c = String.fromCharCode(v.charCode);
+        if (c == '+') {
+            camMove(0, 0, -camStep * camDist());
+        }
+        if (c == '-') {
+            camMove(0, 0, +camStep * camDist());
+        }
+        return false;
+    }
+
+    var oldWidth  = 0;
+    var oldHeight = 0;
+
+    function resetSize()
+    {
+        var w = ctrltable.clientWidth;
+        if (ctrltable.getBoundingClientRect) {
+            w = ctrltable.getBoundingClientRect().width;
+        }
+        var newWidth  = window.innerWidth  - w - 16;
+        var newHeight = window.innerHeight;
+        if ((newWidth != oldWidth) || (newHeight != oldHeight)) {
+            canvas.width  = oldWidth  = newWidth;
+            canvas.height = oldHeight = newHeight;
+            change = 1;
+        }
+    }
+
+    function start()
+    {
+        body      = document.getElementById("body");
+        canvas    = document.getElementById("glcanvas");
+        ctrltable = document.getElementById("ctrltable");
+
+        resetSize();
+        setInterval(resetSize, 250);
+
+        canvas.addEventListener("mousedown", mousedown, false);
+        canvas.addEventListener("mouseup",   mouseup,   false);
+        canvas.addEventListener("mouseout",  mouseup,   false);
+        canvas.addEventListener("mousemove", mousemove, false);
+
+        document.addEventListener("keydown",   keydown,  false);
+        document.addEventListener("keypress",  keypress, false);
+        document.addEventListener("mousedown", inFocus,  false);
+        document.addEventListener("mouseover", inFocus,  false);
+
+        outputFrameNo = document.getElementById("frameNo");
+        inputTurnDeg = document.getElementById("turnDeg");
+        inputCamStep = document.getElementById("camStep");
+        inputPosName = document.getElementById("posName");
+        inputWorldPos = document.getElementById("worldPos");
+        inputLoadPos = document.getElementById("loadPos");
+        inputToggleAnim = document.getElementById("toggleAnim");
+        inputTogglePersp = document.getElementById("togglePersp");
+        inputToggleCtrl = document.getElementById("toggleCtrl");
+        divScrollBars = document.getElementById("scroll-bars");
+
+        inputTogglePersp.checked = perspective;
+        inputToggleCtrl.checked = ctrlOn;
+
+        if (worldPos.length >= 1) {
+            setWorldPos(0);
+        }
+
+        setTurnDeg(turnDeg);
+        setCamStep(camStep);
+        setAnim(anim);
+
+        makePosButtons();
+        makeWorldButtons();
+
+        makeGroupCtrls();
+        initGroups();
+
+        // Initialize the GL context
+        gl = initWebGL(canvas);
+
+        // Only continue if WebGL is available and working
+        if (gl == null) {
+            alert("No WebGL");
+            return;
+        }
+
+        // White is nice if no blending is used.  But white does
+        // not work well with blending, so we'll use black.
+        //gl.clearColor(1.0, 1.0, 1.0, 1.0);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+
+        gl.depthFunc(gl.LEQUAL);
+
+        gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+
+        initShaders();
+        initBuffers();
+
+        // Try to load the last position
+        loadPos(inputPosName.value);
+
+        setInterval(drawScene, 50);
+    }
+
+    function setVisible(id, on)
+    {
+        var input = document.getElementById(id);
+        if (!input) {
+            return 0;
+        }
+        input.style.display = on ? '' : 'none';
+        return 1;
+    }
+
+    function updateCtrl()
+    {
+        var i = 0;
+        while (setVisible('ctrl' + i.toString(), ctrlOn)) {
+            i++;
+        }
+    }
+
+    function changeCtrl()
+    {
+        ctrlOn = !ctrlOn;
+        updateCtrl();
+    }
+
+    function changePersp()
+    {
+        perspective = inputTogglePersp.checked;
+        change = 1;
+    }
+
+    function toggleBlend()
+    {
+        enableAlpha = !enableAlpha;
+        change = 1;
+    }
+
+    function posChange()
+    {
+        setAnim(0);
+        change = 1;
+    }
+
+    function rotTop()
+    {
+        posChange();
+        mat4.identity(matView);
+        camPos = camPos0.slice();
+    }
+
+    function rotBottom()
+    {
+        rotTop();
+        mat4.rotateY(matView, matView, rad(180));
+    }
+
+    function rotLeft()
+    {
+        rotTop();
+        mat4.rotateZ(matView, matView, rad(90));
+        mat4.rotateY(matView, matView, rad(90));
+    }
+
+    function rotRight()
+    {
+        rotTop();
+        mat4.rotateZ(matView, matView, rad(-90));
+        mat4.rotateY(matView, matView, rad(-90));
+    }
+
+    function rotFront()
+    {
+        rotTop();
+        mat4.rotateX(matView, matView, rad(-90));
+    }
+
+    function rotBack()
+    {
+        rotTop();
+        mat4.rotateY(matView, matView, rad(180));
+        mat4.rotateX(matView, matView, rad(-90));
+    }
+
+    function turnLeft()
+    {
+        posChange();
+        rotZ(rad(-turnDeg));
+    }
+
+    function turnRight()
+    {
+        posChange();
+        rotZ(rad(+turnDeg));
+    }
+
+    function turnUp()
+    {
+        posChange();
+        var r = mat4.create();
+        mat4.rotateX(r, r, rad(-turnDeg));
+        mat4.mul(matView, r, matView);
+    }
+
+    function turnDown()
+    {
+        posChange();
+        var r = mat4.create();
+        mat4.rotateX(r, r, rad(turnDeg));
+        mat4.mul(matView, r, matView);
+    }
+
+    function turnCW()
+    {
+        posChange();
+        var r = mat4.create();
+        mat4.rotateZ(r, r, rad(-turnDeg));
+        mat4.mul(matView, r, matView);
+    }
+
+    function turnCCW()
+    {
+        posChange();
+        var r = mat4.create();
+        mat4.rotateZ(r, r, rad(+turnDeg));
+        mat4.mul(matView, r, matView);
+    }
+
+    function turnDegChange()
+    {
+        var x = inputTurnDeg.value;
+        if (x != turnDeg) {
+            setTurnDeg(x);
+        }
+    }
+
+    function camStepChange()
+    {
+        var x = inputCamStep.value / 1000;
+        if (x.toPrecision(5) != camStep.toPrecision(5)) {
+            setCamStep(x);
+        }
+    }
+
+    function posMap(pos, fun)
+    {
+        var minPosVersion = 4;
+        var maxPosVersion = 4;
+
+        var funN = function(p,n) {
+            return Number(fun(p, n.toString()));
+        };
+        var funS = function(p,n) {
+            return fun(p, n.toString());
+        };
+        var funB = function(p,n) {
+            return fun(p, n ? "1" : "") ? true : false;
+        };
+
+        var posVersion = funN(pos, maxPosVersion);
+        if (! (posVersion <= maxPosVersion)) {
+            return;
+        }
+        if (! (posVersion >= minPosVersion)) {
+            return;
+        }
+
+        camStep   = funN(pos, camStep);
+        turnDeg   = funN(pos, turnDeg);
+
+        for (var i = 0; i < 3; i++) {
+            camPos[i] = funN(pos, camPos[i]);
+        }
+
+        for (var i = 0; i < 16; i++) {
+            matView[i] = funN(pos, matView[i]);
+        }
+
+        for (var i = 0; i < 16; i++) {
+            matWorld[i] = funN(pos, matWorld[i]);
+        }
+
+        perspective = funB(pos, perspective);
+
+        var gs = {};
+        for (var k in group) {
+            var g = group[k];
+            gs[g.tag] = g;
+        }
+
+        var ks = funS(pos, Object.keys(gs).join("#"));
+        if (typeof ks === "undefined") {
+            return;
+        }
+        if (ks != "") {
+            var ka = ks.split("#");
+            for (var i = 0; i < ka.length; i++) {
+                var k = ka[i];
+                var g = gs[k];
+                if (g) {
+                    g.off = funB(pos, g.off);
+                    if (g.move && !g.move.get) {
+                        g.move.set(funN(pos, g.move.ratio));
+                    }
+                    else {
+                        funN(pos, 0);
+                    }
+                }
+                else {
+                    funN(pos, 0);
+                    funN(pos, 0);
+                }
+            }
+        }
+
+        ctrlOn = funB(pos, ctrlOn);
+
+        return pos;
+    }
+
+    function posToString()
+    {
+        var info = posMap([], function(p,x) {
+            p.push(x);
+            return x;
+        });
+        return info.join('|');
+    }
+
+    function posFromString(s)
+    {
+        posChange();
+        var a = s.split('|');
+        posMap(a, function(p,x) {
+            return p.shift();
+        });
+    }
+
+    function getPosName()
+    {
+        var name = inputPosName.value.trim();
+        if (name == "" || name.match(/[^a-zA-Z0-9_.]/)) {
+            alert("'"+name+"' must be a non-empty name comprised "+
+                  "of only [a-zA-Z0-9_.]");
+            return null;
+        }
+        inputPosName.value = name;
+        return name;
+    }
+
+    function savePos()
+    {
+        var name = getPosName();
+        if (!name) {
+            return;
+        }
+
+        // store as cookie:
+        var d = new Date();
+        d.setTime(d.getTime() + (36525*24*60*60*1000));
+        var cookie = "pos_"+name+"="+posToString()+"; expires="+d.toUTCString();
+        document.cookie = cookie;
+
+        makePosButtons();
+
+        // store in HTML5 localStorage:
+        if (haveLocalStorage()) {
+            localStorage.setItem("pos", document.cookie);
+        }
+    }
+
+    function addPos()
+    {
+        var n = inputPosName.value;
+        if (!n) {
+            n = "";
+        }
+
+        var i = n.match(/([0-9]+)$/);
+        if (i) {
+            i = i[0];
+            n = n.substr(0, n.length - i.length);
+        }
+        else {
+            i = 0;
+        }
+
+        i = Number(i) || 1;
+        makePosButtons();
+        while (allPos[n + i.toString()]) {
+            i++;
+        }
+
+        inputPosName.value = n + i.toString();
+
+        savePos();
+    }
+
+    function loadPos(name)
+    {
+        makePosButtons();
+
+        var pos = allPos[name];
+        if (!pos) {
+            return;
+        }
+
+        posFromString(pos);
+        inputPosName.value = name;
+
+        updateInput();
+        updateCtrl();
+
+        for (var k in group) {
+            var g = group[k];
+            updateCheckbox(k);
+            if (g.move && !g.move.get) {
+                scrollSet(k, g.move.ratio);
+            }
+        }
+    }
+
+    function remPos()
+    {
+        var name = getPosName();
+        if (!name) {
+            return;
+        }
+
+        var d = new Date();
+        d.setTime(d.getTime());
+        var cookie = "pos_"+name+"=; expires="+d.toUTCString();
+        document.cookie = cookie;
+
+        delete allPos[name];
+
+        makePosButtons();
+    }
+    </script>
+  </head>
+  <body onload="start()" id="body" style="overflow-x: hidden;padding:0pt;margin:0pt">
+    <canvas
+        id="glcanvas"
+        width="800"
+        height="600"
+        style="float:left;"
+        oncontextmenu="return false;">
+      No HTML5 support found.
+    </canvas>
+    <div id="ctrl" style="position:absolute;right:0px;top:0px;padding:0px;overflow-y:scroll;height:100%;">
+      <table id="ctrltable">
+        <tr>
+          <td colspan="2">
+            <label>
+                <input
+                    type="checkbox"
+                    id="toggleAnim"
+                    onchange="changeAnim()"/>
+                Anim
+            </label>
+            <label>
+                <input
+                    type="checkbox"
+                    id="togglePersp"
+                    onchange="changePersp()"/>
+            Persp
+            </label>
+            <label>
+                <input
+                    type="checkbox"
+                    id="toggleCtrl"
+                    onchange="changeCtrl()"/>
+            Ctrl
+            </label>
+            &nbsp;&nbsp;<small style="border:1px solid black">
+                #<span id="frameNo">0</span><span id="debugInfo"></span>
+            </small>
+          </td>
+        </tr>
+        <tr id="ctrl0">
+          <td>
+            Reset
+          </td>
+          <td>
+            <button class="but" type="button" onclick="rotLeft()">&#xb7;=</button>
+            <button class="but" type="button" onclick="rotRight()">=&#xb7;</button>
+            <button class="but" type="button" onclick="rotTop()">&#x22a4;</button>
+            <button class="but" type="button" onclick="rotBottom()">&#x22a5;</button>
+            <button class="but" type="button" onclick="rotFront()">&#x2a66;</button>
+            <button class="but" type="button" onclick="rotBack()">&#x2250;</button>
+          </td>
+        </tr>
+        <tr id="ctrl1">
+          <td>
+            Rotate
+          </td>
+          <td>
+            <button class="but" type="button" onclick="turnLeft()">&#x2190;</button>
+            <button class="but" type="button" onclick="turnRight()">&#x2192;</button>
+            <button class="but" type="button" onclick="turnUp()">&#x2191;</button>
+            <button class="but" type="button" onclick="turnDown()">&#x2193;</button>
+            <button class="but" type="button" onclick="turnCW()">&#x21b7;</button>
+            <button class="but" type="button" onclick="turnCCW()">&#x21b6;</button>
+          </td>
+        </tr>
+        <tr id="ctrl2">
+          <td colspan="2">
+            <input onchange="turnDegChange()"
+                   id="turnDeg"
+                   type="text"
+                   name="x"
+                   style="width:5em;"/>°:
+            <button class="but" type="button" onclick="setTurnDeg(0.5)">0.5°</button>
+            <button class="but" type="button" onclick="setTurnDeg(2)">2°</button>
+            <button class="but" type="button" onclick="setTurnDeg(10)">10°</button>
+            <button class="but" type="button" onclick="setTurnDeg(45)">45°</button>
+          </td>
+        </tr>
+        <tr id="ctrl3">
+          <td>
+            Center
+          </td>
+          <td>
+            <button class="but" type="button" onclick="midMove(+camStep,0,0)">&#x2190;</button>
+            <button class="but" type="button" onclick="midMove(-camStep,0,0)">&#x2192;</button>
+            <button class="but" type="button" onclick="midMove(0,-camStep,0)">&#x2191;</button>
+            <button class="but" type="button" onclick="midMove(0,+camStep,0)">&#x2193;</button>
+            <button class="but" type="button" onclick="midMove(0,0,-camStep)">&#x2a5e;</button>
+            <button class="but" type="button" onclick="midMove(0,0,+camStep)">&#x2a62;</button>
+          </td>
+        </tr>
+        <tr id="ctrl4">
+          <td colspan="2">
+            <input onchange="camStepChange()"
+                   id="camStep"
+                   type="text"
+                   name="x"
+                   style="width:5em;"/>mm:
+            <button class="but" type="button" onclick="setCamStep(0.001)">mm</button>
+            <button class="but" type="button" onclick="setCamStep(0.010)">cm</button>
+            <button class="but" type="button" onclick="setCamStep(0.100)">dm</button>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div id="worldPos" style="width:300px;">
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            Cookie:
+            <input id="posName"
+                   type="text"
+                   name="x"
+                   value=""
+                   style="width:5em;"/>:
+            <button class="but" type="button" onclick="savePos()">Set</button>
+            <button class="but" type="button" onclick="addPos()">Add</button>
+            <button class="but" type="button" onclick="remPos()">Del</button>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div id="loadPos" style="width:300px;">
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2">
+            <div id="scroll-bars" style="font-size:small;">
+            </div>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div style="clear:both;">
+    </div>
+  </body>
+</html>

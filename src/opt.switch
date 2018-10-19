@@ -30,15 +30,17 @@ case "o": fn {
 }
 
 case "layer-gap": dim &opt->tree.layer_gap {
-    "gap between layers in STL and SCAD output to ensure 2-manifold [mm]";
-    "(default: 0.01)";
+    "gap [mm] between layers in STL, SCAD, and JavaScript output.";
+    "For STL, this ensures that the output is 2-manifold.";
+    "-1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output";
+    "(default: -1)";
 }
 
 help_section "Slicing Options";
 
 case "min": dim &opt->z_min {
     "min slice z coord [mm] (by default, use bounding box of model,";
-    "starting at the middle of the first slice (i.e., at 50% slice";
+    "starting at the middle of the first layer (i.e., at 50% slice";
     "thickness) from the bottom).";
     opt->have_z_min = true;
 }
@@ -52,7 +54,7 @@ case "step": dim &opt->z_step {
 }
 
 case "z": dim &opt->z_min {
-    "equivalent to --min COORD --max COORD";
+    "equivalent to --min=ARG --max=ARG";
     opt->z_max = opt->z_min;
     opt->have_z_min = true;
     opt->have_z_max = true;
@@ -67,20 +69,21 @@ case "round-fn": size &opt->csg3.max_fn {
 #endif
 
 case "opt-no-skip-empty": bool neg_bool &a {
-    "(do not) skip empty polygons (default: do skip)";
+    "(do not) skip empty polygons (default: do)";
     opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
 }
 
 case "opt-no-drop-collinear": bool neg_bool &a {
-    "(do not) drop inner vertices of two adjacent collinear edges (default: do drop)";
+    "(do not) drop connecting vertex of two adjacent collinear edges (default: do)";
     opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
 }
 
 help_section "Advanced Options";
 
 case "max-simultaneous": size &opt->tree.max_simultaneous {
-    "maximum number of polygons to process at once";
-    "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY)", using larger values is ignored)";
+    "maximum number of polygons to process at once.";
+    "Values larger than " CP_STRINGIFY(CP_CSG2_MAX_LAZY) " are ignored.";
+    "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY) ")";
 
     if (opt->tree.max_simultaneous < 2) {
         fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
@@ -92,7 +95,7 @@ case "gran": dim &cp_pt_epsilon {
     "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
 }
 case "eps": dim &cp_eq_epsilon {
-    "generic comparison epsilon (default: 0x1p-15)";
+    "general comparison epsilon (default: 0x1p-15)";
 }
 case "eps2": dim &cp_sqr_epsilon {
     "comparison epsilon for squared dimensions (default: 0x1p-30)";
@@ -130,10 +133,13 @@ case "dump-js": bool &opt->dump_js {
 }
 
 case "no-csg": bool &opt->no_csg {
-    "for stage 4: do (not) run 2D boolean operation pass";
+    "for stage 4: do (not) run 2D boolean operation pass (default: do)";
+    "--dump-stl and --dump-js will not print correctly with --no-csg.";
 }
 case "no-tri": bool &opt->no_tri {
-    "for stage 4: do (not) run triangulation pass";
+    "for stage 4: do (not) run triangulation pass (default: do)";
+    "--dump-stl and --dump-js will not print correctly with --no-tri.";
+    "--dump-csg2 may not be read correctly by OpenSCAD without --no-tri.";
 }
 
 help_section "PostScript Output Options";
