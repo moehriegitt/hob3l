@@ -1,6 +1,15 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
+/*
+ * # TODO for this module
+ *   - color
+ *   - groups (needs SCAD extension) with all bells and whistles (movement, on/off, ...)
+ *   - XOR of layers to get inner part of solids right
+ *   - with XOR: ignore layer_gap or have a different default than for STL
+ *   - compression using auxiliary values
+ */
+
 #include <hob3lbase/arith.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat.h>
@@ -105,7 +114,7 @@ static void scene_flush(
 {
     if (c->tri_cnt > 0) {
         cp_printf(s, "var scene_%"_Pz"u = {\n", c->scene_cnt);
-        cp_printf(s, "   'group':{1:true},\n");
+        cp_printf(s, "   'group':{},\n");
         cp_printf(s, "   'vertex':[");
         for (cp_size_each(i, c->v_cnt)) {
             cp_printf(s, "%s%ld,%ld,%ld",
@@ -492,16 +501,7 @@ extern void cp_csg2_tree_put_js(
     c->idx.size = csg2_max_point_cnt(t->root) * PER_VERTEX;
     CP_CALLOC_ARR(c->idx.data, c->idx.size);
 
-    cp_printf(s, "var group_1 = {\n");
-    cp_printf(s, " 'tag':'1',\n");
-    cp_printf(s, " 'name':'1',\n");
-    cp_printf(s, " 'optional':false,\n");
-    cp_printf(s, " 'default_off':false,\n");
-    cp_printf(s, " 'fixed':false,\n");
-    cp_printf(s, " 'prio':1,\n");
-    cp_printf(s, "};\n");
     cp_printf(s, "var group = {\n");
-    cp_printf(s, "  1:group_1\n");
     cp_printf(s, "};\n");
     cp_printf(s, "var sceneScaleV = %g;\n", 1000/cp_pt_epsilon);
     cp_printf(s, "var sceneScaleC = 255;\n");
