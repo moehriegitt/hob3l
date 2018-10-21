@@ -198,7 +198,10 @@ static void poly_put_js(
     }
 
     /* bottom: only draw if not already drawn */
-    cp_csg2_poly_t *r_bot = r->diff_below;
+    cp_csg2_poly_t *r_bot = NULL;
+    if (!cp_eq(z[0], z[1])) {
+        r_bot = r->diff_below;
+    }
     if (r_bot == NULL) {
         r_bot = r;
     }

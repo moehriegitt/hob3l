@@ -1217,10 +1217,14 @@ static bool csg2_tri_diff_poly(
     cp_csg2_poly_t *g)
 {
     if (g->diff_above != NULL) {
-        return cp_csg2_tri_poly(pool, t, g->diff_above);
+        if (!cp_csg2_tri_poly(pool, t, g->diff_above)) {
+            return false;
+        }
     }
     if (g->diff_below != NULL) {
-        return cp_csg2_tri_poly(pool, t, g->diff_below);
+        if (!cp_csg2_tri_poly(pool, t, g->diff_below)) {
+            return false;
+        }
     }
     return true;
 }
@@ -1541,10 +1545,10 @@ extern bool cp_csg2_tri_layer(
 }
 
 /**
- * Triangulate a given layer's diff_above polygons.
+ * Triangulate a given layer's diff_above and diff_below polygons.
  *
  * This is just like cp_csg2_tri_layer, but works only on the
- * diff_above polygons.
+ * diff_above and diff_below polygons.
  *
  * Runtime and space: see cp_csg2_tri_layer.
  */
