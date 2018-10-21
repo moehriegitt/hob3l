@@ -267,6 +267,7 @@ typedef enum {
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */
 #define CP_SYN_VALUE_TYPE 0x1000
+#define CP_SYN_STMT_TYPE  0x1100
 #define CP_SCAD_TYPE      0x2000
 #define CP_CSG3_TYPE      0x3000
 #define CP_CSG2_TYPE      0x4000
@@ -292,6 +293,9 @@ typedef enum {
         assert(x->type == tag); \
         return &x->slot; \
     }
+
+#define CP_DECLARE_CAST_(ns, _name, tag) \
+   __CP_DECLARE_CAST(cp_##ns##_t, cp_##ns##_name##_t, cp_##ns##_name, _name, tag)
 
 #define CP_DECLARE_CAST(ns, name, tag) \
    __CP_DECLARE_CAST(cp_##ns##_t, cp_##ns##_##name##_t, cp_##ns##_##name, name, tag)

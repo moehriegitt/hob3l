@@ -14,13 +14,22 @@
 /* Token types 1..127 are reserved for single character syntax tokens. */
 /* Token types 128..255 are reserved for future use. */
 #define T_EOF       0
-#define T_ERROR     257
-#define T_ID        258
-#define T_INT       259
-#define T_FLOAT     260
-#define T_STRING    261
-#define T_LCOM      262 /* line comment */
-#define T_BCOM      263 /* block comment */
+
+#define _T_TOKEN    256
+#define T_ERROR     (_T_TOKEN + 1)
+#define T_ID        (_T_TOKEN + 2)
+#define T_INT       (_T_TOKEN + 3)
+#define T_FLOAT     (_T_TOKEN + 4)
+#define T_STRING    (_T_TOKEN + 5)
+#define T_PATH      (_T_TOKEN + 6)
+#define T_LCOM      (_T_TOKEN + 7) /* line comment */
+#define T_BCOM      (_T_TOKEN + 8) /* block comment */
+
+#define _T_KEY      512 /* marker for keywords */
+#define K_INCLUDE   (_T_KEY + 1) /* 'include' */
+#define K_USE       (_T_KEY + 2) /* 'use' */
+#define K_MODULE    (_T_KEY + 3) /* 'module' */
+#define K_FUNCTION  (_T_KEY + 4) /* 'function' */
 
 typedef struct {
     cp_syn_tree_t *tree;
@@ -165,20 +174,19 @@ static void tok_next_aux2(parse_t *p)
 
     /* STRING */
     if (p->lex_cur == '"') {
-        *p->lex_string = '\0';
         lex_next(p);
         p->tok_type = T_STRING;
         p->tok_string = p->lex_string;
         while (*p->lex_string != '"') {
             if (*p->lex_string == '\\') {
                 lex_next(p);
-                if (*p->lex_string == '\0') {
-                    if (!have_err_msg(p)) {
-                        cp_vchar_printf(&p->tree->err.msg, "End of file inside string.\n");
-                    }
-                    p->tok_type = T_ERROR;
-                    return;
+            }
+            if (*p->lex_string == '\0') {
+                if (!have_err_msg(p)) {
+                    cp_vchar_printf(&p->tree->err.msg, "End of file inside string.\n");
                 }
+                p->tok_type = T_ERROR;
+                return;
             }
             lex_next(p);
         }
@@ -242,6 +250,58 @@ static void tok_next(parse_t *p)
     } while (is_comment(p->tok_type));
 }
 
+/** make a <....> path string token if the next token is currently '<' */
+static void tok_path(parse_t *p)
+{
+    /* do not scan beyond an error */
+    if (p->tok_type != '<') {
+        return;
+    }
+
+    /* PATH */
+    p->tok_type = T_PATH;
+    p->tok_string = p->lex_string;
+    while (*p->lex_string != '>') {
+        if (*p->lex_string == '\0') {
+            if (!have_err_msg(p)) {
+                cp_vchar_printf(&p->tree->err.msg, "End of file inside path.\n");
+            }
+            p->tok_type = T_ERROR;
+            return;
+        }
+        lex_next(p);
+    }
+    *p->lex_string = '\0';
+    lex_next(p);
+}
+
+static unsigned sieve_id(char const *s)
+{
+    switch (s[0]) {
+    case 'i':
+        if (strequ(s, "include")) { return K_INCLUDE; }
+        break;
+    case 'u':
+        if (strequ(s, "use")) { return K_USE; }
+        break;
+    case 'm':
+        if (strequ(s, "module")) { return K_MODULE; }
+        break;
+    case 'f':
+        if (strequ(s, "function")) { return K_FUNCTION; }
+        break;
+    }
+    return T_ID;
+}
+
+static void sieve(parse_t *p)
+{
+    if (p->tok_type != T_ID) {
+        return;
+    }
+    p->tok_type = sieve_id(p->tok_string);
+}
+
 static bool expect(
     parse_t *p,
     unsigned type)
@@ -256,6 +316,9 @@ static bool expect(
 static const char *get_tok_string(
     parse_t *p)
 {
+    if (p->tok_type & _T_KEY) {
+        return p->tok_string;
+    }
     switch (p->tok_type) {
     case T_INT:
     case T_FLOAT:
@@ -274,6 +337,9 @@ static const char *get_tok_description(
 
     case T_STRING:
         return "string";
+
+    case T_PATH:
+        return "path";
 
     case T_EOF:
         return "end of file";
@@ -333,13 +399,21 @@ static bool expect_err(
     return false;
 }
 
-static bool parse_body(
+static bool parse_stmt_list(
     parse_t *p,
-    cp_v_syn_func_p_t *r);
+    cp_v_syn_stmt_p_t *r);
 
-static bool parse_push_func(
+static bool parse_stmt_item_list(
     parse_t *p,
-    cp_v_syn_func_p_t *r);
+    cp_v_syn_stmt_item_p_t *r);
+
+static bool parse_item_push_stmt(
+    parse_t *p,
+    cp_v_syn_stmt_p_t *r);
+
+static bool parse_item_push_stmt_item(
+    parse_t *p,
+    cp_v_syn_stmt_item_p_t *r);
 
 static bool looking_at_value(
     parse_t *p);
@@ -402,6 +476,26 @@ static cp_syn_value_t *__value_new(
     assert(type < cp_countof(size));
     assert(size[type] != 0);
     cp_syn_value_t *r = cp_calloc(file, line, 1, size[type]);
+    r->type = type;
+    r->loc = loc;
+    return r;
+}
+
+#define stmt_new(t, l) __stmt_new(CP_FILE, CP_LINE, t, l)
+
+static cp_syn_stmt_t *__stmt_new(
+    char const *file,
+    int line,
+    cp_syn_stmt_type_t type,
+    cp_loc_t loc)
+{
+    static const size_t size[] = {
+        [CP_SYN_STMT_ITEM] = sizeof(cp_syn_stmt_item_t),
+        [CP_SYN_STMT_USE]  = sizeof(cp_syn_stmt_use_t),
+    };
+    assert(type < cp_countof(size));
+    assert(size[type] != 0);
+    cp_syn_stmt_t *r = cp_calloc(file, line, 1, size[type]);
     r->type = type;
     r->loc = loc;
     return r;
@@ -615,14 +709,27 @@ static bool looking_at_modifier(
         (p->tok_type == '#');
 }
 
-static bool looking_at_func(
+static bool looking_at_stmt_item(
     parse_t *p)
 {
+    sieve(p);
     return
         (p->tok_type == T_ID) ||
         (p->tok_type == ';') ||
         (p->tok_type == '{') ||
         looking_at_modifier(p);
+}
+
+static bool looking_at_stmt(
+    parse_t *p)
+{
+    if (looking_at_stmt_item(p)) {
+        return true;
+    }
+    if (p->tok_type & _T_KEY) {
+        return true;
+    }
+    return false;
 }
 
 static bool parse_modifier(
@@ -642,9 +749,9 @@ static bool parse_modifier(
     }
 }
 
-static bool parse_func(
+static bool parse_stmt_item(
     parse_t *p,
-    cp_syn_func_t *r)
+    cp_syn_stmt_item_t *r)
 {
     if (p->tok_type == '{') {
         r->functor = "{";
@@ -672,36 +779,93 @@ static bool parse_func(
         /* body in { ... } */
         return
             expect(p, '{') &&
-            parse_body(p, &r->body) &&
+            parse_stmt_item_list(p, &r->body) &&
             expect_err(p, '}');
 
     default:
-        return parse_push_func(p, &r->body);
+        return parse_item_push_stmt_item(p, &r->body);
     }
 }
 
-static bool parse_push_func(
+static bool parse_stmt_use(
     parse_t *p,
-    cp_v_syn_func_p_t *r)
+    cp_syn_stmt_use_t *r)
+{
+    if (!expect(p, K_USE)) {
+        return false;
+    }
+    tok_path(p);
+
+    r->path = p->tok_string;
+    if (!expect(p, T_PATH)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool parse_item_push_stmt(
+    parse_t *p,
+    cp_v_syn_stmt_p_t *r)
 {
     if (expect(p, ';')) {
         return true;
     }
-    cp_syn_func_t *f = CP_NEW(*f);
+    cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_ITEM, p->tok_string);
     cp_v_push(r, f);
-    return parse_func(p, f);
+    return parse_stmt_item(p, cp_syn_stmt_item(f));
 }
 
-static bool parse_body(
+static bool parse_item_push_stmt_item(
     parse_t *p,
-    cp_v_syn_func_p_t *r)
+    cp_v_syn_stmt_item_p_t *r)
+{
+    if (expect(p, ';')) {
+        return true;
+    }
+    cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_ITEM, p->tok_string);
+    cp_v_push(r, cp_syn_stmt_item(f));
+    return parse_stmt_item(p, cp_syn_stmt_item(f));
+}
+
+static bool parse_stmt_item_list(
+    parse_t *p,
+    cp_v_syn_stmt_item_p_t *r)
 {
     for (;;) {
-        if (!looking_at_func(p)) {
+        if (!looking_at_stmt_item(p)) {
             return true;
         }
-        if (!parse_push_func(p, r)) {
+        if (!parse_item_push_stmt_item(p, r)) {
             return false;
+        }
+    }
+}
+
+static bool parse_stmt_list(
+    parse_t *p,
+    cp_v_syn_stmt_p_t *r)
+{
+    for (;;) {
+        if (!looking_at_stmt(p)) {
+            return true;
+        }
+        switch (p->tok_type) {
+        case K_USE:{
+            cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_USE, p->tok_string);
+            cp_v_push(r, f);
+            if (!parse_stmt_use(p, cp_syn_stmt_use(f))) {
+                return false;
+            }
+            break;}
+        default:
+            if (p->tok_type & _T_KEY) {
+                return true;
+            }
+            if (!parse_item_push_stmt(p, r)) {
+                return false;
+            }
+            break;
         }
     }
 }
@@ -803,7 +967,7 @@ extern bool cp_syn_parse(
     /* scan first token */
     tok_next(p);
 
-    bool ok = parse_body(p, &r->toplevel);
+    bool ok = parse_stmt_list(p, &r->toplevel);
     if (!ok) {
         /* generic error message */
         if (r->err.loc == NULL) {

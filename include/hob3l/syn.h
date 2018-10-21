@@ -49,4 +49,8 @@ extern bool cp_syn_get_loc(
     cp_syn_tree_t *tree,
     char const *token);
 
+/* dynamic casts */
+CP_DECLARE_CAST_(syn_stmt, _item, CP_SYN_STMT_ITEM)
+CP_DECLARE_CAST_(syn_stmt, _use,  CP_SYN_STMT_USE)
+
 #endif /* __CP_SCAD_H */

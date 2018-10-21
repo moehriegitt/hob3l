@@ -8,21 +8,22 @@
 #include <stdint.h>
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/stream.h>
+#include <hob3lbase/panic.h>
 #include <hob3l/syn.h>
 #include "internal.h"
 
-static void cp_syn_func_put_scad(
+static void cp_syn_stmt_put_scad(
     cp_stream_t *s,
     int d,
-    cp_syn_func_t *fs);
+    cp_syn_stmt_t *fs);
 
-static void cp_v_syn_func_put_scad(
+static void cp_v_syn_stmt_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_syn_func_p_t *fs)
+    cp_v_syn_stmt_p_t *fs)
 {
     for (cp_v_each(i, fs)) {
-        cp_syn_func_put_scad(s, d, fs->data[i]);
+        cp_syn_stmt_put_scad(s, d, fs->data[i]);
     }
 }
 
@@ -75,10 +76,10 @@ static void cp_syn_value_put_scad(
     assert(0 && "Unrecognised syntax tree object type");
 }
 
-static void cp_syn_func_put_scad(
+static void cp_syn_stmt_item_put_scad(
     cp_stream_t *s,
     int d,
-    cp_syn_func_t *f)
+    cp_syn_stmt_item_t *f)
 {
     cp_printf(s, "%*s", d, "");
     if (f->functor != NULL) {
@@ -101,9 +102,34 @@ static void cp_syn_func_put_scad(
     }
     cp_printf(s, " {\n");
     for (cp_v_each(i, &f->body)) {
-        cp_syn_func_put_scad(s, d+IND, f->body.data[i]);
+        cp_syn_stmt_item_put_scad(s, d+IND, f->body.data[i]);
     }
     cp_printf(s, "%*s}\n", d, "");
+}
+
+static void cp_syn_stmt_use_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_syn_stmt_use_t *f)
+{
+    cp_printf(s, "%*suse <%s>\n", d, "", f->path);
+}
+
+static void cp_syn_stmt_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_syn_stmt_t *f)
+{
+    switch (f->type) {
+    case CP_SYN_STMT_ITEM:
+        cp_syn_stmt_item_put_scad(s, d, cp_syn_stmt_item(f));
+        return;
+    case CP_SYN_STMT_USE:
+        cp_syn_stmt_use_put_scad(s, d, cp_syn_stmt_use(f));
+        return;
+    default:
+        CP_NYI("type=0x%x", f->type);
+    }
 }
 
 /**
@@ -112,5 +138,5 @@ extern void cp_syn_tree_put_scad(
     cp_stream_t *s,
     cp_syn_tree_t *result)
 {
-    cp_v_syn_func_put_scad(s, 0, &result->toplevel);
+    cp_v_syn_stmt_put_scad(s, 0, &result->toplevel);
 }

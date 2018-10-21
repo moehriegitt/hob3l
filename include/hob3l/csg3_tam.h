@@ -21,7 +21,7 @@
 #define CP_CSG3_NORMAL 0
 
 /**
- * 3D CSG basic shapes.
+ * 3D CSG basic shapes and operations.
  *
  * The idea is that this is output from some other program that
  * generates normalised CSG objects.  Therefore, this has no
@@ -77,7 +77,9 @@ typedef enum {
     unsigned type; \
     char const *loc; \
     cp_vec3_minmax_t bb; \
-    bool non_empty;
+    bool non_empty; \
+    cp_a_size_t group; \
+    cp_csg3_t *group_as;
 
 #define _CP_CSG3_OBJ \
     _CP_CSG3 \

@@ -4,8 +4,12 @@
 #ifndef __CP_SYN_FWD_H
 #define __CP_SYN_FWD_H
 
-typedef struct cp_syn_func  cp_syn_func_t;
-typedef struct cp_syn_arg   cp_syn_arg_t;
+typedef struct cp_syn_stmt_item  cp_syn_stmt_item_t;
+
+typedef union  cp_syn_stmt cp_syn_stmt_t;
+
+typedef struct cp_syn_arg cp_syn_arg_t;
+
 typedef union  cp_syn_value cp_syn_value_t;
 
 #endif /* __CP_SYN_FWD_H */

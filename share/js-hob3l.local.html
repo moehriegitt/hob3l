@@ -6,6 +6,11 @@
 
     <script>
     var worldPos = [];
+    var scene = [];
+    var group = {};
+    var sceneScaleV = 1;
+    var sceneScaleC = 1;
+    var sceneShiftI = 0;
     </script>
 
     <script src="gl-matrix/common.js"></script>
@@ -295,11 +300,11 @@
         return new Float32Array(a);
     }
 
-    function newU16Arr(a)
+    function newU16Arr(a, shiftI)
     {
         var last = 0;
         for (var i = 0; i < a.length; i++) {
-            a[i] = (a[i] - sceneShiftI) + last;
+            a[i] = (a[i] - shiftI) + last;
             last = a[i];
         }
         return new Uint16Array(a);
@@ -315,25 +320,25 @@
             b.vertex = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, b.vertex);
             gl.bufferData(
-                gl.ARRAY_BUFFER, newF32Arr(s.vertex, sceneScaleV),
+                gl.ARRAY_BUFFER, newF32Arr(s.vertex, s.scaleV || sceneScaleV),
                 gl.STATIC_DRAW);
 
             b.color = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, b.color);
             gl.bufferData(
-                gl.ARRAY_BUFFER, newF32Arr(s.color, sceneScaleC),
+                gl.ARRAY_BUFFER, newF32Arr(s.color, s.scaleC || sceneScaleC),
                 gl.STATIC_DRAW);
 
             b.normal = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, b.normal);
             gl.bufferData(
-                gl.ARRAY_BUFFER, newF32Arr(s.normal, sceneScaleV),
+                gl.ARRAY_BUFFER, newF32Arr(s.normal, s.scaleV || sceneScaleV),
                 gl.STATIC_DRAW);
 
             b.index = gl.createBuffer();
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, b.index);
             gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
-                newU16Arr(s.index), gl.STATIC_DRAW);
+                newU16Arr(s.index, s.shiftI || sceneShiftI), gl.STATIC_DRAW);
 
             buffer.push(b);
         }

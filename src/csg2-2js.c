@@ -48,7 +48,6 @@ typedef struct {
     size_t v_cnt;
     u16_3_t tri[VERTEX_CNT];
     size_t tri_cnt;
-    size_t scene_cnt;
 } ctxt_t;
 
 static void v_csg2_put_js(
@@ -102,8 +101,11 @@ static void scene_flush(
     cp_stream_t *s)
 {
     if (c->tri_cnt > 0) {
-        cp_printf(s, "var scene_%"_Pz"u = {\n", c->scene_cnt);
+        cp_printf(s, "scene.push({\n");
         cp_printf(s, "   'group':{},\n");
+        cp_printf(s, "   'scaleV':%g,\n", 1000/cp_pt_epsilon);
+        cp_printf(s, "   'scaleC':255,\n");
+        cp_printf(s, "   'shiftI':%u,\n", SHIFT_I);
         cp_printf(s, "   'vertex':[");
         for (cp_size_each(i, c->v_cnt)) {
             cp_printf(s, "%s%ld,%ld,%ld",
@@ -139,8 +141,7 @@ static void scene_flush(
                 d0, d1, d2);
         }
         cp_printf(s, "],\n");
-        cp_printf(s, "};\n");
-        c->scene_cnt++;
+        cp_printf(s, "});\n");
     }
     c->v_cnt = 0;
     c->tri_cnt = 0;
@@ -506,23 +507,11 @@ extern void cp_csg2_tree_put_js(
     c->idx.size = csg2_max_point_cnt(t->root) * PER_VERTEX;
     CP_CALLOC_ARR(c->idx.data, c->idx.size);
 
-    cp_printf(s, "var group = {\n");
-    cp_printf(s, "};\n");
-    cp_printf(s, "var sceneScaleV = %g;\n", 1000/cp_pt_epsilon);
-    cp_printf(s, "var sceneScaleC = 255;\n");
-    cp_printf(s, "var sceneShiftI = %u;\n", SHIFT_I);
-
     scene_flush(c, s);
     if (t->root != NULL) {
         csg2_put_js(c, s, t, 0, t->root);
     }
     scene_flush(c, s);
-
-    cp_printf(s, "var scene = [\n");
-    for (cp_size_each(i, c->scene_cnt)) {
-        cp_printf(s, "    scene_%"_Pz"u,\n", i);
-    }
-    cp_printf(s, "];\n");
 
     CP_FREE(c->idx.data);
     CP_FREE(c);

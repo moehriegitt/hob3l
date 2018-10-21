@@ -11,12 +11,48 @@
 #include <hob3l/gc_tam.h>
 #include <hob3l/syn_fwd.h>
 
-typedef CP_VEC_T(cp_syn_func_t*)   cp_v_syn_func_p_t;
-typedef CP_VEC_T(cp_syn_arg_t*)    cp_v_syn_arg_p_t;
-typedef CP_VEC_T(cp_syn_value_t*)  cp_v_syn_value_p_t;
+typedef CP_VEC_T(cp_syn_stmt_t*) cp_v_syn_stmt_p_t;
+
+typedef CP_VEC_T(cp_syn_stmt_item_t*) cp_v_syn_stmt_item_p_t;
+
+typedef CP_VEC_T(cp_syn_arg_t*) cp_v_syn_arg_p_t;
+
+typedef CP_VEC_T(cp_syn_value_t*) cp_v_syn_value_p_t;
 
 /**
- * SCAD parser node in syntax tree.
+ * SCAD parser value type */
+typedef enum {
+    CP_SYN_VALUE_ID = CP_SYN_VALUE_TYPE + 1,
+    CP_SYN_VALUE_INT,
+    CP_SYN_VALUE_FLOAT,
+    CP_SYN_VALUE_STRING,
+    CP_SYN_VALUE_RANGE,
+    CP_SYN_VALUE_ARRAY
+} cp_syn_value_type_t;
+
+/**
+ * SCAD parser statement type */
+typedef enum {
+    CP_SYN_STMT_ITEM = CP_SYN_STMT_TYPE + 1,
+    CP_SYN_STMT_USE,
+#if 0
+    /* NYI: */
+    CP_SYN_STMT_ASSIGN,
+    CP_SYN_STMT_MODULE,
+    CP_SYN_STMT_FUNCTION,
+#endif
+} cp_syn_stmt_type_t;
+
+#define CP_SYN_VALUE_BASE \
+    cp_syn_value_type_t type; \
+    cp_loc_t loc;
+
+#define CP_SYN_STMT_BASE \
+    cp_syn_stmt_type_t type; \
+    cp_loc_t loc;
+
+/**
+ * SCAD parser item statement.
  *
  * This is uninterpreted, so there is only one
  * node type of the generic form:
@@ -25,13 +61,21 @@ typedef CP_VEC_T(cp_syn_value_t*)  cp_v_syn_value_p_t;
  * set to the static string "{", outside the file content string.  But
  * \a loc is set to the location of the '{' anyway.
  */
-struct cp_syn_func {
+struct cp_syn_stmt_item {
+    CP_SYN_STMT_BASE
     char const *functor;
-    cp_loc_t loc;
     cp_v_syn_arg_p_t arg;
-    cp_v_syn_func_p_t body;
+    cp_v_syn_stmt_item_p_t body;
     unsigned modifier;
 };
+
+/**
+ * SCAD parser use statement.
+ */
+typedef struct {
+    CP_SYN_STMT_BASE
+    char const *path;
+} cp_syn_stmt_use_t;
 
 /**
  * SCAD parser argument to function.
@@ -46,22 +90,9 @@ struct cp_syn_arg {
 };
 
 /**
- * SCAD parser value type */
-typedef enum {
-    CP_SYN_VALUE_ID = CP_SYN_VALUE_TYPE + 1,
-    CP_SYN_VALUE_INT,
-    CP_SYN_VALUE_FLOAT,
-    CP_SYN_VALUE_STRING,
-    CP_SYN_VALUE_RANGE,
-    CP_SYN_VALUE_ARRAY,
-} cp_syn_value_type_t;
-
-#define CP_SYN_VALUE_BASE \
-    cp_syn_value_type_t type; \
-    cp_loc_t loc;
-
-/**
  * SCAD parser identifier value
+ *
+ * Tagged with CP_SYN_VALUE_ID.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -70,6 +101,8 @@ typedef struct {
 
 /**
  * SCAD parser int value
+ *
+ * Tagged with CP_SYN_VALUE_INT.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -78,6 +111,8 @@ typedef struct {
 
 /**
  * SCAD parser float value
+ *
+ * Tagged with CP_SYN_VALUE_FLOAT.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -86,6 +121,8 @@ typedef struct {
 
 /**
  * SCAD parser string value
+ *
+ * Tagged with CP_SYN_VALUE_STRING.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -97,6 +134,8 @@ typedef struct {
 
 /**
  * SCAD parser range value
+ *
+ * Tagged with CP_SYN_VALUE_RANGE.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -113,6 +152,8 @@ typedef struct {
 
 /**
  * SCAD parser array value
+ *
+ * Tagged with CP_SYN_VALUE_ARRAY.
  */
 typedef struct {
     CP_SYN_VALUE_BASE
@@ -132,6 +173,17 @@ union cp_syn_value {
     cp_syn_value_string_t _string;
     cp_syn_value_range_t  _range;
     cp_syn_value_array_t  _array;
+};
+
+/**
+ * SCAD parser generic statement
+ */
+union cp_syn_stmt {
+    struct {
+        CP_SYN_STMT_BASE
+    };
+    cp_syn_stmt_item_t _item;
+    cp_syn_stmt_use_t  _use;
 };
 
 typedef CP_VEC_T(char const *) cp_v_cstr_t;
@@ -229,7 +281,7 @@ typedef struct {
      * The top-level list of funcalls in the body
      * of the file(s).
      */
-    cp_v_syn_func_p_t toplevel;
+    cp_v_syn_stmt_p_t toplevel;
 
     /**
      * In case of an error: the error location and message.

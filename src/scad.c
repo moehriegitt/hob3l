@@ -4,6 +4,7 @@
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/mat.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lbase/panic.h>
 #include <hob3l/gc.h>
 #include <hob3l/scad.h>
 #include <hob3l/syn.h>
@@ -15,10 +16,15 @@ typedef struct {
     cp_syn_tree_t *syn;
 } ctxt_t;
 
-static bool v_scad_from_v_syn_func(
+static bool v_scad_from_v_syn_stmt_item(
     ctxt_t *t,
     cp_v_scad_p_t *result,
-    cp_v_syn_func_p_t *fs);
+    cp_v_syn_stmt_item_p_t *fs);
+
+static bool v_scad_from_v_syn_stmt(
+    ctxt_t *t,
+    cp_v_scad_p_t *result,
+    cp_v_syn_stmt_p_t *fs);
 
 #define func_new(rp, t, syn, type) \
     __func_new(CP_FILE, CP_LINE, rp, t, syn, type)
@@ -28,7 +34,7 @@ static bool __func_new(
     int line,
     cp_scad_t **rp,
     ctxt_t *t,
-    cp_syn_func_t *syn,
+    cp_syn_stmt_item_t *syn,
     cp_scad_type_t type)
 {
     static const size_t size[] = {
@@ -69,11 +75,11 @@ static bool __func_new(
 
 static bool combine_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_combine_t *r = &_r->combine;
-    return v_scad_from_v_syn_func(t, &r->child, &f->body);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool try_get_bool(
@@ -159,6 +165,40 @@ static bool _get_float(
 {
     return get_float(r, t, v);
 }
+
+#if 0
+static bool try_get_str(
+    char const **r,
+    cp_syn_value_t const *v)
+{
+    if (v->type == CP_SYN_VALUE_STRING) {
+        *r = v->_string.value;
+        return true;
+    }
+    return false;
+}
+
+static bool get_str(
+    char const **r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    if (try_get_str(r, v)) {
+        return true;
+    }
+    cp_vchar_printf(&t->err->msg, "Expected a string value.\n");
+    t->err->loc = v->loc;
+    return false;
+}
+
+static bool _get_str(
+    void *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    return get_str(r, t, v);
+}
+#endif /*0*/
 
 static bool try_get_uint32(
     unsigned *r,
@@ -461,6 +501,7 @@ typedef struct {
 #define PARAM_BOOL(n,x,m)          PARAM(n, x, _get_bool,   bool,             m)
 #define PARAM_UINT32(n,x,m)        PARAM(n, x, _get_uint32, unsigned,         m)
 #define PARAM_FLOAT(n,x,m)         PARAM(n, x, _get_float,  cp_f_t,           m)
+#define PARAM_STR(n,x,m)           PARAM(n, x, _get_str,    char const *,     m)
 #define PARAM_VEC2(n,x,m)          PARAM(n, x, _get_vec2,   cp_vec2_t,        m)
 #define PARAM_VEC2_OR_FLOAT(n,x,m) PARAM(n, x, _get_vec2_or_float, cp_vec2_t, m)
 #define PARAM_VEC3(n,x,m)          PARAM(n, x, _get_vec3,   cp_vec3_t,        m)
@@ -553,7 +594,7 @@ static bool get_arg(
 
 static bool multmatrix_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_multmatrix_t *r = &_r->multmatrix;
@@ -567,12 +608,12 @@ static bool multmatrix_from_func(
         return false;
     }
 
-    return v_scad_from_v_syn_func(t, &r->child, &f->body);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool cube_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_cube_t *r = &_r->cube;
@@ -590,7 +631,7 @@ static bool cube_from_func(
 
 static bool square_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_square_t *r = &_r->square;
@@ -608,7 +649,7 @@ static bool square_from_func(
 
 static bool sphere_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_sphere_t *r = &_r->sphere;
@@ -649,7 +690,7 @@ static bool sphere_from_func(
 
 static bool circle_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_circle_t *r = &_r->circle;
@@ -690,7 +731,7 @@ static bool circle_from_func(
 
 static bool polyhedron_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_polyhedron_t *r = &_r->polyhedron;
@@ -784,7 +825,7 @@ static bool polyhedron_from_func(
 
 static bool polygon_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_polygon_t *r = &_r->polygon;
@@ -866,7 +907,7 @@ static bool polygon_from_func(
 
 static bool xyz_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_xyz_t *r = &_r->xyz;
@@ -878,12 +919,12 @@ static bool xyz_from_func(
     {
         return false;
     }
-    return v_scad_from_v_syn_func(t, &r->child, &f->body);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool scale_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_xyz_t *r = &_r->xyz;
@@ -895,12 +936,12 @@ static bool scale_from_func(
     {
         return false;
     }
-    return v_scad_from_v_syn_func(t, &r->child, &f->body);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool rotate_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
     cp_scad_rotate_t *r = &_r->rotate;
@@ -942,12 +983,12 @@ static bool rotate_from_func(
         r->around_n = true;
     }
 
-    return v_scad_from_v_syn_func(t, &r->child, &f->body);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool cylinder_from_func(
     ctxt_t *t,
-    cp_syn_func_t *f,
+    cp_syn_stmt_item_t *f,
     cp_scad_t *_q)
 {
     cp_scad_cylinder_t *q = &_q->cylinder;
@@ -1036,13 +1077,12 @@ static bool cylinder_from_func(
     return true;
 }
 
-
 typedef struct {
     char const *id;
     cp_scad_type_t type;
     bool (*from)(
         ctxt_t *t,
-        cp_syn_func_t *f,
+        cp_syn_stmt_item_t *f,
         cp_scad_t *r);
     char const *const *arg_pos;
     char const *const *arg_name;
@@ -1055,10 +1095,10 @@ static int cmp_name_cmd(void const *_a, void const *_b, void *user __unused)
     return strcmp(a, b->id);
 }
 
-static bool v_scad_from_syn_func(
+static bool v_scad_from_syn_stmt_item(
     ctxt_t *t,
     cp_v_scad_p_t *result,
-    cp_syn_func_t *f)
+    cp_syn_stmt_item_t *f)
 {
     static cmd_t const cmds[] = {
         {
@@ -1184,13 +1224,49 @@ static bool v_scad_from_syn_func(
     return c->from(t, f, r);
 }
 
-static bool v_scad_from_v_syn_func(
+static bool v_scad_from_syn_stmt_use(
+    ctxt_t *t __unused,
+    cp_v_scad_p_t *result __unused,
+    cp_syn_stmt_use_t *f __unused)
+{
+    CP_NYI("use <...>");
+}
+
+static bool v_scad_from_syn_stmt(
     ctxt_t *t,
     cp_v_scad_p_t *result,
-    cp_v_syn_func_p_t *fs)
+    cp_syn_stmt_t *f)
+{
+    switch (f->type) {
+    case CP_SYN_STMT_ITEM:
+       return v_scad_from_syn_stmt_item(t, result, cp_syn_stmt_item(f));
+    case CP_SYN_STMT_USE:
+       return v_scad_from_syn_stmt_use(t, result, cp_syn_stmt_use(f));
+    default:
+       CP_NYI("type=0x%x", f->type);
+    }
+}
+
+static bool v_scad_from_v_syn_stmt_item(
+    ctxt_t *t,
+    cp_v_scad_p_t *result,
+    cp_v_syn_stmt_item_p_t *fs)
 {
     for (cp_v_each(i, fs)) {
-        if (!v_scad_from_syn_func(t, result, fs->data[i])) {
+        if (!v_scad_from_syn_stmt_item(t, result, fs->data[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool v_scad_from_v_syn_stmt(
+    ctxt_t *t,
+    cp_v_scad_p_t *result,
+    cp_v_syn_stmt_p_t *fs)
+{
+    for (cp_v_each(i, fs)) {
+        if (!v_scad_from_syn_stmt(t, result, fs->data[i])) {
             return false;
         }
     }
@@ -1198,7 +1274,7 @@ static bool v_scad_from_v_syn_func(
 }
 
 /**
- * Same as cp_scad_from_syn_func, applied to each element
+ * Same as cp_scad_from_syn_stmt_item, applied to each element
  * of the 'func' vector.
  *
  * On success, returns true.
@@ -1213,5 +1289,5 @@ extern bool cp_scad_from_syn_tree(
         .top = result,
         .err = &syn->err,
     };
-    return v_scad_from_v_syn_func(&t, &result->toplevel, &syn->toplevel);
+    return v_scad_from_v_syn_stmt(&t, &result->toplevel, &syn->toplevel);
 }
