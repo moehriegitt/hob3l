@@ -3,6 +3,10 @@ set -euC
 
 # The least tested ones first, so this fails fast.
 make clean
+make -j MODE=release CFLAGS_ARCH= CFLAGS_SAFE=-Wstrict-overflow=2
+make -j test
+
+make clean
 make -j TARGET=win64 MODE=release
 
 make clean
