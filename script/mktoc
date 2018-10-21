@@ -60,14 +60,22 @@ sub insert_toc($)
     }
 
     # replace toc:
+    my $change = 0;
     for my $sec (@sec) {
         if ($sec =~ /^(#+([^#].*))\n/) {
             my ($h, $k) = ($1, anchor($2));
             if ($k eq 'table-of-contents') {
-                $sec = "$h\n$toc\n";
+                my $new_sec = "$h\n\n$toc\n";
+                if ($sec ne $new_sec) {
+                    $sec = $new_sec;
+                    $change = 1;
+                }
             }
         }
     }
+
+    # do not save unless there was a change:
+    return unless $change;
 
     # save:
     open(my $g, '>', "$fn.new") or die "Error: $fn.new: $@\n";

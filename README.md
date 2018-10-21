@@ -29,6 +29,7 @@ really need a 3D solid from your CSG, then do use OpenSCAD's CGAL
 based rendering.
 
 ## Table of Contents
+
   * [ Replace 3D CSG by Fast 2D Polygon Clipping](#replace-3d-csg-by-fast-2d-polygon-clipping)
   * [ Table of Contents](#table-of-contents)
   * [ SCAD Input Format](#scad-input-format)
@@ -216,9 +217,9 @@ inspected by a human.
 ## Building
 
 Building relies on GNU make and gcc, and uses no automake or other
-meta-make layer.  Some Perl scripts are used to generate C code, but
-all generated C code is also checked in, so the scripts are only
-invoked when changes are made.
+meta-make layer.  Both Linux native and the MingW Windows cross
+compiler have been tested, and I hope that the MingW compiler will
+also work when run natively under Cygwin.
 
 Make variables can be used to switch how the stuff is compiled.  Since
 I tried not to overdo with gcc extensions (`({...})` and `__typeof__`
@@ -237,6 +238,10 @@ The resulting executable is called 'hob3l.x'.
 
 Parallel building should be fully supported using the `-j` option to
 make.
+
+Some Perl scripts are used to generate C code, but all generated C
+code is also checked in, so the scripts are only invoked when changes
+are made.
 
 ### Different Build Variants
 
@@ -275,13 +280,13 @@ To compile with gcc for i686 (e.g., 32 bit x86 Linux):
     make TARGET=nix32
 ```
 
-To cross compile for Windows 64 using mingw32:
+To cross compile for Windows 64 using MingW:
 
 ```
     make TARGET=win64
 ```
 
-To cross compile for Windows 32 using mingw32:
+To cross compile for Windows 32 using MingW:
 
 ```
     make TARGET=win32
