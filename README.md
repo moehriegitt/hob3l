@@ -28,6 +28,26 @@ where individual flat slices from your model is all you need.  If you
 really need a 3D solid from your CSG, then do use OpenSCAD's CGAL
 based rendering.
 
+## Table of Contents
+  * [ Replace 3D CSG by Fast 2D Polygon Clipping](#replace-3d-csg-by-fast-2d-polygon-clipping)
+  * [ Table of Contents](#table-of-contents)
+  * [ SCAD Input Format](#scad-input-format)
+      * [ Broken SCAD Syntax](#broken-scad-syntax)
+  * [ Algorithmic Improvements](#algorithmic-improvements)
+  * [ Status, Stability, Limitations, Future Work, TODO](#status-stability-limitations-future-work-todo)
+  * [ Building](#building)
+      * [ Different Build Variants](#different-build-variants)
+      * [ Different Compiler Targets](#different-compiler-targets)
+      * [ Tweaking Compiler Settings](#tweaking-compiler-settings)
+  * [ Running Tests](#running-tests)
+  * [ Installation](#installation)
+  * [ Using This Tool, Command Line Options](#using-this-tool-command-line-options)
+      * [ Tweaking Command Line Settings](#tweaking-command-line-settings)
+  * [ Speed comparison](#speed-comparison)
+  * [ Supported Output Formats](#supported-output-formats)
+  * [ Rendering Differences](#rendering-differences)
+  * [ Name](#name)
+
 ## SCAD Input Format
 
 This tool reads a subset of the SCAD format used by OpenSCAD -- I did

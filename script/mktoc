@@ -1,0 +1,105 @@
+#! /usr/bin/perl
+
+# Update a TOC in a .md file.  The TOC has to be under a headline that collapses into
+# an anchor that is 'table-of-contents'.
+#
+# This only understands '#' headline format.
+
+use strict;
+use warnings;
+
+my $skip = 0;
+my $in_place = 0;
+
+sub anchor($)
+{
+    my ($k) = @_;
+    $k =~ s/[^0-9a-z]+/-/gi;
+    $k =~ s/^-//;
+    $k =~ s/-$//;
+    return lc($k);
+}
+
+sub insert_toc($)
+{
+    my ($fn) = @_;
+
+    # load:
+    my @sec = ('');
+    open(my $f, '<', $fn) or die "Error: $fn: $@\n";
+    my $pre = 0;
+    while (<$f>) {
+        if ($pre) {
+            if (/^```/) {
+                $pre = 0;
+            }
+        }
+        else {
+            if (/^```/) {
+                $pre = 1;
+            }
+            elsif (/^#/) {
+                push @sec,'';
+            }
+        }
+        $sec[-1] .= $_;
+    }
+    close $f;
+
+    # make toc:
+    my $toc = '';
+    for my $sec (@sec) {
+        if ($sec =~ /^(#+)([^#].*)\n/) {
+            my ($i,$h) = ($1,$2);
+            my $k = anchor($h);
+            my $l = length($i);
+            if ($l > $skip) {
+                $toc .= ('    ' x ($l - $skip - 1))."  * [$h](#$k)\n";
+            }
+        }
+    }
+
+    # replace toc:
+    for my $sec (@sec) {
+        if ($sec =~ /^(#+([^#].*))\n/) {
+            my ($h, $k) = ($1, anchor($2));
+            if ($k eq 'table-of-contents') {
+                $sec = "$h\n$toc\n";
+            }
+        }
+    }
+
+    # save:
+    open(my $g, '>', "$fn.new") or die "Error: $fn.new: $@\n";
+    for my $sec (@sec) {
+        print {$g} $sec;
+    }
+    close $g;
+
+    # rename:
+    if ($in_place) {
+        rename("$fn.new", "$fn") or die "Error: $fn.new -> $fn: $@\n";
+    }
+}
+
+my @file = ();
+for my $arg (@ARGV) {
+    if ($arg =~ /^-/) {
+        if ($arg =~ /^-+skip([0-6])$/) {
+            $skip = $1;
+        }
+        elsif ($arg =~ /^-+in-place$/) {
+            $in_place = 1;
+        }
+        else {
+            die "Error: '$arg': unrecognised option\n";
+        }
+    }
+    else {
+        push @file, $arg;
+    }
+}
+
+for my $file (@file) {
+    insert_toc($file);
+}
