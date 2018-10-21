@@ -409,7 +409,7 @@ To convert to STL using openscad 3D CSG takes a while:
     0m45.208s
 ```
 
-Doing the same with `hob3l` is about 50 times faster:
+Doing the same with `hob3l` in 0.2mm layers is about 50 times faster:
 
 ```
     time hob3l x-carriage.csg -o x-carriage.stl
@@ -418,8 +418,8 @@ Doing the same with `hob3l` is about 50 times faster:
 
 The most complex part of the i3 MK3 printer, the `extruder-body.scad`,
 before it was reimplemented as `step` file, takes 2m42s in openscad to
-convert to STL, while `hob3l` takes 1.24s.  That is 130 times
-faster.
+convert to STL, while `hob3l` takes 1.24s, again with 0.2mm layers.
+That is 130 times faster.
 
 For one of my own parts `useless-box+body`, which is less complex, but
 does not care much about making rendering fast (I definitely set up
@@ -436,6 +436,33 @@ cylinders with too many polygon corners):
 This is 85 times faster.  Over half of the time is spent on writing
 the STL file, which is 23MB -- STL is huge.  Loading and converting
 only takes 0.23s.
+
+## Supported Output Formats
+
+`STL`: The output format of `hob3l` for which it was first developed, is
+STL.  This way, the input SCAD files can be converted and directly
+used in the slicer for 3D printing.
+
+`PS`: For debugging and documentation, including algorithm
+visualisation, `hob3l` can output in PostScript.  This is how the
+overview images on this page where generated: by using single-page PS
+output, converted to `PNG` using `GraphicsMagick`.  For debugging,
+mainly multi-page debug PS output was used, which allows easy browsing
+(I used `gv` for its speed and other nice features) comparison of
+different runs and step-by-step analysis of what is going on during
+the different algorithm runs.  The PS modules has a large number of
+command line options to customise the output.
+
+`JS/WEBGL`: For prototyping SCAD files, a web browser can be used by
+using the JavaScript/WebGL output format.  The SCAD file can be edited
+in your favourite editor, then for visualisation, `hob3l` can generate
+WebGL data, and a reload in the browser will show the new data.  This
+package contains auxiliary files (e.g. the surrounding .html file with
+the WebGL viewer that loads the generated data) so this is immediately
+usable.
+
+`SCAD`: For debugging intermediate steps in the parser and converter,
+SCAD format output is available from several processing stages.
 
 ## Rendering Differences
 
