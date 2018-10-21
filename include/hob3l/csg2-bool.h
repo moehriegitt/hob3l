@@ -16,7 +16,7 @@
  * ensures that r->data[0] is NULL.
  *
  * Note that because lazy polygon structures have no dedicated space to store
- * a polygon, so they must reuse the space of the input polygons, so applying
+ * a polygon, they must reuse the space of the input polygons, so applying
  * this function with more than 2 polygons in the lazy structure will reuse
  * space from the polygons for storing the result.
  */
@@ -96,6 +96,23 @@ extern void cp_csg2_op_add_layer(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
+    cp_csg2_tree_t *a,
+    size_t zi);
+
+/**
+ * Diff a layer with the next and store the result in diff_above/diff_below.
+ *
+ * The tree must have been processed with cp_csg2_op_add_layer(),
+ * and the layer ID must be in range.
+ *
+ * r is modified and a diff_below polygon is added.  The original polygons
+ * are left untouched.
+ *
+ * Runtime and space: see cp_csg2_op_add_layer.
+ */
+extern void cp_csg2_op_diff_layer(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
     cp_csg2_tree_t *a,
     size_t zi);
 

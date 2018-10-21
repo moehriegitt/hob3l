@@ -406,9 +406,9 @@ test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.x
 	rm -f $@.new.csg
 
 test-out/%.js: scad-test/%.scad hob3l.x
+	$(HOB3L_JS_COPY_AUX) $@
 	$(HOB3L) $< -o $@.new.js
 	mv $@.new.js $@
-	$(HOB3L_JS_COPY_AUX) $@
 
 test-out/%.js: $(SCAD_DIR)/%.scad hob3l.x
 	openscad $< -o $@.new.csg

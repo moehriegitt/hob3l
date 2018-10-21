@@ -142,7 +142,7 @@ typedef CP_VEC_T(cp_csg2_path_t) cp_v_csg2_path_t;
  * This can also or alternatively store a triangulation.  Depending
  * on the function, either path or triangle will be filled in.
  */
-typedef struct {
+struct cp_csg2_poly {
     /**
      * type is CP_CSG2_POLY */
     _CP_CSG2
@@ -185,7 +185,23 @@ typedef struct {
      * Without triangulation run, this is empty.
      */
     cp_v_size3_t triangle;
-} cp_csg2_poly_t;
+
+    /**
+     * If available, the result of subtracting the previous layer
+     * from this one.  For output modules that support this,
+     * this can be used to draw the bottom plane instead of drawing
+     * the full polygon.
+     */
+    cp_csg2_poly_t *diff_below;
+
+    /**
+     * If available, the result of subtracting the next layer
+     * from this one.  For output modules that support this,
+     * this can be used to draw the top plane instead of drawing
+     * the full polygon.
+     */
+    cp_csg2_poly_t *diff_above;
+};
 
 union cp_csg2 {
     struct {

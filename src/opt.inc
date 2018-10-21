@@ -22,6 +22,7 @@ static char const *opt_help =
     "        For STL, this ensures that the output is 2-manifold.\n"
     "        -1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output\n"
     "        (default: -1)\n"
+    "        If this is greater or equal to the step size, the output will degenerate.\n"
     "Slicing Options\n"
     "    --min=ARG\n"
     "        min slice z coord [mm] (by default, use bounding box of model,\n"
@@ -82,6 +83,11 @@ static char const *opt_help =
     "        for stage 4: do (not) run triangulation pass (default: do)\n"
     "        --dump-stl and --dump-js will not print correctly with --no-tri.\n"
     "        --dump-csg2 may not be read correctly by OpenSCAD without --no-tri.\n"
+    "    --no-diff\n"
+    "    --diff\n"
+    "        for stage 4: do (not) run difference pass for adjacent layers (default: do)\n"
+    "        --dump-js needs this for good output to hide inner structures.\n"
+    "        For other formats, the difference pass is not run anyway.\n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
     "        for --dump-ps: expand to fit normal bounding box to page\n"
@@ -294,6 +300,14 @@ static void get_opt_debug_ps_xlat_y(
 #endif
 }
 
+static void get_opt_diff(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_neg_bool(&opt->no_diff, name, arg);
+}
+
 static void get_opt_dump_csg2(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -427,6 +441,14 @@ static void get_opt_no_csg(
     char const *arg __unused)
 {
     get_arg_bool(&opt->no_csg, name, arg);
+}
+
+static void get_opt_no_diff(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_bool(&opt->no_diff, name, arg);
 }
 
 static void get_opt_no_tri(
@@ -792,6 +814,11 @@ cp_get_opt_t opt_list[] = {
         2,
     },
     {
+        "diff",
+        get_opt_diff,
+        1,
+    },
+    {
         "dump-csg2",
         get_opt_dump_csg2,
         1,
@@ -874,6 +901,11 @@ cp_get_opt_t opt_list[] = {
     {
         "no-csg",
         get_opt_no_csg,
+        1,
+    },
+    {
+        "no-diff",
+        get_opt_no_diff,
         1,
     },
     {

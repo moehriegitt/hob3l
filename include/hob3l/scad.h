@@ -22,7 +22,7 @@
 #include <hob3l/scad-2scad.h>
 
 /**
- * Same as cp_scad_from_syn_func, applied to each element
+ * Same as cp_scad_from_syn_stmt_item, applied to each element
  * of the 'func' vector.
  *
  * On success, returns true.

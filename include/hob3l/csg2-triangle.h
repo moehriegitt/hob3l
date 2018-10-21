@@ -141,4 +141,18 @@ extern bool cp_csg2_tri_layer(
     cp_csg2_tree_t *r,
     size_t zi);
 
+/**
+ * Triangulate a given layer's diff_above polygons.
+ *
+ * This is just like cp_csg2_tri_layer, but works only on the
+ * diff_above polygons.
+ *
+ * Runtime and space: see cp_csg2_tri_layer.
+ */
+extern bool cp_csg2_tri_layer_diff(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_tree_t *r,
+    size_t zi);
+
 #endif /* __CP_CSG2_TRIANGLE_H */

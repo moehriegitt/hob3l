@@ -32,6 +32,7 @@ typedef struct {
     bool have_dump;
     bool no_tri;
     bool no_csg;
+    bool no_diff;
     unsigned verbose;
     unsigned ps_scale_step; /* 0 = no change, 1 = normal bb, 2 = max bb */
     cp_ps_opt_t ps;
@@ -87,7 +88,13 @@ static bool next_i(
     return false;
 }
 
-static bool process_stack(
+/**
+ * Process for each layer the CSG and then its triangulation
+ *
+ * This can theoretically be run in multiple threads: each thread
+ * needs its own pool, and next_i needs to be made atomic.
+ */
+static bool process_stack_csg(
     cp_opt_t *opt,
     cp_pool_t *pool,
     cp_err_t *err,
@@ -108,6 +115,33 @@ static bool process_stack(
         }
         if (!opt->no_tri) {
             if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * Second run through the layer stack: XOR between two layers plus its triangulation
+ *
+ * This can theoretically be run in multiple threads: each thread
+ * needs its own pool, and next_i needs to be made atomic.
+ */
+static bool process_stack_diff(
+    cp_opt_t *opt,
+    cp_pool_t *pool,
+    cp_err_t *err,
+    cp_csg2_tree_t *csg2_out,
+    size_t *zi_p,
+    size_t  zi_count)
+{
+    size_t i;
+    while (next_i(&i, zi_p, zi_count)) {
+        cp_pool_clear(pool);
+        cp_csg2_op_diff_layer(&opt->tree, pool, csg2_out, i);
+        if (!opt->no_tri) {
+            if (!cp_csg2_tri_layer_diff(pool, err, csg2_out, i)) {
                 return false;
             }
         }
@@ -209,8 +243,18 @@ static bool do_file(
 
     cp_csg2_tree_t *csg2_out = opt->no_csg ? csg2 : csg2b;
     size_t zi = 0;
-    if (!process_stack(opt, &pool, &r->err, csg2, csg2b, csg2_out, &zi, range.cnt)) {
+    if (!process_stack_csg(opt, &pool, &r->err, csg2, csg2b, csg2_out, &zi, range.cnt)) {
         return false;
+    }
+
+    /* compute diff if there is any output format that can use it */
+    if (opt->dump_js) {
+        if (!opt->no_diff) {
+            zi = 0;
+            if (!process_stack_diff(opt, &pool, &r->err, csg2_out, &zi, range.cnt)) {
+                return false;
+            }
+        }
     }
 
     /* print */

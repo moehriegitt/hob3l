@@ -51,7 +51,7 @@ extern void cp_csg2_op_bitmap_combine(
  * Get a given bit from the bitmap
  */
 static inline bool cp_csg2_op_bitmap_get(
-    cp_csg2_op_bitmap_t *b,
+    cp_csg2_op_bitmap_t const *b,
     size_t i)
 {
     size_t k = i >> 3;

@@ -6,6 +6,8 @@
 
 typedef union cp_csg2 cp_csg2_t;
 
+typedef struct cp_csg2_poly cp_csg2_poly_t;
+
 typedef struct cp_csg2_3node cp_csg2_3node_t;
 typedef struct cp_csg2_3edge cp_csg2_3edge_t;
 typedef struct cp_csg2_3list cp_csg2_3list_t;

@@ -197,6 +197,15 @@ static inline cp_f_t cp_sqr(cp_f_t a)
     return a * a;
 }
 
+/** Subtract, but never be smaller than 0.
+ *
+ * = max(0, a-b)
+ */
+static inline cp_f_t cp_monus(cp_f_t a, cp_f_t b)
+{
+    return a > b ? a - b : 0;
+}
+
 /**
  * Linear interpolation between a and b for input t=0..1.
  *

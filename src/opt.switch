@@ -34,6 +34,7 @@ case "layer-gap": dim &opt->tree.layer_gap {
     "For STL, this ensures that the output is 2-manifold.";
     "-1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output";
     "(default: -1)";
+    "If this is greater or equal to the step size, the output will degenerate.";
 }
 
 help_section "Slicing Options";
@@ -142,6 +143,11 @@ case "no-tri": bool &opt->no_tri {
     "for stage 4: do (not) run triangulation pass (default: do)";
     "--dump-stl and --dump-js will not print correctly with --no-tri.";
     "--dump-csg2 may not be read correctly by OpenSCAD without --no-tri.";
+}
+case "no-diff": bool &opt->no_diff {
+    "for stage 4: do (not) run difference pass for adjacent layers (default: do)";
+    "--dump-js needs this for good output to hide inner structures.";
+    "For other formats, the difference pass is not run anyway.";
 }
 
 help_section "PostScript Output Options";

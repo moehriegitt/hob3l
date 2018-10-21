@@ -1184,6 +1184,77 @@ static bool csg2_tri_v_csg2(
     return true;
 }
 
+static bool csg2_tri_diff_v_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_v_csg2_p_t *r,
+    size_t zi);
+
+static bool csg2_tri_diff_layer(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_layer_t *r)
+{
+    return csg2_tri_diff_v_csg2(pool, t, &r->root.add, r->zi);
+}
+
+static bool csg2_tri_diff_stack(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_stack_t *r,
+    size_t zi)
+{
+    cp_csg2_layer_t *l = cp_csg2_stack_get_layer(r, zi);
+    if (l == NULL) {
+        return true;
+    }
+    return csg2_tri_diff_layer(pool, t, l);
+}
+
+static bool csg2_tri_diff_poly(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_poly_t *g)
+{
+    if (g->diff_above != NULL) {
+        return cp_csg2_tri_poly(pool, t, g->diff_above);
+    }
+    if (g->diff_below != NULL) {
+        return cp_csg2_tri_poly(pool, t, g->diff_below);
+    }
+    return true;
+}
+
+static bool csg2_tri_diff_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_t *r,
+    size_t zi)
+{
+    switch (r->type) {
+    case CP_CSG2_POLY:
+        return csg2_tri_diff_poly(pool, t, &r->poly);
+    case CP_CSG2_STACK:
+        return csg2_tri_diff_stack(pool, t, &r->stack, zi);
+    default:
+        return true;
+    }
+}
+
+static bool csg2_tri_diff_v_csg2(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_v_csg2_p_t *r,
+    size_t zi)
+{
+    for (cp_v_each(i, r)) {
+        if (!csg2_tri_diff_csg2(pool, t, r->data[i], zi)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /* ********************************************************************** */
 /* extern */
 
@@ -1388,6 +1459,9 @@ extern bool cp_csg2_tri_poly(
         cp_csg2_path_t *s = &g->path.data[i];
         n += s->point_idx.size;
     }
+    if (n < 2) {
+        return true;
+    }
 
     /* allocate */
     node_t *node;
@@ -1397,6 +1471,9 @@ extern bool cp_csg2_tri_poly(
 
     /* make edges */
     size_t m = g->path.size;
+    if (m < 1) {
+        return true;
+    }
     size_t o = 0;
     for (cp_v_each(i, &g->path)) {
         cp_csg2_path_t *s = &g->path.data[i];
@@ -1415,6 +1492,8 @@ extern bool cp_csg2_tri_poly(
     /* Expect n-2 triangles for a single polygon without holes.  Each
      * inner polygon will add 2 triangles, so we max. number of triangles
      * is n-2 + 2*(m - 1). */
+    assert(n >= 2);
+    assert(m >= 1);
     size_t tri_cnt = (n - 2) + 2*(m - 1);
     cp_v_clear(&g->triangle, tri_cnt);
 
@@ -1459,4 +1538,24 @@ extern bool cp_csg2_tri_layer(
         return true;
     }
     return csg2_tri_csg2(pool, t, r->root, zi);
+}
+
+/**
+ * Triangulate a given layer's diff_above polygons.
+ *
+ * This is just like cp_csg2_tri_layer, but works only on the
+ * diff_above polygons.
+ *
+ * Runtime and space: see cp_csg2_tri_layer.
+ */
+extern bool cp_csg2_tri_layer_diff(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg2_tree_t *r,
+    size_t zi)
+{
+    if (r->root == NULL) {
+        return true;
+    }
+    return csg2_tri_diff_csg2(pool, t, r->root, zi);
 }

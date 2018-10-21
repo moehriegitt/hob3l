@@ -48,18 +48,20 @@ static void poly_put_stl(
     cp_csg2_poly_t *r)
 {
     double z0 = cp_v_nth(&t->z, zi);
-    double z1 = z0 + cp_csg2_layer_thickness(t, zi) - layer_gap(t->opt.layer_gap);
+    double z1 = z0 + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt.layer_gap));
 
     cp_v_vec2_loc_t const *point = &r->point;
 
     /* top */
-    for (cp_v_each(i, &r->triangle)) {
-        size_t const *p = cp_v_nth(&r->triangle, i).p;
-        triangle_put_stl(s,
-            0., 0., 1.,
-            &cp_v_nth(point, p[1]), z1,
-            &cp_v_nth(point, p[0]), z1,
-            &cp_v_nth(point, p[2]), z1);
+    if (!cp_eq(z0, z1)) {
+        for (cp_v_each(i, &r->triangle)) {
+            size_t const *p = cp_v_nth(&r->triangle, i).p;
+            triangle_put_stl(s,
+                0., 0., 1.,
+                &cp_v_nth(point, p[1]), z1,
+                &cp_v_nth(point, p[0]), z1,
+                &cp_v_nth(point, p[2]), z1);
+        }
     }
 
     /* bottom */
@@ -73,43 +75,45 @@ static void poly_put_stl(
     }
 
     /* sides */
-    for (cp_v_each(i, &r->path)) {
-        cp_csg2_path_t const *p = &cp_v_nth(&r->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            size_t k = cp_wrap_add1(j, p->point_idx.size);
-            size_t ij = cp_v_nth(&p->point_idx, j);
-            size_t ik = cp_v_nth(&p->point_idx, k);
-            cp_vec2_loc_t const *pj = &cp_v_nth(point, ij);
-            cp_vec2_loc_t const *pk = &cp_v_nth(point, ik);
+    if (!cp_eq(z0, z1)) {
+        for (cp_v_each(i, &r->path)) {
+            cp_csg2_path_t const *p = &cp_v_nth(&r->path, i);
+            for (cp_v_each(j, &p->point_idx)) {
+                size_t k = cp_wrap_add1(j, p->point_idx.size);
+                size_t ij = cp_v_nth(&p->point_idx, j);
+                size_t ik = cp_v_nth(&p->point_idx, k);
+                cp_vec2_loc_t const *pj = &cp_v_nth(point, ij);
+                cp_vec2_loc_t const *pk = &cp_v_nth(point, ik);
 
-            /**
-             * All paths are viewed from above, and pj, pk are in CW order =>
-             * Side view from outside:
-             *
-             *     (pk,z[1])-------(pj,z[1])
-             *     |                   |
-             *     (pk,z[0])-------(pj,z[0])
-             *
-             * Triangles in STL are CCW, so:
-             *     (pk,z[0])--(pj,z[1])--(pk,z[1])
-             * and (pk,z[0])..(pj,z[0])--(pj,z[1])
-             */
-            cp_vec3_t n;
-            cp_vec3_left_normal3(&n,
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z0 }},
-                &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z1 }},
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z1 }});
+                /**
+                 * All paths are viewed from above, and pj, pk are in CW order =>
+                 * Side view from outside:
+                 *
+                 *     (pk,z[1])-------(pj,z[1])
+                 *     |                   |
+                 *     (pk,z[0])-------(pj,z[0])
+                 *
+                 * Triangles in STL are CCW, so:
+                 *     (pk,z[0])--(pj,z[1])--(pk,z[1])
+                 * and (pk,z[0])..(pj,z[0])--(pj,z[1])
+                 */
+                cp_vec3_t n;
+                cp_vec3_left_normal3(&n,
+                    &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z0 }},
+                    &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z1 }},
+                    &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z1 }});
 
-            triangle_put_stl(s,
-                n.x, n.y, n.z,
-                pk, z0,
-                pj, z1,
-                pk, z1);
-            triangle_put_stl(s,
-                n.x, n.y, n.z,
-                pk, z0,
-                pj, z0,
-                pj, z1);
+                triangle_put_stl(s,
+                    n.x, n.y, n.z,
+                    pk, z0,
+                    pj, z1,
+                    pk, z1);
+                triangle_put_stl(s,
+                    n.x, n.y, n.z,
+                    pk, z0,
+                    pj, z0,
+                    pj, z1);
+            }
         }
     }
 }

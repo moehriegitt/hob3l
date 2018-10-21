@@ -20,13 +20,8 @@
 
 #define SHIFT_I 0
 
-#define O_HORIZ  0
-#define O_VERT_A 1
-#define O_VERT_B 2
-#define O_CNT    3
-
-#define PER_VERTEX (2 * O_CNT)
-#define VERTEX_CNT 65535
+#define VERTEX_MASK 0xffff
+#define VERTEX_CNT  0xffff
 
 typedef struct {
     long x,y,z;
@@ -43,7 +38,6 @@ typedef struct {
 } u16_3_t;
 
 typedef struct {
-    cp_a_u16_t idx;
     vertex_t v[VERTEX_CNT];
     size_t v_cnt;
     u16_3_t tri[VERTEX_CNT];
@@ -62,29 +56,22 @@ static inline long js_coord(cp_dim_t f)
     return lrint(f / cp_pt_epsilon);
 }
 
-static unsigned short store_vertex(
-    ctxt_t *c,
-    unsigned short *ip,
+static void store_vertex(
+    vertex_t *v,
     cp_dim_t xn, cp_dim_t yn, cp_dim_t zn,
     cp_vec2_loc_t const *xy,
     cp_dim_t z)
 {
-    if (*ip > c->v_cnt) {
-        assert(c->v_cnt < cp_countof(c->v));
-        *ip = 0xffff & c->v_cnt++;
-        vertex_t *v = &c->v[*ip];
-        v->p.x = js_coord(xy->coord.x);
-        v->p.y = js_coord(xy->coord.y);
-        v->p.z = js_coord(z);
-        v->n.x = js_coord(xn)*1000;
-        v->n.y = js_coord(yn)*1000;
-        v->n.z = js_coord(zn)*1000;
-        v->c.r = 255;
-        v->c.g = 128;
-        v->c.b = 128;
-        v->c.a = 255;
-    }
-    return *ip;
+    v->p.x = js_coord(xy->coord.x);
+    v->p.y = js_coord(xy->coord.y);
+    v->p.z = js_coord(z);
+    v->n.x = js_coord(xn)*1000;
+    v->n.y = js_coord(yn)*1000;
+    v->n.z = js_coord(zn)*1000;
+    v->c.r = 255;
+    v->c.g = 128;
+    v->c.b = 128;
+    v->c.a = 255;
 }
 
 static int idx_val(
@@ -147,27 +134,15 @@ static void scene_flush(
     c->tri_cnt = 0;
 }
 
-static inline unsigned short *idx_ptr(
-    ctxt_t *c,
-    size_t pi,
-    unsigned zi,
-    unsigned oi)
-{
-    assert(zi < 2);
-    assert(oi < O_CNT);
-    size_t i = (pi * PER_VERTEX) + (zi * O_CNT) + oi;
-    return &cp_v_nth(&c->idx, i);
-}
-
 static void triangle_put_js(
     ctxt_t *c,
     cp_stream_t *s,
     cp_v_vec2_loc_t const *point,
     cp_dim_t const z[],
     cp_dim_t xn, cp_dim_t yn, cp_dim_t zn,
-    size_t k1, unsigned i1, unsigned o1,
-    size_t k2, unsigned i2, unsigned o2,
-    size_t k3, unsigned i3, unsigned o3)
+    size_t k1, unsigned i1,
+    size_t k2, unsigned i2,
+    size_t k3, unsigned i3)
 {
     if (((c->v_cnt   + 3) > cp_countof(c->v)) ||
         ((c->tri_cnt + 1) > cp_countof(c->tri)))
@@ -181,9 +156,13 @@ static void triangle_put_js(
 
     assert(c->tri_cnt < cp_countof(c->tri));
     u16_3_t *t = &c->tri[c->tri_cnt++];
-    t->i[0] = store_vertex(c, idx_ptr(c, k1, i1, o1), xn, yn, zn, xy1, z[i1]);
-    t->i[1] = store_vertex(c, idx_ptr(c, k2, i2, o2), xn, yn, zn, xy2, z[i2]);
-    t->i[2] = store_vertex(c, idx_ptr(c, k3, i3, o3), xn, yn, zn, xy3, z[i3]);
+    t->i[0] = VERTEX_MASK & c->v_cnt++;
+    t->i[1] = VERTEX_MASK & c->v_cnt++;
+    t->i[2] = VERTEX_MASK & c->v_cnt++;
+
+    store_vertex(&c->v[t->i[0]], xn, yn, zn, xy1, z[i1]);
+    store_vertex(&c->v[t->i[1]], xn, yn, zn, xy2, z[i2]);
+    store_vertex(&c->v[t->i[2]], xn, yn, zn, xy3, z[i3]);
 }
 
 static inline cp_dim_t layer_gap(cp_dim_t x)
@@ -198,74 +177,82 @@ static void poly_put_js(
     size_t zi,
     cp_csg2_poly_t *r)
 {
-    size_t idx_cnt = r->point.size * PER_VERTEX;
-    assert(idx_cnt <= c->idx.size);
-    memset(c->idx.data, 255, idx_cnt * sizeof(c->idx.data[0]));
-
     cp_dim_t z[2];
     z[0] = cp_v_nth(&t->z, zi);
-    z[1] = z[0] + cp_csg2_layer_thickness(t, zi) - layer_gap(t->opt.layer_gap);
+    z[1] = z[0] + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt.layer_gap));
 
-    cp_v_vec2_loc_t const *point = &r->point;
-
-    /* top */
-    for (cp_v_each(i, &r->triangle)) {
-        size_t const *p = cp_v_nth(&r->triangle, i).p;
-        triangle_put_js(c, s, point, z,
-            0., 0., 1.,
-            p[1], 1, O_HORIZ,
-            p[0], 1, O_HORIZ,
-            p[2], 1, O_HORIZ);
+    /* top (if needed) */
+    if (!cp_eq(z[0], z[1])) {
+        cp_csg2_poly_t *r_top = r->diff_above;
+        if (r_top == NULL) {
+            r_top = r;
+        }
+        for (cp_v_each(i, &r_top->triangle)) {
+            size_t const *p = cp_v_nth(&r_top->triangle, i).p;
+            triangle_put_js(c, s, &r_top->point, z,
+                0., 0., 1.,
+                p[1], 1,
+                p[0], 1,
+                p[2], 1);
+        }
     }
 
-    /* bottom */
-    for (cp_v_each(i, &r->triangle)) {
-        size_t const *p = cp_v_nth(&r->triangle, i).p;
-        triangle_put_js(c, s, point, z,
+    /* bottom: only draw if not already drawn */
+    cp_csg2_poly_t *r_bot = r->diff_below;
+    if (r_bot == NULL) {
+        r_bot = r;
+    }
+    for (cp_v_each(i, &r_bot->triangle)) {
+        size_t const *p = cp_v_nth(&r_bot->triangle, i).p;
+        triangle_put_js(c, s, &r_bot->point, z,
             0., 0., -1.,
-            p[0], 0, O_HORIZ,
-            p[1], 0, O_HORIZ,
-            p[2], 0, O_HORIZ);
+            p[0], 0,
+            p[1], 0,
+            p[2], 0);
     }
 
-    /* sides */
-    for (cp_v_each(i, &r->path)) {
-        cp_csg2_path_t const *p = &cp_v_nth(&r->path, i);
-        for (cp_v_each(j, &p->point_idx)) {
-            size_t k = cp_wrap_add1(j, p->point_idx.size);
-            size_t ij = cp_v_nth(&p->point_idx, j);
-            size_t ik = cp_v_nth(&p->point_idx, k);
-            cp_vec2_loc_t const *pj = &cp_v_nth(point, ij);
-            cp_vec2_loc_t const *pk = &cp_v_nth(point, ik);
+    /* sides (if needed) */
+    if (!cp_eq(z[0], z[1])) {
+        cp_v_vec2_loc_t const *point = &r->point;
 
-            /**
-             * All paths are viewed from above, and pj, pk are in CW order =>
-             * Side view from outside:
-             *
-             *     (pk,z[1])-------(pj,z[1])
-             *     |                   |
-             *     (pk,z[0])-------(pj,z[0])
-             *
-             * Triangles in STL are CCW, so:
-             *     (pk,z[0])--(pj,z[1])--(pk,z[1])
-             * and (pk,z[0])..(pj,z[0])--(pj,z[1])
-             */
-            cp_vec3_t n;
-            cp_vec3_left_normal3(&n,
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[0] }},
-                &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z[1] }},
-                &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[1] }});
+        for (cp_v_each(i, &r->path)) {
+            cp_csg2_path_t const *p = &cp_v_nth(&r->path, i);
+            for (cp_v_each(j, &p->point_idx)) {
+                size_t k = cp_wrap_add1(j, p->point_idx.size);
+                size_t ij = cp_v_nth(&p->point_idx, j);
+                size_t ik = cp_v_nth(&p->point_idx, k);
+                cp_vec2_loc_t const *pj = &cp_v_nth(point, ij);
+                cp_vec2_loc_t const *pk = &cp_v_nth(point, ik);
 
-            triangle_put_js(c, s, point, z,
-                n.x, n.y, n.z,
-                ik, 0, O_VERT_A,
-                ij, 1, O_VERT_B,
-                ik, 1, O_VERT_A);
-            triangle_put_js(c, s, point, z,
-                n.x, n.y, n.z,
-                ik, 0, O_VERT_A,
-                ij, 0, O_VERT_B,
-                ij, 1, O_VERT_B);
+                /**
+                 * All paths are viewed from above, and pj, pk are in CW order =>
+                 * Side view from outside:
+                 *
+                 *     (pk,z[1])-------(pj,z[1])
+                 *     |                   |
+                 *     (pk,z[0])-------(pj,z[0])
+                 *
+                 * Triangles in STL are CCW, so:
+                 *     (pk,z[0])--(pj,z[1])--(pk,z[1])
+                 * and (pk,z[0])..(pj,z[0])--(pj,z[1])
+                 */
+                cp_vec3_t n;
+                cp_vec3_left_normal3(&n,
+                    &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[0] }},
+                    &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z[1] }},
+                    &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[1] }});
+
+                triangle_put_js(c, s, point, z,
+                    n.x, n.y, n.z,
+                    ik, 0,
+                    ij, 1,
+                    ik, 1);
+                triangle_put_js(c, s, point, z,
+                    n.x, n.y, n.z,
+                    ik, 0,
+                    ij, 0,
+                    ij, 1);
+            }
         }
     }
 }
@@ -395,7 +382,14 @@ static size_t v_csg2_max_point_cnt(
 static size_t poly_max_point_cnt(
     cp_csg2_poly_t *r)
 {
-    return r->point.size;
+    size_t m = r->point.size;
+    if (r->diff_above != NULL) {
+        m = cp_max(m, r->diff_above->point.size);
+    }
+    if (r->diff_below != NULL) {
+        m = cp_max(m, r->diff_below->point.size);
+    }
+    return m;
 }
 
 static size_t union_max_point_cnt(
@@ -504,15 +498,11 @@ extern void cp_csg2_tree_put_js(
     ctxt_t *c;
     CP_CALLOC(c);
 
-    c->idx.size = csg2_max_point_cnt(t->root) * PER_VERTEX;
-    CP_CALLOC_ARR(c->idx.data, c->idx.size);
-
     scene_flush(c, s);
     if (t->root != NULL) {
         csg2_put_js(c, s, t, 0, t->root);
     }
     scene_flush(c, s);
 
-    CP_FREE(c->idx.data);
     CP_FREE(c);
 }

@@ -205,7 +205,7 @@ typedef struct {
     cp_list_t poly;
 
     /** Bool function bitmap */
-    cp_csg2_op_bitmap_t *comb;
+    cp_csg2_op_bitmap_t const *comb;
 
     /** Number of valid bits in comb */
     size_t comb_size;
@@ -941,15 +941,6 @@ static void path_make(
         CP_SWAP(&e0, &e1);
     }
 
-#if 0
-    /* first and second point */
-    path_add_point(r, p, e0);
-    path_add_point(r, p, e1);
-    for (cp_ring_each(_ei, &e0->node_chain, &e1->node_chain)) {
-        event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
-        path_add_point(r, p, ei);
-    }
-#else
     /* handle triples in order to add points that are not collinear */
     event_t *ea = e0;
     event_t *eb = e1;
@@ -961,7 +952,6 @@ static void path_make(
     }
     path_add_point3(c, r, p, ea, eb, e0);
     path_add_point3(c, r, p, eb, e0, e1);
-#endif
 
     assert((p->point_idx.size >= 3) && "Polygon chain is too short");
 }
@@ -1848,9 +1838,15 @@ static void csg2_op_csg2(
     CP_ZERO(o);
 }
 
+/**
+ * This reuses the poly_t structure r->data[0], but does not destruct
+ * any of its substructures, but will just overwrite the pointers to
+ * them.  Any poly but r->data[0] will be left completely untouched.
+ */
 static void cp_csg2_op_poly(
     cp_pool_t *pool,
-    cp_csg2_lazy_t *r)
+    cp_csg2_poly_t *o,
+    cp_csg2_lazy_t const *r)
 {
     TRACE();
     /* make context */
@@ -1899,13 +1895,125 @@ static void cp_csg2_op_poly(
         }
     }
 
-    poly_make(r->data[0], &c, r->data[0]->loc);
-    if (r->data[0]->point.size == 0) {
-        CP_ZERO(r);
+    poly_make(o, &c, r->data[0]->loc);
+}
+
+static cp_csg2_poly_t *poly_sub(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_csg2_poly_t *a0,
+    cp_csg2_poly_t *a1)
+{
+    size_t a0_point_sz __unused = a0->point.size;
+    size_t a1_point_sz __unused = a1->point.size;
+
+    cp_csg2_lazy_t o0;
+    CP_ZERO(&o0);
+    csg2_op_poly(&o0, a0);
+
+    cp_csg2_lazy_t o1;
+    CP_ZERO(&o1);
+    csg2_op_poly(&o1, a1);
+
+    cp_csg2_op_lazy(opt, pool, &o0, &o1, CP_OP_SUB);
+    assert(o0.size == 2);
+
+    cp_csg2_poly_t *o = CP_CLONE(a1);
+    cp_csg2_op_poly(pool, o, &o0);
+
+    /* check that the originals really haven't changed */
+    assert(a0->point.size == a0_point_sz);
+    assert(a1->point.size == a1_point_sz);
+
+    return o;
+}
+
+static void csg2_op_diff2_poly(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_csg2_poly_t *a0,
+    cp_csg2_poly_t *a1)
+{
+    TRACE();
+    if ((a0->point.size | a1->point.size) == 0) {
         return;
     }
-    r->size = 1;
-    r->comb.b[0] = 2;
+
+    a0->diff_above = poly_sub(opt, pool, a0, a1);
+    a1->diff_below = poly_sub(opt, pool, a1, a0);
+}
+
+static void csg2_op_diff2(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_csg2_t *a0,
+    cp_csg2_t *a1)
+{
+    TRACE();
+    if (a0->type != CP_CSG2_POLY) {
+        return;
+    }
+    if (a1->type != CP_CSG2_POLY) {
+        return;
+    }
+    csg2_op_diff2_poly(opt, pool, cp_csg2_poly(a0), cp_csg2_poly(a1));
+}
+
+static void csg2_op_diff2_layer(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_csg2_layer_t *a0,
+    cp_csg2_layer_t *a1)
+{
+    TRACE();
+    if (a0->root.add.size != 1) {
+        return;
+    }
+    if (a1->root.add.size != 1) {
+        return;
+    }
+    csg2_op_diff2(opt, pool, cp_v_nth(&a0->root.add,0), cp_v_nth(&a1->root.add,0));
+}
+
+static void csg2_op_diff_stack(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    size_t zi,
+    cp_csg2_stack_t *a)
+{
+    TRACE();
+    cp_csg2_layer_t *l0 = cp_csg2_stack_get_layer(a, zi);
+    cp_csg2_layer_t *l1 = cp_csg2_stack_get_layer(a, zi + 1);
+    if ((l0 == NULL) || (l1 == NULL)) {
+        return;
+    }
+    if (zi != l0->zi) {
+        assert(l0->zi == 0); /* not visited: must be empty */
+        return;
+    }
+    if ((zi + 1) != l1->zi) {
+        assert(l1->zi == 0); /* not visited: must be empty */
+        return;
+    }
+
+    csg2_op_diff2_layer(opt, pool, l0, l1);
+}
+
+static void csg2_op_diff_csg2(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    size_t zi,
+    cp_csg2_t *a)
+{
+    TRACE();
+    /* only work on stacks, ignore anything else */
+    switch (a->type) {
+    case CP_CSG2_STACK:
+        csg2_op_diff_stack(opt, pool, zi, cp_csg2_stack(a));
+        return;
+    default:
+        return;
+    }
 }
 
 /* ********************************************************************** */
@@ -1919,7 +2027,7 @@ static void cp_csg2_op_poly(
  * ensures that r->data[0] is NULL.
  *
  * Note that because lazy polygon structures have no dedicated space to store
- * a polygon, so they must reuse the space of the input polygons, so applying
+ * a polygon, they must reuse the space of the input polygons, so applying
  * this function with more than 2 polygons in the lazy structure will reuse
  * space from the polygons for storing the result.
  */
@@ -1931,7 +2039,13 @@ extern void cp_csg2_op_reduce(
     if (r->size <= 1) {
         return;
     }
-    cp_csg2_op_poly(pool, r);
+    cp_csg2_op_poly(pool, r->data[0], r);
+    if (r->data[0]->point.size == 0) {
+        CP_ZERO(r);
+        return;
+    }
+    r->size = 1;
+    r->comb.b[0] = 2;
 }
 
 /**
@@ -2096,6 +2210,30 @@ extern void cp_csg2_op_add_layer(
         /* single polygon per layer */
         cp_v_push(&layer->root.add, (cp_csg2_t*)o);
     }
+}
+
+/**
+ * Diff a layer with the next and store the result in diff_above/diff_below.
+ *
+ * The tree must have been processed with cp_csg2_op_add_layer(),
+ * and the layer ID must be in range.
+ *
+ * r is modified and a diff_below polygon is added.  The original polygons
+ * are left untouched.
+ *
+ * Runtime and space: see cp_csg2_op_add_layer.
+ */
+extern void cp_csg2_op_diff_layer(
+    cp_csg2_tree_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_csg2_tree_t *a,
+    size_t zi)
+{
+    TRACE();
+    cp_csg2_stack_t *s __unused = cp_csg2_stack(a->root);
+    assert(zi < s->layer.size);
+
+    csg2_op_diff_csg2(opt, pool, zi, a->root);
 }
 
 /**

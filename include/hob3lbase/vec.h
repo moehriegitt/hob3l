@@ -553,8 +553,15 @@ static inline size_t __cp_v_bsearch(
         &__vecB->data[__vecB->size - 1 - __iB]; \
     }))
 
-#define cp_v_nth(vec, i) \
-    (*({ \
+#define cp_v_nth_ptr0(vec, i) \
+    ({ \
+        __typeof__(*(vec)) * __vecB = (vec); \
+        size_t __iB = (i); \
+        (((__vecB != NULL) && (__iB < __vecB->size)) ? &__vecB->data[__iB] : NULL); \
+    })
+
+#define cp_v_nth_ptr(vec, i) \
+    ({ \
         __typeof__(*(vec)) * __vecB = (vec); \
         size_t __iB = (i); \
         assert(__vecB != NULL); \
@@ -562,7 +569,10 @@ static inline size_t __cp_v_bsearch(
             (fprintf(stderr, "ERR: __iB=%"_Pz"u, __vecB->size=%"_Pz"u\n", \
                 __iB, __vecB->size),0)); \
         &__vecB->data[__iB]; \
-    }))
+    })
+
+#define cp_v_nth(vec, i) \
+    (*cp_v_nth_ptr(vec, i))
 
 #define cp_v_bit_get(vec, i) \
     ({ \
