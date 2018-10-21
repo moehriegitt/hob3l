@@ -1493,8 +1493,8 @@ static void check_intersection(
         sev[1]->in.owner = sev[1]->other->in.owner = 0;
 
         /* split the longer one, marking the double side as overlapping: */
-        event_t *sh  = sev[0] ?: sev[2];
-        event_t *shl = sev[0] ?: sev[2]->other;
+        event_t *sh  = sev[0] ? sev[0] : sev[2];
+        event_t *shl = sev[0] ? sev[0] : sev[2]->other;
         sh->other->in.owner = owner;
         sh->other->in.below = below;
         if (shl == el) {

@@ -499,7 +499,7 @@ extern void cp_dict_remove(
      * resetting root if necessary */
     cp_dict_t *z = NULL;
     if (c->parent == NULL) {
-        z = c->edge[0] ?: c->edge[1];
+        z = c->edge[0] ? c->edge[0] : c->edge[1];
     }
 
     cp_dict_t *p;
