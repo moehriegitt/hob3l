@@ -448,18 +448,20 @@ visualisation, `hob3l` can output in PostScript.  This is how the
 overview images on this page where generated: by using single-page PS
 output, converted to `PNG` using `GraphicsMagick`.  For debugging,
 mainly multi-page debug PS output was used, which allows easy browsing
-(I used `gv` for its speed and other nice features) comparison of
-different runs and step-by-step analysis of what is going on during
-the different algorithm runs.  The PS modules has a large number of
-command line options to customise the output.
+(I used `gv` for its speed and other nice features). Also, this allows
+to compare different runs and do a step-by-step analysis of what is
+going on during the algorithm runs.  The PS modules has a large number
+of command line options to customise the output.
 
-`JS/WEBGL`: For prototyping SCAD files, a web browser can be used by
-using the JavaScript/WebGL output format.  The SCAD file can be edited
-in your favourite editor, then for visualisation, `hob3l` can generate
-WebGL data, and a reload in the browser will show the new data.  This
-package contains auxiliary files (e.g. the surrounding .html file with
-the WebGL viewer that loads the generated data) so this is immediately
-usable.
+`JS/WEBGL`: For prototyping SCAD files, a web browser can be used as a
+3D model viewer by using the JavaScript/WebGL output format.  The SCAD
+file can be edited in your favourite editor, then for visualisation,
+`hob3l` can generate WebGL data (possibly with an intermediate step to
+let `OpenSCAD` simplify the input file using its .csg output), and a
+reload in the web browser will show the new model.  This package
+contains auxiliary files to make it immediately usable, e.g. the
+surrounding .html file with the WebGL viewer that loads the generated
+data.  See the `hob3l-js-copy-aux` script.
 
 `SCAD`: For debugging intermediate steps in the parser and converter,
 SCAD format output is available from several processing stages.
