@@ -51,6 +51,8 @@ sub insert_toc($)
     for my $sec (@sec) {
         if ($sec =~ /^(#+)([^#].*)\n/) {
             my ($i,$h) = ($1,$2);
+            $h =~ s/^\s+//;
+            $h =~ s/\s+$//;
             my $k = anchor($h);
             my $l = length($i);
             if ($l > $skip) {

@@ -28,11 +28,13 @@ extern bool cp_csg3_from_scad_tree(
     cp_scad_tree_t *scad);
 
 /* Dynamic casts */
-CP_DECLARE_CAST(csg3, sphere, CP_CSG3_SPHERE)
-CP_DECLARE_CAST(csg3, cyl,    CP_CSG3_CYL)
-CP_DECLARE_CAST(csg3, poly,   CP_CSG3_POLY)
-CP_DECLARE_CAST(csg3, add,    CP_CSG3_ADD)
-CP_DECLARE_CAST(csg3, sub,    CP_CSG3_SUB)
-CP_DECLARE_CAST(csg3, cut,    CP_CSG3_CUT)
+CP_DECLARE_CAST_(csg3, sphere, CP_CSG3_SPHERE)
+CP_DECLARE_CAST_(csg3, cyl,    CP_CSG3_CYL)
+CP_DECLARE_CAST_(csg3, poly,   CP_CSG3_POLY)
+CP_DECLARE_CAST_(csg3, add,    CP_CSG3_ADD)
+CP_DECLARE_CAST_(csg3, sub,    CP_CSG3_SUB)
+CP_DECLARE_CAST_(csg3, cut,    CP_CSG3_CUT)
+
+CP_DECLARE_CAST_(csg3, poly2,  CP_CSG2_POLY)
 
 #endif /* __CP_CSG3_H */

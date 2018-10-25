@@ -236,6 +236,8 @@ typedef struct {
     bool is_cube;
 } cp_csg3_poly_t;
 
+typedef cp_csg2_poly_t cp_csg3_poly2_t;
+
 /**
  * Any of the CP_CSG3_* objects and some CP_CSG2_*.
  */
@@ -243,23 +245,18 @@ union cp_csg3 {
     struct {
         _CP_CSG3
     };
-    struct {
-        _CP_CSG3_OBJ
-    } obj;
-    struct {
-        _CP_CSG3_OBJ_SIMPLE
-    } simple;
-    cp_csg3_sphere_t sphere;
-    cp_csg3_cyl_t cyl;
-    cp_csg3_poly_t poly;
-    cp_csg3_add_t add;
-    cp_csg3_sub_t sub;
-    cp_csg3_cut_t cut;
+
+    cp_csg3_sphere_t _sphere;
+    cp_csg3_cyl_t _cyl;
+    cp_csg3_poly_t _poly;
+    cp_csg3_add_t _add;
+    cp_csg3_sub_t _sub;
+    cp_csg3_cut_t _cut;
 
     /* 2D objects */
-    cp_csg2_t csg2;
-    cp_csg2_circle_t circle;
-    cp_csg2_poly_t poly2;
+    cp_csg2_t _csg2;
+    cp_csg2_circle_t _circle;
+    cp_csg2_poly_t _poly2;
 };
 
 #define CP_CSG3_CIRCULAR_CYLINDER 0

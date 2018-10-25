@@ -5,6 +5,7 @@
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
 #include <hob3l/csg3.h>
+#include <hob3l/scad.h>
 #include "internal.h"
 
 typedef struct {
@@ -242,7 +243,7 @@ static bool csg3_from_difference(
         /* all others children are also negative */
         for (cp_v_each(i, &s->child, sub_i)) {
             if (!csg3_from_scad(
-                no, &cp_v_nth(&f, 0)->sub.sub.add, t, e, m, cp_v_nth(&s->child, i)))
+                no, &cp_csg3_sub(cp_v_nth(&f, 0))->sub.add, t, e, m, cp_v_nth(&s->child, i)))
             {
                 return false;
             }
@@ -272,7 +273,7 @@ static bool csg3_from_difference(
     }
 
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_SUB, s->loc);
-    cp_csg3_sub_t *o = &_o->sub;
+    cp_csg3_sub_t *o = cp_csg3_sub(_o);
 
     csg3_init((cp_csg3_t*)&o->add, CP_CSG3_ADD, s->loc);
     o->add.add = f;
@@ -303,7 +304,7 @@ static void csg3_cut_push_add(
 {
     if (add->size > 0) {
         cp_csg3_t *_a = csg3_new(CP_CSG3_ADD, cp_v_nth(add,0)->loc);
-        cp_csg3_add_t *a = &_a->add;
+        cp_csg3_add_t *a = cp_csg3_add(_a);
         a->add = *add;
         csg3_add_minmax(a);
 
@@ -350,7 +351,7 @@ static bool csg3_from_intersection(
     assert(cut.size >= 2);
 
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_CUT, s->loc);
-    cp_csg3_cut_t *o = &_o->cut;
+    cp_csg3_cut_t *o = cp_csg3_cut(_o);
     o->cut = cut;
 
     /* Intersecting the bounding boxes means using the largest minimum
@@ -874,7 +875,7 @@ static bool csg3_from_polyhedron(
     }
 
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = &_o->poly;
+    cp_csg3_poly_t *o = cp_csg3_poly(_o);
     o->gc = m->gc;
 
     /* check that no point is duplicate: abuse the array we'll use in
@@ -998,7 +999,7 @@ static bool csg3_from_polygon(
     }
 
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = &_o->poly2;
+    cp_csg2_poly_t *o = cp_csg3_poly2(_o);
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1082,7 +1083,7 @@ static bool csg3_from_cube(
 
     /* make cube shape */
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = &_o->poly;
+    cp_csg3_poly_t *o = cp_csg3_poly(_o);
     o->gc = mo->gc;
 
     o->is_cube = cp_mat3_is_rect_rot(&m->n.b);
@@ -1173,7 +1174,7 @@ static bool csg3_from_square(
 
     /* make cube shape */
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = &_o->poly2;
+    cp_csg2_poly_t *o = cp_csg3_poly2(_o);
 
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {
@@ -1304,7 +1305,7 @@ static bool csg3_poly_cylinder(
     size_t fn)
 {
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = &_o->poly;
+    cp_csg3_poly_t *o = cp_csg3_poly(_o);
     o->gc = mo->gc;
 
     if (cp_eq(r2, 0)) {
@@ -1396,7 +1397,7 @@ static bool csg3_from_cylinder(
 
     /* create a real cylinder */
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_CYL, s->loc);
-    cp_csg3_cyl_t *o = &_o->cyl;
+    cp_csg3_cyl_t *o = cp_csg3_cyl(_o);
     o->non_empty = true;
     o->mat = m;
     o->gc = mo->gc;
@@ -1442,46 +1443,46 @@ static bool csg3_from_scad(
     switch (s->type) {
     /* operators */
     case CP_SCAD_UNION:
-        return csg3_from_union(no, r, t, e, m, &s->combine);
+        return csg3_from_union(no, r, t, e, m, cp_scad_union(s));
 
     case CP_SCAD_DIFFERENCE:
-        return csg3_from_difference(no, r, t, e, m, &s->combine);
+        return csg3_from_difference(no, r, t, e, m, cp_scad_difference(s));
 
     case CP_SCAD_INTERSECTION:
-        return csg3_from_intersection(no, r, t, e, m, &s->combine);
+        return csg3_from_intersection(no, r, t, e, m, cp_scad_intersection(s));
 
     /* transformations */
     case CP_SCAD_TRANSLATE:
-        return csg3_from_translate(no, r, t, e, m, &s->xyz);
+        return csg3_from_translate(no, r, t, e, m, cp_scad_translate(s));
 
     case CP_SCAD_MIRROR:
-        return csg3_from_mirror(no, r, t, e, m, &s->xyz);
+        return csg3_from_mirror(no, r, t, e, m, cp_scad_mirror(s));
 
     case CP_SCAD_SCALE:
-        return csg3_from_scale(no, r, t, e, m, &s->xyz);
+        return csg3_from_scale(no, r, t, e, m, cp_scad_scale(s));
 
     case CP_SCAD_ROTATE:
-        return csg3_from_rotate(no, r, t, e, m, &s->rotate);
+        return csg3_from_rotate(no, r, t, e, m, cp_scad_rotate(s));
 
     case CP_SCAD_MULTMATRIX:
-        return csg3_from_multmatrix(no, r, t, e, m, &s->multmatrix);
+        return csg3_from_multmatrix(no, r, t, e, m, cp_scad_multmatrix(s));
 
     /* 3D objects */
     case CP_SCAD_SPHERE:
         object(no);
-        return csg3_from_sphere(r, t, e, m, &s->sphere);
+        return csg3_from_sphere(r, t, e, m, cp_scad_sphere(s));
 
     case CP_SCAD_CUBE:
         object(no);
-        return csg3_from_cube(r, t, e, m, &s->cube);
+        return csg3_from_cube(r, t, e, m, cp_scad_cube(s));
 
     case CP_SCAD_CYLINDER:
         object(no);
-        return csg3_from_cylinder(r, t, e, m, &s->cylinder);
+        return csg3_from_cylinder(r, t, e, m, cp_scad_cylinder(s));
 
     case CP_SCAD_POLYHEDRON:
         object(no);
-        return csg3_from_polyhedron(r, t, e, m, &s->polyhedron);
+        return csg3_from_polyhedron(r, t, e, m, cp_scad_polyhedron(s));
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
@@ -1490,16 +1491,19 @@ static bool csg3_from_scad(
         return true;
 #if 0
         /* FIXME: continue */
-        return csg3_from_circle(r, t, e, m, &s->circle);
+        return csg3_from_circle(r, t, e, m, cp_scad_circle(s));
 #endif
 
     case CP_SCAD_SQUARE:
         object(no);
-        return csg3_from_square(r, t, e, m, &s->square);
+        return csg3_from_square(r, t, e, m, cp_scad_square(s));
 
     case CP_SCAD_POLYGON:
         object(no);
-        return csg3_from_polygon(r, e, m, &s->polygon);
+        return csg3_from_polygon(r, e, m, cp_scad_polygon(s));
+
+    case CP_SCAD_COLOR:
+        CP_NYI("color");
     }
 
     CP_DIE("SCAD object type");
@@ -1511,7 +1515,7 @@ static void csg3_init_tree(
 {
     if (t->root == NULL) {
         cp_csg3_t *_o = csg3_new(CP_CSG3_ADD, loc);
-        t->root = &_o->add;
+        t->root = cp_csg3_add(_o);
     }
 }
 

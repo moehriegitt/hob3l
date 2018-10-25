@@ -14,4 +14,13 @@ extern void cp_gc_modifier_put_scad(
     cp_stream_t *s,
     unsigned modifier);
 
+/**
+ * Translate a colour name into an rgb colour
+ *
+ * Return whether the translation was successful (true=success, false=failure).
+ */
+extern bool cp_color_by_name(
+    cp_color_rgb_t *rgb,
+    char const *name);
+
 #endif /* __CP_GC_H */

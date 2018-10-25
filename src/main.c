@@ -508,11 +508,11 @@ int main(int argc, char **argv)
     opt.z_step = 0.2;
     opt.z_max = -1;
     cp_mat4_unit(&opt.ps.xform2);
-    opt.ps.color_path   = (cp_color_rgb_t){   0,   0,   0 };
-    opt.ps.color_tri    = (cp_color_rgb_t){ 102, 102, 102 };
-    opt.ps.color_fill   = (cp_color_rgb_t){ 204, 204, 204 };
-    opt.ps.color_vertex = (cp_color_rgb_t){ 255,   0,   0 };
-    opt.ps.color_mark   = (cp_color_rgb_t){   0,   0, 255 };
+    opt.ps.color_path   = (cp_color_rgb_t){ .rgb = {   0,   0,   0 }};
+    opt.ps.color_tri    = (cp_color_rgb_t){ .rgb = { 102, 102, 102 }};
+    opt.ps.color_fill   = (cp_color_rgb_t){ .rgb = { 204, 204, 204 }};
+    opt.ps.color_vertex = (cp_color_rgb_t){ .rgb = { 255,   0,   0 }};
+    opt.ps.color_mark   = (cp_color_rgb_t){ .rgb = {   0,   0, 255 }};
     opt.ps.line_width = 0.4;
     opt.csg3.max_fn = 200;
     opt.tree.layer_gap = -1;

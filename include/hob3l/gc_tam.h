@@ -6,11 +6,18 @@
 
 #include <stdbool.h>
 
-typedef struct {
-    unsigned char r,g,b;
+typedef union {
+    unsigned char c[3];
+    struct {
+        unsigned char r,g,b;
+    } rgb;
+    struct {
+        unsigned char r,g,b;
+    };
 } cp_color_rgb_t;
 
 typedef union {
+    unsigned char c[4];
     struct {
         unsigned char r,g,b,a;
     };

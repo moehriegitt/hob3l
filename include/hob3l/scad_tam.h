@@ -8,6 +8,7 @@
 #include <hob3lbase/mat_tam.h>
 #include <hob3l/err_tam.h>
 #include <hob3l/scad_fwd.h>
+#include <hob3l/gc_tam.h>
 
 typedef enum {
     CP_SCAD_UNION = CP_SCAD_TYPE + 1,
@@ -28,6 +29,8 @@ typedef enum {
     CP_SCAD_CIRCLE,
     CP_SCAD_SQUARE,
     CP_SCAD_POLYGON,
+
+    CP_SCAD_COLOR,
 } cp_scad_type_t;
 
 #define _CP_SCAD \
@@ -133,28 +136,61 @@ typedef struct {
     double a;
 } cp_scad_rotate_t;
 
+/**
+ * color()
+ *
+ * Tagged with CP_SCAD_COLOR.
+ */
+typedef struct {
+    _CP_SCAD_GROUP
+    cp_color_rgba_t rgba;
+    /**
+     * Whether rgba is valid or whether the
+     * color setting is to be ignored (in case c was 'undef')
+     */
+    bool valid;
+} cp_scad_color_t;
+
 typedef struct {
     _CP_SCAD_GROUP
     cp_mat3w_t m;
 } cp_scad_multmatrix_t;
 
+typedef cp_scad_combine_t cp_scad_union_t;
+typedef cp_scad_combine_t cp_scad_difference_t;
+typedef cp_scad_combine_t cp_scad_intersection_t;
+
+typedef cp_scad_xyz_t cp_scad_translate_t;
+typedef cp_scad_xyz_t cp_scad_mirror_t;
+typedef cp_scad_xyz_t cp_scad_scale_t;
+
 union cp_scad {
     struct {
         _CP_SCAD;
     };
-    cp_scad_sphere_t sphere;
-    cp_scad_cylinder_t cylinder;
-    cp_scad_cube_t cube;
-    cp_scad_polyhedron_t polyhedron;
+    cp_scad_sphere_t _sphere;
+    cp_scad_cylinder_t _cylinder;
+    cp_scad_cube_t _cube;
+    cp_scad_polyhedron_t _polyhedron;
 
-    cp_scad_combine_t combine;
-    cp_scad_xyz_t xyz;
-    cp_scad_rotate_t rotate;
-    cp_scad_multmatrix_t multmatrix;
+    cp_scad_combine_t _combine;
+    cp_scad_combine_t _union;
+    cp_scad_combine_t _difference;
+    cp_scad_combine_t _intersection;
 
-    cp_scad_circle_t circle;
-    cp_scad_square_t square;
-    cp_scad_polygon_t polygon;
+    cp_scad_xyz_t _xyz;
+    cp_scad_xyz_t _translate;
+    cp_scad_xyz_t _mirror;
+    cp_scad_xyz_t _scale;
+
+    cp_scad_rotate_t _rotate;
+    cp_scad_multmatrix_t _multmatrix;
+
+    cp_scad_circle_t _circle;
+    cp_scad_square_t _square;
+    cp_scad_polygon_t _polygon;
+
+    cp_scad_color_t _color;
 };
 
 typedef struct {
@@ -170,58 +206,28 @@ typedef struct {
     cp_scad_t *root;
 } cp_scad_tree_t;
 
-/*
- * SUPPORTED:
+/**
+ * UNSUPPORTED:
  *
- * union (w/ alias group)
- * difference
- * intersection
- *
- * sphere
- * cube
- * cylinder
- * polyhedron
- *
- * multmatrix
- * translate
- * mirror
- * scale
- * rotate
- *
- * circle
- * square
- * polygon
- *
- * MAYBE LATER:
- *
+ * use
  * include
+ * import
  *
  * linear_extrude (w/ limited settings, maybe)
  * offset
- * color
  * render
  * children
- * projection
- * surface
- *
- * NOT SUPPORTED:
  *
  * rotate_extrude
  * function
  * module
  * var = value
- * use
- * resize
  *
  * text
- *
- * hull
- * minkowski
  *
  * for
  * intersection_for
  * echo
- * import
  * if
  *
  * Any functions (sin, cos, *, concat, ...).
@@ -234,6 +240,14 @@ typedef struct {
  * $vpt       viewport translation
  * $vpd       viewport camera distance
  * $children  number of module children
+ *
+ * LIKELY NEVER SUPPORTED:
+ *
+ * hull
+ * minkowski
+ * resize
+ * surface
+ * projection
  */
 
 #endif /* __CP_SCAD_TAM_H */

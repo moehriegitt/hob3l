@@ -4,6 +4,7 @@
 #include <hob3l/scad.h>
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/mat.h>
+#include <hob3lbase/panic.h>
 #include <hob3l/gc.h>
 #include "internal.h"
 
@@ -32,6 +33,20 @@ static void xyz_put_scad(
     cp_printf(s, "%s(v=["FF","FF","FF"]){\n", which, r->v.x, r->v.y, r->v.z);
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s, "%*s}\n", d, "");
+}
+
+static void color_put_scad(
+    cp_stream_t *s,
+    int d __unused,
+    cp_scad_color_t *r)
+{
+    cp_printf(s, "color(c=["FF","FF","FF","FF"]){\n",
+        r->rgba.r/255.0,
+        r->rgba.g/255.0,
+        r->rgba.b/255.0,
+        r->rgba.a/255.0);
+    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s,"%*s}\n", d, "");
 }
 
 static void rotate_put_scad(
@@ -182,68 +197,70 @@ static void scad_put_scad(
     cp_gc_modifier_put_scad(s, r->modifier);
     switch (r->type) {
     case CP_SCAD_UNION:
-        combine_put_scad(s, d, &r->combine, "union");
-        break;
+        combine_put_scad(s, d, cp_scad_union(r), "union");
+        return;
 
     case CP_SCAD_DIFFERENCE:
-        combine_put_scad(s, d, &r->combine, "difference");
-        break;
+        combine_put_scad(s, d, cp_scad_difference(r), "difference");
+        return;
 
     case CP_SCAD_INTERSECTION:
-        combine_put_scad(s, d, &r->combine, "intersection");
-        break;
+        combine_put_scad(s, d, cp_scad_intersection(r), "intersection");
+        return;
 
     case CP_SCAD_TRANSLATE:
-        xyz_put_scad(s, d, &r->xyz, "translate");
-        break;
+        xyz_put_scad(s, d, cp_scad_translate(r), "translate");
+        return;
 
     case CP_SCAD_MIRROR:
-        xyz_put_scad(s, d, &r->xyz, "mirror");
-        break;
+        xyz_put_scad(s, d, cp_scad_mirror(r), "mirror");
+        return;
 
     case CP_SCAD_SCALE:
-        xyz_put_scad(s, d, &r->xyz, "scale");
-        break;
+        xyz_put_scad(s, d, cp_scad_scale(r), "scale");
+        return;
 
     case CP_SCAD_ROTATE:
-        rotate_put_scad(s, d, &r->rotate);
-        break;
+        rotate_put_scad(s, d, cp_scad_rotate(r));
+        return;
 
     case CP_SCAD_MULTMATRIX:
-        multmatrix_put_scad(s, d, &r->multmatrix);
-        break;
+        multmatrix_put_scad(s, d, cp_scad_multmatrix(r));
+        return;
 
     case CP_SCAD_SPHERE:
-        sphere_put_scad(s, d, &r->sphere);
-        break;
+        sphere_put_scad(s, d, cp_scad_sphere(r));
+        return;
 
     case CP_SCAD_CUBE:
-        cube_put_scad(s, d, &r->cube);
-        break;
+        cube_put_scad(s, d, cp_scad_cube(r));
+        return;
 
     case CP_SCAD_CYLINDER:
-        cylinder_put_scad(s, d, &r->cylinder);
-        break;
+        cylinder_put_scad(s, d, cp_scad_cylinder(r));
+        return;
 
     case CP_SCAD_POLYHEDRON:
-        polyhedron_put_scad(s, d, &r->polyhedron);
-        break;
+        polyhedron_put_scad(s, d, cp_scad_polyhedron(r));
+        return;
 
     case CP_SCAD_CIRCLE:
-        circle_put_scad(s, d, &r->circle);
-        break;
+        circle_put_scad(s, d, cp_scad_circle(r));
+        return;
 
     case CP_SCAD_SQUARE:
-        square_put_scad(s, d, &r->square);
-        break;
+        square_put_scad(s, d, cp_scad_square(r));
+        return;
 
     case CP_SCAD_POLYGON:
-        polygon_put_scad(s, d, &r->polygon);
-        break;
+        polygon_put_scad(s, d, cp_scad_polygon(r));
+        return;
 
-    default:
-        assert(0 && "Unrecognized SCAD object type");
+    case CP_SCAD_COLOR:
+        color_put_scad(s, d, cp_scad_color(r));
+        return;
     }
+    CP_NYI("type=0x%x", r->type);
 }
 
 static void v_scad_put_scad(

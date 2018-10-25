@@ -32,4 +32,21 @@ extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
     cp_syn_tree_t *syn);
 
+CP_DECLARE_CAST_(scad, union,        CP_SCAD_UNION)
+CP_DECLARE_CAST_(scad, difference,   CP_SCAD_DIFFERENCE)
+CP_DECLARE_CAST_(scad, intersection, CP_SCAD_INTERSECTION)
+CP_DECLARE_CAST_(scad, sphere,       CP_SCAD_SPHERE)
+CP_DECLARE_CAST_(scad, cube,         CP_SCAD_CUBE)
+CP_DECLARE_CAST_(scad, cylinder,     CP_SCAD_CYLINDER)
+CP_DECLARE_CAST_(scad, polyhedron,   CP_SCAD_POLYHEDRON)
+CP_DECLARE_CAST_(scad, multmatrix,   CP_SCAD_MULTMATRIX)
+CP_DECLARE_CAST_(scad, translate,    CP_SCAD_TRANSLATE)
+CP_DECLARE_CAST_(scad, mirror,       CP_SCAD_MIRROR)
+CP_DECLARE_CAST_(scad, scale,        CP_SCAD_SCALE)
+CP_DECLARE_CAST_(scad, rotate,       CP_SCAD_ROTATE)
+CP_DECLARE_CAST_(scad, circle,       CP_SCAD_CIRCLE)
+CP_DECLARE_CAST_(scad, square,       CP_SCAD_SQUARE)
+CP_DECLARE_CAST_(scad, polygon,      CP_SCAD_POLYGON)
+CP_DECLARE_CAST_(scad, color,        CP_SCAD_COLOR)
+
 #endif /* __CP_SCAD_H */

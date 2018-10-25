@@ -176,23 +176,23 @@ static void csg3_put_scad(
         break;
 
     case CP_CSG3_SUB:
-        sub_put_scad(s, d, &r->sub);
+        sub_put_scad(s, d, cp_csg3_sub(r));
         break;
 
     case CP_CSG3_CUT:
-        cut_put_scad(s, d, &r->cut);
+        cut_put_scad(s, d, cp_csg3_cut(r));
         break;
 
     case CP_CSG3_SPHERE:
-        sphere_put_scad(s, d, &r->sphere);
+        sphere_put_scad(s, d, cp_csg3_sphere(r));
         break;
 
     case CP_CSG3_CYL:
-        cyl_put_scad(s, d, &r->cyl);
+        cyl_put_scad(s, d, cp_csg3_cyl(r));
         break;
 
     case CP_CSG3_POLY:
-        poly_put_scad(s, d, &r->poly);
+        poly_put_scad(s, d, cp_csg3_poly(r));
         break;
 
     case CP_CSG2_CIRCLE:
@@ -200,7 +200,7 @@ static void csg3_put_scad(
         break;
 
     case CP_CSG2_POLY:
-        poly2_put_scad(s, d, &r->poly2);
+        poly2_put_scad(s, d, cp_csg3_poly2(r));
         break;
 
     default:

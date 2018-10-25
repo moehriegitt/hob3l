@@ -50,7 +50,14 @@ extern bool cp_syn_get_loc(
     char const *token);
 
 /* dynamic casts */
-CP_DECLARE_CAST_(syn_stmt, _item, CP_SYN_STMT_ITEM)
-CP_DECLARE_CAST_(syn_stmt, _use,  CP_SYN_STMT_USE)
+CP_DECLARE_CAST_(syn_stmt, item, CP_SYN_STMT_ITEM)
+CP_DECLARE_CAST_(syn_stmt, use,  CP_SYN_STMT_USE)
+
+CP_DECLARE_CAST_(syn_value, id,     CP_SYN_VALUE_ID)
+CP_DECLARE_CAST_(syn_value, int,    CP_SYN_VALUE_INT)
+CP_DECLARE_CAST_(syn_value, float,  CP_SYN_VALUE_FLOAT)
+CP_DECLARE_CAST_(syn_value, string, CP_SYN_VALUE_STRING)
+CP_DECLARE_CAST_(syn_value, range,  CP_SYN_VALUE_RANGE)
+CP_DECLARE_CAST_(syn_value, array,  CP_SYN_VALUE_ARRAY)
 
 #endif /* __CP_SCAD_H */

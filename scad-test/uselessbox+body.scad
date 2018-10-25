@@ -1,3 +1,4 @@
+// color(c=[1,1,1],alpha=0.5)
 translate([0,0,21]) {
 group(){
   difference(){

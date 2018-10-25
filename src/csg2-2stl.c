@@ -191,23 +191,23 @@ static void csg2_put_stl(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_stl(s, t, zi, &r->add);
+        add_put_stl(s, t, zi, cp_csg2_add(r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_stl(s, t, zi, &r->sub);
+        sub_put_stl(s, t, zi, cp_csg2_sub(r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_stl(s, t, zi, &r->cut);
+        cut_put_stl(s, t, zi, cp_csg2_cut(r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_stl(s, t, zi, &r->poly);
+        poly_put_stl(s, t, zi, cp_csg2_poly(r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_stl(s, t, &r->stack);
+        stack_put_stl(s, t, cp_csg2_stack(r));
         return;
 
     case CP_CSG2_CIRCLE:

@@ -50,11 +50,11 @@ static inline cp_vec2_loc_t *cp_csg2_path_nth(
 }
 
 /* Dynamic casts */
-CP_DECLARE_CAST(csg2, circle, CP_CSG2_CIRCLE)
-CP_DECLARE_CAST(csg2, poly,   CP_CSG2_POLY)
-CP_DECLARE_CAST(csg2, add,    CP_CSG2_ADD)
-CP_DECLARE_CAST(csg2, sub,    CP_CSG2_SUB)
-CP_DECLARE_CAST(csg2, cut,    CP_CSG2_CUT)
-CP_DECLARE_CAST(csg2, stack,  CP_CSG2_STACK)
+CP_DECLARE_CAST_(csg2, circle, CP_CSG2_CIRCLE)
+CP_DECLARE_CAST_(csg2, poly,   CP_CSG2_POLY)
+CP_DECLARE_CAST_(csg2, add,    CP_CSG2_ADD)
+CP_DECLARE_CAST_(csg2, sub,    CP_CSG2_SUB)
+CP_DECLARE_CAST_(csg2, cut,    CP_CSG2_CUT)
+CP_DECLARE_CAST_(csg2, stack,  CP_CSG2_STACK)
 
 #endif /* __CP_CSG2_H */

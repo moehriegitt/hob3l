@@ -224,23 +224,23 @@ static void csg2_put_ps(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_ps(k, t, zi, &r->add);
+        add_put_ps(k, t, zi, cp_csg2_add(r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_ps(k, t, zi, &r->sub);
+        sub_put_ps(k, t, zi, cp_csg2_sub(r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_ps(k, t, zi, &r->cut);
+        cut_put_ps(k, t, zi, cp_csg2_cut(r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_ps(k, t, zi, &r->stack);
+        stack_put_ps(k, t, zi, cp_csg2_stack(r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_ps(k, &r->poly, cp_v_nth(&t->z, zi));
+        poly_put_ps(k, cp_csg2_poly(r), cp_v_nth(&t->z, zi));
         return;
 
     case CP_CSG2_CIRCLE:

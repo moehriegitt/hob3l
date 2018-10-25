@@ -207,15 +207,12 @@ union cp_csg2 {
     struct {
         _CP_CSG2
     };
-    struct {
-        _CP_CSG2_SIMPLE
-    } simple;
-    cp_csg2_circle_t circle;
-    cp_csg2_poly_t poly;
-    cp_csg2_add_t add;
-    cp_csg2_sub_t sub;
-    cp_csg2_cut_t cut;
-    cp_csg2_stack_t stack;
+    cp_csg2_circle_t _circle;
+    cp_csg2_poly_t _poly;
+    cp_csg2_add_t _add;
+    cp_csg2_sub_t _sub;
+    cp_csg2_cut_t _cut;
+    cp_csg2_stack_t _stack;
 };
 
 /**

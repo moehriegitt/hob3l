@@ -16,6 +16,13 @@ typedef struct {
     cp_syn_tree_t *syn;
 } ctxt_t;
 
+typedef char const *val_t;
+
+static char const value_PI[] = "PI";
+static char const value_true[] = "true";
+static char const value_false[] = "false";
+static char const value_undef[] = "undef";
+
 static bool v_scad_from_v_syn_stmt_item(
     ctxt_t *t,
     cp_v_scad_p_t *result,
@@ -53,6 +60,7 @@ static bool __func_new(
         [CP_SCAD_CIRCLE]       = sizeof(cp_scad_circle_t),
         [CP_SCAD_SQUARE]       = sizeof(cp_scad_square_t),
         [CP_SCAD_POLYGON]      = sizeof(cp_scad_polygon_t),
+        [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -78,27 +86,111 @@ static bool combine_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_combine_t *r = &_r->combine;
+    cp_scad_combine_t *r = &_r->_combine;
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
+static val_t evaluate(
+    cp_syn_value_t const *x)
+{
+    if (x->type != CP_SYN_VALUE_ID) {
+        return false;
+    }
+    char const *id = cp_syn_value_id_const(x)->value;
+    switch (id[0]) {
+    case 'P':
+        if (strequ(id, "PI")) {
+            return value_PI;
+        }
+        break;
+    case 't':
+        if (strequ(id, "true")) {
+            return value_true;
+        }
+        break;
+    case 'f':
+        if (strequ(id, "false")) {
+            return value_false;
+        }
+        break;
+    case 'u':
+        if (strequ(id, "undef")) {
+            return value_undef;
+        }
+        break;
+    }
+    return NULL;
+}
+
+static bool try_get_longlong(
+    long long *r,
+    cp_syn_value_t const *v)
+{
+    if (v->type == CP_SYN_VALUE_INT) {
+        *r = cp_syn_value_int_const(v)->value;
+        return true;
+    }
+
+    val_t w = evaluate(v);
+    if (w == value_true) {
+        *r = 1;
+        return true;
+    }
+    if (w == value_false) {
+        *r = 0;
+        return true;
+    }
+
+    return false;
+}
+
+static bool try_get_uint32(
+    unsigned *r,
+    cp_syn_value_t const *v)
+{
+    long long ll;
+    if (try_get_longlong(&ll, v)) {
+        if (ll < 0) {
+            return false;
+        }
+        if (ll >= (1LL << (sizeof(*r)*8))) {
+            return false;
+        }
+        *r = (unsigned)ll;
+        return true;
+    }
+    return false;
+}
+
+static bool get_uint32(
+    unsigned *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    if (try_get_uint32(r, v)) {
+        return true;
+    }
+    cp_vchar_printf(&t->err->msg, "Expected a %"_Pz"u-bit unsigned int value.\n", sizeof(*r)*8);
+    t->err->loc = v->loc;
+    return false;
+}
+
+static bool _get_uint32(
+    void *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    return get_uint32(r, t, v);
 }
 
 static bool try_get_bool(
     bool *r,
     cp_syn_value_t const *v)
 {
-    if (v->type == CP_SYN_VALUE_INT) {
-        *r = !!v->_int.value;
+    unsigned u;
+    if (try_get_uint32(&u, v)) {
+        *r = !!u;
         return true;
-    }
-    if (v->type == CP_SYN_VALUE_ID) {
-        if (strequ(v->_id.value, "true")) {
-            *r = true;
-            return true;
-        }
-        if (strequ(v->_id.value, "false")) {
-            *r = false;
-            return true;
-        }
     }
     return false;
 }
@@ -132,15 +224,14 @@ static bool try_get_float(
         *r = v->_float.value;
         return true;
     }
-    if (v->type == CP_SYN_VALUE_INT) {
-        *r = (cp_f_t)v->_int.value;
+    long long ll;
+    if (try_get_longlong(&ll, v)) {
+        *r = (cp_f_t)ll;
         return true;
     }
-    if (v->type == CP_SYN_VALUE_ID) {
-        if (strequ(v->_id.value, "PI")) {
-            *r = CP_PI;
-            return true;
-        }
+    if (evaluate(v) == value_PI) {
+        *r = CP_PI;
+        return true;
     }
     return false;
 }
@@ -164,6 +255,43 @@ static bool _get_float(
     cp_syn_value_t const *v)
 {
     return get_float(r, t, v);
+}
+
+static bool try_get_grey(
+    unsigned char *r,
+    cp_syn_value_t const *v)
+{
+    cp_f_t f;
+    if (!try_get_float(&f, v)) {
+        return false;
+    }
+    if (cp_lt(f, 0) || cp_gt(f, 1)) {
+        return false;
+    }
+    unsigned x = lrint(f * 255) & 0xff;
+    *r = x & 0xff;
+    return true;
+}
+
+static bool get_grey(
+    unsigned char *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    if (try_get_grey(r, v)) {
+        return true;
+    }
+    cp_vchar_printf(&t->err->msg, "Expected a float or int value within 0..1.\n");
+    t->err->loc = v->loc;
+    return false;
+}
+
+static bool _get_grey(
+    void *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    return get_grey(r, t, v);
 }
 
 #if 0
@@ -200,58 +328,21 @@ static bool _get_str(
 }
 #endif /*0*/
 
-static bool try_get_uint32(
-    unsigned *r,
-    cp_syn_value_t const *v)
-{
-    if (v->type == CP_SYN_VALUE_INT) {
-        if (v->_int.value < 0) {
-            return false;
-        }
-        if (v->_int.value >= (1LL << (sizeof(*r)*8))) {
-            return false;
-        }
-        *r = (unsigned)v->_int.value;
-        return true;
-    }
-    return false;
-}
-
-static bool get_uint32(
-    unsigned *r,
-    ctxt_t *t,
-    cp_syn_value_t const *v)
-{
-    if (try_get_uint32(r, v)) {
-        return true;
-    }
-    cp_vchar_printf(&t->err->msg, "Expected a %"_Pz"u-bit unsigned int value.\n", sizeof(*r)*8);
-    t->err->loc = v->loc;
-    return false;
-}
-
-static bool _get_uint32(
-    void *r,
-    ctxt_t *t,
-    cp_syn_value_t const *v)
-{
-    return get_uint32(r, t, v);
-}
-
 static bool try_get_size(
     size_t *r,
     cp_syn_value_t const *v)
 {
-    if (v->type == CP_SYN_VALUE_INT) {
-        if (v->_int.value < 0) {
+    long long ll;
+    if (try_get_longlong(&ll, v)) {
+        if (ll < 0) {
             return false;
         }
         if (sizeof(v->_int.value) != sizeof(*r)) {
-             if (v->_int.value >= (long long)CP_MAX_OF(*r)) {
+             if (ll >= (long long)CP_MAX_OF(*r)) {
                  return false;
              }
         }
-        *r = (size_t)v->_int.value;
+        *r = (size_t)ll;
         return true;
     }
     return false;
@@ -501,6 +592,7 @@ typedef struct {
 #define PARAM_BOOL(n,x,m)          PARAM(n, x, _get_bool,   bool,             m)
 #define PARAM_UINT32(n,x,m)        PARAM(n, x, _get_uint32, unsigned,         m)
 #define PARAM_FLOAT(n,x,m)         PARAM(n, x, _get_float,  cp_f_t,           m)
+#define PARAM_GREY(n,x,m)          PARAM(n, x, _get_grey,   unsigned char,    m)
 #define PARAM_STR(n,x,m)           PARAM(n, x, _get_str,    char const *,     m)
 #define PARAM_VEC2(n,x,m)          PARAM(n, x, _get_vec2,   cp_vec2_t,        m)
 #define PARAM_VEC2_OR_FLOAT(n,x,m) PARAM(n, x, _get_vec2_or_float, cp_vec2_t, m)
@@ -531,21 +623,27 @@ static bool get_arg(
                 return false;
             }
             p = &pos[i];
+            assert(p != NULL);
         }
         else {
             need_name = true;
             for (cp_size_each(o, pos_cnt)) {
                 if (strequ(pos[o].name, a->key)) {
                     p = &pos[o];
+                    assert(p != NULL);
                     goto get;
                 }
             }
             for (cp_size_each(o, name_cnt)) {
                 if (strequ(name[o].name, a->key)) {
                     p = &name[o];
+                    assert(p != NULL);
                     goto get;
                 }
             }
+            cp_vchar_printf(&t->err->msg, "Unknown parameter name '%s'.\n", a->key);
+            t->err->loc = a->value->loc;
+            return false;
         }
 
     get:
@@ -597,7 +695,7 @@ static bool multmatrix_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_multmatrix_t *r = &_r->multmatrix;
+    cp_scad_multmatrix_t *r = cp_scad_multmatrix(_r);
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
@@ -616,7 +714,7 @@ static bool cube_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_cube_t *r = &_r->cube;
+    cp_scad_cube_t *r = cp_scad_cube(_r);
 
     r->size.x = r->size.y = r->size.z = 1;
     r->center = false;
@@ -634,7 +732,7 @@ static bool square_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_square_t *r = &_r->square;
+    cp_scad_square_t *r = cp_scad_square(_r);
 
     r->size.x = r->size.y = 1;
     r->center = false;
@@ -652,7 +750,7 @@ static bool sphere_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_sphere_t *r = &_r->sphere;
+    cp_scad_sphere_t *r = cp_scad_sphere(_r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -693,7 +791,7 @@ static bool circle_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_circle_t *r = &_r->circle;
+    cp_scad_circle_t *r = cp_scad_circle(_r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -734,7 +832,7 @@ static bool polyhedron_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polyhedron_t *r = &_r->polyhedron;
+    cp_scad_polyhedron_t *r = cp_scad_polyhedron(_r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_triangles = NULL;
@@ -828,7 +926,7 @@ static bool polygon_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polygon_t *r = &_r->polygon;
+    cp_scad_polygon_t *r = cp_scad_polygon(_r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_paths = NULL;
@@ -910,7 +1008,7 @@ static bool xyz_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_xyz_t *r = &_r->xyz;
+    cp_scad_xyz_t *r = &_r->_xyz;
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3("v", &r->v, NULL),
@@ -922,12 +1020,88 @@ static bool xyz_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
+static bool color_from_func(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_color_t *r = cp_scad_color(_r);
+    r->rgba.a = 255;
+
+    cp_syn_value_t const *_c = NULL;
+
+    bool have_alpha = false;
+    unsigned char alpha = 0;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_RAW  ("c", &_c, NULL),
+            PARAM_GREY ("alpha", &alpha, &have_alpha),
+        ),
+        ()))
+    {
+        return false;
+    }
+
+    r->valid = true;
+    if ((_c == NULL) || (evaluate(_c) == value_undef)) {
+        /* if no value is set or if value is undef, ignore request
+         * and leave color invalid */
+        r->valid = false;
+    }
+    else
+    if (_c->type == CP_SYN_VALUE_ARRAY) {
+        cp_syn_value_array_t const *c = cp_syn_value_array_const(_c);
+        if (c->value.size < 3) {
+            cp_vchar_printf(&t->err->msg,
+                "Expected at least 3 colour components, but found %"_Pz"u.\n",
+                c->value.size);
+            t->err->loc = c->loc;
+            return false;
+        }
+        size_t mx = 3 + (have_alpha ? 0 : 1);
+        if (c->value.size > mx) {
+            cp_vchar_printf(&t->err->msg,
+                "Expected at most %"_Pz"u colour components, but found %"_Pz"u.\n",
+                mx,
+                c->value.size);
+            t->err->loc = c->loc;
+            return false;
+        }
+        for (cp_v_each(i, &c->value)) {
+            if (!get_grey(&r->rgba.c[i], t, cp_v_nth(&c->value, i))) {
+                return false;
+            }
+        }
+    }
+    else
+    if (_c->type == CP_SYN_VALUE_STRING) {
+        cp_syn_value_string_t const *c = cp_syn_value_string_const(_c);
+        if (!cp_color_by_name(&r->rgba.rgb, c->value)) {
+            cp_vchar_printf(&t->err->msg, "Unknown colour '%s'.\n", c->value);
+            t->err->loc = c->loc;
+            return false;
+        }
+    }
+    else {
+        cp_vchar_printf(&t->err->msg, "Expected array or string for color definition.\n");
+        t->err->loc = _c->loc;
+        return false;
+    }
+
+    if (have_alpha) {
+        r->rgba.a = alpha;
+    }
+
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
 static bool scale_from_func(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_xyz_t *r = &_r->xyz;
+    cp_scad_scale_t *r = cp_scad_scale(_r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3_OR_FLOAT("v", &r->v, NULL),
@@ -944,7 +1118,7 @@ static bool rotate_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_rotate_t *r = &_r->rotate;
+    cp_scad_rotate_t *r = cp_scad_rotate(_r);
 
     r->a = 0;
     CP_ZERO(&r->n);
@@ -991,7 +1165,7 @@ static bool cylinder_from_func(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_q)
 {
-    cp_scad_cylinder_t *q = &_q->cylinder;
+    cp_scad_cylinder_t *q = cp_scad_cylinder(_q);
 
     q->_fn = 0;
     q->_fa = 12;
@@ -1105,6 +1279,11 @@ static bool v_scad_from_syn_stmt_item(
            .id = "circle",
            .type = CP_SCAD_CIRCLE,
            .from = circle_from_func
+        },
+        {
+           .id = "color",
+           .type = CP_SCAD_COLOR,
+           .from = color_from_func
         },
         {
            .id = "cube",
