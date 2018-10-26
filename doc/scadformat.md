@@ -52,7 +52,7 @@ syntax.  The following differences exist with standard WSN:
   * Instead of double quotes, we use backticks so that the text
     looks better in .md format.
 
-  * A negation `!` is introduced to signify 'not this character'.
+  * A negation `!` is introduced to signify 'but not this'.
 
   * A range operator `...` for characters is introduced to abbreviate
     the syntax definitions.
@@ -68,46 +68,34 @@ description, ANY is any US-ASCII printable character.
 
   * File = {TOKEN} .
   * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE | SYMBOL .
-
   * ALPHA = `a` ... `z` | `A` ... `Z` .
   * DIGIT = `0` ... `9` .
   * ID_START = `$` | `_` | ALPHA .
   * ID_CONT = `_` | ALPHA | DIGIT .
   * IDENT = ID_START { ID_CONT } .
-
-    Examples: `a`, `xyz`, `$fs`
-
   * SIGN = `+` | `-` .
   * E = `e` | `E` .
   * NUMX = [SIGN] {DIGIT} [ `.` {DIGIT} ] [ E [SIGN] {DIGIT} ] .
   * NUM = NUMX : if NUMX starts with SIGN, `.` or DIGIT .
-  * INTEGER = NUM : if NUM contains no NUM_E or `.` .
+  * INTEGER = NUM : if NUM contains no E or `.` .
   * FLOAT = NUM : if NUM is not an INTEGER .
-
-    Examples: `77`, `2.8`, `+5e-9`
-
-  * STRCHAR = ! `\"` .
-  * STRSEQ = STRCHAR | `\\` ANY .
-  * STRING = `\"` {STRSEQ} `\"` .
-
-    Example: `"abc"`, `"a\"b\\c"`
-
-
-  * LCCHAR = ! `\\n`
+  * STRCHAR = ANY ! `"` .
+  * STRSEQ = STRCHAR | `\` ANY .
+  * STRING = `"` {STRSEQ} `"` .
+  * LCCHAR = ANY ! `\n`
   * LINECOM = `//` {LCCHAR} .
-
-    Example: `// text`
-
   * MCCHAR = {ANY} : if the sequence does not contain `*/` .
   * MULTICOM = `/*` {MCCHAR} `*/`
-
-    Example: `/* text */`
-
-  * WHITE = ` ` | `\\n` | `\\r` | `\\t`
-
+  * WHITE = ` ` | `\n` | `\r` | `\t`
   * SYMBOL = ANY : if no other token matches .
 
-    Example: `+`, `/`, `#`
+Example IDENT: `a`, `xyz`, `$fs`
+
+Example NUM: `77`, `2.8`, `+5e-9`
+
+Example STRING: `"abc"`, `"a\"b\\c"`
+
+Example SYMBOL: `+`, `/`, `#`
 
 ### Syntax
 
@@ -116,7 +104,7 @@ MULTICOM tokens.
 
   * File = {Stmt} .
   * Stmt = Use | Item .
-  * PathChar = ! `<` .
+  * PathChar = ANY ! `<` .
   * Use = `use` `<` {PathChar} `>` .
   * Item = Item1 | Item2 | ItemBlock .
   * Item1 = Func `;` .
