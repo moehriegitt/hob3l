@@ -40,13 +40,13 @@ color(c[,alpha]) { ... }
   * `alpha` :: 0.0...0.1, default=1.0
 
 If `c` is a string, it is parsed as a case-insensitive
-color [CSS3 name](http://www.w3.org/TR/css3-color/).
+[CSS3 colour name](http://www.w3.org/TR/css3-color/).
 
-If `c` is an array, the first 3 entries are the R,G, and B color
-components of the color in the range 0..1, e.g. `[0,0,0]` is black and
+If `c` is an array, the first 3 entries are the R,G, and B colour
+components of the colour in the range 0..1, e.g. `[0,0,0]` is black and
 `[1,1,1]` is white.
 
-If `c` is `undef`, then the R,G, and B color components are kept as is
+If `c` is `undef`, then the R,G, and B colour components are kept as is
 for the children of this functor.  The alpha component is always reset
 by this functor.
 
