@@ -3,8 +3,11 @@
 ## Table Of Contents
 
   * [Table Of Contents](#table-of-contents)
-  * [Morphology](#morphology)
+  * [Introduction](#introduction)
   * [Syntax](#syntax)
+      * [Notation](#notation)
+      * [Morphology](#morphology)
+      * [Syntax](#syntax)
   * [Special Value Identifiers](#special-value-identifiers)
   * [Dimensions](#dimensions)
   * [Functor Calls](#functor-calls)
