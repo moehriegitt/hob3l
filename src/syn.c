@@ -234,7 +234,14 @@ static void tok_next_aux2(parse_t *p)
     }
 
     /* by default, read a single character */
-    assert(p->lex_cur == (p->lex_cur & 127));
+    if (!(p->lex_cur == (p->lex_cur & 127))) {
+        if (!have_err_msg(p)) {
+            cp_vchar_printf(&p->tree->err.msg,
+                "Found non-US-ASCII character, which is not currently supported.\n");
+        }
+        p->tok_type = T_ERROR;
+        return;
+    }
     p->tok_type = p->lex_cur & 127;
     lex_next(p);
 }

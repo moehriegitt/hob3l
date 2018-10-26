@@ -32,15 +32,16 @@
 ## Morphology
 
 The input file is separated into a sequence of tokens of the following
-kinds:
+kinds.
 
   * IDENTIFIER
 
     `a`, `xyz`, `$fs`
 
     Sequence of characters starting with `$` or `_` or an alphabetic
-    character (`a`..`z`, `A`..`Z`), followed by a sequence or `_` or a
-    decimal digit (`0`..`9`) or an alphabetic character.
+    character (`a`..`z`, `A`..`Z`), followed by a potentially empty
+    sequence of `_` or a decimal digit (`0`..`9`) or an alphabetic
+    character.
 
   * INTEGER or FLOAT
 
