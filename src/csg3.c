@@ -480,6 +480,22 @@ static bool csg3_from_multmatrix(
     return csg3_from_v_scad(no, r, t, e, &mn, &s->child);
 }
 
+static bool csg3_from_color(
+    bool *no,
+    cp_v_csg3_p_t *r,
+    cp_csg3_tree_t *t,
+    cp_err_t *e,
+    mat_ctxt_t const *mo,
+    cp_scad_color_t *s)
+{
+    mat_ctxt_t mn;
+    if (s->valid) {
+       mn = *mo;
+       mn.gc.color = s->rgba;
+    }
+    return csg3_from_v_scad(no, r, t, e, &mn, &s->child);
+}
+
 static bool csg3_from_rotate(
     bool *no,
     cp_v_csg3_p_t *r,
@@ -1503,7 +1519,7 @@ static bool csg3_from_scad(
         return csg3_from_polygon(r, e, m, cp_scad_polygon(s));
 
     case CP_SCAD_COLOR:
-        CP_NYI("color");
+        return csg3_from_color(no, r, t, e, m, cp_scad_color(s));
     }
 
     CP_DIE("SCAD object type");

@@ -40,11 +40,17 @@ static void color_put_scad(
     int d __unused,
     cp_scad_color_t *r)
 {
-    cp_printf(s, "color(c=["FF","FF","FF","FF"]){\n",
-        r->rgba.r/255.0,
-        r->rgba.g/255.0,
-        r->rgba.b/255.0,
-        r->rgba.a/255.0);
+    if (r->valid) {
+        cp_printf(s, "color(c=[%.3g,%.3g,%.3g,%.3g]){\n",
+            r->rgba.r/255.0,
+            r->rgba.g/255.0,
+            r->rgba.b/255.0,
+            r->rgba.a/255.0);
+    }
+    else {
+        cp_printf(s, "color(alpha=%.3g){\n",
+            r->rgba.a/255.0);
+    }
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s,"%*s}\n", d, "");
 }

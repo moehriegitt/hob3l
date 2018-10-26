@@ -1,14 +1,17 @@
 # JavaScript/WebGL Scene Format
 
-The top-level has the following variables (declared with 'var' or by
-assigning to an identifier):
+The top-level defines the following variables (declared with 'var' or
+by assigning to an identifier):
 
-  - group : var : mandatory map
-  - SceneScaleV : var : mandatory number
-  - SceneScaleC : var : mandatory number
-  - SceneShiftI : var : mandatory number
-  - scene : var : mandatory array
-  - worldPos : assignment : optional array of map
+  - group : optional map, default = {}
+  - SceneScaleV : optional number, default = 1
+  - SceneScaleC : optional number, default = 1
+  - SceneShiftI : optional number, default = 0
+  - scene : optional array, default = []
+  - worldPos : optional array of map
+
+The 'scene' and 'group' variable can be either assigned, or modified
+(e.g. by push).
 
 Additional definitions may exist for:
 
@@ -101,6 +104,12 @@ The default view is the unit matrix.
 Scene is an array of parts of the scene.  Each entry is a map that has
 the following slots:
 
+  - 'scaleV' : optional number, local override of `SceneScaleV`
+
+  - 'scaleC' : optional number, local override of `SceneScaleC`
+
+  - 'shiftI' : optional number, local override of `SceneShiftI`
+
   - 'group' : mandatory map;
      Which groups this part of the scene belongs to.
 
@@ -176,7 +185,9 @@ The maximum index value derived from any value of the 'index' array
 is 65535.  This is a restriction of the WebGL framework, which only
 supports uint16 indices.
 
-## Example
+## Examples
+
+### Fully Defined Structures
 
 The following represents a centred cuboid with edge length 8 cm in x
 direction, 6 cm in y direction and 4 cm in z direction in bright
@@ -231,4 +242,53 @@ var scene_0 = {
 var scene = [
     scene_0
 ];
+```
+
+### Using Push
+
+```
+scene.push({
+   'group':{},
+   `scaleV`:10000,
+   `scaleC`:255,
+   `shiftI`:4,
+   'vertex':[
+       +400, +300, +200,   +400, +300, +200,   +400, +300, +200,
+       -400, +300, +200,   -400, +300, +200,   -400, +300, +200,
+       +400, -300, +200,   +400, -300, +200,   +400, -300, +200,
+       -400, -300, +200,   -400, -300, +200,   -400, -300, +200,
+       +400, +300, -200,   +400, +300, -200,   +400, +300, -200,
+       -400, +300, -200,   -400, +300, -200,   -400, +300, -200,
+       +400, -300, -200,   +400, -300, -200,   +400, -300, -200,
+       -400, -300, -200,   -400, -300, -200,   -400, -300, -200,
+   ],
+   'normal':[
+       +10000, 0, 0,       0, +10000, 0,       0, 0, +10000,
+       -10000, 0, 0,       0, +10000, 0,       0, 0, +10000,
+       +10000, 0, 0,       0, -10000, 0,       0, 0, +10000,
+       -10000, 0, 0,       0, -10000, 0,       0, 0, +10000,
+       +10000, 0, 0,       0, +10000, 0,       0, 0, -10000,
+       -10000, 0, 0,       0, +10000, 0,       0, 0, -10000,
+       +10000, 0, 0,       0, -10000, 0,       0, 0, -10000,
+       -10000, 0, 0,       0, -10000, 0,       0, 0, -10000,
+   ],
+   'color':[
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+       255,128,0,255,      255,128,0,255,      255,128,0,255,
+   ],
+   'index':[
+       4,10,10, 10,-2,-2,
+       1,10,10, 10,-2,-2,
+       -4,7,13, 7,1,-5,
+       7,7,13,  7,1,-5,
+       -4,7,7,  7,1,1,
+       13,7,7,  7,1,1
+   ]
+});
 ```
