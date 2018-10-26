@@ -29,90 +29,104 @@
       * [translate](#translate)
       * [union](#union)
 
-## Morphology
+## Introduction
+
+This document tries to be more formal about SCAD syntax than the
+OpenSCAD documentation and to handle all corner cases and answer all
+questions about what syntax is accepted by Hob3l.
+
+When writing Hob3l, it was necessary to run OpenSCAD in experiments to
+find out how it really parses the input file, to be compatible.  This
+document tries to avoid this kind of underspecificity.
+
+That said, this document is probably incomplete anyway, but that is a
+bug.
+
+## Syntax
+
+### Notation
+
+This file uses a modified Wirth Syntax Notation (WSN) to define the
+syntax.  The following differences exist with standard WSN:
+
+  * Instead of double quotes, we use backticks so that the text
+    looks better in .md format.
+
+  * A negation `!` is introduced to signify 'not this character'.
+
+  * A range operator `...` for characters is introduced to abbreviate
+    the syntax definitions.
+
+  * A comment after `:` for explanations, restrictions, etc.
+
+  * C syntax string escaping is used.
+
+### Morphology
 
 The input file is separated into a sequence of tokens of the following
 kinds.
 
-  * IDENTIFIER
+  * ALPHA = `a` ... `z` | `A` ... `Z` .
+  * DIGIT = `0` ... `9` .
+  * ID_START = `$` | `_` | ALPHA .
+  * ID_CONT = `_` | ALPHA | DIGIT .
+  * IDENTIFIER = ID_START { ID_CONT } .
 
-    `a`, `xyz`, `$fs`
+    Examples: `a`, `xyz`, `$fs`
 
-    Sequence of characters starting with `$` or `_` or an alphabetic
-    character (`a`..`z`, `A`..`Z`), followed by a potentially empty
-    sequence of `_` or a decimal digit (`0`..`9`) or an alphabetic
-    character.
+  * SIGN = `+` | `-` .
+  * E = `e` | `E` .
+  * NUMX = [SIGN] {DIGIT} [ `.` {DIGIT} ] [ E [SIGN] {DIGIT} ] .
+  * NUM = NUMX : if NUMX starts with NUM_SIGN, `.` or DIGIT .
+  * INTEGER = NUM : if no NUM_E or `.` are contained in NUM .
+  * FLOAT = NUM : if NUM is not an INTEGER .
 
-  * INTEGER or FLOAT
+    Examples: `77`, `2.8`, `+5e-9`
 
-    `77`, `2.8`, `+5e-9`
+  * STRCHAR = ! `\"` .
+  * STRSEQ = STRCHAR | `\\` ANYCHAR .
+  * STRING = `\"` {STRSEQ} `\"` .
 
-    Sequence of characters starting with `+`, `-`, `.`, or a decimal digit (`0`..`9`),
-    consisting altogether of the following subsequences of characters:
-      * optionally, `+` or `-`, then,
-      * a potentially empty sequence of decimal digits (`0`..`9`), then,
-      * optionally, `.`, followed by a potentially empty sequence of decimal
-        digits, then
-      * optionally, `e` or `E`, followed optionally by `-` or `+`, and then
-        by a non-empty sequence of decimal digits.
+    Example: `"abc"`, `"a\"b\\c"`
 
-    If the number contains `.` or `e` or `E`, it is classified as an
-    INTEGER, otherwise as a FLOAT.
 
-  * STRING
+  * LCCHAR = ! `\\n`
+  * LINECOM = `//` {LCCHAR} .
 
-    `"abc"`, `"a\"b\\c"`
+    Example: `// text`
 
-    Sequence of characters starting with a double quote, followed by a potentially
-    empty sequence of
-      * a non-double quote character,
-      * a backslash character followed by another arbitrary character.
+  * MCCHAR = {ANYCHAR} : if the sequence does not contain `*/` .
+  * MULTICOM = `/*` {MCCHAR} `*/`
 
-  * Line Comment
+    Example: `/* text */`
 
-    `// text`
+  * WHITE = ` ` | `\\n` | `\\r` | `\\t`
 
-    Sequence of characters starting with a double `/` followed by a potentially
-    empty sequence of non-newline characters.
+  * SYMBOL = ANYCHAR : one printable US-ASCII character not starting any other token .
 
-  * Multiline Comment
+    Example: `+`, `/`, `#`
 
-    `/* text */`
+### Syntax
 
-    Sequence of characters starting with `/*` followed by a
-    potentially empty sequence of characters, not containing the
-    sequence `*/`, followed by `*/`.
+The syntax is defined as follows, ignoring any WHITE, LINECOM and
+MULTICOM tokens.
 
-  * White Space
-
-    Sequence of white space characters (ASCII 32, Line break, Tab).
-
-  * SYMBOL: Single printable ASCII character
-
-    `+`, `/`, `#`
-
-    Any character not among those used above to start tokens is a symbolic
-    token on its own.
-
-## Syntax
-
-The syntax is defined ignoring any comment and white space tokens.
-
-  * File = Stmt*
-  * Stmt = Use | Item
-  * Use = `use` `<` (not `<`)* `>`
-  * Item = Item1 | Item2 | ItemBlock
-  * Item1 = Func `;`
-  * item2 = Func ItemBlock
-  * ItemBlock = `{` Item* `}`
-  * Func = IDENTIFIER `(` [ Arg { `,` Arg }* ] `)`
-  * Arg = NamedArg | Value
-  * NamedArg = IDENTIFIER `=` Value
-  * Value = Integer | Float | IDENTIFIER | STRING | Array | Range
-  * Integer = INTEGER, interpreted as int64 using strtoll()
-  * Float = FLOAT, interpreted as ieeefloat64 using strtod()
-  * Array = `[` [ Value { `,` Value }* ]  `]`
-  * Range = `[` Value `:` Value [ `:` Value ] `]`
+  * File = {Stmt} .
+  * Stmt = Use | Item .
+  * PathChar = ! `<`
+  * Use = `use` `<` (not `<`)* `>` .
+  * Item = Item1 | Item2 | ItemBlock .
+  * Item1 = Func `;` .
+  * item2 = Func ItemBlock .
+  * ItemBlock = `{` Item* `}` .
+  * Func = IDENTIFIER `(` [ Arg { `,` Arg }* ] `)` .
+  * Arg = NamedArg | Value .
+  * NamedArg = IDENTIFIER `=` Value .
+  * Value = Integer | Float | IDENTIFIER | STRING | Array | Range .
+  * Integer = INTEGERinterpreted as int64 using strtoll() .
+  * Float = FLOAT, interpreted as ieeefloat64 using strtod() .
+  * Array = `[` [ Value { `,` Value }* ]  `]` .
+  * Range = `[` Value `:` Value [ `:` Value ] `]` .
 
 ## Special Value Identifiers
 
