@@ -38,24 +38,24 @@ kinds:
 
     `a`, `xyz`, `$fs`
 
-    Sequence of characters starting with '$' or '_' or an alphabetic
-    character ('a'..'z', 'A'..'Z'), followed by a sequence or '_' or a
-    decimal digit ('0'..'9') or an alphabetic character.
+    Sequence of characters starting with `$` or `_` or an alphabetic
+    character (`a`..`z`, `A`..`Z`), followed by a sequence or `_` or a
+    decimal digit (`0`..`9`) or an alphabetic character.
 
   * INTEGER or FLOAT
 
     `77`, `2.8`, `+5e-9`
 
-    Sequence of characters starting with '+', '-', '.', or a decimal digit ('0'..'9'),
+    Sequence of characters starting with `+`, `-`, `.`, or a decimal digit (`0`..`9`),
     consisting altogether of the following subsequences of characters:
-      * optionally, '+' or '-', then,
-      * a potentially empty sequence of decimal digits ('0'..'9'), then,
-      * optionally, '.', followed by a potentially empty sequence of decimal
+      * optionally, `+` or `-`, then,
+      * a potentially empty sequence of decimal digits (`0`..`9`), then,
+      * optionally, `.`, followed by a potentially empty sequence of decimal
         digits, then
-      * optionally, 'e' or 'E', followed optionally by '-' or '+', and then
+      * optionally, `e` or `E`, followed optionally by `-` or `+`, and then
         by a non-empty sequence of decimal digits.
 
-    If the number contains '.' or 'e' or 'E', it is classified as an
+    If the number contains `.` or `e` or `E`, it is classified as an
     INTEGER, otherwise as a FLOAT.
 
   * STRING
@@ -71,16 +71,16 @@ kinds:
 
     `// text`
 
-    Sequence of characters starting with a double '/' followed by a potentially
+    Sequence of characters starting with a double `/` followed by a potentially
     empty sequence of non-newline characters.
 
   * Multiline Comment
 
     `/* text */`
 
-    Sequence of characters starting with '/*' followed by a
+    Sequence of characters starting with `/*` followed by a
     potentially empty sequence of characters, not containing the
-    sequence '*/', followed by '*/'.
+    sequence `*/`, followed by `*/`.
 
   * White Space
 
