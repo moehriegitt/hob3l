@@ -79,7 +79,7 @@ description, ANY is any US-ASCII printable character.
   * NUM = NUMX : if NUMX starts with SIGN, `.` or DIGIT .
   * INTEGER = NUM : if NUM contains no E or `.` .
   * FLOAT = NUM : if NUM is not an INTEGER .
-  * STRCHAR = ANY ! `"` .
+  * STRCHAR = ANY ! ( `"` | `\` ) .
   * STRSEQ = STRCHAR | `\` ANY .
   * STRING = `"` {STRSEQ} `"` .
   * LCCHAR = ANY ! `\n`
