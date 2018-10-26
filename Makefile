@@ -443,6 +443,7 @@ update-header: script/xproto
 .PHONY: update-toc
 update-toc: README.md script/mktoc
 	$(srcdir)/script/mktoc -skip1 -in-place README.md
+	$(srcdir)/script/mktoc -skip1 -in-place doc/scadformat.md
 
 SCAD_SCAD := $(wildcard $(SCAD_DIR)/*.scad)
 

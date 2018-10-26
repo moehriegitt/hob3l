@@ -1,5 +1,16 @@
 # Hob3l's Dialect Of SCAD
 
+## Table Of Contents
+
+  * [Table Of Contents](#table-of-contents)
+  * [Literals](#literals)
+  * [Special Value Literals](#special-value-literals)
+  * [Functor Calls](#functor-calls)
+  * [Functors](#functors)
+      * [color](#color)
+      * [group](#group)
+      * [union](#union)
+
 ## Literals
 
   * Strings
@@ -30,7 +41,7 @@ Multiple ones are possible, separated by `||`.
 
 ## Functors
 
-### 'color'
+### color
 
 ```
 color(c[,alpha]) { ... }
@@ -54,5 +65,19 @@ For `alpha`, 0 means fully transparent and 1 means fully opaque.
 
 If `alpha` is given, the `c` array must have 3 entries.
 
-If `alpha` is not given, the 4th component of `c` defines
-the alpha component.
+If `alpha` is not given, the optoinal 4th component of `c` defines the
+alpha component.
+
+### group
+
+```
+group() { ... }
+```
+
+### union
+
+```
+union() { ... }
+```
+
+This is exactly equivalent to [group](#group).
