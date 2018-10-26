@@ -63,28 +63,31 @@ syntax.  The following differences exist with standard WSN:
 
 ### Morphology
 
-The input file is separated into a sequence of tokens of the following
-kinds.
+The input file is processed as a sequence of TOKENs.  In this
+description, ANY is any US-ASCII printable character.
+
+  * File = {TOKEN} .
+  * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE | SYMBOL .
 
   * ALPHA = `a` ... `z` | `A` ... `Z` .
   * DIGIT = `0` ... `9` .
   * ID_START = `$` | `_` | ALPHA .
   * ID_CONT = `_` | ALPHA | DIGIT .
-  * IDENTIFIER = ID_START { ID_CONT } .
+  * IDENT = ID_START { ID_CONT } .
 
     Examples: `a`, `xyz`, `$fs`
 
   * SIGN = `+` | `-` .
   * E = `e` | `E` .
   * NUMX = [SIGN] {DIGIT} [ `.` {DIGIT} ] [ E [SIGN] {DIGIT} ] .
-  * NUM = NUMX : if NUMX starts with NUM_SIGN, `.` or DIGIT .
-  * INTEGER = NUM : if no NUM_E or `.` are contained in NUM .
+  * NUM = NUMX : if NUMX starts with SIGN, `.` or DIGIT .
+  * INTEGER = NUM : if NUM contains no NUM_E or `.` .
   * FLOAT = NUM : if NUM is not an INTEGER .
 
     Examples: `77`, `2.8`, `+5e-9`
 
   * STRCHAR = ! `\"` .
-  * STRSEQ = STRCHAR | `\\` ANYCHAR .
+  * STRSEQ = STRCHAR | `\\` ANY .
   * STRING = `\"` {STRSEQ} `\"` .
 
     Example: `"abc"`, `"a\"b\\c"`
@@ -95,14 +98,14 @@ kinds.
 
     Example: `// text`
 
-  * MCCHAR = {ANYCHAR} : if the sequence does not contain `*/` .
+  * MCCHAR = {ANY} : if the sequence does not contain `*/` .
   * MULTICOM = `/*` {MCCHAR} `*/`
 
     Example: `/* text */`
 
   * WHITE = ` ` | `\\n` | `\\r` | `\\t`
 
-  * SYMBOL = ANYCHAR : one printable US-ASCII character not starting any other token .
+  * SYMBOL = ANY : if no other token matches .
 
     Example: `+`, `/`, `#`
 
@@ -113,19 +116,19 @@ MULTICOM tokens.
 
   * File = {Stmt} .
   * Stmt = Use | Item .
-  * PathChar = ! `<`
-  * Use = `use` `<` (not `<`)* `>` .
+  * PathChar = ! `<` .
+  * Use = `use` `<` {PathChar} `>` .
   * Item = Item1 | Item2 | ItemBlock .
   * Item1 = Func `;` .
   * item2 = Func ItemBlock .
-  * ItemBlock = `{` Item* `}` .
-  * Func = IDENTIFIER `(` [ Arg { `,` Arg }* ] `)` .
+  * ItemBlock = `{` { Item } `}` .
+  * Func = IDENT `(` [ Arg { `,` Arg } ] `)` .
   * Arg = NamedArg | Value .
-  * NamedArg = IDENTIFIER `=` Value .
-  * Value = Integer | Float | IDENTIFIER | STRING | Array | Range .
-  * Integer = INTEGERinterpreted as int64 using strtoll() .
-  * Float = FLOAT, interpreted as ieeefloat64 using strtod() .
-  * Array = `[` [ Value { `,` Value }* ]  `]` .
+  * NamedArg = IDENT `=` Value .
+  * Value = Integer | Float | IDENT | STRING | Array | Range .
+  * Integer = INTEGER : interpreted as int64 using strtoll() .
+  * Float = FLOAT : interpreted as ieeefloat64 using strtod() .
+  * Array = `[` [ Value { `,` Value } ]  `]` .
   * Range = `[` Value `:` Value [ `:` Value ] `]` .
 
 ## Special Value Identifiers
