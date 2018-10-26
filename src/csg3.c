@@ -488,10 +488,10 @@ static bool csg3_from_color(
     mat_ctxt_t const *mo,
     cp_scad_color_t *s)
 {
-    mat_ctxt_t mn;
+    mat_ctxt_t mn  = *mo;
+    mn.gc.color.a = s->rgba.a;
     if (s->valid) {
-       mn = *mo;
-       mn.gc.color = s->rgba;
+       mn.gc.color.rgb = s->rgba.rgb;
     }
     return csg3_from_v_scad(no, r, t, e, &mn, &s->child);
 }

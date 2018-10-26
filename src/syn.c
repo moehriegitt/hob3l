@@ -119,6 +119,7 @@ static void tok_next_aux2(parse_t *p)
             lex_next(p);
             p->tok_string = p->lex_string;
         }
+        else
         if (p->lex_cur == '-') {
             lex_next(p);
         }

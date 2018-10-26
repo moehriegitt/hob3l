@@ -841,7 +841,7 @@ static bool polyhedron_from_func(
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_RAW ("points", &_points, NULL),
-            PARAM_RAW ("faces",  &_faces,  NULL),
+            PARAM_RAW ("faces",  &_faces,  ((bool[]){false})),
         ),
         (
             PARAM_RAW ("triangles", &_triangles, ((bool[]){false})),
@@ -857,6 +857,11 @@ static bool polyhedron_from_func(
             return false;
         }
         _faces = _triangles;
+    }
+    if (_faces == NULL) {
+        cp_vchar_printf(&t->err->msg, "Either 'faces' or 'triangles' expected, but found none.\n");
+        t->err->loc = f->loc;
+        return false;
     }
 
     if (_points->type != CP_SYN_VALUE_ARRAY) {
@@ -955,48 +960,59 @@ static bool polygon_from_func(
         r->points.data[i].loc = points->value.data[i]->loc;
     }
 
-    if (_paths->type != CP_SYN_VALUE_ARRAY) {
-        cp_vchar_printf(&t->err->msg, "Expected array of paths.\n");
-        t->err->loc = _paths->loc;
-        return false;
+    if (_paths == NULL) {
+        cp_v_init0(&r->paths, 1);
+        cp_v_init0(&r->paths.data[0].points, r->points.size);
+        for (cp_v_each(j, &r->points)) {
+            cp_vec2_loc_ref_t *pr = &r->paths.data[0].points.data[j];
+            pr->ref = &r->points.data[j];
+            pr->loc = points->value.data[j]->loc;
+        }
     }
-    cp_syn_value_array_t const *paths = &_paths->_array;
-    cp_v_init0(&r->paths, paths->value.size);
-    for (cp_v_each(i, &paths->value)) {
-        cp_syn_value_t const *_path = paths->value.data[i];
-        if (_path->type != CP_SYN_VALUE_ARRAY) {
-            cp_vchar_printf(&t->err->msg, "Expected array of point indices.\n");
-            t->err->loc = _path->loc;
+    else {
+        if (_paths->type != CP_SYN_VALUE_ARRAY) {
+            cp_vchar_printf(&t->err->msg, "Expected array of paths.\n");
+            t->err->loc = _paths->loc;
             return false;
         }
-        cp_syn_value_array_t const *path = &_path->_array;
-        if (path->value.size < 3) {
-            cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
-                path->value.size);
-            t->err->loc = path->loc;
-            return false;
-        }
-
-        r->paths.data[i].loc = _path->loc;
-        cp_v_init0(&r->paths.data[i].points, path->value.size);
-        for (cp_v_each(j, &path->value)) {
-            size_t idx;
-            if (!get_size(&idx, t, path->value.data[j])) {
+        cp_syn_value_array_t const *paths = &_paths->_array;
+        cp_v_init0(&r->paths, paths->value.size);
+        for (cp_v_each(i, &paths->value)) {
+            cp_syn_value_t const *_path = paths->value.data[i];
+            if (_path->type != CP_SYN_VALUE_ARRAY) {
+                cp_vchar_printf(&t->err->msg, "Expected array of point indices.\n");
+                t->err->loc = _path->loc;
                 return false;
             }
-            if (!(idx < r->points.size)) {
-                cp_vchar_printf(&t->err->msg,
-                    "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
-                    r->points.size,
-                    idx);
-                t->err->loc = path->value.data[j]->loc;
-                t->err->loc2 = points->loc;
+            cp_syn_value_array_t const *path = &_path->_array;
+            if (path->value.size < 3) {
+                cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
+                    path->value.size);
+                t->err->loc = path->loc;
                 return false;
             }
 
-            cp_vec2_loc_ref_t *pr = &r->paths.data[i].points.data[j];
-            pr->ref = &r->points.data[idx];
-            pr->loc = path->value.data[j]->loc;
+            r->paths.data[i].loc = _path->loc;
+            cp_v_init0(&r->paths.data[i].points, path->value.size);
+            for (cp_v_each(j, &path->value)) {
+                size_t idx;
+                if (!get_size(&idx, t, path->value.data[j])) {
+                    return false;
+                }
+                if (!(idx < r->points.size)) {
+                    cp_vchar_printf(&t->err->msg,
+                        "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
+                        r->points.size,
+                        idx);
+                    t->err->loc = path->value.data[j]->loc;
+                    t->err->loc2 = points->loc;
+                    return false;
+                }
+
+                cp_vec2_loc_ref_t *pr = &r->paths.data[i].points.data[j];
+                pr->ref = &r->points.data[idx];
+                pr->loc = path->value.data[j]->loc;
+            }
         }
     }
 
