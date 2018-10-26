@@ -8,7 +8,10 @@
   * [Functor Calls](#functor-calls)
   * [Functors](#functors)
       * [color](#color)
+      * [cube](#cube)
+      * [difference](#difference)
       * [group](#group)
+      * [intersection](#intersection)
       * [union](#union)
 
 ## Literals
