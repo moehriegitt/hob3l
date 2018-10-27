@@ -109,24 +109,36 @@ OpenSCAD may still accept it and assume '1'.
     scale(v)
     rotate(a,v)
 
-    circle(r, d, $fa, $fs, $fn)
-    square(size, center)
-    polygon(points, paths)
+    color(c, alpha)
 ```
 
-Some additional items are parsed, but ignored: `linear_extrude`,
-`text`.
+The 2D objects are parsed, but poorly supported (since `linear_extrude` is not
+supported yet, there is little point to have 2D objects):
+
+```
+    circle(r, d, $fa, $fs, $fn);
+    square(size, center);
+    polygon(points, paths);
+```
+
+Some additional items are parsed, but currently ignored:
+
+```
+    linear_extrude(...)
+    text(...)
+```
 
 ### Broken SCAD Syntax
 
-The most irritating detail about SCAD syntax that I found was the
+One irritating detail about SCAD syntax that I found was the
 interpretation of children elements of `difference()`: the first
 non-empty child is interpreted as positive, all others are negative.
 
-However, the syntax does not make it immediately clear which thing is
-the 'first non-empty' child, because even an empty `group(){}` is
-skipped, and even recursively so.  Essentially, you need semantics to
-identify the children correctly, which is an ugly mix of meta levels.
+However, neither the OpenSCAD syntax nor the syntax description make
+it immediately clear which thing is the 'first non-empty' child,
+because even an empty `group(){}` is skipped, and even recursively so.
+Essentially, you need semantics to identify the children correctly,
+which I find is an ugly mix of meta levels.
 
 The parser of `hob3l` spends quite some effort on determining which
 one is the first non-empty child of `difference`.  Whether it does
@@ -220,7 +232,7 @@ MULTICOM tokens.
 
 ## Dimensions
 
-Dimensions are generally interpreted as [mm].
+Dimensions are generally interpreted as millimeters [mm].
 
 ## Functor Calls
 
@@ -292,6 +304,8 @@ single float defines all dimensions equally.
 If `center` is non-false, this will center the cube at [0,0,0],
 otherwise, the cube will extend into the positive X, Y, and Z axes.
 
+None of the `size` components must be 0.
+
 ### cylinder
 
 3D object: cylinder.
@@ -299,6 +313,45 @@ otherwise, the cube will extend into the positive X, Y, and Z axes.
 ```
 cylinder([h,r1,r2,center]{,d,d1,d2,r,$fa,$fs,$fn})
 ```
+
+  * `h` :: float, default=1
+  * `r1` :: float, default=1
+  * `r2` :: float, default=1
+  * `center` :: boolean, default=false
+  * `r` :: float
+  * `d1` :: float
+  * `d2` :: float
+  * `d` :: float
+  * `$fn` :: integer, default=0
+  * `$fa` :: integer, default=12, ignored
+  * `$fs` :: integer, default=2, ignored
+
+`h` is the height of the cylinder, i.e., the extension on the Z axis.
+
+`r1` is the X axis radius around [0,0] in the XY plane.
+
+`r2` is the Y axis radius around [0,0]  in the XY plane.
+
+`center` defines how the cylinder is positioned on the Z axis: if
+`center` is false, the cylinder extends into the positive Z axis.
+Otherwise, it is centered at [0,0,0].
+
+Some parameters are mutually exclusive:
+
+  * `r` and `r1`,`r2` most not both be specified.
+  * `d` and `d1`,`d2` must not both be specified.
+  * `d` and `r` must not both be specified.
+  * `r1` and `d1` must not both be specified.
+  * `r2` and `d2` must not both be specified.
+
+`d*` and `r*` define diameter and radius of the cylinder.  The values
+`r1` and `r2` will be determined by whatever is specified of `r1`,
+`r2`, `r`, `d1`, `d2`, `d`:
+
+  * If `r` is specified, both `r1` and `r2` will be set to `r`.
+  * If `d` is specified, `r1` and `r2` will be set to `d`/2.
+  * If `d1` is specified, `r1` will be set to `d1`/2.
+  * If `d2` is specified, `r2` will be set to `d2`/2.
 
 ### difference
 
