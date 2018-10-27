@@ -837,6 +837,7 @@ static bool polyhedron_from_func(
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_triangles = NULL;
     cp_syn_value_t const *_faces = NULL;
+    cp_syn_value_t const *_convexity = NULL;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
@@ -845,6 +846,7 @@ static bool polyhedron_from_func(
         ),
         (
             PARAM_RAW ("triangles", &_triangles, ((bool[]){false})),
+            PARAM_RAW ("convexity", &_convexity, ((bool[]){false})),
         )))
     {
         return false;

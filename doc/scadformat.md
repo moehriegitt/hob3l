@@ -257,6 +257,8 @@ Alternatives are possible, separated by `||`.
 circle([r]{,d,$fa,$fs,$fn});
 ```
 
+Currently, 2D objects are not fully supported.
+
 ### color
 
 Set the colour of substructures.
@@ -338,15 +340,17 @@ Otherwise, it is centered at [0,0,0].
 
 Some parameters are mutually exclusive:
 
-  * `r` and `r1`,`r2` most not both be specified.
-  * `d` and `d1`,`d2` must not both be specified.
+  * `r` and `r1` must not both be specified.
+  * `r` and `r2` must not both be specified.
+  * `d` and `d1` must not both be specified.
+  * `d` and `d2` must not both be specified.
   * `d` and `r` must not both be specified.
   * `r1` and `d1` must not both be specified.
   * `r2` and `d2` must not both be specified.
 
-`d*` and `r*` define diameter and radius of the cylinder.  The values
-`r1` and `r2` will be determined by whatever is specified of `r1`,
-`r2`, `r`, `d1`, `d2`, `d`:
+`d`, `d1`, `d2`, `r`, `r1`, `r2` define diameter or radius of the
+cylinder.  The two radii `r1` and `r2` will be determined from
+whatever is specified of `r1`, `r2`, `r`, `d1`, `d2`, `d`:
 
   * If `r` is specified, both `r1` and `r2` will be set to `r`.
   * If `d` is specified, `r1` and `r2` will be set to `d`/2.
@@ -457,13 +461,45 @@ coordinate matrix to be multipled by:
 polygon(points[,paths]);
 ```
 
+Currently, 2D objects are not fully supported.
+
 ### polyhedron
 
 3D object: polyhedron.
 
 ```
-polyhedron(points[,faces]{,triangles});
+polyhedron(points[,faces]{,triangles,convexity});
 ```
+
+  * `points` :: array[] of array[3] of float
+  * `faces` :: array[] of array[] of integer
+  * `triangles` :: array[] of array[3] of integer
+  * `convexity` :: integer, ignored
+
+`points` defines all the vertices of the polyhedron as `[x,y,z]`
+coordinates.  No entry must be duplicate.
+
+`faces` defines all the faces of the polyhedron as a list of 0-based
+indices into the `points` array, which defines the path of each
+polygon describing a face.  The vertices of each face must be
+specified in clockwise direction when viewed from the outside of the
+polyhedron.
+
+The value of `faces` defaults to the value of `triangles`.
+
+`faces` and `triangles` must not both be specified.
+
+The polyhedron must be 2-manifold, i.e.:
+
+  * There must be no holes, i.e., the solid must be specified completely
+    with no face missing.
+  * All vertices must have a unique inside and outside, i.e., the polyhedron
+    must not touch itself in a vertex.
+  * All edges must have a unique inside and outside, i.e., the polyhedron must
+    not touch itself in an edge.
+  * All faces must have a unique inside and outside, i.e., the polyhedron must
+    not touch itself in a face.
+  * Each edge must have exactly two adjacent faces.
 
 ### rotate
 
@@ -542,6 +578,8 @@ None of the scaling values must be 0.
 sphere([r]{,d,$fa,$fs,$fn});
 ```
 
+This is not yet supported.
+
 ### square
 
 2D object: rectangle.
@@ -549,6 +587,8 @@ sphere([r]{,d,$fa,$fs,$fn});
 ```
 square([size,center]);
 ```
+
+Currently, 2D objects are not fully supported.
 
 ### text
 
