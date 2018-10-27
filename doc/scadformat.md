@@ -343,7 +343,7 @@ intersection() { ... }
 
 ### linear_extrude
 
-Ignored.
+Ignored. (Not yet implemented.)
 
 ### mirror
 
@@ -353,10 +353,21 @@ Mirror substructures.
 mirror(v) { ... }
 ```
 
-  * `v` :: array[3] of float
+  * `v` :: (array[3] of float) != `[0,0,0]`
 
 `v` is the direction vector of the plane at which to mirror the
 substructures.  `v` must not be equal to `[0,0,0]`.
+
+`mirror([X,Y,Z])` causes the coordinate matrix to be multiplied by:
+
+```
+| 1-2*x*x  -2*x*y   -2*x*z   0 |
+| -2*x*y   1-2*y*y  -2*y*z   0 |
+| -2*x*z   -2*y*z   1-2*z*z  0 |
+| 0        0        0        1 |
+```
+
+where `[x,y,z]` is the unit vector of `[X,Y,Z]`.
 
 ### multmatrix
 
@@ -364,6 +375,25 @@ Modify coordinate matrix for substructures.
 
 ```
 multmatrix(m) { ... }
+```
+
+  * `m` :: array[3..4] of array[3..4] of float
+
+This specifies a 4x4 matrix.  The fourth column and row are optional
+and both default to `0,0,0,1`.
+
+The fourth row must have the value `0,0,0,1`.
+
+The defined 4x4 matrix must be invertible.
+
+`multmatrix([[a,b,c,d],[e,f,g,h],[i,j,k,l],[0,0,0,1]])` causes the
+coordinate matrix to be multipled by:
+
+```
+| a  b  c  d |
+| e  f  g  h |
+| i  j  k  l |
+| 0  0  0  1 |
 ```
 
 ### polygon
@@ -390,11 +420,6 @@ Rotate substructures.
 rotate(a[,v])) { ... }
 ```
 
-All rotation angles are in degrees.  If there is an exact solution to
-`sin`/`cos` for a given angle representable in int32, then this
-function guarantees to use the exact value.  E.g. `cos(90) == 1` and
-`sin(30) = 0.5`, exactly.
-
 #### If `v` is not specified
 
   * `a` :: array[3] of float
@@ -404,7 +429,7 @@ function guarantees to use the exact value.  E.g. `cos(90) == 1` and
 #### If `v` is specified
 
   * `a` :: float
-  * `v` :: array[3] of float
+  * `v` :: (array[3] of float) != `[0,0,0]`.
 
 Rotation of the substructures by `a` degrees around the axis specified
 by `v`.
@@ -419,9 +444,13 @@ by `v`.
 ```
 
 where `[x,y,z]` is the unit vector of `[X,Y,Z]`, `c = cos(a)`, `s =
-sin(a)`, `d = 1 -c`.  Note again that `sin()` and `cos()` yield exact
-results if possible, so that `rotate(90,[1,0,0])` causes an exact
-rotation by 90 degrees around the X axis.
+sin(a)`, `d = 1 -c`.
+
+Rotation angles are in degrees.  If for a given angle representable in
+int32, there is an exact solution to `sin` and/or `cos`, then this
+exact value is used.  E.g. `cos(90) == 1` and `sin(30) = 0.5`,
+exactly, so that `rotate(90,[1,0,0])` is an rotation by exactly 90
+degrees around the X axis.
 
 ### scale
 
@@ -470,7 +499,7 @@ square([size,center]);
 
 ### text
 
-Ignored.
+Ignored. (Not yet implemented.)
 
 ### translate
 
