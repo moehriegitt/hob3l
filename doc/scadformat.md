@@ -4,6 +4,8 @@
 
   * [Table Of Contents](#table-of-contents)
   * [Introduction](#introduction)
+  * [Overview](#overview)
+      * [Broken SCAD Syntax](#broken-scad-syntax)
   * [Syntax](#syntax)
       * [Notation](#notation)
       * [Morphology](#morphology)
@@ -45,6 +47,92 @@ document tries to avoid this kind of underspecificity.
 That said, this document is probably incomplete anyway, but that is a
 bug.
 
+## Informal Overview
+
+The general idea is that all basic polyhedra 3D objects are supported,
+all basic transformations, and all boolean operations.  No operations
+are supported that invoke the CGAL rendering, e.g. complex ones like
+`minkowsky`.  I haven't used them anyway because they are so slow.
+
+The following SCAD abstract syntax tree (AST) structures are supported:
+
+```
+    // line comments
+    /* block comments */
+    564           // integers
+    56.3          // reals
+    "hello\n"     // strings
+    true undef x  // identifiers
+    [A:B:C]       // ranges
+    [a, b, c]     // arrays
+    foo()         // functors
+    foo(x, y)     // functors with arguments
+    foo(x, x=z)   // functors with named arguments (also mixed)
+    foo();        // empty functor invocations
+    foo() bar()   // single element functor invocations
+    foo() { }     // block functor invocations
+    * ! # %       // modifier characters
+```
+
+The biggest parts that are missing are constants/variables, functions,
+and modules.
+
+The following SCAD operators and identifiers are supported.  In each
+functor's parentheses, the supported arguments are listed.  $fa and
+$fs are ignored, but accepted in the input file for compatibility with
+existing files.  Both named and positional arguments are supported
+just like in OpenSCAD.
+
+Usually the default for a missing argument is '1', but `hob3l` may
+be more restrictive than OpenSCAD: if the OpenSCAD documentation lists
+an argument as mandatory, it will be rejected if missing, while
+OpenSCAD may still accept it and assume '1'.
+
+```
+    true
+    false
+    PI
+
+    group() { ... }
+    union() { ... }          // interpreted the same as 'group'
+    intersection() { ... }
+    difference() { ... }
+
+    sphere(r, d, $fa, $fs, $fn)
+    cube(size, center)
+    cylinder(h, r, r1, r2, d, d1, d2, center, $fa, $fs, $fn)
+    polyhedron(points, faces, triangles)
+
+    multmatrix(m)
+    translate(v)
+    mirror(v)
+    scale(v)
+    rotate(a,v)
+
+    circle(r, d, $fa, $fs, $fn)
+    square(size, center)
+    polygon(points, paths)
+```
+
+Some additional items are parsed, but ignored: `linear_extrude`,
+`text`.
+
+### Broken SCAD Syntax
+
+The most irritating detail about SCAD syntax that I found was the
+interpretation of children elements of `difference()`: the first
+non-empty child is interpreted as positive, all others are negative.
+
+However, the syntax does not make it immediately clear which thing is
+the 'first non-empty' child, because even an empty `group(){}` is
+skipped, and even recursively so.  Essentially, you need semantics to
+identify the children correctly, which is an ugly mix of meta levels.
+
+The parser of `hob3l` spends quite some effort on determining which
+one is the first non-empty child of `difference`.  Whether it does
+that in the same way as OpenSCAD, I can only hope for.  I think this
+part of the SCAD syntax is broken.
+
 ## Syntax
 
 ### Notation
@@ -52,17 +140,17 @@ bug.
 This file uses a modified Wirth Syntax Notation (WSN) to define the
 syntax.  The following differences exist with standard WSN:
 
-  * Instead of double quotes, we use backticks so that the text
+  * Instead of double quotes, backticks are used so that the text
     looks better in .md format.
 
-  * A negation `!` is introduced to signify 'but not this'.
+  * A negation X `!` Y is introduced to signify 'X but not Y'.
 
   * A range operator `...` for characters is introduced to abbreviate
     the syntax definitions.
 
-  * A comment after `:` for explanations, restrictions, etc.
+  * A comment after `:` is introduced for restrictions in plain text.
 
-  * C syntax string escaping is used.
+  * C syntax string escaping is used for special characters.
 
 ### Morphology
 
