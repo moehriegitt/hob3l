@@ -197,9 +197,10 @@ MULTICOM tokens.
   * Stmt = Use | Item .
   * PathChar = ANY ! `<` .
   * Use = `use` `<` {PathChar} `>` .
-  * Item = Item1 | Item2 | ItemBlock .
-  * Item1 = Func `;` .
-  * item2 = Func ItemBlock .
+  * Item = Item0 | Item1 | ItemN | ItemBlock .
+  * Item0 = Func `;` .
+  * Item1 = Func Item .
+  * ItemN = Func ItemBlock .
   * ItemBlock = `{` { Item } `}` .
   * Func = IDENT `(` [ Arg { `,` Arg } ] `)` .
   * Arg = NamedArg | Value .
@@ -352,6 +353,11 @@ Mirror substructures.
 mirror(v) { ... }
 ```
 
+  * `v` :: array[3] of float
+
+`v` is the direction vector of the plane at which to mirror the
+substructures.  `v` must not be equal to `[0,0,0]`.
+
 ### multmatrix
 
 Modify coordinate matrix for substructures.
@@ -384,12 +390,66 @@ Rotate substructures.
 rotate(a[,v])) { ... }
 ```
 
+All rotation angles are in degrees.  If there is an exact solution to
+`sin`/`cos` for a given angle representable in int32, then this
+function guarantees to use the exact value.  E.g. `cos(90) == 1` and
+`sin(30) = 0.5`, exactly.
+
+#### If `v` is not specified
+
+  * `a` :: array[3] of float
+
+`rotate([x,y,z])` is equal to `rotate(z,[0,0,1]) rotate(y,[0,1,0]) rotate(x,[1,0,0])`.
+
+#### If `v` is specified
+
+  * `a` :: float
+  * `v` :: array[3] of float
+
+Rotation of the substructures by `a` degrees around the axis specified
+by `v`.
+
+`rotate(a,[X,Y,Z])` causes the coordinate matrix to be multiplied by:
+
+```
+| x*x*d + c     x*y*d - z*s   x*z*d + y*s   0 |
+| x*y*d + z*s   y*y*d + c     y*z*d - x*s   0 |
+| x*z*d - y*s   y*z*d + x*s   z*z*d + c     0 |
+| 0             0             0             1 |
+```
+
+where `[x,y,z]` is the unit vector of `[X,Y,Z]`, `c = cos(a)`, `s =
+sin(a)`, `d = 1 -c`.  Note again that `sin()` and `cos()` yield exact
+results if possible, so that `rotate(90,[1,0,0])` causes an exact
+rotation by 90 degrees around the X axis.
+
 ### scale
 
 Scale substructures.
 
 ```
 scale(v) { ... }
+```
+
+  * `v` :: (array[3] of float) || float
+
+`v` defines the scaling of the substructures on X, Y, and Z axes.  For
+equal scaling on all axes, a single value can be used.
+
+Negative scales mirror on the given axis/axes.  This functor handles
+mirroring correctly, like the `mirror` functor, by reversing orders of
+the face vertices in polyhedra if the sign of the determinant of the
+coordinate matrix is less than 0.
+
+None of the scaling values must be 0.
+
+`scale([x,y,z])` causes the coordinate matrix to be multiplied by:
+
+```
+| x  0  0  0 |
+| 0  y  0  0 |
+| 0  0  z  0 |
+| 0  0  0  1 |
 ```
 
 ### sphere
@@ -418,6 +478,19 @@ Translate substructures.
 
 ```
 translate(v) { ... }
+```
+
+  * `v` :: array[3] of float
+
+`v` defines the translation of the substructures on X, Y, and Z axes.
+
+`translate([x,y,z])` causes the coordinate matrix to be multiplied by:
+
+```
+| 1  0  0  x |
+| 0  1  0  y |
+| 0  0  1  z |
+| 0  0  0  1 |
 ```
 
 ### union
