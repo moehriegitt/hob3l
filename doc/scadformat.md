@@ -164,6 +164,13 @@ syntax.  The following differences exist with standard WSN:
 
   * C syntax string escaping is used for special characters.
 
+The normal WSN notation includes the following constructions:
+
+  * `(` ..X.. `)`: grouping, makes priority exclucit
+  * `[` ..X.. `]`: 0 or 1 times ...X...
+  * `{` ..X.. `}`: 0, 1, or more times ...X...
+  * A `|` B: either A or B
+
 ### Morphology
 
 The input file is processed as a sequence of TOKENs.  In this
@@ -214,7 +221,8 @@ MULTICOM tokens.
   * Item1 = Func Item .
   * ItemN = Func ItemBlock .
   * ItemBlock = `{` { Item } `}` .
-  * Func = IDENT `(` [ Arg { `,` Arg } ] `)` .
+  * MOD = `*` |  `!` |  `#` | `%` .
+  * Func = [MOD] IDENT `(` [ Arg { `,` Arg } ] `)` .
   * Arg = NamedArg | Value .
   * NamedArg = IDENT `=` Value .
   * Value = Integer | Float | IDENT | STRING | Array | Range .
