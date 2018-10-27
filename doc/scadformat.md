@@ -4,7 +4,7 @@
 
   * [Table Of Contents](#table-of-contents)
   * [Introduction](#introduction)
-  * [Overview](#overview)
+  * [Informal Overview](#informal-overview)
       * [Broken SCAD Syntax](#broken-scad-syntax)
   * [Syntax](#syntax)
       * [Notation](#notation)
