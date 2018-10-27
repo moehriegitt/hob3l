@@ -493,11 +493,11 @@ The polyhedron must be 2-manifold, i.e.:
 
   * There must be no holes, i.e., the solid must be specified completely
     with no face missing.
-  * At each vertex, there must have a well-defined inside and outside, i.e.,
+  * At each vertex, there must be a well-defined inside and outside, i.e.,
     the polyhedron must not touch itself in a vertex.
-  * At each edge, there must have a well-defined inside and outside, i.e., the
+  * At each edge, there must be a well-defined inside and outside, i.e., the
     polyhedron must not touch itself in an edge.
-  * At each face, there must have a well-defined inside and outside, i.e., the
+  * At each face, there must be a well-defined inside and outside, i.e., the
     polyhedron must not touch itself in a face, nor must there be zero-thickness
     walls.
   * Each edge must have exactly two adjacent faces.
