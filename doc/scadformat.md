@@ -328,9 +328,9 @@ cylinder([h,r1,r2,center]{,d,d1,d2,r,$fa,$fs,$fn})
 
 `h` is the height of the cylinder, i.e., the extension on the Z axis.
 
-`r1` is the X axis radius around [0,0] in the XY plane.
+`r1` is the bottom radius of the circle around [0,0] in the XY plane.
 
-`r2` is the Y axis radius around [0,0]  in the XY plane.
+`r2` is the top radius of the circle around [0,0] in the XY plane.
 
 `center` defines how the cylinder is positioned on the Z axis: if
 `center` is false, the cylinder extends into the positive Z axis.
