@@ -245,7 +245,7 @@ they are processed as is, e.g., inside comments and strings.
   * MCCHAR = {ANY8} : if the sequence does not contain `*/` .
   * MULTICOM = `/*` {MCCHAR} `*/`
   * WHITE = ` ` | `\n` | `\r` | `\t`
-  * PATHCHAR = ANY8 ! `<` .
+  * PATHCHAR = ANY8 ! `>` .
   * PATH = `<` {PATHCHAR} `>` .
   * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE .
   * SYMBOL = ANY : if no TOKEN matches .
