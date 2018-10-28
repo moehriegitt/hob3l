@@ -109,8 +109,16 @@ extern void cp_dim3_rot_unit_into_z(
     double x = u->x;
     double y = u->y;
     double z = u->z;
-    double k = sqrt((x*x) + (y*y));
-    CP_INIT(r0, y/k,   -x/k,   0);
-    CP_INIT(r1, x*z/k, y*z/k, -k);
-    CP_INIT(r2, x,     y,      z);
+    double q = (x*x) + (y*y);
+    if (cp_sqr_eq(q, 0)) {
+        CP_INIT(r0, 1, 0, 0);
+        CP_INIT(r1, 0, 1, 0);
+        CP_INIT(r2, 0, 0, z);
+    }
+    else {
+        double k = sqrt(q);
+        CP_INIT(r0, y/k,   -x/k,   0);
+        CP_INIT(r1, x*z/k, y*z/k, -k);
+        CP_INIT(r2, x,     y,      z);
+    }
 }

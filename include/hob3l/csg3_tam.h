@@ -21,6 +21,12 @@
 #define CP_CSG3_NORMAL 0
 
 /**
+ * Whether to support fully circular cylinders.
+ * FIXME: Not yet implemented.
+ */
+#define CP_CSG3_CIRCULAR_CYLINDER 0
+
+/**
  * 3D CSG basic shapes and operations.
  *
  * The idea is that this is output from some other program that
@@ -89,7 +95,7 @@ typedef enum {
     _CP_CSG3_OBJ \
     cp_mat3wi_t const *mat; \
     cp_f_t _fa, _fs; \
-    unsigned _fn;
+    size_t _fn;
 
 typedef struct {
     /**
@@ -258,8 +264,6 @@ union cp_csg3 {
     cp_csg2_circle_t _circle;
     cp_csg2_poly_t _poly2;
 };
-
-#define CP_CSG3_CIRCULAR_CYLINDER 0
 
 typedef struct {
     size_t max_fn;

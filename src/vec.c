@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <hob3lbase/arith.h>
 #include <hob3lbase/vec.h>
+#include <hob3lbase/panic.h>
 
 /**
  * Internal: Shallow delete a vector: remove all sub-structures, but not the
@@ -41,8 +42,7 @@ static void __grow(
     while (new_alloc < new_size) {
         new_alloc *= 2;
         if (new_alloc > __cp_v_max_size(esz)) {
-            fprintf(stderr, "ERROR: Out of memory in __cp_v_inflate()\n");
-            abort();
+            cp_panic(NULL, 0, "Out of memory in __cp_v_inflate()\n");
         }
         assert(new_alloc > vec->alloc);
     }

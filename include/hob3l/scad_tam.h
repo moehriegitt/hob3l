@@ -206,7 +206,7 @@ typedef struct {
     cp_scad_t *root;
 } cp_scad_tree_t;
 
-/**
+/*
  * UNSUPPORTED:
  *
  * use

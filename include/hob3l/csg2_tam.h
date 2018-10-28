@@ -11,6 +11,12 @@
 #include <hob3l/csg3_fwd.h>
 
 /**
+ * Whether to support circles in 2D engine.
+ * FIXME: Not yet implemented.
+ */
+#define CP_CSG2_CIRCLULAR 0
+
+/**
  * 2D CSG basic shapes.
  *
  * The idea is that this is output from some other program that

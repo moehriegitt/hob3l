@@ -108,13 +108,6 @@ algorithm is edge driven and uses a notion of 'left and right face' at
 an edge, so an edge must have a unique face on each of its sides.
 This restriction will probably not be fixed soon.
 
-Spheres are not properly implemented yet.  I want to do them nicely
-and delay their rendering until they are circles/ellipses in the 2D
-world, so there is no polyhedron approximation of spheres implemented
-yet.  (My 3D constructions rarely ever contain spheres -- I seem to
-build everything from cubes and cylinders, and occasionally from
-manually constructed polyhedra.)
-
 The output STL contains separate layers instead of a single solid.
 This will be fixed in the future.  For now, if you hit `split` e.g. in
 slic3r, you'll get hundreds of separate layer objects -- which is not

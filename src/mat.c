@@ -87,7 +87,9 @@ extern bool cp_vec3_right_normal3(
     return cp_vec3_normal(r, &ao, &bo);
 }
 
-/** 4D matrix determinant */
+/**
+ * Determinant of 4D matrix
+ */
 extern cp_dim_t cp_mat4_det(
     cp_mat4_t const *m)
 {
@@ -108,7 +110,11 @@ extern cp_dim_t cp_mat4_det(
     return d;
 }
 
-/** 4D matrix inverse, returns the determinant. */
+/**
+ * Invserse of 4D matrix inverse.
+ *
+ * Returns the determinant.
+ */
 extern double cp_mat4_inv(
     cp_mat4_t *r,
     cp_mat4_t const *m)
@@ -169,7 +175,7 @@ extern double cp_mat4_inv(
     return d;
 }
 
-/** 3D matrix determinant */
+/** Determinant of 3D matrix. */
 extern cp_dim_t cp_mat3_det(
     cp_mat3_t const *m)
 {
@@ -184,14 +190,19 @@ extern cp_dim_t cp_mat3_det(
     return d;
 }
 
-/** Determinant of 3D matrix with translation vector */
+/**
+ * Determinant of 3D matrix with translation vector */
 extern cp_dim_t cp_mat3w_det(
     cp_mat3w_t const *m)
 {
     return cp_mat3_det(&m->b);
 }
 
-/** 3D matrix inverse, returns the determinant. */
+/**
+ * Inverse of 3D matrix.
+ *
+ * Returns the determinant.
+ */
 extern double cp_mat3_inv(
     cp_mat3_t *r,
     cp_mat3_t const *m)
@@ -233,7 +244,7 @@ extern double cp_mat3_inv(
     return d;
 }
 
-/** 2D matrix determinant */
+/** Determinant of 2D matrix. */
 extern cp_dim_t cp_mat2_det(
     cp_mat2_t const *m)
 {
@@ -248,7 +259,11 @@ extern cp_dim_t cp_mat2w_det(
     return cp_mat2_det(&m->b);
 }
 
-/** 3D matrix inverse, returns the determinant */
+/**
+ * Inverse of 2D matrix.
+ *
+ * Returns the determinant.
+ */
 extern double cp_mat2_inv(
     cp_mat2_t *r,
     cp_mat2_t const *m)
@@ -273,7 +288,11 @@ extern double cp_mat2_inv(
     return d;
 }
 
-/** Inverse of 3D matrix with translation vector, returns the determinant */
+/**
+ * Inverse of 3D matrix with translation vector.
+ *
+ * Returns the determinant.
+ */
 extern double cp_mat3w_inv(
     cp_mat3w_t *r,
     cp_mat3w_t const *m)
@@ -324,7 +343,11 @@ extern double cp_mat3w_inv(
     return d;
 }
 
-/** Inverse of 2D matrix with translation vector, returns the determinant */
+/**
+ * Inverse of 2D matrix with translation vector.
+ *
+ * Returns the determinant.
+ */
 extern double cp_mat2w_inv(
     cp_mat2w_t *r,
     cp_mat2w_t const *m)
@@ -356,15 +379,31 @@ extern double cp_mat2w_inv(
     return d;
 }
 
-/** Copy 4D matrix into 3D matrix with translation vector, if possible */
+/**
+ * Copy 4D matrix into 3D matrix with translation vector.
+ *
+ * The translation is taken from the 4th column.
+ *
+ * Return whether the last row is {0,0,0,1}.
+ *
+ * IN:
+ * | a b c d |
+ * | e f g h |
+ * | i j k l |
+ * | m n o p |
+ *
+ * OUT:
+ * | a b c | d |
+ * | e f g | h |
+ * | i j k | l |
+ * return m,n,o=0 && p == 1
+ */
 extern bool cp_mat3w_from_mat4(
     cp_mat3w_t *r,
     cp_mat4_t const *q)
 {
     for (int y = 0; y < 3; y++) {
-        for (int x = 0; x < 3; x++) {
-            r->b.m[y][x] = q->m[y][x];
-        }
+        r->b.row[y] = q->row[y].b;
         r->w.v[y] = q->m[y][3];
     }
 
@@ -375,15 +414,29 @@ extern bool cp_mat3w_from_mat4(
         cp_eq(q->m[3][3], 1);
 }
 
-/** Copy 3D matrix into 2D matrix with translation vector, if possible */
+/**
+ * Copy 3D matrix into 2D matrix with translation vector.
+ *
+ * The translation is taken from the 3rd column.
+ *
+ * Return whether the last row is {0,0,1}.
+ *
+ * IN:
+ * | a b c |
+ * | d e f |
+ * | g h i |
+ *
+ * OUT:
+ * | a b | c |
+ * | d e | f |
+ * return g,h=0 && i == 1
+ */
 extern bool cp_mat2w_from_mat3(
     cp_mat2w_t *r,
     cp_mat3_t const *q)
 {
     for (int y = 0; y < 2; y++) {
-        for (int x = 0; x < 2; x++) {
-            r->b.m[y][x] = q->m[y][x];
-        }
+        r->b.row[y] = q->row[y].b;
         r->w.v[y] = q->m[y][2];
     }
 
@@ -393,59 +446,235 @@ extern bool cp_mat2w_from_mat3(
         cp_eq(q->m[2][2], 1);
 }
 
-/** Copy 3D matrix with translation vector into 4D matrix */
+/**
+ * Copy 3D matrix into 2D matrix with translation vector.
+ *
+ * Return whether the 3rd row and column are both {0,0,1} and
+ * the z translation is 0.
+ *
+ * IN:
+ * | a b c | d |
+ * | e f g | h |
+ * | i j k | l |
+ *
+ * OUT:
+ * | a b | d |
+ * | d e | h |
+ * return i,j,c,g,l == 0 && k == 1
+ */
+extern bool cp_mat2w_from_mat3w(
+    cp_mat2w_t *r,
+    cp_mat3w_t const *q)
+{
+    for (int y = 0; y < 2; y++) {
+        r->b.row[y] = q->b.row[y].b;
+        r->w.v[y] = q->w.v[y];
+    }
+
+    return
+        cp_eq(q->w.v[2], 0) &&
+        cp_eq(q->b.m[0][2], 0) &&
+        cp_eq(q->b.m[1][2], 0) &&
+        cp_eq(q->b.m[2][0], 0) &&
+        cp_eq(q->b.m[2][1], 0) &&
+        cp_eq(q->b.m[2][2], 1);
+}
+
+/**
+ * Copy 3D matrix with translation vector into 4D matrix.
+ *
+ * This puts the translation into the 4th column.
+ *
+ * Fills the additional row trivially from the unit matrix.
+ *
+ * IN:
+ * | a b c | d |
+ * | e f g | h |
+ * | i j k | l |
+ *
+ * OUT:
+ * | a b c d |
+ * | e f g h |
+ * | i j k l |
+ * | 0 0 0 1 |
+ */
 extern void cp_mat4_from_mat3w(
     cp_mat4_t *r,
     cp_mat3w_t const *q)
 {
     for (int y = 0; y < 3; y++) {
-        for (int x = 0; x < 3; x++) {
-            r->m[y][x] = q->b.m[y][x];
-        }
+        r->row[y].b = q->b.row[y];
         r->m[y][3] = q->w.v[y];
     }
     r->m[3][0] = r->m[3][1] = r->m[3][2] = 0;
     r->m[3][3] = 1;
 }
 
-/** Copy 2D matrix with translation vector into 3D matrix */
+/**
+ * Copy 2D matrix with translation vector into 3D matrix.
+ *
+ * This puts the translation into the 3rd column.
+ *
+ * Fills the additional row trivially from the unit matrix.
+ *
+ * IN:
+ * | a b | c |
+ * | d e | f |
+ *
+ * OUT:
+ * | a b c |
+ * | d e f |
+ * | 0 0 1 |
+ */
 extern void cp_mat3_from_mat2w(
     cp_mat3_t *r,
     cp_mat2w_t const *q)
 {
     for (int y = 0; y < 2; y++) {
-        for (int x = 0; x < 2; x++) {
-            r->m[y][x] = q->b.m[y][x];
-        }
+        r->row[y].b = q->b.row[y];
         r->m[y][2] = q->w.v[y];
     }
     r->m[2][0] = r->m[2][1] = 0;
     r->m[2][2] = 1;
 }
 
-/** Copy 4D matrix w/ inverse into 3D matrix w/ translation vector and inverse, if possible */
+/**
+ * Copy 2D matrix with translation vector into 3D matrix with translation.
+ *
+ * Fills the additional rows and columns trivially from the unit matrix.
+ *
+ * IN:
+ * | a b | c |
+ * | d e | f |
+ *
+ * OUT:
+ * | a b 0 | c |
+ * | d e 0 | f |
+ * | 0 0 1 | 0 |
+ */
+extern void cp_mat3w_from_mat2w(
+    cp_mat3w_t *r,
+    cp_mat2w_t const *q)
+{
+    for (int y = 0; y < 2; y++) {
+        r->b.row[y].b = q->b.row[y];
+        r->w.v[y] = q->w.v[y];
+    }
+    r->w.v[2] = 0;
+    r->b.m[2][0] = r->b.m[0][2] = 0;
+    r->b.m[2][1] = r->b.m[1][2] = 0;
+    r->b.m[2][2] = 1;
+}
+
+/**
+ * Copy 4D matrix w/ inverse into 3D matrix w/ translation vector and inverse.
+ *
+ * The translation is taken from the 4th column.
+ *
+ * This recomputes the determinant from the resulting matrix, because
+ * a column significnat for the determinant is reinterpreted as a
+ * translation.
+ *
+ * Returns whether the last row is {0,0,0,1}.
+ *
+ * IN:
+ * n=| a b c d |    i=| A B C D |    d=Q
+ *   | e f g h |      | E F G H |
+ *   | i j k l |      | I J K L |
+ *   | m n o p |      | M N O P |
+ *
+ * OUT:
+ * n=| a b c | d |  i=| A B C | D |  d=(recomputed)
+ *   | e f g | h |    | E F G | H |
+ *   | i j k | l |    | I J K | L |
+ * return m,n,o=0 && p == 1 && M,N,O=0 && P == 1
+ */
 extern bool cp_mat3wi_from_mat4i(
     cp_mat3wi_t *r,
     cp_mat4i_t const *q)
 {
-    r->d = q->d;
-    return
+    bool ok =
         cp_mat3w_from_mat4(&r->n, &q->n) &&
         cp_mat3w_from_mat4(&r->i, &q->i);
+    r->d = cp_mat3_det(&r->n.b);
+    return ok;
 }
 
-/** Copy 3D matrix w/ inverse into 2D matrix w/ translation vector and inverse, if possible */
+/**
+ * Copy 3D matrix w/ inverse into 2D matrix w/ translation vector and inverse, if possible.
+ *
+ * The translation is taken from the 3rd column.
+ *
+ * This recomputes the determinant from the resulting matrix, because
+ * a column significnat for the determinant is reinterpreted as a
+ * translation.
+ *
+ * Returns whether the last row is {0,0,1}.
+ *
+ * IN:
+ * n=| a b c |    i=| A B C |    d=Q
+ *   | e f g |      | E F G |
+ *   | i j k |      | I J K |
+ *
+ * OUT:
+ * n=| a b | c |  i=| A B | C |  d=(recomputed)
+ *   | e f | g |    | E F | G |
+ * return i,j=0 && k == 1 && I,J=0 && K == 1
+ */
 extern bool cp_mat2wi_from_mat3i(
     cp_mat2wi_t *r,
     cp_mat3i_t const *q)
 {
-    r->d = q->d;
-    return
+    bool ok =
         cp_mat2w_from_mat3(&r->n, &q->n) &&
         cp_mat2w_from_mat3(&r->i, &q->i);
+    r->d = cp_mat2_det(&r->n.b);
+    return ok;
 }
 
-/** Copy 3D matrix w/ inverse into 4D matrix w/ inverse */
+/**
+ * Copy 3D matrix w/ translation and inverse into 2D matrix w/ translation and inverse.
+ *
+ * Return whether the 3rd row and column are both {0,0,1} and
+ * the z translation is 0.
+ *
+ * IN:
+ * n=| a b c | d |  i=| A B C | D |  d=Q
+ *   | e f g | h |    | E F G | H |
+ *   | i j k | l |    | I J K | L |
+ *
+ * OUT:
+ * n=| a b | d |    i=| A B | D |    d=(recomputed)
+ *   | d e | h |      | D E | H |
+ * return i,j,c,g,l == 0 && k == 1 && I,J,C,G,L == 0 && K == 1
+ */
+extern bool cp_mat2wi_from_mat3wi(
+    cp_mat2wi_t *r,
+    cp_mat3wi_t const *q)
+{
+    bool ok =
+        cp_mat2w_from_mat3w(&r->n, &q->n) &&
+        cp_mat2w_from_mat3w(&r->i, &q->i);
+    r->d = cp_mat2_det(&r->n.b);
+    return ok;
+}
+
+/**
+ * Copy 3D matrix w/ inverse into 4D matrix w/ inverse.
+ *
+ * Fills the additional columns trivially from the unit matrix.
+ *
+ * IN:
+ * n=| a b c | d |  i=| A B C | D |  d=Q
+ *   | e f g | h |    | E F G | H |
+ *   | i j k | l |    | I J K | L |
+ *
+ * OUT:
+ * n=| a b c d |    i=| A B C D |    d=Q
+ *   | e f g h |      | E F G H |
+ *   | i j k l |      | I J K L |
+ *   | 0 0 0 1 |      | 0 0 0 1 |
+ */
 extern void cp_mat4i_from_mat3wi(
     cp_mat4i_t *r,
     cp_mat3wi_t const *q)
@@ -455,7 +684,20 @@ extern void cp_mat4i_from_mat3wi(
     r->d = q->d;
 }
 
-/** Copy 2D matrix w/ inverse into 3D matrix w/ inverse */
+/**
+ * Copy 2D matrix w/ inverse into 3D matrix w/ inverse.
+ *
+ * Fills the additional columns trivially from the unit matrix.
+ *
+ * IN:
+ * n=| a b | d |  i=| A B | D |  d=Q
+ *   | e f | h |    | E F | H |
+ *
+ * OUT:
+ * n=| a b d |    i=| A B D |    d=Q
+ *   | e f h |      | E F H |
+ *   | 0 0 1 |      | 0 0 1 |
+ */
 extern void cp_mat3i_from_mat2wi(
     cp_mat3i_t *r,
     cp_mat2wi_t const *q)
@@ -465,7 +707,34 @@ extern void cp_mat3i_from_mat2wi(
     r->d = q->d;
 }
 
-/** Copy 2D matrix into 2D matrix w/ inverse, if possible */
+/**
+ * Copy 2D matrix with translation vector into 3D matrix with translation.
+ *
+ * Fills the additional rows and columns trivially from the unit matrix.
+ *
+ * IN:
+ * n=| a b | c |    i=| A B | C |    d=Q
+ *   | d e | f |      | D E | F |
+ *
+ * OUT:
+ * n=| a b 0 | c |  i=| A B 0 | C |  d=Q
+ *   | d e 0 | f |    | D E 0 | F |
+ *   | 0 0 1 | 0 |    | 0 0 1 | 0 |
+ */
+extern void cp_mat3wi_from_mat2wi(
+    cp_mat3wi_t *r,
+    cp_mat2wi_t const *q)
+{
+    cp_mat3w_from_mat2w(&r->n, &q->n);
+    cp_mat3w_from_mat2w(&r->i, &q->i);
+    r->d = q->d;
+}
+
+/**
+ * Copy 2D matrix into 2D matrix w/ inverse, if possible.
+ *
+ * Fills the additional columns trivially from the unit matrix.
+ */
 extern bool cp_mat2i_from_mat2(
     cp_mat2i_t *r,
     cp_mat2_t const *q)
@@ -476,7 +745,11 @@ extern bool cp_mat2i_from_mat2(
     return !cp_sqr_eq(r->d, 0);
 }
 
-/** Copy 3D matrix into 3D matrix w/ inverse, if possible */
+/**
+ * Copy 3D matrix into 3D matrix w/ inverse, if possible.
+ *
+ * This adds the inverse and returns whether the determinant is non-0.
+ */
 extern bool cp_mat3i_from_mat3(
     cp_mat3i_t *r,
     cp_mat3_t const *q)
@@ -487,7 +760,11 @@ extern bool cp_mat3i_from_mat3(
     return !cp_sqr_eq(r->d, 0);
 }
 
-/** Copy 4D matrix into 4D matrix w/ inverse, if possible */
+/**
+ * Copy 4D matrix into 4D matrix w/ inverse, if possible.
+ *
+ * This adds the inverse and returns whether the determinant is non-0.
+ */
 extern bool cp_mat4i_from_mat4(
     cp_mat4i_t *r,
     cp_mat4_t const *q)
@@ -501,6 +778,8 @@ extern bool cp_mat4i_from_mat4(
 /**
  * Copy 2D matrix w/ translation vector into 2D matrix w/ inverse &
  * translation vector, if possible
+ *
+ * This adds the inverse and returns whether the determinant is non-0.
  */
 extern bool cp_mat2wi_from_mat2w(
     cp_mat2wi_t *r,
@@ -515,6 +794,8 @@ extern bool cp_mat2wi_from_mat2w(
 /**
  * Copy 3D matrix w/ translation vector into 3D matrix w/ inverse &
  * translation vector, if possible
+ *
+ * This adds the inverse and returns whether the determinant is non-0.
  */
 extern bool cp_mat3wi_from_mat3w(
     cp_mat3wi_t *r,

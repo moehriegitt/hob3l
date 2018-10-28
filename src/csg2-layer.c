@@ -485,6 +485,120 @@ static void csg2_add_layer_poly(
     }
 }
 
+static void csg2_add_layer_sphere(
+    cp_pool_t *pool __unused,
+    double z,
+    cp_v_csg2_p_t *c,
+    cp_csg3_sphere_t const *d)
+{
+    /* Mechanism for slicing an ellipse from the ellipsoid:
+     * Problem: we want to cut the ellipsoid at the XZ plane defined by z.
+     * The ellipsoid is given as a unit sphere mapped to the object coordinate
+     * system using d->mat.
+     *
+     * Idea:
+     *   * Map the cutting XZ plane into the unit sphere coordinate system using
+     *     the inverse object coordinate matrix.  This can be done by mapping three
+     *     points in the XY plane, e.g., [1,0,z], [0,0,z], and [0,1,z] and then
+     *     reconstructing the plane normal from those points.
+     *   * Rotate the unit sphere's coordinate system so that the mapped plane
+     *     is parallel to z again, call this coordinate system Q.  This can be
+     *     done using the *_rot_into_z() matrix.
+     *   * In Q, compute the distance between the plane and the unit sphere center,
+     *     which is easy because by the nature of this coordinate system, we just
+     *     need to subtract the z coordinates.
+     *   * Decide by distance whether the plane cuts the sphere, and compute the
+     *     diameter of the circle in Q.  This can be done by basic trigonometry.
+     *   * Nap the circle using the inverse matrix of Q back into the object
+     *     coordinate system, then reduce the 3D mapping matrix to a 2D mapping
+     *     matrix by eliminating the Z component.
+     */
+
+    /* step 1: compute the plane in d's coordinate system */
+    cp_vec3_t oa = {{ 1, 0, z }};
+    cp_vec3_t ob = {{ 0, 0, z }};
+    cp_vec3_t oc = {{ 0, 1, z }};
+    cp_vec3_t sa, sb, sc;
+    cp_vec3w_xform(&sa, &d->mat->i, &oa);
+    cp_vec3w_xform(&sb, &d->mat->i, &ob);
+    cp_vec3w_xform(&sc, &d->mat->i, &oc);
+    cp_vec3_t sn;
+    if (!cp_vec3_right_normal3(&sn, &sa, &sb, &sc)) {
+        /* coordinate system is too small/large: generate nothing */
+        return;
+    }
+
+    /* step 2: compute coordinate system where sn points upright again */
+    cp_mat3wi_t mq = {0};
+    cp_mat3wi_rot_into_z(&mq, &sn);
+
+    /* step 3: rotate plane base point around unit sphere */
+    cp_vec3_t sq;
+    cp_vec3w_xform(&sq, &mq.n, &sb);
+
+    /* step 4: distance and radius of circle cutting the plane */
+    cp_dim_t dist = fabs(sq.z);
+    if (cp_ge(dist, 1)) {
+        /* plane does not cut unit sphere */
+        return;
+    }
+    cp_dim_t rad = sqrt(1 - (dist*dist));
+
+    /* step 5: map 2D circle into so that we can compute it at [cos,sin,0] */
+
+    /* (a) scale unit circle */
+    cp_mat3wi_t mt;
+    cp_mat3wi_scale(&mt, rad, rad, 1);
+
+    /* (b) move circle into plane in Q */
+    cp_mat3wi_t mm;
+    cp_mat3wi_xlat(&mm, 0, 0, sq.z);
+    cp_mat3wi_mul(&mt, &mm, &mt);
+
+    /* (c) rotate into sphere coordinate system: apply mq inverse.
+     * We do not need mq anymore, so we can invert in place */
+    cp_mat3wi_inv(&mq, &mq);
+    cp_mat3wi_mul(&mt, &mq, &mt);
+
+    /* (d) map from unit sphere coordinate system into object coordinate system */
+    cp_mat3wi_mul(&mt, d->mat, &mt);
+
+    /* (e) extract 2D part of matrix */
+    cp_mat2wi_t mt2;
+    (void)cp_mat2wi_from_mat3wi(&mt2, &mt);
+
+    /* add ellipse to output layer */
+#if CP_CSG2_CIRCLULAR
+    /* store real circle */
+    cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
+    cp_csg2_circle_t *r = cp_csg2_circle(_r);
+    r->mat = mt2;
+    r->_fa = d->_fa;
+    r->_fs = d->_fs;
+    r->_fn = d->_fn;
+#else
+    /* render ellipse polygon */
+    cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
+    cp_csg2_poly_t *r = cp_csg2_poly(_r);
+    cp_csg2_path_t *o = cp_v_push0(&r->path);
+    size_t fn = d->_fn;
+    assert(fn >= 3);
+    double a = CP_TAU/cp_f(fn);
+    for (cp_size_each(i, fn)) {
+        cp_vec2_loc_t *p = cp_v_push0(&r->point);
+        p->coord.x = cos(a * cp_f(i));
+        p->coord.y = sin(a * cp_f(i));
+        p->loc = d->loc;
+        cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
+        cp_v_push(&o->point_idx, i);
+    }
+    if (mt2.d > 0) {
+        cp_v_reverse(&o->point_idx, 0, -(size_t)1);
+    }
+#endif
+    cp_v_push(c, _r);
+}
+
 static bool csg2_add_layer(
     bool *no,
     cp_pool_t *pool,
@@ -579,7 +693,8 @@ static bool csg2_add_layer_stack(
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        CP_NYI("sphere");
+        csg2_add_layer_sphere(pool, z, &l->root.add, cp_csg3_sphere_const(d));
+        break;
 
     case CP_CSG3_CYL:
         CP_NYI("cylinder");

@@ -36,7 +36,7 @@ static void sphere_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_gc_modifier_put_scad(s, r->gc.modifier);
     mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " sphere(r=1,center=true,$fa="FF",$fs="FF",$fn=%u);\n",
+    cp_printf(s, " sphere(r=1,center=true,$fa="FF",$fs="FF",$fn=%"_Pz"u);\n",
         r->_fa, r->_fs, r->_fn);
 }
 
@@ -62,7 +62,7 @@ static void cyl_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_gc_modifier_put_scad(s, r->gc.modifier);
     mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " cylinder(h=1,r1=1,r2=%g,center=true,$fa="FF",$fs="FF",$fn=%u);\n",
+    cp_printf(s, " cylinder(h=1,r1=1,r2=%g,center=true,$fa="FF",$fs="FF",$fn=%"_Pz"u);\n",
         r->r2,
         r->_fa, r->_fs, r->_fn);
 }

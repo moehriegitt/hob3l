@@ -678,7 +678,39 @@ handled correctly as described [here](#coordinate-matrix).
 sphere([r]{,d,$fa,$fs,$fn});
 ```
 
-This is not yet supported.
+  * `r` :: float != 0
+  * `d` :: float
+  * `$fn` :: integer, default=0
+  * `$fa` :: integer, default=12, ignored
+  * `$fs` :: integer, default=2, ignored
+
+Some parameters are mutually exclusive:
+
+  * `d` and `r` must not both be specified.
+
+`d`, `r` define diameter or radius of the sphere.  The radius `r`
+will be determined if `d` is specified and `r` is not:
+
+  * If `d` is specified, `r` will be set to `d`/2.
+
+This specifies a sphere centered at [0,0,0] with the radius `r`.
+
+Hob3l does not render the sphere as a polyhedron like OpenSCAD, but
+computes for each slice the ellipse cut from the ellipoid defined by
+the sphere with its coordinate matrix.  The resulting ellipse will be
+converted into a polygon with `$fn` vertices.  One of the vertices of
+the polygon shape is at y=0 in the positive x axis.
+
+This difference in rendering compared to OpenSCAD has numeric
+advantages for approximating the sphere in Z direction, particularly
+when the sphere are rotated.  It has the disadvantage of rendering
+spheres differently from OpenSCAD, particularly at small values of
+`$fn` where the sphere will still be perfectly round (in steps of
+layer thickness) in Hob3l, while in OpenSCAD, it will be a polygon
+when viewed from the side.
+
+At some point in the future, a way to get exactly OpenSCAD 2015.3
+spheres may be added.
 
 ### square
 

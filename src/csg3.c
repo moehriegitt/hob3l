@@ -787,6 +787,35 @@ static bool poly_make_edges(
     return true;
 }
 
+static void csg3_sphere_minmax1(
+    cp_vec3_minmax_t *bb,
+    cp_mat3wi_t const *mat,
+    size_t i)
+{
+    /* Computing the bounding box of transformed unit sphere is not
+     * trivial.  The following was summaries by Tavian Barnes
+     * (www.tavianator.com). */
+    double a = mat->n.w.v[i];
+    double m0 = mat->n.b.m[i][0];
+    double m1 = mat->n.b.m[i][1];
+    double m2 = mat->n.b.m[i][2];
+    double b = m0*m0 + m1*m1 + m2*m2;
+    double c = sqrt(b);
+    double l = a - c;
+    double h = a + c;
+    if (l < bb->min.v[i]) { bb->min.v[i] = l; }
+    if (h > bb->min.v[i]) { bb->max.v[i] = h; }
+}
+
+static void csg3_sphere_minmax(
+    cp_vec3_minmax_t *bb,
+    cp_mat3wi_t const *mat)
+{
+    csg3_sphere_minmax1(bb, mat, 0);
+    csg3_sphere_minmax1(bb, mat, 1);
+    csg3_sphere_minmax1(bb, mat, 2);
+}
+
 static bool csg3_from_sphere(
     cp_v_csg3_p_t *r,
     cp_csg3_tree_t *t,
@@ -814,6 +843,11 @@ static bool csg3_from_sphere(
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = s->_fn;
+    if (o->_fn < 3) {
+        o->_fn = t->opt.max_fn;
+    }
+
+    csg3_sphere_minmax(&o->bb, o->mat);
     return true;
 }
 
@@ -850,6 +884,9 @@ static bool csg3_from_circle(
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = s->_fn;
+    if (o->_fn < 3) {
+        o->_fn = t->opt.max_fn;
+    }
     return true;
 }
 #endif
@@ -1421,6 +1458,9 @@ static bool csg3_from_cylinder(
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = s->_fn;
+    if (o->_fn < 3) {
+        o->_fn = t->opt.max_fn;
+    }
     return true;
 }
 
@@ -1639,6 +1679,13 @@ static void get_max_bb_poly(
     }
 }
 
+static void get_max_bb_sphere(
+    cp_vec3_minmax_t *bb,
+    cp_csg3_sphere_t const *r)
+{
+    csg3_sphere_minmax(bb, r->mat);
+}
+
 static void get_max_bb_csg3(
     cp_vec3_minmax_t *bb,
     cp_csg3_t const *r)
@@ -1657,7 +1704,7 @@ static void get_max_bb_csg3(
         return;
 
     case CP_CSG3_SPHERE:
-        /* get_max_bb_sphere(bb, &r->sphere); FIXME: continue */
+        get_max_bb_sphere(bb, cp_csg3_sphere_const(r));
         return;
 
     case CP_CSG3_CYL:
