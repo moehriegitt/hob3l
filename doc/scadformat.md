@@ -696,7 +696,7 @@ will be determined if `d` is specified and `r` is not:
 This specifies a sphere centered at [0,0,0] with the radius `r`.
 
 Hob3l does not render the sphere as a polyhedron like OpenSCAD, but
-computes for each slice the ellipse cut from the ellipoid defined by
+computes for each slice the ellipse cut from the ellipsoid defined by
 the sphere with its coordinate matrix.  The resulting ellipse will be
 converted into a polygon with `$fn` vertices.  One of the vertices of
 the polygon shape is at y=0 in the positive x axis.
