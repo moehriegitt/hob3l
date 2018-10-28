@@ -641,8 +641,8 @@ sin(a)`, `d = 1 -c`.
 
 Rotation angles are in degrees.  If for a given angle representable in
 int32, there is an exact solution to `sin` and/or `cos`, then this
-exact value is used.  E.g. `cos(90) == 1` and `sin(30) = 0.5`,
-exactly, so that `rotate(90,[1,0,0])` is an rotation by exactly 90
+exact value is used.  E.g. `cos(90) = 1` and `sin(30) = 0.5`,
+exactly, so that `rotate(90,[1,0,0])` is a rotation by exactly 90
 degrees around the X axis.
 
 ### scale
