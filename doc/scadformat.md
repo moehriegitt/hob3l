@@ -264,10 +264,10 @@ The syntax is defined as follows, ignoring any WHITE, LINECOM and
 MULTICOM tokens.
 
 In the following, any `...` tokens must also match IDENT or SYMBOL,
-i.e., they only match of they are where separated by the morphology as
-IDENT or SYMBOL.  In particular, they cannot be prefixes of IDENT,
-because the morphology rules are applied first.  E.g. `use` cannot be
-the prefix of `useful`, and `/` cannot be the prefix of `/*`.
+i.e., they only match if they were analysed by the morphology as IDENT
+or SYMBOL.  In particular, they cannot be prefixes of TOKEN, because
+the morphology rules are applied first.  E.g. `use` cannot be the
+prefix of `useful`, and `/` cannot be the prefix of `/*`.
 
   * File = {Stmt} .
   * Stmt = Use | Item .
