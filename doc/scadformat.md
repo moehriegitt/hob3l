@@ -39,21 +39,32 @@
 
 ## Introduction
 
+Hob3l reads SCAD files as its native input format in order to avoid
+defining yet another file format.  The SCAD format is originally
+defined for the OpenSCAD tool, and Hob3l tries to read the files in a
+compatible way.  Hob3l does not read the full SCAD format, but a
+subset, which is described in this document.  Up to now, there are no
+extensions introduced by Hob3l, so any file Hob3l reads should also be
+a valid input for OpenSCAD.
+
 This document tries to be more formal about SCAD syntax than the
 OpenSCAD documentation and to handle all corner cases and answer all
-questions about what syntax is accepted by Hob3l.
+questions about what syntax is accepted by Hob3l.  For a more
+intuitive and visual introduction to the file format, with graphical
+examples, the OpenSCAD documentation should be consulted.
 
-When writing Hob3l, it was necessary to run OpenSCAD in experiments to
-find out how it really parses the input file, to be compatible.  This
-document tries to avoid this kind of underspecificity.
+To make Hob3l compatible, when writing Hob3l, it was necessary to run
+OpenSCAD in experiments to find out how it exactly parses and
+interprets the input file.  This document tries to avoid this kind of
+underspecificity.
 
 That said, this document is probably incomplete anyway, but that is a
 bug.
 
-In general, Hob3l is stricter than OpenSCAD about mandatory parameters
-and parameter values, because it was felt that error messages are
-better than silently assuming a default, particularly for finding
-bugs.
+In general and in the spirit of parsing a subset of SCAD, Hob3l is
+stricter than OpenSCAD about mandatory parameters and parameter
+values, because it was felt that error messages are better than
+silently assuming a default, particularly for finding bugs.
 
 ## Informal Overview
 
