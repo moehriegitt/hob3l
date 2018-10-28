@@ -4,6 +4,7 @@
 
   * [Table Of Contents](#table-of-contents)
   * [Introduction](#introduction)
+  * [OpenSCAD CSG Format](#openscad-csg-format)
   * [Informal Overview](#informal-overview)
       * [Broken SCAD Syntax](#broken-scad-syntax)
   * [Syntax](#syntax)
@@ -66,6 +67,14 @@ stricter than OpenSCAD about mandatory parameters and parameter
 values, because it was felt that error messages are better than
 silently assuming a default, particularly for finding bugs.
 
+## OpenSCAD CSG Format
+
+OpenSCAD can write a flattened `.csg` file in SCAD syntax that removes
+a lot of things that Hob3l cannot read, so the `.csg` exporter of
+OpenSCAD can often be used to make a file readable by Hob3l.  This
+`.csg` exporter is generally very fast and thus a viable preprocessor
+step for running Hob3l.
+
 ## Informal Overview
 
 The general idea is that all basic polyhedra 3D objects of SCAD are
@@ -109,6 +118,7 @@ an argument as mandatory, it will be rejected if missing, while
 OpenSCAD may still accept it and assume '1'.
 
 ```
+    undef
     true
     false
     PI
