@@ -12,6 +12,7 @@
       * [Syntax](#syntax)
   * [Special Value Identifiers](#special-value-identifiers)
   * [Dimensions](#dimensions)
+  * [Coordinate Matrix](#coordinate-matrix)
   * [Functor Calls](#functor-calls)
   * [Functors](#functors)
       * [circle](#circle)
@@ -27,6 +28,8 @@
       * [polygon](#polygon)
       * [polyhedron](#polyhedron)
       * [rotate](#rotate)
+          * [If `v` is not specified](#if-v-is-not-specified)
+          * [If `v` is specified](#if-v-is-specified)
       * [scale](#scale)
       * [sphere](#sphere)
       * [square](#square)
@@ -47,12 +50,18 @@ document tries to avoid this kind of underspecificity.
 That said, this document is probably incomplete anyway, but that is a
 bug.
 
+In general, Hob3l is stricter than OpenSCAD about mandatory parameters
+and parameter values, because it was felt that error messages are
+better than silently assuming a default, particularly for finding
+bugs.
+
 ## Informal Overview
 
-The general idea is that all basic polyhedra 3D objects are supported,
-all basic transformations, and all boolean operations.  No operations
-are supported that invoke the CGAL rendering, e.g. complex ones like
-`minkowsky`.  I haven't used them anyway because they are so slow.
+The general idea is that all basic polyhedra 3D objects of SCAD are
+supported, all basic transformations, and all boolean operations.  No
+operations are supported that invoke the CGAL rendering, e.g. complex
+ones like `minkowsky`.  I haven't used them anyway because they are so
+slow.
 
 The following SCAD abstract syntax tree (AST) structures are supported:
 
@@ -242,6 +251,18 @@ MULTICOM tokens.
 
 Dimensions are generally interpreted as millimeters [mm].
 
+## Coordinate Matrix
+
+The positioning, scaling, and rotation of an object in 3D space is
+realised by computing a coordinate matrix for each object.  Functors
+`rotate`, `translate`, `scale`, `mirror`, and `multmatrix` modify this
+coordinate matrix for its child structures.  Each 3D object is mapped
+into the object coordinate system by multiplying each point of its
+surface with the coordinate matrix.
+
+The coordinate matrix is a 4x4 matrix where the last row is fixed at
+[0,0,0,1].
+
 ## Functor Calls
 
 Functors are defined individually in the following sections.
@@ -304,7 +325,7 @@ alpha component.
 cube([size,center])
 ```
 
-  * `size` :: (array[3] of float) || float, default=1.0
+  * `size` :: (array[3] of (float != 0)) || (float != 0), default=1.0
   * `center` :: boolean, default=false
 
 `size` defines the dimensions of the cube in X, Y, and Z dimensions.
@@ -314,8 +335,6 @@ single float defines all dimensions equally.
 If `center` is non-false, this will center the cube at [0,0,0],
 otherwise, the cube will extend into the positive X, Y, and Z axes.
 
-None of the `size` components must be 0.
-
 ### cylinder
 
 3D object: cylinder.
@@ -324,9 +343,9 @@ None of the `size` components must be 0.
 cylinder([h,r1,r2,center]{,d,d1,d2,r,$fa,$fs,$fn})
 ```
 
-  * `h` :: float, default=1
-  * `r1` :: float, default=1
-  * `r2` :: float, default=1
+  * `h` :: float > 0, default=1
+  * `r1` :: float >= 0, default=1
+  * `r2` :: float >= 0, default=1
   * `center` :: boolean, default=false
   * `r` :: float
   * `d1` :: float
@@ -370,6 +389,10 @@ polygon.  The number of vertices in this polygon is set by the `$fn`
 parameter.  If `$fn` is smaller than 3, then `$fn` will be assumed to
 be a large value instead.  One of the vertices of the polygon shape is
 at y=0 in the positive x axis.
+
+The cylinder becomes a cone if `r1` or `r2` are set to 0.
+
+`r1` and `r2` must not both be 0.
 
 ### difference
 
@@ -424,7 +447,7 @@ Mirror substructures.
 mirror(v) { ... }
 ```
 
-  * `v` :: (array[3] of float) != `[0,0,0]`
+  * `v` :: (array[3] of float) != [0,0,0]
 
 `v` is the direction vector of the plane at which to mirror the
 substructures.
@@ -564,17 +587,16 @@ Scale substructures.
 scale(v) { ... }
 ```
 
-  * `v` :: (array[3] of float) || float
+  * `v` :: (array[3] of (float != 0)) || (float != 0)
 
 `v` defines the scaling of the substructures on X, Y, and Z axes.  For
 equal scaling on all axes, a single value can be used.
 
 Negative scales mirror on the given axis/axes.  This functor handles
-mirroring correctly, like the `mirror` functor, by reversing orders of
-the face vertices in polyhedra if the sign of the determinant of the
-coordinate matrix is less than 0.
-
-None of the scaling values must be 0.
+negative scale values, i.e., mirroring, correctly.  Like for the
+`mirror` functor, this means that a negative determinant of the
+coordinate matrix will internally reverse the order of the face
+vertices in polyhedra so that outside vs. inside remains correct.
 
 `scale([x,y,z])` causes the coordinate matrix to be multiplied by:
 
