@@ -44,9 +44,7 @@ Hob3l reads SCAD files as its native input format in order to avoid
 defining yet another file format.  The SCAD format is originally
 defined for the OpenSCAD tool, and Hob3l tries to read the files in a
 compatible way.  Hob3l does not read the full SCAD format, but a
-subset, which is described in this document.  Up to now, there are no
-extensions introduced by Hob3l, so any file Hob3l reads should also be
-a valid input for OpenSCAD.
+subset, which is described in this document.
 
 This document tries to be more formal about SCAD syntax than the
 OpenSCAD documentation and to handle all corner cases and answer all
@@ -66,6 +64,11 @@ In general and in the spirit of parsing a subset of SCAD, Hob3l is
 stricter than OpenSCAD about mandatory parameters and parameter
 values, because it was felt that error messages are better than
 silently assuming a default, particularly for finding bugs.
+
+Up to now, there are no extensions introduced by Hob3l in the syntax,
+so any file Hob3l reads should also be a valid input for OpenSCAD.
+However, the semantics occasionally has less restrictions than
+OpenSCAD, like mirroring objects using `scale` instead of `mirror`.
 
 ## OpenSCAD CSG Format
 
@@ -204,20 +207,20 @@ The normal WSN notation includes the following constructions:
 ### Morphology
 
 The input file is processed as a stream of bytes, generally
-interpreted as US-ASCII character set, with exceptionally allowing
-uninterpreted 8-bit characters when listed explicitly.  In particular,
+interpreted as US-ASCII character set, exceptionally allowing
+uninterpreted 8-bit characters when stated explicitly.  In particular,
 input files with paths and strings encoded in UTF-8 are trivially
 supported, but not rejected for invalid UTF-8 encoding, nor converted
 to a different output character set, e.g. in error messages.
 
 The sequence of bytes is separated into a sequence of TOKENs according
 to the morphology description in this section.  Based on this token
-disassembly, the syntax will be defined.
+sequence, the syntax will be defined.
 
-In this description, ANY is any US-ASCII printable character.  ANY8 is
-any byte value, including 8-bit characters outside of US-ASCII.  No
-character set is assumed for 8-bit characters, i.e., they are
-processed as is, e.g., inside comments and strings.
+In this description, ANY is a single US-ASCII printable character.
+ANY8 is any byte value, including 8-bit characters outside of
+US-ASCII.  No character set is assumed for 8-bit characters, i.e.,
+they are processed as is, e.g., inside comments and strings.
 
   * File = {TOKEN} .
   * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE | SYMBOL .
