@@ -7,7 +7,7 @@
   * [OpenSCAD CSG Format](#openscad-csg-format)
   * [Informal Overview](#informal-overview)
       * [Broken SCAD Syntax](#broken-scad-syntax)
-  * [Syntax](#syntax)
+  * [Morphosyntax](#morphosyntax)
       * [Notation](#notation)
       * [Morphology](#morphology)
       * [Syntax](#syntax)
