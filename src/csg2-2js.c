@@ -42,6 +42,7 @@ typedef struct {
     size_t v_cnt;
     u16_3_t tri[VERTEX_CNT];
     size_t tri_cnt;
+    cp_csg2_tree_t *tree;
 } ctxt_t;
 
 static void v_csg2_put_js(
@@ -83,6 +84,27 @@ static int idx_val(
     return r;
 }
 
+static int rand_int(int max)
+{
+    return rand() % max;
+}
+
+static unsigned char rand_color(
+    ctxt_t *c,
+    unsigned char v)
+{
+    int q = c->tree->opt.js_color_rand;
+    if (q == 0) {
+        return v;
+    }
+    int x = v;
+    x += q - rand_int(2*q+1);
+    if (x < 0) x = 0;
+    if (x > 255) x = 255;
+    unsigned u = x & 0xff;
+    return u & 0xff;
+}
+
 static void scene_flush(
     ctxt_t *c,
     cp_stream_t *s)
@@ -113,7 +135,10 @@ static void scene_flush(
         for (cp_size_each(i, c->v_cnt)) {
             cp_printf(s, "%s%u,%u,%u,%u",
                 i == 0 ? "" : ",",
-                c->v[i].c.r, c->v[i].c.g,  c->v[i].c.b, c->v[i].c.a);
+                rand_color(c, c->v[i].c.r),
+                rand_color(c, c->v[i].c.g),
+                rand_color(c, c->v[i].c.b),
+                c->v[i].c.a);
         }
         cp_printf(s, "],\n");
 
@@ -500,6 +525,7 @@ extern void cp_csg2_tree_put_js(
 {
     ctxt_t *c;
     CP_CALLOC(c);
+    c->tree = t;
 
     scene_flush(c, s);
     if (t->root != NULL) {

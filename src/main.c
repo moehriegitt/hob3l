@@ -386,7 +386,6 @@ static void get_arg_dim(
     }
 }
 
-__unused
 static void get_arg_size(
     size_t *v,
     char const *arg,
@@ -399,6 +398,20 @@ static void get_arg_size(
         my_exit(1);
     }
     *v = val & CP_MAX_OF(*v);
+}
+
+static void get_arg_uint8(
+    unsigned char *v,
+    char const *arg,
+    char const *str)
+{
+    size_t v2;
+    get_arg_size(&v2, arg, str);
+    if (v2 > 255) {
+        fprintf(stderr, "Error %s: invalid color value: %s expected 0..255\n", arg, str);
+        my_exit(1);
+    }
+    *v = v2 & 0xff;
 }
 
 static void get_arg_rgb(
@@ -518,6 +531,7 @@ int main(int argc, char **argv)
     opt.tree.layer_gap = -1;
     opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
     opt.tree.optimise = CP_CSG2_OPT_DEFAULT;
+    opt.tree.js_color_rand = 15;
     opt.verbose = 1;
 
     /* parse command line */

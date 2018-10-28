@@ -88,6 +88,10 @@ static char const *opt_help =
     "        for stage 4: do (not) run difference pass for adjacent layers (default: do)\n"
     "        --dump-js needs this for good output to hide inner structures.\n"
     "        For other formats, the difference pass is not run anyway.\n"
+    "JavaScript/WEBGL Output Options\n"
+    "    --js-color-rand=ARG\n"
+    "        How much to randomise colors in JS/WebGL output make the result\n"
+    "        easier to grasp (default: 15, valid: 0..255). \n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
     "        for --dump-ps: expand to fit normal bounding box to page\n"
@@ -393,6 +397,14 @@ static void get_opt_gran(
     char const *arg __unused)
 {
     get_arg_dim(&cp_pt_epsilon, name, arg);
+}
+
+static void get_opt_js_color_rand(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_uint8(&opt->tree.js_color_rand, name, arg);
 }
 
 static void get_opt_layer_gap(
@@ -877,6 +889,11 @@ cp_get_opt_t opt_list[] = {
         "help",
         get_opt_help,
         0,
+    },
+    {
+        "js-color-rand",
+        get_opt_js_color_rand,
+        2,
     },
     {
         "layer-gap",

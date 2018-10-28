@@ -266,8 +266,14 @@ typedef struct {
     size_t max_simultaneous;
 
     /**
-     * Optimisation */
+     * Optimisation.  See CP_CSG2_OPT* constants. */
     unsigned optimise;
+
+    /**
+     * How much to randomize colours in JS/WebGL output to
+     * make the shapes easier to grasp.
+     */
+    unsigned char js_color_rand;
 } cp_csg2_tree_opt_t;
 
 

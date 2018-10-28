@@ -150,6 +150,13 @@ case "no-diff": bool &opt->no_diff {
     "For other formats, the difference pass is not run anyway.";
 }
 
+help_section "JavaScript/WEBGL Output Options";
+
+case "js-color-rand": uint8 &opt->tree.js_color_rand{
+    "How much to randomise colors in JS/WebGL output make the result";
+    "easier to grasp (default: 15, valid: 0..255). ";
+}
+
 help_section "PostScript Output Options";
 
 case "ps-scale-fit": {
