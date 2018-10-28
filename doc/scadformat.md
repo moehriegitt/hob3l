@@ -263,6 +263,20 @@ surface with the coordinate matrix.
 The coordinate matrix is a 4x4 matrix where the last row is fixed at
 [0,0,0,1].
 
+If the determinant of an object's coordinate matrix is negative, it
+means that the object is mirrored.  Internally, to implement this, all
+polyhedra face vertix paths are reversed to correctly reflect the
+mirroring so that even after mirroring, the order is clockwise when
+viewed from the outside.  This means that hob3l correctly handles
+mirroring in all `mirror`, `scale`, and `multmatrix` transformations
+(`translate` and `rotate` matrices have a determinant of 1, so no
+mirroring can happen).
+
+At the moment, it was decided that it is an error if the coordinate
+matrix's determinant becomes 0.  This is to find bugs in the model.
+In the future, we might have a command line option to just ignore
+those objects (they collapse into emptiness of the determinant is 0).
+
 ## Functor Calls
 
 Functors are defined individually in the following sections.
@@ -480,6 +494,9 @@ The fourth row must have the value `0,0,0,1`.
 
 The defined 4x4 matrix must be invertible.
 
+A negative determinant of the given matrix cause mirroring.  This is
+handled correctly as described [here](#coordinate-matrix).
+
 `multmatrix([[a,b,c,d],[e,f,g,h],[i,j,k,l],[0,0,0,1]])` causes the
 coordinate matrix to be multipled by:
 
@@ -592,11 +609,8 @@ scale(v) { ... }
 `v` defines the scaling of the substructures on X, Y, and Z axes.  For
 equal scaling on all axes, a single value can be used.
 
-Negative scales mirror on the given axis/axes.  This functor handles
-negative scale values, i.e., mirroring, correctly.  Like for the
-`mirror` functor, this means that a negative determinant of the
-coordinate matrix will internally reverse the order of the face
-vertices in polyhedra so that outside vs. inside remains correct.
+Negative scale values cause mirroring on the given axis/axes.  This is
+handled correctly as described [here](#coordinate-matrix).
 
 `scale([x,y,z])` causes the coordinate matrix to be multiplied by:
 
