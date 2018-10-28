@@ -175,7 +175,7 @@ syntax.  The following differences exist with standard WSN:
 
 The normal WSN notation includes the following constructions:
 
-  * `(` ..X.. `)`: grouping, makes priority exclucit
+  * `(` ..X.. `)`: grouping, makes priority explicit
   * `[` ..X.. `]`: 0 or 1 times ...X...
   * `{` ..X.. `}`: 0, 1, or more times ...X...
   * A `|` B: either A or B
