@@ -39,3 +39,4 @@ make -j MODE=devel OPT=2
 make -j test
 
 make clean MODE=devel
+make -j test

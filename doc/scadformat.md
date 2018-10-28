@@ -365,6 +365,12 @@ whatever is specified of `r1`, `r2`, `r`, `d1`, `d2`, `d`:
   * If `d1` is specified, `r1` will be set to `d1`/2.
   * If `d2` is specified, `r2` will be set to `d2`/2.
 
+The cylinder's circular shape in the planes parallel to the XY plane
+is realised by a polygon.  The number of vertices in this polygon is
+set by the `$fn` parameter.  If `$fn` is smaller than 3, then `$fn`
+will be assumed to be a large value instead.  One of the vertices of
+the polygon shape is at y=0 in the positive x axis.
+
 ### difference
 
 Combine substructures by subtracting from the first non-empty
@@ -421,7 +427,7 @@ mirror(v) { ... }
   * `v` :: (array[3] of float) != `[0,0,0]`
 
 `v` is the direction vector of the plane at which to mirror the
-substructures.  `v` must not be equal to `[0,0,0]`.
+substructures.
 
 `mirror([X,Y,Z])` causes the coordinate matrix to be multiplied by:
 
