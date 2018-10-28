@@ -703,7 +703,7 @@ the polygon shape is at y=0 in the positive x axis.
 
 This difference in rendering compared to OpenSCAD has numeric
 advantages for approximating the sphere in Z direction, particularly
-when the sphere are rotated.  It has the disadvantage of rendering
+when the sphere is rotated.  It has the disadvantage of rendering
 spheres differently from OpenSCAD, particularly at small values of
 `$fn` where the sphere will still be perfectly round (in steps of
 layer thickness) in Hob3l, while in OpenSCAD, it will be a polygon
