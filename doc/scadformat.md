@@ -182,8 +182,21 @@ The normal WSN notation includes the following constructions:
 
 ### Morphology
 
-The input file is processed as a sequence of TOKENs.  In this
-description, ANY is any US-ASCII printable character.
+The input file is processed as a stream of bytes, generally
+interpreted as US-ASCII character set, with exceptionally allowing
+uninterpreted 8-bit characters when listed explicitly.  In particular,
+input files with paths and strings encoded in UTF-8 are trivially
+supported, but not rejected for invalid UTF-8 encoding, nor converted
+to a different output character set, e.g. in error messages.
+
+The sequence of bytes is separated into a sequence of TOKENs according
+to the morphology description in this section.  Based on this token
+disassembly, the syntax will be defined.
+
+In this description, ANY is any US-ASCII printable character.  ANY8 is
+any byte value, including 8-bit characters outside of US-ASCII.  No
+character set is assumed for 8-bit characters, i.e., they are
+processed as is, e.g., inside comments and strings.
 
   * File = {TOKEN} .
   * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE | SYMBOL .
@@ -198,12 +211,12 @@ description, ANY is any US-ASCII printable character.
   * NUM = NUMX : if NUMX starts with SIGN, `.` or DIGIT .
   * INTEGER = NUM : if NUM contains no E or `.` .
   * FLOAT = NUM : if NUM is not an INTEGER .
-  * STRCHAR = ANY ! ( `"` | `\` ) .
+  * STRCHAR = ANY8 ! ( `"` | `\` ) .
   * STRSEQ = STRCHAR | `\` ANY .
   * STRING = `"` {STRSEQ} `"` .
-  * LCCHAR = ANY ! `\n`
+  * LCCHAR = ANY8 ! `\n`
   * LINECOM = `//` {LCCHAR} .
-  * MCCHAR = {ANY} : if the sequence does not contain `*/` .
+  * MCCHAR = {ANY8} : if the sequence does not contain `*/` .
   * MULTICOM = `/*` {MCCHAR} `*/`
   * WHITE = ` ` | `\n` | `\r` | `\t`
   * SYMBOL = ANY : if no other token matches .
@@ -223,7 +236,7 @@ MULTICOM tokens.
 
   * File = {Stmt} .
   * Stmt = Use | Item .
-  * PathChar = ANY ! `<` .
+  * PathChar = ANY8 ! `<` .
   * Use = `use` `<` {PathChar} `>` .
   * Item = Item0 | Item1 | ItemN | ItemBlock .
   * Item0 = Func `;` .

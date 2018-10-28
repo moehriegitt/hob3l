@@ -40,6 +40,7 @@ typedef struct {
 
     unsigned tok_type;
     const char *tok_string;
+    const char *tok_loc;
 } parse_t;
 
 static bool have_err_msg(parse_t *p)
@@ -92,6 +93,7 @@ static void tok_next_aux2(parse_t *p)
     /* Note that p->tok_string might point to '\0'.  It is needed for a
      * location pointer nevertheless. */
     p->tok_string = p->lex_string;
+    p->tok_loc = p->lex_string;
 
     /* INT and FLOAT */
     if ((p->lex_cur == '+') ||
@@ -181,6 +183,15 @@ static void tok_next_aux2(parse_t *p)
         while (*p->lex_string != '"') {
             if (*p->lex_string == '\\') {
                 lex_next(p);
+                if (*p->lex_string & ~0x7f) {
+                    if (!have_err_msg(p)) {
+                        cp_vchar_printf(&p->tree->err.msg,
+                            "No 8-bit character is supported after '\\'.\n");
+                    }
+                    p->tok_loc = p->lex_string;
+                    p->tok_type = T_ERROR;
+                    return;
+                }
             }
             if (*p->lex_string == '\0') {
                 if (!have_err_msg(p)) {
@@ -528,7 +539,7 @@ static bool parse_new_int(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_INT, p->tok_string);
+    *rp = value_new(CP_SYN_VALUE_INT, p->tok_loc);
     return parse_int(p, &(*rp)->_int);
 }
 
@@ -536,7 +547,7 @@ static bool parse_new_float(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_FLOAT, p->tok_string);
+    *rp = value_new(CP_SYN_VALUE_FLOAT, p->tok_loc);
     return parse_float(p, &(*rp)->_float);
 }
 
@@ -544,7 +555,7 @@ static bool parse_new_string(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_STRING, p->tok_string);
+    *rp = value_new(CP_SYN_VALUE_STRING, p->tok_loc);
     return parse_string(p, &(*rp)->_string);
 }
 
@@ -557,7 +568,7 @@ static bool parse_new_range_or_array(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    cp_loc_t loc = p->tok_string;
+    cp_loc_t loc = p->tok_loc;
     if (!expect_err(p, '[')) {
         return false;
     }
@@ -763,7 +774,7 @@ static bool parse_stmt_item(
 {
     if (p->tok_type == '{') {
         r->functor = "{";
-        r->loc = p->tok_string;
+        r->loc = p->tok_loc;
     }
     else {
         bool ok =
@@ -979,7 +990,7 @@ extern bool cp_syn_parse(
     if (!ok) {
         /* generic error message */
         if (r->err.loc == NULL) {
-            r->err.loc = p->tok_string;
+            r->err.loc = p->tok_loc;
         }
         if (!have_err_msg(p)) {
             cp_vchar_printf(&r->err.msg, "Parse error.\n");
@@ -987,7 +998,7 @@ extern bool cp_syn_parse(
         return false;
     }
     if (p->tok_type != T_EOF) {
-        r->err.loc = p->tok_string;
+        r->err.loc = p->tok_loc;
         cp_vchar_printf(&r->err.msg, "Operator or object functor expected.\n");
         return false;
     }
