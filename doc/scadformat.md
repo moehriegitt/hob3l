@@ -298,21 +298,23 @@ into the object coordinate system by multiplying each point of its
 surface with the coordinate matrix.
 
 The coordinate matrix is a 4x4 matrix where the last row is fixed at
-[0,0,0,1].
+[0,0,0,1].  (Because of this redundancy, Hob3l uses only 4x3 matrices
+internally to speed up operations.)
 
 If the determinant of an object's coordinate matrix is negative, it
 means that the object is mirrored.  Internally, to implement this, all
-polyhedra face paths are reversed to correctly reflect the mirroring,
-i.e., so that even after mirroring, the order is again clockwise when
-viewed from the outside.  This means that hob3l correctly handles
+polyhedron face paths are reversed to correctly reflect the mirroring,
+i.e., so that after mirroring, the vertex order is again clockwise
+when viewed from the outside.  This means that hob3l correctly handles
 mirroring in all `mirror`, `scale`, and `multmatrix` transformations
 (`translate` and `rotate` matrices have a determinant of 1, so no
 mirroring can happen).
 
 It was decided that it is an error if the coordinate matrix's
-determinant becomes 0.  This is to find bugs in the model.  In the
-future, we might have a command line option to just ignore those
-objects (they collapse into emptiness if the determinant is 0).
+determinant becomes 0.  This is to find bugs in the input model early
+and more easily.  In the future, a command line option may be added to
+just ignore those objects (they collapse into emptiness if the
+determinant is 0).
 
 ## Functor Calls
 
