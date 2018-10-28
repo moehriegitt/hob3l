@@ -178,7 +178,7 @@ one is the first non-empty child of `difference`.  Whether it does
 that in the same way as OpenSCAD, I can only hope for.  I think this
 part of the SCAD syntax is broken.
 
-## Syntax
+## Morphosyntax
 
 ### Notation
 
@@ -214,16 +214,18 @@ supported, but not rejected for invalid UTF-8 encoding, nor converted
 to a different output character set, e.g. in error messages.
 
 The sequence of bytes is separated into a sequence of TOKENs according
-to the morphology description in this section.  Based on this token
-sequence, the syntax will be defined.
+to the morphology description in this section.  Based on this tokens,
+the syntax will be defined.  The syntax rules drive in which order to
+apply the morphology rules to the input file, e.g., in one rules, the
+syntax may call for a `<` to follow, where in the next, it requires a
+PATH, which also starts with `<` but will select a longer sequence of
+characters.
 
 In this description, ANY is a single US-ASCII printable character.
 ANY8 is any byte value, including 8-bit characters outside of
 US-ASCII.  No character set is assumed for 8-bit characters, i.e.,
 they are processed as is, e.g., inside comments and strings.
 
-  * File = {TOKEN} .
-  * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE | SYMBOL .
   * ALPHA = `a` ... `z` | `A` ... `Z` .
   * DIGIT = `0` ... `9` .
   * ID_START = `$` | `_` | ALPHA .
@@ -243,7 +245,10 @@ they are processed as is, e.g., inside comments and strings.
   * MCCHAR = {ANY8} : if the sequence does not contain `*/` .
   * MULTICOM = `/*` {MCCHAR} `*/`
   * WHITE = ` ` | `\n` | `\r` | `\t`
-  * SYMBOL = ANY : if no other token matches .
+  * PATHCHAR = ANY8 ! `<` .
+  * PATH = `<` {PATHCHAR} `>` .
+  * TOKEN = IDENT | INTEGER | FLOAT | STRING | LINECOM | MULTICOM | WHITE .
+  * SYMBOL = ANY : if no TOKEN matches .
 
 Example IDENT: `a`, `xyz`, `$fs`
 
@@ -258,10 +263,15 @@ Example SYMBOL: `+`, `/`, `#`
 The syntax is defined as follows, ignoring any WHITE, LINECOM and
 MULTICOM tokens.
 
+In the following, any `...` tokens must also match IDENT or SYMBOL,
+i.e., they only match of they are where separated by the morphology as
+IDENT or SYMBOL.  In particular, they cannot be prefixes of IDENT,
+because the morphology rules are applied first.  E.g. `use` cannot be
+the prefix of `useful`, and `/` cannot be the prefix of `/*`.
+
   * File = {Stmt} .
   * Stmt = Use | Item .
-  * PathChar = ANY8 ! `<` .
-  * Use = `use` `<` {PathChar} `>` .
+  * Use = `use` PATH .
   * Item = Item0 | Item1 | ItemN | ItemBlock .
   * Item0 = Func `;` .
   * Item1 = Func Item .

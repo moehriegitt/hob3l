@@ -186,7 +186,7 @@ static void tok_next_aux2(parse_t *p)
                 if (*p->lex_string & ~0x7f) {
                     if (!have_err_msg(p)) {
                         cp_vchar_printf(&p->tree->err.msg,
-                            "No 8-bit character is supported after '\\'.\n");
+                            "8-bit characters are not supported after '\\'.\n");
                     }
                     p->tok_loc = p->lex_string;
                     p->tok_type = T_ERROR;
@@ -248,7 +248,7 @@ static void tok_next_aux2(parse_t *p)
     if (!(p->lex_cur == (p->lex_cur & 127))) {
         if (!have_err_msg(p)) {
             cp_vchar_printf(&p->tree->err.msg,
-                "Found non-US-ASCII character, which is not currently supported.\n");
+                "8-bit characters are not supported as symbols.\n");
         }
         p->tok_type = T_ERROR;
         return;
