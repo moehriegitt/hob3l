@@ -4,6 +4,7 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/panic.h>
 #include <hob3l/csg3.h>
+#include <hob3l/csg2.h>
 #include <hob3l/gc.h>
 #include "internal.h"
 
@@ -165,6 +166,24 @@ static void poly2_put_scad(
     cp_printf(s, "]);\n");
 }
 
+static void twoD_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_csg3_2d_t *r)
+{
+    switch (r->csg2->type) {
+    case CP_CSG2_CIRCLE:
+        CP_DIE("Not implemented: circle");
+
+    case CP_CSG2_POLY:
+        poly2_put_scad(s, d, cp_csg2_poly(r->csg2));
+        break;
+
+    default:
+        CP_DIE("Unrecognized CSG2 object type");
+    }
+}
+
 static void csg3_put_scad(
     cp_stream_t *s,
     int d,
@@ -195,12 +214,8 @@ static void csg3_put_scad(
         poly_put_scad(s, d, cp_csg3_poly(r));
         break;
 
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle");
-        break;
-
-    case CP_CSG2_POLY:
-        poly2_put_scad(s, d, cp_csg3_poly2(r));
+    case CP_CSG3_2D:
+        twoD_put_scad(s, d, cp_csg3_2d(r));
         break;
 
     default:

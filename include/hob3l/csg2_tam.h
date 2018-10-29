@@ -65,17 +65,12 @@ typedef enum {
     char const *loc;
 
 #define _CP_CSG2_OBJ_ \
-    _CP_CSG2 \
-    cp_gc_t gc;
+    _CP_CSG2
 
 #define _CP_CSG2_OBJ \
     union { \
-        struct { \
-            _CP_CSG2_OBJ_ \
-        }; \
-        struct { \
-            _CP_CSG2_OBJ_ \
-        } obj; \
+        struct { _CP_CSG2_OBJ_ }; \
+        struct { _CP_CSG2_OBJ_ } obj; \
     };
 
 #define _CP_CSG2_SIMPLE \
@@ -88,6 +83,7 @@ typedef struct {
     /**
      * type is CP_CSG2_CIRCLE */
     _CP_CSG2_SIMPLE
+    cp_color_rgba_t color;
 } cp_csg2_circle_t;
 
 typedef CP_VEC_T(cp_csg2_t*) cp_v_csg2_p_t;
@@ -285,10 +281,9 @@ typedef struct {
     unsigned optimise;
 
     /**
-     * How much to randomize colours in JS/WebGL output to
-     * make the shapes easier to grasp.
+     * How much to randomize colours during CSG2 algorithm.
      */
-    unsigned char js_color_rand;
+    unsigned char color_rand;
 } cp_csg2_tree_opt_t;
 
 

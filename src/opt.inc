@@ -90,7 +90,7 @@ static char const *opt_help =
     "        For other formats, the difference pass is not run anyway.\n"
     "JavaScript/WEBGL Output Options\n"
     "    --js-color-rand=ARG\n"
-    "        How much to randomise colors in JS/WebGL output make the result\n"
+    "        How much to randomise colors in CSG2 algorithm to make the result\n"
     "        easier to grasp (default: 15, valid: 0..255). \n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
@@ -404,7 +404,7 @@ static void get_opt_js_color_rand(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_uint8(&opt->tree.js_color_rand, name, arg);
+    get_arg_uint8(&opt->tree.color_rand, name, arg);
 }
 
 static void get_opt_layer_gap(

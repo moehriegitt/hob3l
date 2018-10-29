@@ -5,6 +5,7 @@
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
 #include <hob3l/csg3.h>
+#include <hob3l/csg2.h>
 #include <hob3l/scad.h>
 #include "internal.h"
 
@@ -49,8 +50,7 @@ static cp_csg3_t *__csg3_new(
         [CP_CSG3_ADD]      = sizeof(cp_csg3_add_t),
         [CP_CSG3_SUB]      = sizeof(cp_csg3_sub_t),
         [CP_CSG3_CUT]      = sizeof(cp_csg3_cut_t),
-        [CP_CSG2_CIRCLE]   = sizeof(cp_csg2_circle_t),
-        [CP_CSG2_POLY]     = sizeof(cp_csg2_poly_t),
+        [CP_CSG3_2D]       = sizeof(cp_csg3_2d_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -1065,9 +1065,12 @@ static bool csg3_from_polygon(
         return false;
     }
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = cp_csg3_poly2(_o);
-    o->gc = m->gc;
+    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_2D, s->loc);
+    cp_csg3_2d_t *o2 = cp_csg3_2d(_o);
+    o2->gc = m->gc;
+
+    o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
+    cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1241,9 +1244,12 @@ static bool csg3_from_square(
     }
 
     /* make cube shape */
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = cp_csg3_poly2(_o);
-    o->gc = mo->gc;
+    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_2D, s->loc);
+    cp_csg3_2d_t *o2 = cp_csg3_2d(_o);
+    o2->gc = mo->gc;
+
+    o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
+    cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
 
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {

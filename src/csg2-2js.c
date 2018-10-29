@@ -52,27 +52,6 @@ static void v_csg2_put_js(
     size_t zi,
     cp_v_csg2_p_t *r);
 
-static int rand_int(int max)
-{
-    return rand() % max;
-}
-
-static unsigned char rand_color(
-    ctxt_t *c,
-    unsigned char v)
-{
-    int q = c->tree->opt.js_color_rand;
-    if (q == 0) {
-        return v;
-    }
-    int x = v;
-    x += q - rand_int(2*q+1);
-    if (x < 0) x = 0;
-    if (x > 255) x = 255;
-    unsigned u = x & 0xff;
-    return u & 0xff;
-}
-
 static int idx_val(
     int *last,
     unsigned short x)
@@ -112,10 +91,7 @@ static void scene_flush(
         for (cp_size_each(i, c->v_cnt)) {
             cp_printf(s, "%s%u,%u,%u,%u",
                 i == 0 ? "" : ",",
-                rand_color(c, c->v[i].c.r),
-                rand_color(c, c->v[i].c.g),
-                rand_color(c, c->v[i].c.b),
-                c->v[i].c.a);
+                c->v[i].c.r, c->v[i].c.g, c->v[i].c.b, c->v[i].c.a);
         }
         cp_printf(s, "],\n");
 
@@ -143,7 +119,7 @@ static inline long js_coord(cp_dim_t f)
 
 static void store_vertex(
     vertex_t *v,
-    cp_gc_t const *gc,
+    cp_color_rgba_t const *color,
     cp_dim_t xn, cp_dim_t yn, cp_dim_t zn,
     cp_vec2_loc_t const *xy,
     cp_dim_t z)
@@ -154,16 +130,15 @@ static void store_vertex(
     v->n.x = js_coord(xn)*1000;
     v->n.y = js_coord(yn)*1000;
     v->n.z = js_coord(zn)*1000;
-    v->c.r = gc->color.r;
-    v->c.g = gc->color.g;
-    v->c.b = gc->color.b;
-    v->c.a = gc->color.a;
+    v->c.r = color->r;
+    v->c.g = color->g;
+    v->c.b = color->b;
+    v->c.a = color->a;
 }
 
 static void triangle_put_js(
     ctxt_t *c,
     cp_stream_t *s,
-    cp_gc_t const *gc,
     cp_v_vec2_loc_t const *point,
     cp_dim_t const z[],
     cp_dim_t xn, cp_dim_t yn, cp_dim_t zn,
@@ -187,9 +162,9 @@ static void triangle_put_js(
     t->i[1] = VERTEX_MASK & c->v_cnt++;
     t->i[2] = VERTEX_MASK & c->v_cnt++;
 
-    store_vertex(&c->v[t->i[0]], gc, xn, yn, zn, xy1, z[i1]);
-    store_vertex(&c->v[t->i[1]], gc, xn, yn, zn, xy2, z[i2]);
-    store_vertex(&c->v[t->i[2]], gc, xn, yn, zn, xy3, z[i3]);
+    store_vertex(&c->v[t->i[0]], &xy1->color, xn, yn, zn, xy1, z[i1]);
+    store_vertex(&c->v[t->i[1]], &xy2->color, xn, yn, zn, xy2, z[i2]);
+    store_vertex(&c->v[t->i[2]], &xy3->color, xn, yn, zn, xy3, z[i3]);
 }
 
 static inline cp_dim_t layer_gap(cp_dim_t x)
@@ -216,7 +191,7 @@ static void poly_put_js(
         }
         for (cp_v_each(i, &r_top->triangle)) {
             size_t const *p = cp_v_nth(&r_top->triangle, i).p;
-            triangle_put_js(c, s, &r->gc, &r_top->point, z,
+            triangle_put_js(c, s, &r_top->point, z,
                 0., 0., 1.,
                 p[1], 1,
                 p[0], 1,
@@ -234,7 +209,7 @@ static void poly_put_js(
     }
     for (cp_v_each(i, &r_bot->triangle)) {
         size_t const *p = cp_v_nth(&r_bot->triangle, i).p;
-        triangle_put_js(c, s, &r->gc, &r_bot->point, z,
+        triangle_put_js(c, s, &r_bot->point, z,
             0., 0., -1.,
             p[0], 0,
             p[1], 0,
@@ -272,12 +247,12 @@ static void poly_put_js(
                     &(cp_vec3_t){{ pj->coord.x, pj->coord.y, z[1] }},
                     &(cp_vec3_t){{ pk->coord.x, pk->coord.y, z[1] }});
 
-                triangle_put_js(c, s, &r->gc, point, z,
+                triangle_put_js(c, s, point, z,
                     n.x, n.y, n.z,
                     ik, 0,
                     ij, 1,
                     ik, 1);
-                triangle_put_js(c, s, &r->gc, point, z,
+                triangle_put_js(c, s, point, z,
                     n.x, n.y, n.z,
                     ik, 0,
                     ij, 0,

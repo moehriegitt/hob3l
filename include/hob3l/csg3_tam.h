@@ -53,6 +53,10 @@ typedef enum {
     CP_CSG3_POLY,
 
     /**
+     * 2D Object */
+    CP_CSG3_2D,
+
+    /**
      * Bool op: union */
     CP_CSG3_ADD,
 
@@ -102,6 +106,13 @@ typedef struct {
      * type is CP_CSG3_SPHERE */
     _CP_CSG3_OBJ_SIMPLE
 } cp_csg3_sphere_t;
+
+typedef struct {
+    /**
+     * type is CP_CSG3_2D */
+    _CP_CSG3_OBJ_SIMPLE
+    cp_csg2_t *csg2;
+} cp_csg3_2d_t;
 
 typedef struct {
     /**
@@ -258,11 +269,7 @@ union cp_csg3 {
     cp_csg3_add_t _add;
     cp_csg3_sub_t _sub;
     cp_csg3_cut_t _cut;
-
-    /* 2D objects */
-    cp_csg2_t _csg2;
-    cp_csg2_circle_t _circle;
-    cp_csg2_poly_t _poly2;
+    cp_csg3_2d_t _2d;
 };
 
 typedef struct {

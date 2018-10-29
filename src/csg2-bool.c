@@ -56,8 +56,7 @@ typedef struct event event_t;
 typedef struct {
     cp_dict_t node_pt;
 
-    cp_vec2_t coord;
-    cp_loc_t loc;
+    cp_vec2_loc_t v;
 
     /**
      * Index in output point array.
@@ -234,7 +233,7 @@ static char const *__pt_str(char *s, size_t n, point_t const *x)
     if (x == NULL) {
         return "NULL";
     }
-    snprintf(s, n, FD2, CP_V01(x->coord));
+    snprintf(s, n, FD2, CP_V01(x->v.coord));
     s[n-1] = 0;
     return s;
 }
@@ -249,15 +248,15 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
     }
     if (x->left) {
         snprintf(s, n, "#("FD2"--"FD2")  o0x%"_Pz"x b0x%"_Pz"x",
-            CP_V01(x->p->coord),
-            CP_V01(x->other->p->coord),
+            CP_V01(x->p->v.coord),
+            CP_V01(x->other->p->v.coord),
             x->in.owner,
             x->in.below);
     }
     else {
         snprintf(s, n, " ("FD2"--"FD2")# o0x%"_Pz"x b0x%"_Pz"x",
-            CP_V01(x->other->p->coord),
-            CP_V01(x->p->coord),
+            CP_V01(x->other->p->v.coord),
+            CP_V01(x->p->v.coord),
             x->in.owner,
             x->in.below);
     }
@@ -277,7 +276,7 @@ static void debug_print_chain(
     }
 
     e0->debug_tag = tag;
-    cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->coord));
+    cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->v.coord));
 
     event_t *e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 0), event_t, node_chain);
     if (e0 == e1) {
@@ -286,7 +285,7 @@ static void debug_print_chain(
     assert(e0 != e1);
 
     e1->debug_tag = tag;
-    cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(e1->p->coord));
+    cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(e1->p->v.coord));
 
     event_t *ey __unused = e0;
     event_t *ez __unused = e1;
@@ -295,7 +294,7 @@ static void debug_print_chain(
         event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
         ez = ei;
         ei->debug_tag = tag;
-        cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->coord));
+        cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->v.coord));
         close = !cp_ring_is_end(_ei);
     }
     if (close) {
@@ -304,19 +303,19 @@ static void debug_print_chain(
     cp_printf(cp_debug_ps, " stroke\n");
     if (!close && !cp_ring_is_end(&e0->node_chain)) {
         /* find other end */
-        cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->coord));
+        cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->v.coord));
         for (cp_ring_each(_ei, &e1->node_chain, &e0->node_chain)) {
             event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
             ey = ei;
             ei->debug_tag = tag;
-            cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->coord));
+            cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->v.coord));
         }
         cp_printf(cp_debug_ps, " stroke\n");
     }
 
     if (!close) {
-        cp_debug_ps_dot(CP_PS_XY(ey->p->coord), 7);
-        cp_debug_ps_dot(CP_PS_XY(ez->p->coord), 7);
+        cp_debug_ps_dot(CP_PS_XY(ey->p->v.coord), 7);
+        cp_debug_ps_dot(CP_PS_XY(ez->p->v.coord), 7);
     }
 }
 #endif
@@ -351,20 +350,20 @@ static void debug_print_s(
         cp_printf(cp_debug_ps, "0.8 setgray 1 setlinewidth\n");
         cp_printf(cp_debug_ps,
             "newpath %g dup 0 moveto %u lineto stroke\n",
-            CP_PS_X(es->p->coord.x),
+            CP_PS_X(es->p->v.coord.x),
             CP_PS_PAPER_Y);
         if (!es->left) {
             cp_printf(cp_debug_ps,
                 "2 setlinewidth newpath %g %g moveto %g %g lineto stroke\n",
-                CP_PS_XY(es->p->coord),
-                CP_PS_XY(es->other->p->coord));
+                CP_PS_XY(es->p->v.coord),
+                CP_PS_XY(es->other->p->v.coord));
         }
 
         /* pt */
         cp_printf(cp_debug_ps, "0.8 setgray\n");
         for (cp_dict_each(_p, c->pt)) {
             point_t *p = CP_BOX_OF(_p, point_t, node_pt);
-            cp_debug_ps_dot(CP_PS_XY(p->coord), 3);
+            cp_debug_ps_dot(CP_PS_XY(p->v.coord), 3);
         }
 
         /* s */
@@ -374,11 +373,11 @@ static void debug_print_s(
             event_t *e = CP_BOX_OF(_e, event_t, node_s);
             cp_printf(cp_debug_ps,
                 "0 %g 0 setrgbcolor\n", three_steps(i));
-            cp_debug_ps_dot(CP_PS_XY(e->p->coord), 3);
+            cp_debug_ps_dot(CP_PS_XY(e->p->v.coord), 3);
             cp_printf(cp_debug_ps,
                 "newpath %g %g moveto %g %g lineto stroke\n",
-                CP_PS_XY(e->p->coord),
-                CP_PS_XY(e->other->p->coord));
+                CP_PS_XY(e->p->v.coord),
+                CP_PS_XY(e->other->p->v.coord));
             i++;
         }
 
@@ -388,7 +387,7 @@ static void debug_print_s(
         for (cp_dict_each(_e, c->end)) {
             cp_printf(cp_debug_ps, "1 %g 0 setrgbcolor\n", three_steps(i) * 0.6);
             event_t *e0 = CP_BOX_OF(_e, event_t, node_end);
-            cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
+            cp_debug_ps_dot(CP_PS_XY(e0->p->v.coord), 4);
             debug_print_chain(e0, cp_debug_ps_page_cnt);
             i++;
         }
@@ -399,7 +398,7 @@ static void debug_print_s(
         for (cp_list_each(_e, &c->poly)) {
             cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", three_steps(i));
             event_t *e0 = CP_BOX_OF(_e, event_t, node_poly);
-            cp_debug_ps_dot(CP_PS_XY(e0->p->coord), 4);
+            cp_debug_ps_dot(CP_PS_XY(e0->p->v.coord), 4);
             debug_print_chain(e0, ~cp_debug_ps_page_cnt);
             i++;
         }
@@ -424,7 +423,7 @@ static int pt_cmp(
     if (a == b) {
         return 0;
     }
-    return cp_vec2_lex_pt_cmp(&a->coord, &b->coord);
+    return cp_vec2_lex_pt_cmp(&a->v.coord, &b->v.coord);
 }
 
 /**
@@ -436,7 +435,7 @@ static int pt_cmp_d(
     void *user __unused)
 {
     point_t *b = CP_BOX_OF(_b, point_t, node_pt);
-    return cp_vec2_lex_pt_cmp(a, &b->coord);
+    return cp_vec2_lex_pt_cmp(a, &b->v.coord);
 }
 
 static cp_dim_t rasterize(cp_dim_t v)
@@ -452,7 +451,8 @@ static cp_dim_t rasterize(cp_dim_t v)
 static point_t *pt_new(
     ctxt_t *c,
     cp_loc_t loc,
-    cp_vec2_t const *_coord)
+    cp_vec2_t const *_coord,
+    cp_color_rgba_t const *color)
 {
     cp_vec2_t coord = {
        .x = rasterize(_coord->x),
@@ -470,8 +470,9 @@ static point_t *pt_new(
     }
 
     point_t *p = CP_POOL_NEW(c->pool, *p);
-    p->loc = loc;
-    p->coord = coord;
+    p->v.coord = coord;
+    p->v.loc = loc;
+    p->v.color = *color;
     p->idx = CP_SIZE_MAX;
 
     LOG("new pt: %s (orig: "FD2")\n", pt_str(p), CP_V01(*_coord));
@@ -506,7 +507,7 @@ static inline int pt2_pt_cmp(
     point_t const *a2,
     point_t const *b)
 {
-    return cp_vec2_right_normal3_z(&a1->coord, &a2->coord, &b->coord);
+    return cp_vec2_right_normal3_z(&a1->v.coord, &a2->v.coord, &b->v.coord);
 }
 
 static inline point_t *left(event_t const *ev)
@@ -677,13 +678,12 @@ static void get_coord_on_line(
 
 static void q_add_orig(
     ctxt_t *c,
-    cp_loc_t loc,
-    cp_vec2_t *coord1,
-    cp_vec2_t *coord2,
+    cp_vec2_loc_t *v1,
+    cp_vec2_loc_t *v2,
     size_t poly_id)
 {
-    point_t *p1 = pt_new(c, loc, coord1);
-    point_t *p2 = pt_new(c, loc, coord2);
+    point_t *p1 = pt_new(c, v1->loc, &v1->coord, &v1->color);
+    point_t *p2 = pt_new(c, v2->loc, &v2->coord, &v2->color);
 
     if (p1 == p2) {
         /* edge consisting of only one point (or two coordinates
@@ -691,10 +691,10 @@ static void q_add_orig(
         return;
     }
 
-    event_t *e1 = ev_new(c, loc, p1, true,  NULL);
+    event_t *e1 = ev_new(c, v1->loc, p1, true,  NULL);
     e1->in.owner = ((size_t)1) << poly_id;
 
-    event_t *e2 = ev_new(c, loc, p2, false, e1);
+    event_t *e2 = ev_new(c, v2->loc, p2, false, e1);
     e2->in = e1->in;
     e1->other = e2;
 
@@ -705,15 +705,15 @@ static void q_add_orig(
 
     /* compute origin and slope */
     cp_vec2_t d;
-    d.x = e2->p->coord.x - e1->p->coord.x;
-    d.y = e2->p->coord.y - e1->p->coord.y;
+    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
+    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
     e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
     e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
-    e1->line.b = LINE_Y(e1, &e1->p->coord) - (e1->line.a * LINE_X(e1, &e1->p->coord));
+    e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
     assert(cp_le(e1->line.a, +1));
     assert(cp_ge(e1->line.a, -1) ||
         CONFESS("a=%g (%g,%g--%g,%g)",
-            e1->line.a, e1->p->coord.x, e1->p->coord.y, e2->p->coord.x, e2->p->coord.y));
+            e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
 
     /* other direction edge is on the same line */
     e2->line = e1->line;
@@ -721,10 +721,10 @@ static void q_add_orig(
 #ifndef NDEBUG
     /* check computation */
     cp_vec2_t g;
-    get_coord_on_line(&g, e1, &e2->p->coord);
-    assert(cp_vec2_eq(&g, &e2->p->coord));
-    get_coord_on_line(&g, e2, &e1->p->coord);
-    assert(cp_vec2_eq(&g, &e1->p->coord));
+    get_coord_on_line(&g, e1, &e2->p->v.coord);
+    assert(cp_vec2_eq(&g, &e2->p->v.coord));
+    get_coord_on_line(&g, e2, &e1->p->v.coord);
+    assert(cp_vec2_eq(&g, &e1->p->v.coord));
 #endif
 
     /* Insert.  For 'equal' entries, order does not matter */
@@ -761,8 +761,8 @@ static void __divide_segment(
      *  `-------o       `--r`--o
      */
 
-    event_t *r = ev_new(c, p->loc, p, false, e);
-    event_t *l = ev_new(c, p->loc, p, true,  o);
+    event_t *r = ev_new(c, p->v.loc, p, false, e);
+    event_t *l = ev_new(c, p->v.loc, p, true,  o);
 
     /* relink buddies */
     o->other = l;
@@ -885,8 +885,7 @@ static void path_add_point(
     if (idx == CP_SIZE_MAX) {
         cp_vec2_loc_t *v = cp_v_push0(&r->point);
         e->p->idx = idx = cp_v_idx(&r->point, v);
-        v->coord = e->p->coord;
-        v->loc = e->p->loc;
+        *v = e->p->v;
     }
     assert(idx < r->point.size);
 
@@ -904,7 +903,7 @@ static void path_add_point3(
 {
     if (c->all_points ||
         (cur->p->path_cnt > 1) ||
-        !cp_vec2_in_line(&prev->p->coord, &cur->p->coord, &next->p->coord))
+        !cp_vec2_in_line(&prev->p->v.coord, &cur->p->v.coord, &next->p->v.coord))
     {
         path_add_point(r, p, cur);
     }
@@ -1194,10 +1193,10 @@ static point_t *find_intersection(
     i.y = rasterize(i.y);
 
     /* check whether i is on e0 and e1 */
-    if (!dim_between(p0->coord.x, i.x, p0b->coord.x) ||
-        !dim_between(p0->coord.y, i.y, p0b->coord.y) ||
-        !dim_between(p1->coord.x, i.x, p1b->coord.x) ||
-        !dim_between(p1->coord.y, i.y, p1b->coord.y))
+    if (!dim_between(p0->v.coord.x, i.x, p0b->v.coord.x) ||
+        !dim_between(p0->v.coord.y, i.y, p0b->v.coord.y) ||
+        !dim_between(p1->v.coord.x, i.x, p1b->v.coord.x) ||
+        !dim_between(p1->v.coord.y, i.y, p1b->v.coord.y))
     {
         return NULL;
     }
@@ -1209,7 +1208,7 @@ static point_t *find_intersection(
 
     /* Finally, make a new point (or an old point -- pt_new will check whether we have
      * this already) */
-    return pt_new(c, p0->loc, &i);
+    return pt_new(c, p0->v.loc, &i, &p0->v.color);
 }
 
 static bool coord_between(
@@ -1251,7 +1250,7 @@ static bool pt_between(
         return true;
     }
     assert(a != c);
-    return coord_between(&a->coord, &b->coord, &c->coord);
+    return coord_between(&a->v.coord, &b->v.coord, &c->v.coord);
 }
 
 /**
@@ -1865,7 +1864,7 @@ static void cp_csg2_op_poly(
             for (cp_v_each(j, &p->point_idx)) {
                 cp_vec2_loc_t *pj = cp_csg2_path_nth(a, p, j);
                 cp_vec2_loc_t *pk = cp_csg2_path_nth(a, p, cp_wrap_add1(j, p->point_idx.size));
-                q_add_orig(&c, pj->loc, &pj->coord, &pk->coord, m);
+                q_add_orig(&c, pj, pk, m);
             }
         }
     }

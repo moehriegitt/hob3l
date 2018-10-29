@@ -34,7 +34,6 @@ CP_DECLARE_CAST_(csg3, poly,   CP_CSG3_POLY)
 CP_DECLARE_CAST_(csg3, add,    CP_CSG3_ADD)
 CP_DECLARE_CAST_(csg3, sub,    CP_CSG3_SUB)
 CP_DECLARE_CAST_(csg3, cut,    CP_CSG3_CUT)
-
-CP_DECLARE_CAST_(csg3, poly2,  CP_CSG2_POLY)
+CP_DECLARE_CAST_(csg3, 2d,     CP_CSG3_2D)
 
 #endif /* __CP_CSG3_H */

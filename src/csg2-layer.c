@@ -424,7 +424,40 @@ static void edge_find_path(
     }
 }
 
+static int rand_int(int max)
+{
+    return rand() % max;
+}
+
+static unsigned char rand_color(
+    cp_csg2_tree_opt_t const *opt,
+    unsigned char v)
+{
+    int q = opt->color_rand;
+    if (q == 0) {
+        return v;
+    }
+    int x = v;
+    x += q - rand_int(2*q+1);
+    if (x < 0) x = 0;
+    if (x > 255) x = 255;
+    unsigned u = x & 0xff;
+    return u & 0xff;
+}
+
+static void rand_color3(
+    cp_color_rgba_t *o,
+    cp_csg2_tree_opt_t const *opt,
+    cp_color_rgba_t const *i)
+{
+    o->r = rand_color(opt, i->r);
+    o->g = rand_color(opt, i->g);
+    o->b = rand_color(opt, i->b);
+    o->a = i->a;
+}
+
 static void csg2_add_layer_poly(
+    cp_csg2_tree_opt_t const*opt,
     cp_pool_t *pool,
     double z,
     cp_v_csg2_p_t *c,
@@ -474,10 +507,15 @@ static void csg2_add_layer_poly(
 
     if (point.size > 0) {
         assert(path.size > 0);
+
+        /* set a uniform color for all vertices */
+        for (cp_v_each(i, &point)) {
+            rand_color3(&cp_v_nth(&point, i).color, opt, &d->gc.color);
+        }
+
         /* make a new 2D polygon */
         cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
         cp_csg2_poly_t *r = cp_csg2_poly(_r);
-        r->gc = d->gc;
 
         r->point = point;
         r->path = path;
@@ -487,6 +525,7 @@ static void csg2_add_layer_poly(
 }
 
 static void csg2_add_layer_sphere(
+    cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool __unused,
     double z,
     cp_v_csg2_p_t *c,
@@ -573,7 +612,7 @@ static void csg2_add_layer_sphere(
         /* store real circle */
         cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
         cp_csg2_circle_t *r = cp_csg2_circle(_r);
-        r->gc = d->gc;
+        r->color = d->gc.color;
 
         r->mat = mt2;
         r->_fa = d->_fa;
@@ -585,7 +624,6 @@ static void csg2_add_layer_sphere(
         /* render ellipse polygon */
         cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
         cp_csg2_poly_t *r = cp_csg2_poly(_r);
-        r->gc = d->gc;
 
         cp_csg2_path_t *o = cp_v_push0(&r->path);
         size_t fn = d->_fn;
@@ -596,6 +634,8 @@ static void csg2_add_layer_sphere(
             p->coord.x = cos(a * cp_f(i));
             p->coord.y = sin(a * cp_f(i));
             p->loc = d->loc;
+            p->color = d->gc.color;
+            rand_color3(&p->color, opt, &d->gc.color);
             cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
             cp_v_push(&o->point_idx, i);
         }
@@ -700,14 +740,14 @@ static bool csg2_add_layer_stack(
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        csg2_add_layer_sphere(pool, z, &l->root.add, cp_csg3_sphere_const(d));
+        csg2_add_layer_sphere(&r->opt, pool, z, &l->root.add, cp_csg3_sphere_const(d));
         break;
 
     case CP_CSG3_CYL:
         CP_NYI("cylinder");
 
     case CP_CSG3_POLY:
-        csg2_add_layer_poly(pool, z, &l->root.add, cp_csg3_poly_const(d));
+        csg2_add_layer_poly(&r->opt, pool, z, &l->root.add, cp_csg3_poly_const(d));
         break;
 
     case CP_CSG2_POLY:
