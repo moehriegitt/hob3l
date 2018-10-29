@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/vchar.h>
-#include <hob3l/err_tam.h>
+#include <hob3lbase/err_tam.h>
 #include <hob3l/gc_tam.h>
 #include <hob3l/syn_fwd.h>
 

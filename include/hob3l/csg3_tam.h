@@ -5,7 +5,7 @@
 #define __CP_CSG3_TAM_H
 
 #include <hob3lbase/mat_tam.h>
-#include <hob3l/err_tam.h>
+#include <hob3lbase/err_tam.h>
 #include <hob3l/gc_tam.h>
 #include <hob3l/csg2_tam.h>
 #include <hob3l/csg3_fwd.h>
