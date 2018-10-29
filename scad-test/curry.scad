@@ -1,3 +1,4 @@
+color("orange")
 group() {
 	group() {
 		difference() {

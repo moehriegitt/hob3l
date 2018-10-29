@@ -24,7 +24,7 @@
 
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat_gen_tam.h>
-#include <hob3l/err_tam.h>
+#include <hob3lbase/err_tam.h>
 
 typedef struct {
     cp_vec2_t coord;
