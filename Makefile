@@ -151,7 +151,7 @@ CPPFLAGS += $(CPPFLAGS_WARN)
 
 package_dir := $(package_name)
 
-HOB3L := ./hob3l.x
+HOB3L := ./hob3l.exe
 HOB3L_JS_COPY_AUX := pkgdatadir=./share sh ./script/hob3l-js-copy-aux.in
 
 ######################################################################
@@ -167,8 +167,8 @@ TEST_TRIANGLE.png := \
 TEST_STL.stl := \
     $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.stl)))
 
-TEST_STL.js := \
-    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js)))
+TEST_STL.jsgz := \
+    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js.gz)))
 
 ######################################################################
 # header files
@@ -246,20 +246,20 @@ MOD_O.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.o))
 MOD_D.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.d))
 
 # Command Line Executable:
-# hob3l.x:
-MOD_C.hob3l.x := \
+# hob3l.exe:
+MOD_C.hob3l.exe := \
     main.c
 
-MOD_O.hob3l.x := $(addprefix out/,$(MOD_C.hob3l.x:.c=.o))
-MOD_D.hob3l.x := $(addprefix out/,$(MOD_C.hob3l.x:.c=.d))
+MOD_O.hob3l.exe := $(addprefix out/,$(MOD_C.hob3l.exe:.c=.o))
+MOD_D.hob3l.exe := $(addprefix out/,$(MOD_C.hob3l.exe:.c=.d))
 
 # Test Executable:
-# cptest.x:
-MOD_C.cptest.x := \
+# cptest.exe:
+MOD_C.cptest.exe := \
     test-main.c
 
-MOD_O.cptest.x := $(addprefix out/,$(MOD_C.cptest.x:.c=.o))
-MOD_D.cptest.x := $(addprefix out/,$(MOD_C.cptest.x:.c=.d))
+MOD_O.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.o))
+MOD_D.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.d))
 
 ######################################################################
 
@@ -273,11 +273,11 @@ _ := $(shell mkdir -p test-out)
 .SUFFIXES:
 
 all: \
-    cptest.x \
+    cptest.exe \
     libcptest.a
 
 bin: \
-    hob3l.x \
+    hob3l.exe \
     out/hob3l-js-copy-aux
 
 lib: \
@@ -317,6 +317,7 @@ clean: clean-test
 	rm -f *.i
 	rm -f *.a
 	rm -f *.x
+	rm -f *.exe
 
 libhob3l.a: $(MOD_O.libhob3l.a)
 	$(AR) cr $@.new.a $+
@@ -333,11 +334,11 @@ libcptest.a: $(MOD_O.libcptest.a)
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
-hob3l.x: $(MOD_O.hob3l.x) libhob3l.a libhob3lbase.a
-	$(CC) -o $@ $(MOD_O.hob3l.x) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
+hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a
+	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
-cptest.x: $(MOD_O.cptest.x) libhob3lbase.a libcptest.a
-	$(CC) -o $@ $(MOD_O.cptest.x) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
+cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
+	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
 out/%: script/%.in
 	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
@@ -372,8 +373,8 @@ test: unit-test no-unit-test
 no-unit-test: test-triangle test-triangle-prepare test-stl test-js
 
 .PHONY: unit-test
-unit-test: cptest.x
-	./cptest.x
+unit-test: cptest.exe
+	./cptest.exe
 
 .PHONY: test-triangle
 test-triangle: $(TEST_TRIANGLE.png)
@@ -382,7 +383,10 @@ test-triangle: $(TEST_TRIANGLE.png)
 test-stl: $(TEST_STL.stl)
 
 .PHONY: test-js
-test-js: $(TEST_STL.js)
+test-js: $(TEST_STL.jsgz)
+
+.PHONY: test-jsgz
+test-jsgz: test-js
 
 .PHONY: test-triangle-prepare
 test-triangle-prepare: $(TEST_TRIANGLE.scad)
@@ -391,31 +395,32 @@ test-out/%.png: test-out/%.ps
 	gm convert -border 10x10 -bordercolor '#ffffff' -density 144x144 $< $@.new.png
 	mv $@.new.png $@
 
-test-out/%.ps: scad-test/%.scad hob3l.x
+test-out/%.ps: scad-test/%.scad hob3l.exe
 	$(HOB3L) $< -z=2.0 -o $@.new.ps
 	mv $@.new.ps $@
 
-test-out/%.stl: scad-test/%.scad hob3l.x
+test-out/%.stl: scad-test/%.scad hob3l.exe
 	$(HOB3L) $< -o $@.new.stl
 	mv $@.new.stl $@
 
-test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.x
+test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.exe
 	openscad $< -o $@.new.csg
 	$(HOB3L) $@.new.csg -o $@.new.stl
 	mv $@.new.stl $@
 	rm -f $@.new.csg
 
-test-out/%.js: scad-test/%.scad hob3l.x
-	$(HOB3L_JS_COPY_AUX) $@
+test-out/%.js: scad-test/%.scad hob3l.exe
 	$(HOB3L) $< -o $@.new.js
 	mv $@.new.js $@
 
-test-out/%.js: $(SCAD_DIR)/%.scad hob3l.x
+test-out/%.js: $(SCAD_DIR)/%.scad hob3l.exe
 	openscad $< -o $@.new.csg
 	$(HOB3L) $@.new.csg -o $@.new.js
 	mv $@.new.js $@
 	rm -f $@.new.csg
-	$(HOB3L_JS_COPY_AUX) $@
+
+test-out/%.js.gz: test-out/%.js
+	$(HOB3L_JS_COPY_AUX) $(@:.gz=)
 
 scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
 	$(srcdir)/script/fig2scad $< > $@.new
@@ -495,7 +500,7 @@ installdirs-include:
 install-bin: installdirs-bin
 	$(NORMAL_INSTALL)
 	$(INSTALL_BIN) \
-	    hob3l.x \
+	    hob3l.exe \
 	    $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
 	$(INSTALL_SCRIPT) \
 	    out/hob3l-js-copy-aux \

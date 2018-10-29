@@ -21,16 +21,25 @@ computational stability.
 The idea is explained in more detail [in my
 blog](http://www.theiling.de/cnc/date/2018-09-23.html).
 
-And I definitely do not want to rant about OpenSCAD.  It is a great
-tool that I am also using.  This is about a different technique for
-rendering CSG into STL that is especially suited for 3D printing,
-where individual flat slices from your model is all you need.  If you
-really need a 3D solid from your CSG, then do use OpenSCAD's CGAL
-based rendering.
+Hob3l's main output formats are
+
+  * STL for printing
+  * JavaScript/WebGL for viewing and prototyping
+
+## OpenSCAD
+
+The purpose of this project is definitely not to rant about OpenSCAD.
+It is a great tool that I am also using.
+
+Instead, this is about a different technique for rendering CSG into
+STL that is especially suited for 3D printing, where individual slices
+from your model is all you need.  If you really need a 3D solid from
+your CSG, then do use OpenSCAD's CGAL based rendering.
 
 ## Table of Contents
 
   * [Replace 3D CSG by Fast 2D Polygon Clipping](#replace-3d-csg-by-fast-2d-polygon-clipping)
+  * [OpenSCAD](#openscad)
   * [Table of Contents](#table-of-contents)
   * [SCAD Input Format](#scad-input-format)
   * [Algorithmic Improvements](#algorithmic-improvements)
@@ -144,7 +153,8 @@ E.g.:
     make test
 ```
 
-The resulting executable is called 'hob3l.x'.
+The resulting executable is called 'hob3l.exe' (also under Linux --
+this is so that it also works under Windows).
 
 Parallel building should be fully supported using the `-j` option to
 make.
@@ -217,10 +227,8 @@ CFLAGS_ARCH  := -march=core2 -mfpmath=sse
 
 ## Running Tests
 
-After building, tests can be run, provided that the 'hob3l.x'
-executable can actually be executed.  It may be (e.g. under Windows)
-that the local executable does not have the necessary file extension
-(e.g. `.exe`), so `make test` will not work.  On systems where it
+After building, tests can be run, provided that the 'hob3l.exe'
+executable can actually be executed (hopefully).  On systems where it
 works, use
 
 ```
@@ -238,10 +246,6 @@ installed binary by using
 ```
     make check
 ```
-
-On some systems, this will work better than `make test`, because the
-installed executable will have the correct file extension
-(e.g. `.exe`).
 
 Each time `make check` is invoked, it will first remove the old test
 output files to make sure that the check is actually run.  `make
@@ -400,6 +404,35 @@ data.  See the `hob3l-js-copy-aux` script.
 
 `SCAD`: For debugging intermediate steps in the parser and converter,
 SCAD format output is available from several processing stages.
+
+## JavaScript/WebGL Output
+
+Here's a screenshot of my browser with a part of the Prusa i3MK3
+printer rendered by Hob3l:
+
+![Mk3 Part](img/curryjswebgl.png)
+
+The conversion from `.scad` to `.js` takes about 0.7s on my machine,
+so this is very well suited for prototyping: write the `.scad` in a
+text editor, run 'make', reload in browser.  To run this conversion
+yourself, after building, run:
+
+```
+    make clean-test
+    time make test-out/curry.js
+```
+
+This should print something like:
+
+```
+./hob3l.exe scad-test/curry.scad -o test-out/curry.js.new.js
+Info: Z: min=0.1, step=0.2, layer_cnt=75, max=14.9
+mv test-out/curry.js.new.js test-out/curry.js
+
+real  0m0.650s
+user  0m0.592s
+sys   0m0.044s
+```
 
 ## Rendering Differences
 
