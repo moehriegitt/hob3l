@@ -477,6 +477,7 @@ static void csg2_add_layer_poly(
         /* make a new 2D polygon */
         cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
         cp_csg2_poly_t *r = cp_csg2_poly(_r);
+        r->gc = d->gc;
 
         r->point = point;
         r->path = path;
@@ -568,35 +569,41 @@ static void csg2_add_layer_sphere(
     (void)cp_mat2wi_from_mat3wi(&mt2, &mt);
 
     /* add ellipse to output layer */
-#if CP_CSG2_CIRCLULAR
-    /* store real circle */
-    cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
-    cp_csg2_circle_t *r = cp_csg2_circle(_r);
-    r->mat = mt2;
-    r->_fa = d->_fa;
-    r->_fs = d->_fs;
-    r->_fn = d->_fn;
-#else
-    /* render ellipse polygon */
-    cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
-    cp_csg2_poly_t *r = cp_csg2_poly(_r);
-    cp_csg2_path_t *o = cp_v_push0(&r->path);
-    size_t fn = d->_fn;
-    assert(fn >= 3);
-    double a = CP_TAU/cp_f(fn);
-    for (cp_size_each(i, fn)) {
-        cp_vec2_loc_t *p = cp_v_push0(&r->point);
-        p->coord.x = cos(a * cp_f(i));
-        p->coord.y = sin(a * cp_f(i));
-        p->loc = d->loc;
-        cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
-        cp_v_push(&o->point_idx, i);
+    if (CP_CSG2_CIRCLULAR) {
+        /* store real circle */
+        cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
+        cp_csg2_circle_t *r = cp_csg2_circle(_r);
+        r->gc = d->gc;
+
+        r->mat = mt2;
+        r->_fa = d->_fa;
+        r->_fs = d->_fs;
+        r->_fn = d->_fn;
+        cp_v_push(c, _r);
     }
-    if (mt2.d > 0) {
-        cp_v_reverse(&o->point_idx, 0, -(size_t)1);
+    else {
+        /* render ellipse polygon */
+        cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
+        cp_csg2_poly_t *r = cp_csg2_poly(_r);
+        r->gc = d->gc;
+
+        cp_csg2_path_t *o = cp_v_push0(&r->path);
+        size_t fn = d->_fn;
+        assert(fn >= 3);
+        double a = CP_TAU/cp_f(fn);
+        for (cp_size_each(i, fn)) {
+            cp_vec2_loc_t *p = cp_v_push0(&r->point);
+            p->coord.x = cos(a * cp_f(i));
+            p->coord.y = sin(a * cp_f(i));
+            p->loc = d->loc;
+            cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
+            cp_v_push(&o->point_idx, i);
+        }
+        if (mt2.d > 0) {
+            cp_v_reverse(&o->point_idx, 0, -(size_t)1);
+        }
+        cp_v_push(c, _r);
     }
-#endif
-    cp_v_push(c, _r);
 }
 
 static bool csg2_add_layer(

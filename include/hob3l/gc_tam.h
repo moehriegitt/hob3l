@@ -62,12 +62,6 @@ enum {
  */
 typedef struct {
     /**
-     * Whether \a color has been explicitly set (true) or whether
-     * it is still the default (false).
-     */
-    bool have_color;
-
-    /**
      * The color.
      */
     cp_color_rgba_t color;

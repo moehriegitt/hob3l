@@ -9,6 +9,7 @@
 #include <hob3l/err_tam.h>
 #include <hob3l/csg2_fwd.h>
 #include <hob3l/csg3_fwd.h>
+#include <hob3l/gc_tam.h>
 
 /**
  * Whether to support circles in 2D engine.
@@ -63,11 +64,25 @@ typedef enum {
     unsigned type; \
     char const *loc;
 
-#define _CP_CSG2_SIMPLE \
+#define _CP_CSG2_OBJ_ \
     _CP_CSG2 \
+    cp_gc_t gc;
+
+#define _CP_CSG2_OBJ \
+    union { \
+        struct { \
+            _CP_CSG2_OBJ_ \
+        }; \
+        struct { \
+            _CP_CSG2_OBJ_ \
+        } obj; \
+    };
+
+#define _CP_CSG2_SIMPLE \
+    _CP_CSG2_OBJ \
     cp_mat2wi_t mat; \
     cp_f_t _fa, _fs; \
-    unsigned _fn;
+    size_t _fn;
 
 typedef struct {
     /**
@@ -151,7 +166,7 @@ typedef CP_VEC_T(cp_csg2_path_t) cp_v_csg2_path_t;
 struct cp_csg2_poly {
     /**
      * type is CP_CSG2_POLY */
-    _CP_CSG2
+    _CP_CSG2_OBJ
 
     /**
      * The vertices of the polygon.

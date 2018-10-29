@@ -110,7 +110,12 @@ typedef enum {
         ((__x != 0) && ((__x & (__x - 1)) == 0)); \
     })
 
-#ifndef CP_ZERO
+#define cp_offsetof(T,F) (__builtin_offsetof(T,F))
+
+#define cp_alignof(X) (__alignof__(X))
+
+#define cp_countof(a) (sizeof(a)/sizeof((a)[0]))
+
 /**
  * Zero a structure and return the given pointer.
  *
@@ -120,7 +125,21 @@ typedef enum {
  * element is cleared.  This is a problem of the C language, sorry.
  */
 #define CP_ZERO(obj) memset(obj, 0, sizeof(*(obj)))
-#endif
+
+/**
+ * Assign the prefix, zero the reset of the structure.
+ *
+ * This is for structs with a prefix that is not to
+ * be cleared.
+ */
+#define CP_COPY_N_ZERO(obj, prefix, prefix_value) \
+    ({ \
+        __typeof__(*(obj)) *__obj = (obj); \
+        cp_static_assert(cp_offsetof(__typeof__(*__obj), prefix) == 0); \
+        __obj->prefix = (prefix_value); \
+        size_t __psz = sizeof(__obj->prefix); \
+        (void)memset(((char*)obj) + __psz, 0, sizeof(*(obj)) - __psz); \
+    })
 
 #define CP_GENSYM(name) CP_CONCAT(name, __LINE__)
 
@@ -141,12 +160,6 @@ typedef enum {
             *__yp = __h; \
         } \
     }while(0)
-
-#define cp_offsetof(T,F) (__builtin_offsetof(T,F))
-
-#define cp_alignof(X) (__alignof__(X))
-
-#define cp_countof(a) (sizeof(a)/sizeof((a)[0]))
 
 #define CP_ROUNDUP_DIV(a,b) \
     ({ \

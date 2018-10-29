@@ -85,6 +85,18 @@ static cp_mat3wi_t const *the_unit(
     return cp_v_nth(&result->mat, 0);
 }
 
+static void mat_ctxt_init(
+    mat_ctxt_t *m,
+    cp_csg3_tree_t *t)
+{
+    CP_ZERO(m);
+    m->mat = the_unit(t);
+    m->gc.color.r = 220;
+    m->gc.color.g = 220;
+    m->gc.color.b = 64;
+    m->gc.color.a = 255;
+}
+
 static void csg3_add_minmax(
     cp_csg3_add_t *r)
 {
@@ -837,9 +849,10 @@ static bool csg3_from_sphere(
     }
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_SPHERE, s->loc);
     cp_csg3_sphere_t *o = cp_csg3_sphere(_o);
+    o->gc = mo->gc;
+
     o->non_empty = true;
     o->mat = m;
-    o->gc = mo->gc;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = s->_fn;
@@ -874,13 +887,14 @@ static bool csg3_from_circle(
     }
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_CIRCLE, s->loc);
     cp_csg2_circle_t *o = &_o->circle;
+    o->gc = mo->gc;
+
     o->mat.n = CP_MAT2W(
         m->n.b.m[0][0], m->n.b.m[0][1], m->n.w.v[0],
         m->n.b.m[1][0], m->n.b.m[1][1], m->n.w.v[1]);
     o->mat.i = CP_MAT2W(
         m->i.b.m[0][0], m->i.b.m[0][1], m->i.w.v[0],
         m->i.b.m[1][0], m->i.b.m[1][1], m->i.w.v[1]);
-    o->gc = mo->gc;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = s->_fn;
@@ -1053,6 +1067,7 @@ static bool csg3_from_polygon(
 
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
     cp_csg2_poly_t *o = cp_csg3_poly2(_o);
+    o->gc = m->gc;
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1228,6 +1243,7 @@ static bool csg3_from_square(
     /* make cube shape */
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_POLY, s->loc);
     cp_csg2_poly_t *o = cp_csg3_poly2(_o);
+    o->gc = mo->gc;
 
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {
@@ -1451,9 +1467,10 @@ static bool csg3_from_cylinder(
     /* create a real cylinder */
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_CYL, s->loc);
     cp_csg3_cyl_t *o = cp_csg3_cyl(_o);
+    o->gc = mo->gc;
+
     o->non_empty = true;
     o->mat = m;
-    o->gc = mo->gc;
     o->r2 = r2;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
@@ -1595,8 +1612,7 @@ static bool cp_csg3_from_scad(
     bool no = false;
 
     mat_ctxt_t m;
-    CP_ZERO(&m);
-    m.mat = the_unit(t);
+    mat_ctxt_init(&m, t);
 
     if (!csg3_from_scad(&no, &t->root->add, t, e, &m, s)) {
         return false;
@@ -1622,8 +1638,7 @@ static bool cp_csg3_from_v_scad(
     bool no = false;
 
     mat_ctxt_t m;
-    CP_ZERO(&m);
-    m.mat = the_unit(t);
+    mat_ctxt_init(&m, t);
 
     if (!csg3_from_v_scad(&no, &t->root->add, t, e, &m, ss)) {
         return false;

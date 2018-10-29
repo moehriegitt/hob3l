@@ -11,6 +11,19 @@
 #include <hob3l/ps.h>
 #include "internal.h"
 
+/**
+ * Manual initialisation of CSG2 objects.
+ *
+ * Note: This does not zero the object, this has to be done before (with the
+ * right size of the corresponding struct type).
+ */
+#define CP_CSG2_INIT(_r, _type, _loc) \
+    ({ \
+        __typeof__(*(_r)) *__r = (_r); \
+        __r->type = (_type); \
+        __r->loc = (_loc); \
+    })
+
 static cp_csg2_t *csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_range_t const *s,

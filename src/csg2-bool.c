@@ -961,10 +961,9 @@ static void path_make(
 static void poly_make(
     cp_csg2_poly_t *r,
     ctxt_t *c,
-    cp_loc_t loc)
+    cp_csg2_poly_t const  *t)
 {
-    CP_ZERO(r);
-    CP_CSG2_INIT(r, CP_CSG2_POLY, loc);
+    CP_COPY_N_ZERO(r, obj, t->obj);
 
     assert((c->end == NULL) && "Some poly chains are still open");
 
@@ -1895,7 +1894,7 @@ static void cp_csg2_op_poly(
         }
     }
 
-    poly_make(o, &c, r->data[0]->loc);
+    poly_make(o, &c, r->data[0]);
 }
 
 static cp_csg2_poly_t *poly_sub(

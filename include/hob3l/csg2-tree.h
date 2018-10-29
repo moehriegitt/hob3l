@@ -10,19 +10,6 @@
 #include <hob3l/csg3_tam.h>
 
 /**
- * Manual initialisation of CSG2 objects.
- *
- * Note: This does not zero the object, this has to be done before (with the
- * right size of the corresponding struct type).
- */
-#define CP_CSG2_INIT(_r, _type, _loc) \
-    ({ \
-        __typeof__(*(_r)) *__r = (_r); \
-        __r->type = (_type); \
-        __r->loc = (_loc); \
-    })
-
-/**
  * Initialise a cp_csg2_add_t object unless it is initialised
  * already.
  *
