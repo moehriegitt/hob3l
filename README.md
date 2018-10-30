@@ -42,8 +42,9 @@ your CSG, then do use OpenSCAD's CGAL based rendering.
   * [OpenSCAD](#openscad)
   * [Table of Contents](#table-of-contents)
   * [SCAD Input Format](#scad-input-format)
-  * [Algorithmic Improvements](#algorithmic-improvements)
   * [Status, Stability, Limitations, Future Work, TODO](#status-stability-limitations-future-work-todo)
+  * [Supported Output Formats](#supported-output-formats)
+  * [JavaScript/WebGL Output](#javascript-webgl-output)
   * [Building](#building)
       * [Different Build Variants](#different-build-variants)
       * [Different Compiler Targets](#different-compiler-targets)
@@ -52,8 +53,8 @@ your CSG, then do use OpenSCAD's CGAL based rendering.
   * [Installation](#installation)
   * [Using This Tool, Command Line Options](#using-this-tool-command-line-options)
       * [Tweaking Command Line Settings](#tweaking-command-line-settings)
+  * [Algorithmic Improvements](#algorithmic-improvements)
   * [Speed comparison](#speed-comparison)
-  * [Supported Output Formats](#supported-output-formats)
   * [Rendering Differences](#rendering-differences)
   * [Name](#name)
 
@@ -64,30 +65,6 @@ I did not want to invent another format.
 
 Please check [the SCAD format documentation](doc/scadformat.md) for a
 definition of the subset of SCAD that is supported by Hob3l.
-
-## Algorithmic Improvements
-
-The triangulation algorithm of Hertel & Mehlhorn (1983) was
-extended to support coincident vertices, because this is what the
-polygon clipping outputs.  Also, sequences of collinear edges are
-fully supported, because, again, this may happen.
-
-The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
-was improved to have less computational instability by deriving
-crossing points always from the original edge (although currently,
-each 2D operation restarts this -- this could be improved).  Also,
-computational stability was improved by rigorous use of epsilon-aware
-arithmetics.  Further, a better polygon reassembling algorithm with
-O(n log n) runtime was implemented -- the original paper and reference
-implementation do not focus on this part.  Also, several additional
-corner cases are handled.
-
-For further speed-up, the polygon clipping algorithm was extended to
-support processing more than two polygons at the same time, because
-with a runtime of O(n log n), it benefits from larger n.  Currently,
-it usually works with max. 10 polygons.  Even processing 3 polygons at
-once speeds up some examples by a factor of 2 over processing 2
-polygons at once.
 
 ## Status, Stability, Limitations, Future Work, TODO
 
@@ -132,6 +109,64 @@ There are not enough tests.
 The tests that exist often only test for absence of a crash or assertion
 failure, but whether the algorithm works correctly then needs to be
 inspected by a human.
+
+## Supported Output Formats
+
+`STL`: The output format of Hob3l for which it was first developed, is
+STL.  This way, the input SCAD files can be converted and directly
+used in the slicer for 3D printing.
+
+`PS`: For debugging and documentation, including algorithm
+visualisation, Hob3l can output in PostScript.  This is how the
+overview images on this page where generated: by using single-page PS
+output, converted to `PNG` using `GraphicsMagick`.  For debugging,
+mainly multi-page debug PS output was used, which allows easy browsing
+(I used `gv` for its speed and other nice features). Also, this allows
+to compare different runs and do a step-by-step analysis of what is
+going on during the algorithm runs.  The PS modules has a large number
+of command line options to customise the output.
+
+`JS/WEBGL`: For prototyping SCAD files, a web browser can be used as a
+3D model viewer by using the JavaScript/WebGL output format.  The SCAD
+file can be edited in your favourite editor, then for visualisation,
+Hob3l can generate WebGL data (possibly with an intermediate step to
+let OpenSCAD simplify the input file using its .csg output), and a
+reload in the web browser will show the new model.  This package
+contains auxiliary files to make it immediately usable, e.g. the
+surrounding .html file with the WebGL viewer that loads the generated
+data.  See the `hob3l-js-copy-aux` script.
+
+`SCAD`: For debugging intermediate steps in the parser and converter,
+SCAD format output is available from several processing stages.
+
+## JavaScript/WebGL Output
+
+Here's a screenshot of my browser with a part of the Prusa i3MK3
+printer rendered by Hob3l:
+
+![Mk3 Part](img/curryjswebgl.png)
+
+The conversion from `.scad` to `.js` takes about 0.7s on my machine,
+so this is very well suited for prototyping: write the `.scad` in a
+text editor, run 'make', reload in browser.  To run this conversion
+yourself, after building, run:
+
+```
+    make clean-test
+    time make test-out/curry.js
+```
+
+This should print something like:
+
+```
+./hob3l.exe scad-test/curry.scad -o test-out/curry.js.new.js
+Info: Z: min=0.1, step=0.2, layer_cnt=75, max=14.9
+mv test-out/curry.js.new.js test-out/curry.js
+
+real  0m0.650s
+user  0m0.592s
+sys   0m0.044s
+```
 
 ## Building
 
@@ -324,6 +359,30 @@ let `eps2` be about the square of `eps`.
     --eps2=X
 ```
 
+## Algorithmic Improvements
+
+The triangulation algorithm of Hertel & Mehlhorn (1983) was
+extended to support coincident vertices, because this is what the
+polygon clipping outputs.  Also, sequences of collinear edges are
+fully supported, because, again, this may happen.
+
+The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
+was improved to have less computational instability by deriving
+crossing points always from the original edge (although currently,
+each 2D operation restarts this -- this could be improved).  Also,
+computational stability was improved by rigorous use of epsilon-aware
+arithmetics.  Further, a better polygon reassembling algorithm with
+O(n log n) runtime was implemented -- the original paper and reference
+implementation do not focus on this part.  Also, several additional
+corner cases are handled.
+
+For further speed-up, the polygon clipping algorithm was extended to
+support processing more than two polygons at the same time, because
+with a runtime of O(n log n), it benefits from larger n.  Currently,
+it usually works with max. 10 polygons.  Even processing 3 polygons at
+once speeds up some examples by a factor of 2 over processing 2
+polygons at once.
+
 ## Speed comparison
 
 Depending on the complexity of the model, Hob3l may be much faster
@@ -402,64 +461,6 @@ WebGL output in my web browser.
 ![OpenSCAD output](img/test31b-openscad.jpg)
 
 ![Hob3l output](img/test31b-hob3l.jpg)
-
-## Supported Output Formats
-
-`STL`: The output format of Hob3l for which it was first developed, is
-STL.  This way, the input SCAD files can be converted and directly
-used in the slicer for 3D printing.
-
-`PS`: For debugging and documentation, including algorithm
-visualisation, Hob3l can output in PostScript.  This is how the
-overview images on this page where generated: by using single-page PS
-output, converted to `PNG` using `GraphicsMagick`.  For debugging,
-mainly multi-page debug PS output was used, which allows easy browsing
-(I used `gv` for its speed and other nice features). Also, this allows
-to compare different runs and do a step-by-step analysis of what is
-going on during the algorithm runs.  The PS modules has a large number
-of command line options to customise the output.
-
-`JS/WEBGL`: For prototyping SCAD files, a web browser can be used as a
-3D model viewer by using the JavaScript/WebGL output format.  The SCAD
-file can be edited in your favourite editor, then for visualisation,
-Hob3l can generate WebGL data (possibly with an intermediate step to
-let OpenSCAD simplify the input file using its .csg output), and a
-reload in the web browser will show the new model.  This package
-contains auxiliary files to make it immediately usable, e.g. the
-surrounding .html file with the WebGL viewer that loads the generated
-data.  See the `hob3l-js-copy-aux` script.
-
-`SCAD`: For debugging intermediate steps in the parser and converter,
-SCAD format output is available from several processing stages.
-
-## JavaScript/WebGL Output
-
-Here's a screenshot of my browser with a part of the Prusa i3MK3
-printer rendered by Hob3l:
-
-![Mk3 Part](img/curryjswebgl.png)
-
-The conversion from `.scad` to `.js` takes about 0.7s on my machine,
-so this is very well suited for prototyping: write the `.scad` in a
-text editor, run 'make', reload in browser.  To run this conversion
-yourself, after building, run:
-
-```
-    make clean-test
-    time make test-out/curry.js
-```
-
-This should print something like:
-
-```
-./hob3l.exe scad-test/curry.scad -o test-out/curry.js.new.js
-Info: Z: min=0.1, step=0.2, layer_cnt=75, max=14.9
-mv test-out/curry.js.new.js test-out/curry.js
-
-real  0m0.650s
-user  0m0.592s
-sys   0m0.044s
-```
 
 ## Rendering Differences
 
