@@ -531,7 +531,7 @@ int main(int argc, char **argv)
     opt.tree.layer_gap = -1;
     opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
     opt.tree.optimise = CP_CSG2_OPT_DEFAULT;
-    opt.tree.color_rand = 15;
+    opt.tree.color_rand = 0;
     opt.verbose = 1;
 
     /* parse command line */

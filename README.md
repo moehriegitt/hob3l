@@ -394,9 +394,12 @@ time ./hob3l.exe scad-test/test31b.scad -o test31b.stl
 
 This is 250 times faster.  The difference is of course that with
 Hob3l, the result is sliced into layers, as the following image
-demonstrates.
+demonstrates.  The top is the OpenSCAD F6 view, the bottom is Hob3l's
+WebGL output in my web browser.
 
-![Hob3l output](img/test31b.jpg)
+![OpenSCAD output](img/test31b-openscad.jpg)
+
+![Hob3l output](img/test31b-hob3l.jpg)
 
 ## Supported Output Formats
 
@@ -460,14 +463,17 @@ sys   0m0.044s
 
 The difference of the conversion technique is visible in the model
 view of the STL, where the 2D CSG slicing technique clearly shows the
-layers:
+layers, e.g. for a real-life example sliced a 0.2mm with Hob3l.  The
+top is OpenSCAD's output in Slic3r, the bottom is Hob3l's output in
+Slic3r:
 
 ![OpenSCAD model](img/useless-model-openscad.jpg)
 ![Hob3l model](img/useless-model-hob3l.jpg)
 
 The final result of the slicer, however, is indistinguishable (I was
-unable to replicate the exact same view, so the Moir&eacute; patterns are
-different -- but the result is really the same):
+unable to replicate the exact same view, so the Moir&eacute; patterns
+are different -- but the result is really the same), again OpenSCAD
+output top, Hob3l bottom:
 
 ![OpenSCAD preview](img/useless-preview-openscad.jpg)
 ![Hob3l preview](img/useless-preview-hob3l.jpg)

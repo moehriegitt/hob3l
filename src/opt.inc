@@ -91,7 +91,7 @@ static char const *opt_help =
     "JavaScript/WEBGL Output Options\n"
     "    --js-color-rand=ARG\n"
     "        How much to randomise colors in CSG2 algorithm to make the result\n"
-    "        easier to grasp (default: 15, valid: 0..255). \n"
+    "        easier to grasp (default: 0, valid: 0..255, good start: 15). \n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
     "        for --dump-ps: expand to fit normal bounding box to page\n"
