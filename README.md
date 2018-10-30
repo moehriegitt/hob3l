@@ -376,12 +376,14 @@ This is 85 times faster.  Over half of the time is spent on writing
 the STL file, which is 23MB -- STL is huge.  Loading and converting
 only takes 0.23s.
 
-If you push it, the differences are even more pronounced: the test31b.scad
-example uses `$fn=99` for a few ellipsoids, causing openscad to slow down:
+You can push the difference in speed by making the model more complex,
+particularly when using high detail levels.  E.g., the test31b.scad
+example uses `$fn=99` for a few ellipsoids, causing openscad to slow
+down:
 
 ```
 time openscad scad-test/test31b.scad -o test31b.stl
-4m16.270s
+4m30.198s
 ```
 
 In contrast, the different algorithms used by Hob3l do not slow down
@@ -389,10 +391,10 @@ much:
 
 ```
 time ./hob3l.exe scad-test/test31b.scad -o test31b.stl
-0m1.011s
+0m0.748s
 ```
 
-This is 250 times faster.  The difference is of course that with
+This is 350 times faster.  The difference is of course that with
 Hob3l, the result is sliced into layers, as the following image
 demonstrates.  The top is the OpenSCAD F6 view, the bottom is Hob3l's
 WebGL output in my web browser.
