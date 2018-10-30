@@ -473,6 +473,10 @@ speed-test:
 	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
 	sync && sleep 1
 	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
+	sync && sleep 1
+	bash -c 'time $(HOB3L) scad-test/test31b.scad'
+	sync && sleep 1
+	bash -c 'time $(HOB3L) scad-test/test31b.scad'
 	rm -f .mode.d && mv .mode.d.old .mode.d
 	$(MAKE) clean
 

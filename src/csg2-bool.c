@@ -274,6 +274,9 @@ static void debug_print_chain(
     if (e0->debug_tag == tag) {
         return;
     }
+    if (cp_ring_is_singleton(&e0->node_chain)) {
+        return;
+    }
 
     e0->debug_tag = tag;
     cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->v.coord));
@@ -893,7 +896,7 @@ static void path_add_point(
     cp_v_push(&p->point_idx, idx);
 }
 
-static void path_add_point3(
+static bool path_add_point3(
     ctxt_t *c,
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
@@ -905,8 +908,44 @@ static void path_add_point3(
         (cur->p->path_cnt > 1) ||
         !cp_vec2_in_line(&prev->p->v.coord, &cur->p->v.coord, &next->p->v.coord))
     {
+        assert(!cp_vec2_eq(&prev->p->v.coord, &cur->p->v.coord));
+        assert(!cp_vec2_eq(&next->p->v.coord, &cur->p->v.coord));
         path_add_point(r, p, cur);
+        return true;
     }
+
+    return false;
+}
+
+/**
+ * Cut a path like a-b-a-c to just a-c.
+ * This may happen at small scales.
+ */
+static bool chain_cut_backforth(
+    event_t *a,
+    event_t **_b)
+{
+    event_t *b = *_b;
+    if (cp_ring_is_pair(&a->node_chain, &b->node_chain)) {
+        return false;
+    }
+    event_t *x = CP_BOX0_OF(cp_ring_next(&a->node_chain, &b->node_chain), event_t, node_chain);
+    if (a->p != x->p) {
+        return false;
+    }
+    assert(!cp_ring_is_end(&b->node_chain));
+    assert(!cp_ring_is_end(&x->node_chain));
+    assert(b->p->path_cnt > 0);
+    b->p->path_cnt--;
+    assert(x->p->path_cnt > 0);
+    x->p->path_cnt--;
+
+    *_b = CP_BOX0_OF(cp_ring_next(&b->node_chain, &x->node_chain), event_t, node_chain);
+
+    cp_ring_remove(&b->node_chain);
+    cp_ring_remove(&x->node_chain);
+
+    return true;
 }
 
 /**
@@ -940,17 +979,27 @@ static void path_make(
         CP_SWAP(&e0, &e1);
     }
 
+    /* eliminate back-and-forth points, which can happen at small dimensions */
+    while(chain_cut_backforth(e0, &e1)) {}
+    while(chain_cut_backforth(e1, &e0)) {}
+
     /* handle triples in order to add points that are not collinear */
     event_t *ea = e0;
     event_t *eb = e1;
     for (cp_ring_each(_ec, &e0->node_chain, &e1->node_chain)) {
         event_t *ec = CP_BOX_OF(_ec, event_t, node_chain);
-        path_add_point3(c, r, p, ea, eb, ec);
-        ea = eb;
+        while (chain_cut_backforth(eb, &ec)) {
+            _ec = &ec->node_chain;
+        }
+        if (path_add_point3(c, r, p, ea, eb, ec)) {
+            ea = eb;
+        }
         eb = ec;
     }
-    path_add_point3(c, r, p, ea, eb, e0);
-    path_add_point3(c, r, p, eb, e0, e1);
+    if (path_add_point3(c, r, p, ea, eb, e0)) {
+        ea = eb;
+    }
+    path_add_point3(c, r, p, ea, e0, e1);
 
     assert((p->point_idx.size >= 3) && "Polygon chain is too short");
 }
@@ -968,12 +1017,13 @@ static void poly_make(
 
     for (cp_list_each(_e, &c->poly)) {
         event_t *e = CP_BOX_OF(_e, event_t, node_poly);
-        if (!e->used) {
+        if (!e->used && !cp_ring_is_singleton(&e->node_chain)) {
             cp_csg2_path_t *p = cp_v_push0(&r->path);
             path_make(c, r, p, e);
         }
     }
 }
+
 
 /**
  * Add an edge to the output edge.  Only right events are added.
@@ -1063,9 +1113,6 @@ static void chain_add(
             assert(!cp_ring_is_end(&o2->node_chain));
             /* put in poly list */
             poly_add(c, o2);
-            /* At this point, from o2->in.below and the z normal of the triangle
-             * o1, o2, o2->other, we can derive what is inside and what is
-             * outside. */
             assert(o1 != o2->other);
         }
         break;
