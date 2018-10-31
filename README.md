@@ -45,7 +45,7 @@ your CSG, then do use OpenSCAD's CGAL based rendering.
   * [SCAD Input Format](#scad-input-format)
   * [Status, Stability, Limitations, Future Work, TODO](#status-stability-limitations-future-work-todo)
   * [Supported Output Formats](#supported-output-formats)
-  * [JavaScript/WebGL Output](#javascript-webgl-output)
+  * [JavaScript/WebGL Output](#javascriptwebgl-output)
   * [Building](#building)
       * [Different Build Variants](#different-build-variants)
       * [Different Compiler Targets](#different-compiler-targets)
