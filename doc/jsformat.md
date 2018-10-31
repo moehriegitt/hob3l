@@ -9,6 +9,7 @@ by assigning to an identifier):
   - SceneShiftI : optional number, default = 0
   - scene : optional array, default = []
   - worldPos : optional array of map
+  - anim : optional boolean, default = true
 
 The 'scene' and 'group' variable can be either assigned, or modified
 (e.g. by push).
@@ -87,15 +88,24 @@ If 'get' is defined, a rotation will be done.
 
 ## 'worldPos'
 
-An array of matrices defining a standard camera view.  Each entry is
-a map with the following slots:
+If non-empty, the first entry will be the default world view. All
+entries get a button to switch.
+
+An array of matrices defining a standard camera view.  Each entry is a
+map with the following slots:
 
   - 'name' : string;
      The name of the view (for generating a button to switch to this view).
+     If this is boolean false, this will not show up as a button.
 
-  - 'mat' : array of number;
+  - 'mat' : array[16] of float;
      A 16 entry (4x4) matrix with indices 0..3 forming the first column,
      defining the transformation for this view.
+     If this is missing, the worldPos matrix will not be reset.
+
+  - 'cam' : array[3] of float;
+     A 3 entry matrix with the camera position (in meter [m]).
+     If this is missing, the camera position will not be reset.
 
 The default view is the unit matrix.
 
@@ -131,6 +141,11 @@ value entry 'color' array correspond to each other, i.e., the 'normal'
 array has to have the same size as the 'vertex' array, and for every 3
 values in the 'vertex' array, there must be four values in the 'color'
 array.
+
+## 'anim'
+
+Whether to start with activated animation.  Can be set to 'false' to
+switch the default off.
 
 ### 'group'
 

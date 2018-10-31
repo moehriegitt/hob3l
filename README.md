@@ -1,11 +1,11 @@
-# hob3l
-Fast Slicing of SCAD Files for 3D Printing
+# Hob3l
+100x Faster Slicing of SCAD Files for 3D Printing
 
 ## Replace 3D CSG by Fast 2D Polygon Clipping
 
 Preparing a 3D model in CSG format (e.g., when using
-[OpenSCAD](http://www.openscad.org/)) for
-printing may take a long time and is often computationally instable.
+[OpenSCAD](http://www.openscad.org/))
+for printing may take a long time and is often computationally instable.
 
 So Hob3l wants to replace a workflow 'apply 3D CSG, then slice, then print':
 ![3D CSG](img/csg1-old.png)
@@ -18,8 +18,8 @@ In the hope that the latter is faster.  First experiments indeed
 indicate a huge speed-up for a non-trivial example, and much better
 computational stability.
 
-The idea is explained in more detail [in my
-blog](http://www.theiling.de/cnc/date/2018-09-23.html).
+The idea is explained in more detail
+[in my blog](http://www.theiling.de/cnc/date/2018-09-23.html).
 
 Hob3l's main output formats are
 
@@ -28,7 +28,8 @@ Hob3l's main output formats are
 
 ## OpenSCAD
 
-The purpose of this project is definitely not to rant about OpenSCAD.
+The purpose of this project is definitely not to rant about
+[OpenSCAD](http://www.openscad.org/).
 It is a great tool that I am also using.
 
 Instead, this is about a different technique for rendering CSG into
@@ -141,8 +142,9 @@ SCAD format output is available from several processing stages.
 
 ## JavaScript/WebGL Output
 
-Here's a screenshot of my browser with a part of the Prusa i3MK3
-printer rendered by Hob3l:
+Here's a screenshot of my browser with a part of the
+[Prusa i3 MK3](https://github.com/prusa3d/Original-Prusa-i3)
+3D printer rendered by Hob3l:
 
 ![Mk3 Part](img/curryjswebgl.png)
 
@@ -390,8 +392,9 @@ than using OpenSCAD with CGAL rendering.
 
 Some examples:
 
-The x-carriage.scad part of my [Prusa](https://www.prusa3d.com/) i3
-MK3 printer from the Prusa github repository: let's first convert it
+The x-carriage.scad part of my
+[Prusa i3 MK3](https://github.com/prusa3d/Original-Prusa-i3)
+printer from the Prusa github repository: let's first convert it
 to `.csg`.  This conversion is quickly done with OpenSCAD, and the
 resulting flat SCAD format is what Hob3l can read:
 

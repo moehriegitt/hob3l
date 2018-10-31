@@ -11,6 +11,7 @@
     var sceneScaleV = 1;
     var sceneScaleC = 1;
     var sceneShiftI = 0;
+    var anim = true;
     </script>
 
     <script src="gl-matrix/common.js"></script>
@@ -95,7 +96,6 @@
     var scaleAlphaAttr;
     var updateTime = 0.0;
     var buffer = [];
-    var anim = true;
     var matView = mat4.create();
     var matWorld = mat4.create();
     var turnDeg = 10;
@@ -672,8 +672,16 @@
 
     function setWorldPos(p)
     {
-        for (var i = 0; i < 16; i++) {
-            matWorld[i] = worldPos[p].mat[i];
+        var wp = worldPos[p];
+        if (wp.mat) {
+            for (var i = 0; i < 16; i++) {
+                matWorld[i] = wp.mat[i];
+            }
+        }
+        if (wp.cam) {
+            for (var i = 0; i < 3; i++) {
+                camPos[i] = wp.cam[i];
+            }
         }
         change = 1;
     }
@@ -683,9 +691,11 @@
         var buttons = [];
         for (var i = 0; i < worldPos.length; i++) {
             var n = worldPos[i];
-            buttons.push(
-                "<button class=\"but\" type=\"button\" onclick=\"setWorldPos('"+i+"')\">"+
-                n.name+"</button>");
+            if (n.name) {
+                buttons.push(
+                    "<button class=\"but\" type=\"button\" onclick=\"setWorldPos('"+i+"')\">"+
+                    n.name+"</button>");
+            }
         }
         inputWorldPos.innerHTML = buttons.join(" ");
     }
@@ -1120,6 +1130,7 @@
 
         if (worldPos.length >= 1) {
             setWorldPos(0);
+            camPos0 = camPos.slice();
         }
 
         setTurnDeg(turnDeg);
@@ -1490,6 +1501,10 @@
         d.setTime(d.getTime());
         var cookie = "pos_"+name+"=; expires="+d.toUTCString();
         document.cookie = cookie;
+
+        if (haveLocalStorage()) {
+            localStorage.setItem("pos", document.cookie);
+        }
 
         delete allPos[name];
 
