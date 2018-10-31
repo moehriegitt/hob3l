@@ -34,12 +34,12 @@ static char const *opt_help =
     "        thickness of slice [mm] (default: 0.2)\n"
     "    --z=ARG\n"
     "        equivalent to --min=ARG --max=ARG\n"
-#if CP_CSG3_CIRCULAR_CYLINDER
-    "    --round-fn=ARG\n"
-    "        maximum value of $fn for treating cylinders as polyhedra (default: 200).\n"
-    "        At $fn values larger than this, cylinders will be sliced as circular cylinders\n"
+    "    --max-fn=ARG\n"
+    "        maximum value of $fn for treating round objects as polyhedra (default: 50).\n"
+    "        At $fn values larger than this, spheres will be sliced into circles\n"
     "        and not converted to polyhedra.\n"
-#endif
+    "        Currently, because no output format has circular arc structures, no attempt\n"
+    "        was made to produce read arcs.  So circles are still approximated by polygons.\n"
     "    --opt-no-skip-empty\n"
     "    --opt-skip-empty\n"
     "        (do not) skip empty polygons (default: do)\n"
@@ -424,6 +424,14 @@ static void get_opt_max(
     opt->have_z_max = true;
 }
 
+static void get_opt_max_fn(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_size(&opt->csg3.max_fn, name, arg);
+}
+
 static void get_opt_max_simultaneous(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -719,16 +727,6 @@ static void get_opt_quiet(
     opt->verbose = 0;
 }
 
-static void get_opt_round_fn(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
-{
-#if CP_CSG3_CIRCULAR_CYLINDER
-    get_arg_size(&opt->csg3.max_fn, name, arg);
-#endif
-}
-
 static void get_opt_step(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -906,6 +904,11 @@ cp_get_opt_t opt_list[] = {
         2,
     },
     {
+        "max-fn",
+        get_opt_max_fn,
+        2,
+    },
+    {
         "max-simultaneous",
         get_opt_max_simultaneous,
         2,
@@ -1074,11 +1077,6 @@ cp_get_opt_t opt_list[] = {
         "quiet",
         get_opt_quiet,
         0,
-    },
-    {
-        "round-fn",
-        get_opt_round_fn,
-        2,
     },
     {
         "step",

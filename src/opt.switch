@@ -61,13 +61,13 @@ case "z": dim &opt->z_min {
     opt->have_z_max = true;
 }
 
-#if CP_CSG3_CIRCULAR_CYLINDER
-case "round-fn": size &opt->csg3.max_fn {
-    "maximum value of $fn for treating cylinders as polyhedra (default: 200).";
-    "At $fn values larger than this, cylinders will be sliced as circular cylinders";
+case "max-fn": size &opt->csg3.max_fn {
+    "maximum value of $fn for treating round objects as polyhedra (default: 50).";
+    "At $fn values larger than this, spheres will be sliced into circles";
     "and not converted to polyhedra.";
+    "Currently, because no output format has circular arc structures, no attempt";
+    "was made to produce read arcs.  So circles are still approximated by polygons.";
 }
-#endif
 
 case "opt-no-skip-empty": bool neg_bool &a {
     "(do not) skip empty polygons (default: do)";

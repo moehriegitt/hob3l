@@ -527,7 +527,7 @@ int main(int argc, char **argv)
     opt.ps.color_vertex = (cp_color_rgb_t){ .rgb = { 255,   0,   0 }};
     opt.ps.color_mark   = (cp_color_rgb_t){ .rgb = {   0,   0, 255 }};
     opt.ps.line_width = 0.4;
-    opt.csg3.max_fn = 200;
+    opt.csg3.max_fn = 100;
     opt.tree.layer_gap = -1;
     opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
     opt.tree.optimise = CP_CSG2_OPT_DEFAULT;

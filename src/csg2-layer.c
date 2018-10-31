@@ -608,7 +608,7 @@ static void csg2_add_layer_sphere(
     (void)cp_mat2wi_from_mat3wi(&mt2, &mt);
 
     /* add ellipse to output layer */
-    if (CP_CSG2_CIRCLULAR) {
+    if (CP_CSG2_HAVE_CIRCLE) {
         /* store real circle */
         cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
         cp_csg2_circle_t *r = cp_csg2_circle(_r);

@@ -695,11 +695,16 @@ will be determined if `d` is specified and `r` is not:
 
 This specifies a sphere centered at [0,0,0] with the radius `r`.
 
-Hob3l does not render the sphere as a polyhedron like OpenSCAD, but
-computes for each slice the ellipse cut from the ellipsoid defined by
-the sphere with its coordinate matrix.  The resulting ellipse will be
-converted into a polygon with `$fn` vertices.  One of the vertices of
-the polygon shape is at y=0 in the positive x axis.
+If `$fn` is non-0 but less than or equal to the `max-fn` parameter
+(e.g., set on the command line), then this renders a polyhedron like
+OpenSCAD 2015.3: $fn, or at least 3, will be the number of vertices in
+a polygon.
+
+if `fn` is greater than `max-fn`, then instead, Hob3l computes for
+each slice the ellipse cut from the ellipsoid defined by the sphere
+with its coordinate matrix.  The resulting ellipse will be converted
+into a polygon with `$fn` vertices.  One of the vertices of the
+polygon shape is at y=0 in the positive x axis.
 
 This difference in rendering compared to OpenSCAD has numeric
 advantages for approximating the sphere in Z direction, particularly
@@ -708,9 +713,6 @@ spheres differently from OpenSCAD, particularly at small values of
 `$fn` where the sphere will still be perfectly round (in steps of
 layer thickness) in Hob3l, while in OpenSCAD, it will be a polygon
 when viewed from the side.
-
-At some point in the future, a way to get exactly OpenSCAD 2015.3
-spheres may be added.
 
 ### square
 

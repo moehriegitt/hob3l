@@ -828,6 +828,101 @@ static void csg3_sphere_minmax(
     csg3_sphere_minmax1(bb, mat, 2);
 }
 
+static size_t get_fn(
+    cp_csg3_opt_t const *opt,
+    size_t fn,
+    bool have_circular)
+{
+    if (fn == 0) {
+        return have_circular ? 0 : opt->max_fn;
+    }
+    if (fn > opt->max_fn) {
+        return have_circular ? 0 : fn;
+    }
+    if (fn < 3) {
+        return 3;
+    }
+    return fn;
+}
+
+static void csg3_poly_make_sphere(
+    cp_csg3_poly_t *o,
+    cp_mat3wi_t const *m,
+    cp_scad_sphere_t *s,
+    size_t fn)
+{
+    assert(fn >= 3);
+
+    /* This is modelled after what OpenSCAD 2015.3 does */
+    size_t fnz = (fn + 1) >> 1;
+    assert(fnz >= 2);
+
+    /* generate the points */
+    cp_v_init0(&o->point, fn * fnz);
+    double fnza = CP_PI / cp_f(fnz * 2);
+    double fna = CP_TAU / cp_f(fn);
+    cp_vec3_loc_t *p = o->point.data;
+    for (cp_size_each(i, fnz)) {
+        double w = cp_f(1 + (2*i)) * fnza;
+        double z = cos(w);
+        double r = sin(w);
+        for (cp_size_each(j, fn)) {
+            assert(p < (o->point.data + o->point.size));
+            double t = cp_f(j) * fna;
+            p->coord.x = r*cos(t);
+            p->coord.y = r*sin(t);
+            p->coord.z = z;
+            p->loc = s->loc;
+            p++;
+        }
+    }
+
+    /* in-place xform */
+    for (cp_v_each(i, &o->point)) {
+        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
+    }
+
+    /* generate faces */
+    bool rev = (m->d < 0);
+    size_t k = 0;
+    cp_v_init0(&o->face, 2 + (fn * (fnz - 1)));
+
+    /* top */
+    cp_csg3_face_t *f = &cp_v_nth(&o->face, k++);
+    cp_v_init0(&f->point, fn);
+    for (cp_size_each(j, fn)) {
+        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+        v->ref = &cp_v_nth(&o->point, j);
+        v->loc = s->loc;
+    }
+    face_basics(f, !rev, s->loc);
+
+    /* bottom */
+    f = &cp_v_nth(&o->face, k++);
+    cp_v_init0(&f->point, fn);
+    for (cp_size_each(j, fn)) {
+        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+        v->ref = &cp_v_nth(&o->point, o->point.size - j - 1);
+        v->loc = s->loc;
+    }
+    face_basics(f, !rev, s->loc);
+
+    /* sides */
+    for (cp_size_each(i, fnz, 1)) {
+        size_t k1 = i * fn;
+        size_t k0 = k1 - fn;
+        for (cp_size_each(j0, fn)) {
+            size_t j1 = cp_wrap_add1(j0, fn);
+            f = &cp_v_nth(&o->face, k++);
+            face_init_from_point_ref(
+                f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1, k1+j0 }, 4, rev, s->loc);
+        }
+    }
+
+    assert(o->face.size == k);
+
+}
+
 static bool csg3_from_sphere(
     cp_v_csg3_p_t *r,
     cp_csg3_tree_t *t,
@@ -840,6 +935,7 @@ static bool csg3_from_sphere(
         e->loc = s->loc;
         return false;
     }
+
     cp_mat3wi_t const *m = mo->mat;
     if (!cp_eq(s->r, 1)) {
         cp_mat3wi_t *m1 = mat_new(t);
@@ -847,6 +943,23 @@ static bool csg3_from_sphere(
         cp_mat3wi_mul(m1, m, m1);
         m = m1;
     }
+
+    size_t fn = get_fn(&t->opt, s->_fn, true);
+    if (fn > 0) {
+        cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
+        cp_csg3_poly_t *o = cp_csg3_poly(_o);
+        o->gc = mo->gc;
+
+        csg3_poly_make_sphere(o, m, s, fn);
+        csg3_poly_minmax(o);
+        if (!poly_make_edges(o, t, e)) {
+            cp_vchar_printf(&e->msg,
+                " Internal Error: Sphere polyhedron construction algorithm is broken.\n");
+            return false;
+        }
+        return true;
+    }
+
     cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_SPHERE, s->loc);
     cp_csg3_sphere_t *o = cp_csg3_sphere(_o);
     o->gc = mo->gc;
@@ -855,10 +968,7 @@ static bool csg3_from_sphere(
     o->mat = m;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
-    o->_fn = s->_fn;
-    if (o->_fn < 3) {
-        o->_fn = t->opt.max_fn;
-    }
+    o->_fn = t->opt.max_fn;
 
     csg3_sphere_minmax(&o->bb, o->mat);
     return true;
@@ -897,10 +1007,7 @@ static bool csg3_from_circle(
         m->i.b.m[1][0], m->i.b.m[1][1], m->i.w.v[1]);
     o->_fa = s->_fa;
     o->_fs = s->_fs;
-    o->_fn = s->_fn;
-    if (o->_fn < 3) {
-        o->_fn = t->opt.max_fn;
-    }
+    o->_fn = get_fn(&t->opt, s->_fn, true);
     return true;
 }
 #endif
@@ -1460,13 +1567,8 @@ static bool csg3_from_cylinder(
     }
 
     /* possibly generate a polyhedron */
-    if (!CP_CSG3_CIRCULAR_CYLINDER ||
-        ((s->_fn >= 3) && (s->_fn <= t->opt.max_fn)))
-    {
-        size_t fn = s->_fn;
-        if (fn < 3) {
-            fn = t->opt.max_fn;
-        }
+    size_t fn = get_fn(&t->opt, s->_fn, CP_CSG3_CIRCULAR_CYLINDER);
+    if (fn > 0) {
         return csg3_poly_cylinder(r, t, e, m, s, mo, r2, fn);
     }
 
@@ -1480,10 +1582,7 @@ static bool csg3_from_cylinder(
     o->r2 = r2;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
-    o->_fn = s->_fn;
-    if (o->_fn < 3) {
-        o->_fn = t->opt.max_fn;
-    }
+    o->_fn = fn;
     return true;
 }
 

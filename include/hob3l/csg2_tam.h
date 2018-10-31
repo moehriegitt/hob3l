@@ -15,7 +15,7 @@
  * Whether to support circles in 2D engine.
  * FIXME: Not yet implemented.
  */
-#define CP_CSG2_CIRCLULAR 0
+#define CP_CSG2_HAVE_CIRCLE 0
 
 /**
  * 2D CSG basic shapes.
