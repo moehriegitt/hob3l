@@ -148,6 +148,10 @@ Here's a screenshot of my browser with a part of the
 
 ![Mk3 Part](img/curryjswebgl.png)
 
+There is an [online version available
+here](http://www.theiling.de/cnc/gl-curryhob3l/curry.html) to play
+with.
+
 The conversion from `.scad` to `.js` takes about 0.7s on my machine,
 so this is very well suited for prototyping: write the `.scad` in a
 text editor, run 'make', reload in browser.  To run this conversion
