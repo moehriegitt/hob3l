@@ -27,13 +27,13 @@
     })
 
 /** Specialising cast w/ dynamic check */
-#define cp_csg3_cast(t,s) \
+#define cp_csg3_cast(_t,s) \
     ({ \
-        assert((s)->type == cp_csg3_typeof(*(t))); \
-        (__typeof__(t))(s); \
+        assert((s)->type == cp_csg3_typeof((s)->_t)); \
+        &(s)->_t; \
     })
 
-/**  Generalising case w/ static check */
+/**  Generalising cast w/ static check */
 #define cp_csg3(t) \
     ({ \
         cp_static_assert(cp_csg3_typeof(*(t)) != 0); \
@@ -57,14 +57,5 @@ extern bool cp_csg3_from_scad_tree(
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t *scad);
-
-/* Dynamic casts */
-CP_DECLARE_CAST_(csg3, sphere, CP_CSG3_SPHERE)
-CP_DECLARE_CAST_(csg3, cyl,    CP_CSG3_CYL)
-CP_DECLARE_CAST_(csg3, poly,   CP_CSG3_POLY)
-CP_DECLARE_CAST_(csg3, add,    CP_CSG3_ADD)
-CP_DECLARE_CAST_(csg3, sub,    CP_CSG3_SUB)
-CP_DECLARE_CAST_(csg3, cut,    CP_CSG3_CUT)
-CP_DECLARE_CAST_(csg3, 2d,     CP_CSG3_2D)
 
 #endif /* __CP_CSG3_H */

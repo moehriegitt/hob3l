@@ -279,6 +279,7 @@ typedef enum {
 
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */
+#define CP_TYPE_MASK      0xff00
 #define CP_SYN_VALUE_TYPE 0x1000
 #define CP_SYN_STMT_TYPE  0x1100
 #define CP_SCAD_TYPE      0x2000

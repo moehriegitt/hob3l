@@ -122,10 +122,10 @@ static void cp_syn_stmt_put_scad(
 {
     switch (f->type) {
     case CP_SYN_STMT_ITEM:
-        cp_syn_stmt_item_put_scad(s, d, cp_syn_stmt_item(f));
+        cp_syn_stmt_item_put_scad(s, d, cp_syn_cast(_item, f));
         return;
     case CP_SYN_STMT_USE:
-        cp_syn_stmt_use_put_scad(s, d, cp_syn_stmt_use(f));
+        cp_syn_stmt_use_put_scad(s, d, cp_syn_cast(_use, f));
         return;
     default:
         CP_NYI("type=0x%x", f->type);

@@ -214,7 +214,9 @@ static bool csg3_from_difference(
         /* all others children are also negative */
         for (cp_v_each(i, &s->child, sub_i)) {
             if (!csg3_from_scad(
-                no, &cp_csg3_sub(cp_v_nth(&f, 0))->sub.add, t, e, m, cp_v_nth(&s->child, i)))
+                no,
+                &cp_csg3_cast(_sub, cp_v_nth(&f, 0))->sub.add,
+                t, e, m, cp_v_nth(&s->child, i)))
             {
                 return false;
             }
@@ -1727,19 +1729,19 @@ static void get_max_bb_csg3(
 {
     switch (r->type) {
     case CP_CSG3_ADD:
-        get_max_bb_add(bb, cp_csg3_add_const(r));
+        get_max_bb_add(bb, cp_csg3_cast(_add, r));
         return;
 
     case CP_CSG3_SUB:
-        get_max_bb_sub(bb, cp_csg3_sub_const(r));
+        get_max_bb_sub(bb, cp_csg3_cast(_sub, r));
         return;
 
     case CP_CSG3_CUT:
-        get_max_bb_cut(bb, cp_csg3_cut_const(r));
+        get_max_bb_cut(bb, cp_csg3_cast(_cut, r));
         return;
 
     case CP_CSG3_SPHERE:
-        get_max_bb_sphere(bb, cp_csg3_sphere_const(r));
+        get_max_bb_sphere(bb, cp_csg3_cast(_sphere, r));
         return;
 
     case CP_CSG3_CYL:
@@ -1747,7 +1749,7 @@ static void get_max_bb_csg3(
         return;
 
     case CP_CSG3_POLY:
-        get_max_bb_poly(bb, cp_csg3_poly_const(r));
+        get_max_bb_poly(bb, cp_csg3_cast(_poly, r));
         return;
     }
 }

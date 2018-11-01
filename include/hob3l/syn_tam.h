@@ -334,4 +334,15 @@ typedef struct {
     char const *orig_end;
 } cp_syn_loc_t;
 
+#define cp_syn_typeof(type) \
+    _Generic(type, \
+        cp_syn_value_id_t:     CP_SYN_VALUE_ID, \
+        cp_syn_value_int_t:    CP_SYN_VALUE_INT, \
+        cp_syn_value_float_t:  CP_SYN_VALUE_FLOAT, \
+        cp_syn_value_string_t: CP_SYN_VALUE_STRING, \
+        cp_syn_value_range_t:  CP_SYN_VALUE_RANGE, \
+        cp_syn_value_array_t:  CP_SYN_VALUE_ARRAY, \
+        cp_syn_stmt_item_t:    CP_SYN_STMT_ITEM, \
+        cp_syn_stmt_use_t:     CP_SYN_STMT_USE)
+
 #endif /* __CP_SYN_TAM_H */

@@ -15,6 +15,36 @@
 #include <hob3l/syn_tam.h>
 #include <hob3l/syn-2scad.h>
 
+/** Create a SYN instance */
+#define cp_syn_new(r, _loc) \
+    ({ \
+        __typeof__(r) * __r = CP_NEW(*__r); \
+        __r->type = cp_syn_typeof(*__r); \
+        __r->loc = (_loc); \
+        __r; \
+    })
+
+/** Specialising cast w/ dynamic check */
+#define cp_syn_cast(_t,s) \
+    ({ \
+        assert((s)->type == cp_syn_typeof((s)->_t)); \
+        &(s)->_t; \
+    })
+
+/**  Generalising cast w/ static check */
+#define cp_syn_value(t) \
+    ({ \
+        cp_static_assert((cp_syn_typeof(*(t)) & CP_TYPE_MASK) == CP_SYN_VALUE_TYPE); \
+        (cp_syn_value_t*)(t); \
+    })
+
+/**  Generalising cast w/ static check */
+#define cp_syn_stmt(t) \
+    ({ \
+        cp_static_assert((cp_syn_typeof(*(t)) & CP_TYPE_MASK) == CP_SYN_STMT_TYPE); \
+        (cp_syn_stmt_t*)(t); \
+    })
+
 /**
  * Parse a file into a SCAD syntax tree.
  */
@@ -48,16 +78,5 @@ extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
     cp_syn_tree_t *tree,
     char const *token);
-
-/* dynamic casts */
-CP_DECLARE_CAST_(syn_stmt, item, CP_SYN_STMT_ITEM)
-CP_DECLARE_CAST_(syn_stmt, use,  CP_SYN_STMT_USE)
-
-CP_DECLARE_CAST_(syn_value, id,     CP_SYN_VALUE_ID)
-CP_DECLARE_CAST_(syn_value, int,    CP_SYN_VALUE_INT)
-CP_DECLARE_CAST_(syn_value, float,  CP_SYN_VALUE_FLOAT)
-CP_DECLARE_CAST_(syn_value, string, CP_SYN_VALUE_STRING)
-CP_DECLARE_CAST_(syn_value, range,  CP_SYN_VALUE_RANGE)
-CP_DECLARE_CAST_(syn_value, array,  CP_SYN_VALUE_ARRAY)
 
 #endif /* __CP_SCAD_H */

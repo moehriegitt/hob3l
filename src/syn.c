@@ -476,55 +476,11 @@ static bool parse_string(
     return expect_err(p, T_STRING);
 }
 
-#define value_new(t, l) __value_new(CP_FILE, CP_LINE, t, l)
-
-static cp_syn_value_t *__value_new(
-    char const *file,
-    int line,
-    cp_syn_value_type_t type,
-    cp_loc_t loc)
-{
-    static const size_t size[] = {
-        [CP_SYN_VALUE_ID]     = sizeof(cp_syn_value_id_t),
-        [CP_SYN_VALUE_INT]    = sizeof(cp_syn_value_int_t),
-        [CP_SYN_VALUE_FLOAT]  = sizeof(cp_syn_value_float_t),
-        [CP_SYN_VALUE_STRING] = sizeof(cp_syn_value_string_t),
-        [CP_SYN_VALUE_RANGE]  = sizeof(cp_syn_value_range_t),
-        [CP_SYN_VALUE_ARRAY]  = sizeof(cp_syn_value_array_t),
-    };
-    assert(type < cp_countof(size));
-    assert(size[type] != 0);
-    cp_syn_value_t *r = cp_calloc(file, line, 1, size[type]);
-    r->type = type;
-    r->loc = loc;
-    return r;
-}
-
-#define stmt_new(t, l) __stmt_new(CP_FILE, CP_LINE, t, l)
-
-static cp_syn_stmt_t *__stmt_new(
-    char const *file,
-    int line,
-    cp_syn_stmt_type_t type,
-    cp_loc_t loc)
-{
-    static const size_t size[] = {
-        [CP_SYN_STMT_ITEM] = sizeof(cp_syn_stmt_item_t),
-        [CP_SYN_STMT_USE]  = sizeof(cp_syn_stmt_use_t),
-    };
-    assert(type < cp_countof(size));
-    assert(size[type] != 0);
-    cp_syn_stmt_t *r = cp_calloc(file, line, 1, size[type]);
-    r->type = type;
-    r->loc = loc;
-    return r;
-}
-
 static cp_syn_value_t *value_id_new(cp_loc_t loc)
 {
-    cp_syn_value_t *x = value_new(CP_SYN_VALUE_ID, loc);
-    x->_id.value = loc;
-    return x;
+    cp_syn_value_id_t *x = cp_syn_new(*x, loc);
+    x->value = loc;
+    return cp_syn_value(x);
 }
 
 static bool parse_new_id(
@@ -539,24 +495,27 @@ static bool parse_new_int(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_INT, p->tok_loc);
-    return parse_int(p, &(*rp)->_int);
+    cp_syn_value_int_t *v = cp_syn_new(*v, p->tok_loc);
+    *rp = cp_syn_value(v);
+    return parse_int(p, v);
 }
 
 static bool parse_new_float(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_FLOAT, p->tok_loc);
-    return parse_float(p, &(*rp)->_float);
+    cp_syn_value_float_t *v = cp_syn_new(*v, p->tok_loc);
+    *rp = cp_syn_value(v);
+    return parse_float(p, v);
 }
 
 static bool parse_new_string(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_new(CP_SYN_VALUE_STRING, p->tok_loc);
-    return parse_string(p, &(*rp)->_string);
+    cp_syn_value_string_t *v = cp_syn_new(*v, p->tok_loc);
+    *rp = cp_syn_value(v);
+    return parse_string(p, v);
 }
 
 /**
@@ -575,7 +534,8 @@ static bool parse_new_range_or_array(
 
     if (expect(p, ']')) {
         /* empty array */
-        *rp = value_new(CP_SYN_VALUE_ARRAY, loc);
+        cp_syn_value_array_t *v = cp_syn_new(*v, loc);
+        *rp = cp_syn_value(v);
         return true;
     }
 
@@ -586,24 +546,26 @@ static bool parse_new_range_or_array(
 
     if (expect(p, ':')) {
         /* range! */
-        *rp = value_new(CP_SYN_VALUE_RANGE, loc);
-        (*rp)->_range.start = start;
+        cp_syn_value_range_t *v = cp_syn_new(*v, loc);
+        *rp = cp_syn_value(v);
+        v->start = start;
 
-        if (!parse_value(p, &(*rp)->_range.end)) {
+        if (!parse_value(p, &v->end)) {
             return false;
         }
 
         if (expect(p, ':')) {
-            (*rp)->_range.inc = (*rp)->_range.end;
-            if (!parse_value(p, &(*rp)->_range.end)) {
+            v->inc = v->end;
+            if (!parse_value(p, &v->end)) {
                 return false;
             }
         }
     }
     else {
         /* array! */
-        *rp = value_new(CP_SYN_VALUE_ARRAY, loc);
-        cp_v_syn_value_p_t *a = &(*rp)->_array.value;
+        cp_syn_value_array_t *v = cp_syn_new(*v, loc);
+        *rp = cp_syn_value(v);
+        cp_v_syn_value_p_t *a = &v->value;
         cp_v_push(a, start);
 
         cp_syn_value_t *elem;
@@ -830,9 +792,9 @@ static bool parse_item_push_stmt(
     if (expect(p, ';')) {
         return true;
     }
-    cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_ITEM, p->tok_string);
-    cp_v_push(r, f);
-    return parse_stmt_item(p, cp_syn_stmt_item(f));
+    cp_syn_stmt_item_t *f = cp_syn_new(*f, p->tok_string);
+    cp_v_push(r, cp_syn_stmt(f));
+    return parse_stmt_item(p, f);
 }
 
 static bool parse_item_push_stmt_item(
@@ -842,9 +804,9 @@ static bool parse_item_push_stmt_item(
     if (expect(p, ';')) {
         return true;
     }
-    cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_ITEM, p->tok_string);
-    cp_v_push(r, cp_syn_stmt_item(f));
-    return parse_stmt_item(p, cp_syn_stmt_item(f));
+    cp_syn_stmt_item_t *f = cp_syn_new(*f, p->tok_string);
+    cp_v_push(r, f);
+    return parse_stmt_item(p, f);
 }
 
 static bool parse_stmt_item_list(
@@ -871,9 +833,9 @@ static bool parse_stmt_list(
         }
         switch (p->tok_type) {
         case K_USE:{
-            cp_syn_stmt_t *f = stmt_new(CP_SYN_STMT_USE, p->tok_string);
-            cp_v_push(r, f);
-            if (!parse_stmt_use(p, cp_syn_stmt_use(f))) {
+            cp_syn_stmt_use_t *f = cp_syn_new(*f, p->tok_string);
+            cp_v_push(r, cp_syn_stmt(f));
+            if (!parse_stmt_use(p, f)) {
                 return false;
             }
             break;}

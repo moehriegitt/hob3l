@@ -96,7 +96,7 @@ static val_t evaluate(
     if (x->type != CP_SYN_VALUE_ID) {
         return false;
     }
-    char const *id = cp_syn_value_id_const(x)->value;
+    char const *id = cp_syn_cast(_id, x)->value;
     switch (id[0]) {
     case 'P':
         if (strequ(id, "PI")) {
@@ -127,7 +127,7 @@ static bool try_get_longlong(
     cp_syn_value_t const *v)
 {
     if (v->type == CP_SYN_VALUE_INT) {
-        *r = cp_syn_value_int_const(v)->value;
+        *r = cp_syn_cast(_int, v)->value;
         return true;
     }
 
@@ -1069,7 +1069,7 @@ static bool color_from_func(
     }
     else
     if (_c->type == CP_SYN_VALUE_ARRAY) {
-        cp_syn_value_array_t const *c = cp_syn_value_array_const(_c);
+        cp_syn_value_array_t const *c = cp_syn_cast(_array,_c);
         if (c->value.size < 3) {
             cp_vchar_printf(&t->err->msg,
                 "Expected at least 3 colour components, but found %"_Pz"u.\n",
@@ -1094,7 +1094,7 @@ static bool color_from_func(
     }
     else
     if (_c->type == CP_SYN_VALUE_STRING) {
-        cp_syn_value_string_t const *c = cp_syn_value_string_const(_c);
+        cp_syn_value_string_t const *c = cp_syn_cast(_string, _c);
         if (!cp_color_by_name(&r->rgba.rgb, c->value)) {
             cp_vchar_printf(&t->err->msg, "Unknown colour '%s'.\n", c->value);
             t->err->loc = c->loc;
@@ -1436,9 +1436,9 @@ static bool v_scad_from_syn_stmt(
 {
     switch (f->type) {
     case CP_SYN_STMT_ITEM:
-       return v_scad_from_syn_stmt_item(t, result, cp_syn_stmt_item(f));
+       return v_scad_from_syn_stmt_item(t, result, cp_syn_cast(_item, f));
     case CP_SYN_STMT_USE:
-       return v_scad_from_syn_stmt_use(t, result, cp_syn_stmt_use(f));
+       return v_scad_from_syn_stmt_use(t, result, cp_syn_cast(_use, f));
     default:
        CP_NYI("type=0x%x", f->type);
     }

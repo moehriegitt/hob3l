@@ -111,13 +111,13 @@ static cp_csg2_t *csg2_tree_from_csg3(
         return csg2_tree_from_csg3_obj(s, d);
 
     case CP_CSG3_ADD:
-        return csg2_tree_from_csg3_add(r, s, cp_csg3_add_const(d));
+        return csg2_tree_from_csg3_add(r, s, cp_csg3_cast(_add, d));
 
     case CP_CSG3_SUB:
-        return csg2_tree_from_csg3_sub(r, s, cp_csg3_sub_const(d));
+        return csg2_tree_from_csg3_sub(r, s, cp_csg3_cast(_sub, d));
 
     case CP_CSG3_CUT:
-        return csg2_tree_from_csg3_cut(r, s, cp_csg3_cut_const(d));
+        return csg2_tree_from_csg3_cut(r, s, cp_csg3_cast(_cut, d));
     }
 
     CP_DIE("3D object type");
