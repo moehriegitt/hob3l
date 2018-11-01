@@ -46,10 +46,9 @@ static cp_csg2_t *csg2_tree_from_csg3_add(
     cp_range_t const *s,
     cp_csg3_add_t const *d)
 {
-    cp_csg2_t *_c = cp_csg2_new(CP_CSG2_ADD, d->loc);
-    cp_csg2_add_t *c = cp_csg2_add(_c);
+    cp_csg2_add_t *c = cp_csg2_new(*c, d->loc);
     csg2_tree_from_v_csg3(r, s, &c->add, &d->add);
-    return _c;
+    return cp_csg2(c);
 }
 
 static cp_csg2_t *csg2_tree_from_csg3_sub(
@@ -57,13 +56,12 @@ static cp_csg2_t *csg2_tree_from_csg3_sub(
     cp_range_t const *s,
     cp_csg3_sub_t const *d)
 {
-    cp_csg2_t *_c = cp_csg2_new(CP_CSG2_SUB, d->loc);
-    cp_csg2_sub_t *c = cp_csg2_sub(_c);
+    cp_csg2_sub_t *c = cp_csg2_new(*c, d->loc);
     cp_csg2_add_init_perhaps(&c->add, c->loc);
     cp_csg2_add_init_perhaps(&c->sub, c->loc);
     csg2_tree_from_v_csg3(r, s, &c->add.add, &d->add.add);
     csg2_tree_from_v_csg3(r, s, &c->sub.add, &d->sub.add);
-    return _c;
+    return cp_csg2(c);
 }
 
 static cp_csg2_t *csg2_tree_from_csg3_cut(
@@ -71,30 +69,28 @@ static cp_csg2_t *csg2_tree_from_csg3_cut(
     cp_range_t const *s,
     cp_csg3_cut_t const *d)
 {
-    cp_csg2_t *_c = cp_csg2_new(CP_CSG2_CUT, d->loc);
-    cp_csg2_cut_t *c = cp_csg2_cut(_c);
+    cp_csg2_cut_t *c = cp_csg2_new(*c, d->loc);
 
     cp_v_init0(&c->cut, d->cut.size);
     for (cp_v_each(i, &c->cut)) {
         cp_csg2_t *_q = csg2_tree_from_csg3_add(r, s, cp_v_nth(&d->cut, i));
-        cp_v_nth(&c->cut, i) = cp_csg2_add(_q);
+        cp_v_nth(&c->cut, i) = cp_csg2_cast(_add, _q);
     }
-    return _c;
+    return cp_csg2(c);
 }
 
 static cp_csg2_t *csg2_tree_from_csg3_obj(
     cp_range_t const *s,
     cp_csg3_t const *d)
 {
-    cp_csg2_t *_c = cp_csg2_new(CP_CSG2_STACK, d->loc);
-    cp_csg2_stack_t *c = cp_csg2_stack(_c);
+    cp_csg2_stack_t *c = cp_csg2_new(*c, d->loc);
 
     c->csg3 = d;
     c->idx0 = 0;
     cp_v_init0(&c->layer, s->cnt);
     assert(c->layer.size == s->cnt);
 
-    return _c;
+    return cp_csg2(c);
 }
 
 static cp_csg2_t *csg2_tree_from_csg3(
@@ -146,30 +142,6 @@ extern void cp_csg2_add_init_perhaps(
 }
 
 /**
- * Internal: allocate a new CSG2 object.
- */
-extern cp_csg2_t *__cp_csg2_new(
-    char const *file,
-    int line,
-    cp_csg2_type_t type,
-    cp_loc_t loc)
-{
-    static const size_t size[] = {
-        [CP_CSG2_CIRCLE]   = sizeof(cp_csg2_circle_t),
-        [CP_CSG2_POLY]     = sizeof(cp_csg2_poly_t),
-        [CP_CSG2_ADD]      = sizeof(cp_csg2_add_t),
-        [CP_CSG2_SUB]      = sizeof(cp_csg2_sub_t),
-        [CP_CSG2_CUT]      = sizeof(cp_csg2_cut_t),
-        [CP_CSG2_STACK]    = sizeof(cp_csg2_stack_t),
-    };
-    assert(type < cp_countof(size));
-    assert(size[type] != 0);
-    cp_csg2_t *r = cp_calloc(file, line, 1, size[type]);
-    CP_CSG2_INIT(r, type, loc);
-    return r;
-}
-
-/**
  * Initialises a CSG2 structure with a tree derived from a CSG3
  * structure, and reserves, for each simple object in the tree, an
  * array of layers of size layer_cnt.
@@ -182,7 +154,8 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg2_tree_opt_t const *o)
 {
-    r->root = cp_csg2_new(CP_CSG2_ADD, d->root->loc);
+    cp_csg2_add_t *root = cp_csg2_new(*root, d->root->loc);
+    r->root = cp_csg2(root);
     r->thick = s->step;
     r->opt = *o;
 
@@ -197,5 +170,5 @@ extern void cp_csg2_tree_from_csg3(
         return;
     }
 
-    csg2_tree_from_v_csg3(r, s, &cp_csg2_add(r->root)->add, &d->root->add);
+    csg2_tree_from_v_csg3(r, s, &cp_csg2_cast(_add, r->root)->add, &d->root->add);
 }

@@ -22,15 +22,6 @@ extern void cp_csg2_add_init_perhaps(
     cp_loc_t loc);
 
 /**
- * Internal: allocate a new CSG2 object.
- */
-extern cp_csg2_t *__cp_csg2_new(
-    char const *file,
-    int line,
-    cp_csg2_type_t type,
-    cp_loc_t loc);
-
-/**
  * Initialises a CSG2 structure with a tree derived from a CSG3
  * structure, and reserves, for each simple object in the tree, an
  * array of layers of size layer_cnt.

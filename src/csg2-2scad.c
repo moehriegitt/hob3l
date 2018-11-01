@@ -172,23 +172,23 @@ static void csg2_put_scad(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_scad(s, t, d, zi, cp_csg2_add(r));
+        add_put_scad(s, t, d, zi, cp_csg2_cast(_add, r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_scad(s, t, d, zi, cp_csg2_sub(r));
+        sub_put_scad(s, t, d, zi, cp_csg2_cast(_sub, r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_scad(s, t, d, zi, cp_csg2_cut(r));
+        cut_put_scad(s, t, d, zi, cp_csg2_cast(_cut, r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_scad(s, t, d, zi, cp_csg2_poly(r));
+        poly_put_scad(s, t, d, zi, cp_csg2_cast(_poly, r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_scad(s, t, d, cp_csg2_stack(r));
+        stack_put_scad(s, t, d, cp_csg2_cast(_stack, r));
         return;
 
     case CP_CSG2_CIRCLE:

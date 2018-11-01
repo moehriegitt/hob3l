@@ -10,6 +10,29 @@
 #include <hob3l/scad_fwd.h>
 #include <hob3l/gc_tam.h>
 
+/**
+ * Map type to type ID */
+#define cp_scad_typeof(type) \
+    _Generic(type, \
+        cp_scad_union_t:        CP_SCAD_UNION, \
+        cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
+        cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
+        cp_scad_sphere_t:       CP_SCAD_SPHERE, \
+        cp_scad_cylinder_t:     CP_SCAD_CYLINDER, \
+        cp_scad_cube_t:         CP_SCAD_CUBE, \
+        cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
+        cp_scad_multmatrix_t:   CP_SCAD_MULTMATRIX, \
+        cp_scad_translate_t:    CP_SCAD_TRANSLATE, \
+        cp_scad_mirror_t:       CP_SCAD_MIRROR, \
+        cp_scad_scale_t:        CP_SCAD_SCALE, \
+        cp_scad_rotate_t:       CP_SCAD_ROTATE, \
+        cp_scad_circle_t:       CP_SCAD_CIRCLE, \
+        cp_scad_square_t:       CP_SCAD_SQUARE, \
+        cp_scad_polygon_t:      CP_SCAD_POLYGON, \
+        cp_scad_color_t:        CP_SCAD_COLOR)
+
+/**
+ * Type IDs for SCAD module */
 typedef enum {
     CP_SCAD_UNION = CP_SCAD_TYPE + 1,
     CP_SCAD_DIFFERENCE,
@@ -224,25 +247,6 @@ typedef struct {
      */
     cp_scad_t *root;
 } cp_scad_tree_t;
-
-#define cp_scad_typeof(type) \
-    _Generic(type, \
-        cp_scad_union_t:        CP_SCAD_UNION, \
-        cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
-        cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
-        cp_scad_sphere_t:       CP_SCAD_SPHERE, \
-        cp_scad_cylinder_t:     CP_SCAD_CYLINDER, \
-        cp_scad_cube_t:         CP_SCAD_CUBE, \
-        cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
-        cp_scad_multmatrix_t:   CP_SCAD_MULTMATRIX, \
-        cp_scad_translate_t:    CP_SCAD_TRANSLATE, \
-        cp_scad_mirror_t:       CP_SCAD_MIRROR, \
-        cp_scad_scale_t:        CP_SCAD_SCALE, \
-        cp_scad_rotate_t:       CP_SCAD_ROTATE, \
-        cp_scad_circle_t:       CP_SCAD_CIRCLE, \
-        cp_scad_square_t:       CP_SCAD_SQUARE, \
-        cp_scad_polygon_t:      CP_SCAD_POLYGON, \
-        cp_scad_color_t:        CP_SCAD_COLOR)
 
 /*
  * UNSUPPORTED:

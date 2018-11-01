@@ -17,6 +17,15 @@
  */
 #define CP_CSG2_HAVE_CIRCLE 0
 
+#define cp_csg2_typeof(type) \
+    _Generic(type, \
+        cp_csg2_circle_t: CP_CSG2_CIRCLE, \
+        cp_csg2_poly_t:   CP_CSG2_POLY, \
+        cp_csg2_add_t:    CP_CSG2_ADD, \
+        cp_csg2_sub_t:    CP_CSG2_SUB, \
+        cp_csg2_cut_t:    CP_CSG2_CUT, \
+        cp_csg2_stack_t:  CP_CSG2_STACK)
+
 /**
  * 2D CSG basic shapes.
  *

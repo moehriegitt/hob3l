@@ -1035,7 +1035,7 @@ static bool csg3_from_circle(
     cp_csg3_2d_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
     cp_v_push(r, cp_csg3());
 
-    o->csg3 = cp_csg2_new_obj(*o->csg3, s->loc);
+    o->csg3 = cp_csg2_new(*o->csg3, s->loc);
 
     o->mat.n = CP_MAT2W(
         m->n.b.m[0][0], m->n.b.m[0][1], m->n.w.v[0],
@@ -1212,8 +1212,8 @@ static bool csg3_from_polygon(
     cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, m->gc);
     cp_v_push(r, cp_csg3(o2));
 
-    o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
+    cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
+    o2->csg2 = cp_csg2(o);
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1362,8 +1362,8 @@ static bool csg3_from_square(
     cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, mo->gc);
     cp_v_push(r, cp_csg3(o2));
 
-    o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
-    cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
+    cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
+    o2->csg2 = cp_csg2(o);
 
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {

@@ -294,26 +294,6 @@ typedef enum {
 #  define CP_LINE 0
 #endif
 
-#define CP_DECLARE_CAST5(src_t, dst_t, name, slot, tag) \
-    static inline dst_t *name(src_t *x) \
-    { \
-        assert(x != NULL); \
-        assert(x->type == tag); \
-        return &x->slot; \
-    } \
-    static inline dst_t const *name##_const(src_t const *x) \
-    { \
-        assert(x != NULL); \
-        assert(x->type == tag); \
-        return &x->slot; \
-    }
-
-#define CP_DECLARE_CAST_(ns, name, tag) \
-   CP_DECLARE_CAST5(cp_##ns##_t, cp_##ns##_##name##_t, cp_##ns##_##name, _##name, tag)
-
-#define CP_DECLARE_CAST(ns, name, tag) \
-   CP_DECLARE_CAST5(cp_##ns##_t, cp_##ns##_##name##_t, cp_##ns##_##name, name, tag)
-
 static inline bool strequ(char const *a, char const *b)
 {
     return strcmp(a, b) == 0;

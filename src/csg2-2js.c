@@ -342,23 +342,23 @@ static void csg2_put_js(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_js(c, s, t, zi, cp_csg2_add(r));
+        add_put_js(c, s, t, zi, cp_csg2_cast(_add, r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_js(c, s, t, zi, cp_csg2_sub(r));
+        sub_put_js(c, s, t, zi, cp_csg2_cast(_sub, r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_js(c, s, t, zi, cp_csg2_cut(r));
+        cut_put_js(c, s, t, zi, cp_csg2_cast(_cut, r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_js(c, s, t, zi, cp_csg2_poly(r));
+        poly_put_js(c, s, t, zi, cp_csg2_cast(_poly, r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_js(c, s, t, cp_csg2_stack(r));
+        stack_put_js(c, s, t, cp_csg2_cast(_stack, r));
         return;
 
     case CP_CSG2_CIRCLE:
@@ -453,19 +453,19 @@ static size_t csg2_max_point_cnt(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        return add_max_point_cnt(cp_csg2_add(r));
+        return add_max_point_cnt(cp_csg2_cast(_add, r));
 
     case CP_CSG2_SUB:
-        return sub_max_point_cnt(cp_csg2_sub(r));
+        return sub_max_point_cnt(cp_csg2_cast(_sub, r));
 
     case CP_CSG2_CUT:
-        return cut_max_point_cnt(cp_csg2_cut(r));
+        return cut_max_point_cnt(cp_csg2_cast(_cut, r));
 
     case CP_CSG2_POLY:
-        return poly_max_point_cnt(cp_csg2_poly(r));
+        return poly_max_point_cnt(cp_csg2_cast(_poly, r));
 
     case CP_CSG2_STACK:
-        return stack_max_point_cnt(cp_csg2_stack(r));
+        return stack_max_point_cnt(cp_csg2_cast(_stack, r));
 
     case CP_CSG2_CIRCLE:
         CP_NYI("circle in stl");

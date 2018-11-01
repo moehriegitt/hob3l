@@ -16,10 +16,28 @@
 #include <hob3l/csg2-2stl.h>
 #include <hob3l/csg2-2js.h>
 
-/**
- * Allocate a new CSG2 object.
- */
-#define cp_csg2_new(type, loc) __cp_csg2_new(CP_FILE, CP_LINE, type, loc)
+/** Create a CSG2 instance */
+#define cp_csg2_new(r, _loc) \
+    ({ \
+        __typeof__(r) * __r = CP_NEW(*__r); \
+        __r->type = cp_csg2_typeof(*__r); \
+        __r->loc = (_loc); \
+        __r; \
+    })
+
+/** Specialising cast w/ dynamic check */
+#define cp_csg2_cast(_t,s) \
+    ({ \
+        assert((s)->type == cp_csg2_typeof((s)->_t)); \
+        &(s)->_t; \
+    })
+
+/**  Generalising cast w/ static check */
+#define cp_csg2(t) \
+    ({ \
+        cp_static_assert(cp_csg2_typeof(*(t)) != 0); \
+        (cp_csg2_t*)(t); \
+    })
 
 /**
  * Compute bounding box
@@ -48,13 +66,5 @@ static inline cp_vec2_loc_t *cp_csg2_path_nth(
     assert(j < poly->point.size);
     return &poly->point.data[j];
 }
-
-/* Dynamic casts */
-CP_DECLARE_CAST_(csg2, circle, CP_CSG2_CIRCLE)
-CP_DECLARE_CAST_(csg2, poly,   CP_CSG2_POLY)
-CP_DECLARE_CAST_(csg2, add,    CP_CSG2_ADD)
-CP_DECLARE_CAST_(csg2, sub,    CP_CSG2_SUB)
-CP_DECLARE_CAST_(csg2, cut,    CP_CSG2_CUT)
-CP_DECLARE_CAST_(csg2, stack,  CP_CSG2_STACK)
 
 #endif /* __CP_CSG2_H */

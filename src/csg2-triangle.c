@@ -1161,22 +1161,22 @@ static bool csg2_tri_csg2(
 {
     switch (r->type) {
     case CP_CSG2_CIRCLE:
-        return csg2_tri_circle(pool, t, cp_csg2_circle(r));
+        return csg2_tri_circle(pool, t, cp_csg2_cast(_circle, r));
 
     case CP_CSG2_POLY:
-        return cp_csg2_tri_poly(pool, t, cp_csg2_poly(r));
+        return cp_csg2_tri_poly(pool, t, cp_csg2_cast(_poly, r));
 
     case CP_CSG2_STACK:
-        return csg2_tri_stack(pool, t, cp_csg2_stack(r), zi);
+        return csg2_tri_stack(pool, t, cp_csg2_cast(_stack, r), zi);
 
     case CP_CSG2_ADD:
-        return csg2_tri_add(pool, t, cp_csg2_add(r), zi);
+        return csg2_tri_add(pool, t, cp_csg2_cast(_add, r), zi);
 
     case CP_CSG2_SUB:
-        return csg2_tri_sub(pool, t, cp_csg2_sub(r), zi);
+        return csg2_tri_sub(pool, t, cp_csg2_cast(_sub, r), zi);
 
     case CP_CSG2_CUT:
-        return csg2_tri_cut(pool, t, cp_csg2_cut(r), zi);
+        return csg2_tri_cut(pool, t, cp_csg2_cast(_cut, r), zi);
     }
 
     CP_DIE("2D object type: %#x", r->type);
@@ -1249,9 +1249,9 @@ static bool csg2_tri_diff_csg2(
 {
     switch (r->type) {
     case CP_CSG2_POLY:
-        return csg2_tri_diff_poly(pool, t, cp_csg2_poly(r));
+        return csg2_tri_diff_poly(pool, t, cp_csg2_cast(_poly, r));
     case CP_CSG2_STACK:
-        return csg2_tri_diff_stack(pool, t, cp_csg2_stack(r), zi);
+        return csg2_tri_diff_stack(pool, t, cp_csg2_cast(_stack, r), zi);
     default:
         return true;
     }

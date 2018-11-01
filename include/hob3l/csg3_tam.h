@@ -27,6 +27,18 @@
 #define CP_CSG3_CIRCULAR_CYLINDER 0
 
 /**
+ * Map type to type ID */
+#define cp_csg3_typeof(type) \
+    _Generic(type, \
+        cp_csg3_sphere_t: CP_CSG3_SPHERE, \
+        cp_csg3_cyl_t:    CP_CSG3_CYL, \
+        cp_csg3_poly_t:   CP_CSG3_POLY, \
+        cp_csg3_add_t:    CP_CSG3_ADD, \
+        cp_csg3_sub_t:    CP_CSG3_SUB, \
+        cp_csg3_cut_t:    CP_CSG3_CUT, \
+        cp_csg3_2d_t:     CP_CSG3_2D)
+
+/**
  * 3D CSG basic shapes and operations.
  *
  * The idea is that this is output from some other program that
@@ -281,15 +293,5 @@ typedef struct {
     cp_v_mat3wi_p_t mat;
     cp_csg3_add_t *root;
 } cp_csg3_tree_t;
-
-#define cp_csg3_typeof(type) \
-    _Generic(type, \
-        cp_csg3_sphere_t: CP_CSG3_SPHERE, \
-        cp_csg3_cyl_t:    CP_CSG3_CYL, \
-        cp_csg3_poly_t:   CP_CSG3_POLY, \
-        cp_csg3_add_t:    CP_CSG3_ADD, \
-        cp_csg3_sub_t:    CP_CSG3_SUB, \
-        cp_csg3_cut_t:    CP_CSG3_CUT, \
-        cp_csg3_2d_t:     CP_CSG3_2D)
 
 #endif /* __CP_CSG3_TAM_H */

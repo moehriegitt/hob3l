@@ -176,7 +176,7 @@ static void twoD_put_scad(
         CP_DIE("Not implemented: circle");
 
     case CP_CSG2_POLY:
-        poly2_put_scad(s, d, cp_csg2_poly(r->csg2));
+        poly2_put_scad(s, d, cp_csg2_cast(_poly, r->csg2));
         break;
 
     default:

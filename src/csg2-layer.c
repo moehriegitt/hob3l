@@ -513,19 +513,16 @@ static void csg2_add_layer_poly(
         }
 
         /* make a new 2D polygon */
-        cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
-        cp_csg2_poly_t *r = cp_csg2_poly(_r);
+        cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
+        cp_v_push(c, cp_csg2(r));
 
         r->point = point;
         r->path = path;
-
-        cp_v_push(c, _r);
     }
 }
 
 static void csg2_add_layer_sphere(
     cp_csg2_tree_opt_t const *opt,
-    cp_pool_t *pool __unused,
     double z,
     cp_v_csg2_p_t *c,
     cp_csg3_sphere_t const *d)
@@ -609,20 +606,20 @@ static void csg2_add_layer_sphere(
     /* add ellipse to output layer */
     if (CP_CSG2_HAVE_CIRCLE) {
         /* store real circle */
-        cp_csg2_t *_r = cp_csg2_new(CP_CSG2_CIRCLE, d->loc);
-        cp_csg2_circle_t *r = cp_csg2_circle(_r);
+        cp_csg2_circle_t *r = cp_csg2_new(*r, d->loc);
+        cp_v_push(c, cp_csg2(r));
+
         r->color = d->gc.color;
 
         r->mat = mt2;
         r->_fa = d->_fa;
         r->_fs = d->_fs;
         r->_fn = d->_fn;
-        cp_v_push(c, _r);
     }
     else {
         /* render ellipse polygon */
-        cp_csg2_t *_r = cp_csg2_new(CP_CSG2_POLY, d->loc);
-        cp_csg2_poly_t *r = cp_csg2_poly(_r);
+        cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
+        cp_v_push(c, cp_csg2(r));
 
         cp_csg2_path_t *o = cp_v_push0(&r->path);
         size_t fn = d->_fn;
@@ -641,7 +638,6 @@ static void csg2_add_layer_sphere(
         if (mt2.d > 0) {
             cp_v_reverse(&o->point_idx, 0, -(size_t)1);
         }
-        cp_v_push(c, _r);
     }
 }
 
@@ -721,7 +717,6 @@ static bool csg2_add_layer_stack(
     bool *no,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
-    cp_err_t *t __unused,
     size_t zi,
     cp_csg2_stack_t *c)
 {
@@ -739,7 +734,7 @@ static bool csg2_add_layer_stack(
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        csg2_add_layer_sphere(&r->opt, pool, z, &l->root.add, cp_csg3_cast(_sphere, d));
+        csg2_add_layer_sphere(&r->opt, z, &l->root.add, cp_csg3_cast(_sphere, d));
         break;
 
     case CP_CSG3_CYL:
@@ -774,16 +769,16 @@ static bool csg2_add_layer(
 {
     switch (c->type) {
     case CP_CSG2_STACK:
-        return csg2_add_layer_stack(no, pool, r, t, zi, cp_csg2_stack(c));
+        return csg2_add_layer_stack(no, pool, r, zi, cp_csg2_cast(_stack, c));
 
     case CP_CSG2_ADD:
-        return csg2_add_layer_add(no, pool, r, t, zi, cp_csg2_add(c));
+        return csg2_add_layer_add(no, pool, r, t, zi, cp_csg2_cast(_add, c));
 
     case CP_CSG2_SUB:
-        return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg2_sub(c));
+        return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg2_cast(_sub, c));
 
     case CP_CSG2_CUT:
-        return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg2_cut(c));
+        return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg2_cast(_cut, c));
 
     case CP_CSG2_POLY:
     case CP_CSG2_CIRCLE:
@@ -836,7 +831,7 @@ extern bool cp_csg2_tree_add_layer(
     assert(r->root->type == CP_CSG2_ADD);
     assert(zi < r->z.size);
     bool no = false;
-    return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg2_add(r->root));
+    return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg2_cast(_add, r->root));
 }
 
 /**

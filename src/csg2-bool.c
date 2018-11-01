@@ -1859,23 +1859,23 @@ static void csg2_op_csg2(
         return;
 
     case CP_CSG2_POLY:
-        csg2_op_poly(o, cp_csg2_poly(a));
+        csg2_op_poly(o, cp_csg2_cast(_poly, a));
         return;
 
     case CP_CSG2_ADD:
-        csg2_op_add(opt, pool, r, zi, o, cp_csg2_add(a));
+        csg2_op_add(opt, pool, r, zi, o, cp_csg2_cast(_add, a));
         return;
 
     case CP_CSG2_SUB:
-        csg2_op_sub(opt, pool, r, zi, o, cp_csg2_sub(a));
+        csg2_op_sub(opt, pool, r, zi, o, cp_csg2_cast(_sub, a));
         return;
 
     case CP_CSG2_CUT:
-        csg2_op_cut(opt, pool, r, zi, o, cp_csg2_cut(a));
+        csg2_op_cut(opt, pool, r, zi, o, cp_csg2_cast(_cut, a));
         return;
 
     case CP_CSG2_STACK:
-        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_stack(a));
+        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_cast(_stack, a));
         return;
     }
 
@@ -2001,7 +2001,7 @@ static void csg2_op_diff2(
     if (a1->type != CP_CSG2_POLY) {
         return;
     }
-    csg2_op_diff2_poly(opt, pool, cp_csg2_poly(a0), cp_csg2_poly(a1));
+    csg2_op_diff2_poly(opt, pool, cp_csg2_cast(_poly, a0), cp_csg2_cast(_poly, a1));
 }
 
 static void csg2_op_diff2_layer(
@@ -2054,7 +2054,7 @@ static void csg2_op_diff_csg2(
     /* only work on stacks, ignore anything else */
     switch (a->type) {
     case CP_CSG2_STACK:
-        csg2_op_diff_stack(opt, pool, zi, cp_csg2_stack(a));
+        csg2_op_diff_stack(opt, pool, zi, cp_csg2_cast(_stack, a));
         return;
     default:
         return;
@@ -2231,7 +2231,7 @@ extern void cp_csg2_op_add_layer(
     size_t zi)
 {
     TRACE();
-    cp_csg2_stack_t *s = cp_csg2_stack(r->root);
+    cp_csg2_stack_t *s = cp_csg2_cast(_stack, r->root);
     assert(zi < s->layer.size);
 
     cp_csg2_lazy_t ol;
@@ -2275,7 +2275,7 @@ extern void cp_csg2_op_diff_layer(
     size_t zi)
 {
     TRACE();
-    cp_csg2_stack_t *s __unused = cp_csg2_stack(a->root);
+    cp_csg2_stack_t *s __unused = cp_csg2_cast(_stack, a->root);
     assert(zi < s->layer.size);
 
     csg2_op_diff_csg2(opt, pool, zi, a->root);
@@ -2296,13 +2296,14 @@ extern void cp_csg2_op_tree_init(
     cp_csg2_tree_t const *a)
 {
     TRACE();
-    r->root = cp_csg2_new(CP_CSG2_STACK, NULL);
+    cp_csg2_stack_t *root = cp_csg2_new(*root, NULL);
+    r->root = cp_csg2(root);
     r->thick = a->thick;
     r->opt = a->opt;
 
     size_t cnt = a->z.size;
 
-    cp_csg2_stack_t *c = cp_csg2_stack(r->root);
+    cp_csg2_stack_t *c = cp_csg2_cast(_stack, r->root);
     cp_v_init0(&c->layer, cnt);
 
     cp_v_init0(&r->z, cnt);
