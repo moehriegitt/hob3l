@@ -45,17 +45,17 @@ static bool __func_new(
     cp_scad_type_t type)
 {
     static const size_t size[] = {
-        [CP_SCAD_UNION]        = sizeof(cp_scad_combine_t),
-        [CP_SCAD_DIFFERENCE]   = sizeof(cp_scad_combine_t),
-        [CP_SCAD_INTERSECTION] = sizeof(cp_scad_combine_t),
+        [CP_SCAD_UNION]        = sizeof(cp_scad_union_t),
+        [CP_SCAD_DIFFERENCE]   = sizeof(cp_scad_difference_t),
+        [CP_SCAD_INTERSECTION] = sizeof(cp_scad_intersection_t),
         [CP_SCAD_SPHERE]       = sizeof(cp_scad_sphere_t),
         [CP_SCAD_CUBE]         = sizeof(cp_scad_cube_t),
         [CP_SCAD_CYLINDER]     = sizeof(cp_scad_cylinder_t),
         [CP_SCAD_POLYHEDRON]   = sizeof(cp_scad_polyhedron_t),
         [CP_SCAD_MULTMATRIX]   = sizeof(cp_scad_multmatrix_t),
-        [CP_SCAD_TRANSLATE]    = sizeof(cp_scad_xyz_t),
-        [CP_SCAD_MIRROR]       = sizeof(cp_scad_xyz_t),
-        [CP_SCAD_SCALE]        = sizeof(cp_scad_xyz_t),
+        [CP_SCAD_TRANSLATE]    = sizeof(cp_scad_translate_t),
+        [CP_SCAD_MIRROR]       = sizeof(cp_scad_mirror_t),
+        [CP_SCAD_SCALE]        = sizeof(cp_scad_scale_t),
         [CP_SCAD_ROTATE]       = sizeof(cp_scad_rotate_t),
         [CP_SCAD_CIRCLE]       = sizeof(cp_scad_circle_t),
         [CP_SCAD_SQUARE]       = sizeof(cp_scad_square_t),
@@ -81,12 +81,30 @@ static bool __func_new(
     return true;
 }
 
-static bool combine_from_func(
+static bool union_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_combine_t *r = &_r->_combine;
+    cp_scad_union_t *r = cp_scad_cast(_union, _r);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
+static bool intersection_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_intersection_t *r = cp_scad_cast(_intersection, _r);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
+static bool difference_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_difference_t *r = cp_scad_cast(_difference, _r);
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
@@ -374,16 +392,21 @@ static bool get_vec2(
     ctxt_t *t,
     cp_syn_value_t const *v)
 {
-    if ((v->type != CP_SYN_VALUE_ARRAY) ||
-        (v->_array.value.size != 2))
-    {
-        cp_vchar_printf(&t->err->msg, "Expected a vector of size 2.\n");
+    if (v->type != CP_SYN_VALUE_ARRAY) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector.\n");
         t->err->loc = v->loc;
         return false;
     }
 
-    for (cp_size_each(y, 2)) {
-        if (!get_float(&r->v[y], t, v->_array.value.data[y])) {
+    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    if (a->value.size != cp_countof(r->v)) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+        t->err->loc = v->loc;
+        return false;
+    }
+
+    for (cp_arr_each(y, r->v)) {
+        if (!get_float(&r->v[y], t, cp_v_nth(&a->value, y))) {
             return false;
         }
     }
@@ -427,16 +450,21 @@ static bool get_vec3(
     ctxt_t *t,
     cp_syn_value_t const *v)
 {
-    if ((v->type != CP_SYN_VALUE_ARRAY) ||
-        (v->_array.value.size != 3))
-    {
-        cp_vchar_printf(&t->err->msg, "Expected a vector of size 3.\n");
+    if (v->type != CP_SYN_VALUE_ARRAY) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector.\n");
         t->err->loc = v->loc;
         return false;
     }
 
-    for (cp_size_each(y, 3)) {
-        if (!get_float(&r->v[y], t, v->_array.value.data[y])) {
+    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    if (a->value.size != cp_countof(r->v)) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+        t->err->loc = v->loc;
+        return false;
+    }
+
+    for (cp_arr_each(y, r->v)) {
+        if (!get_float(&r->v[y], t, cp_v_nth(&a->value, y))) {
             return false;
         }
     }
@@ -480,16 +508,21 @@ static bool get_vec4(
     ctxt_t *t,
     cp_syn_value_t const *v)
 {
-    if ((v->type != CP_SYN_VALUE_ARRAY) ||
-        (v->_array.value.size != 4))
-    {
-        cp_vchar_printf(&t->err->msg, "Expected a vector of size 4.\n");
+    if (v->type != CP_SYN_VALUE_ARRAY) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector.\n");
         t->err->loc = v->loc;
         return false;
     }
 
-    for (cp_size_each(y, 4)) {
-        if (!get_float(&r->v[y], t, v->_array.value.data[y])) {
+    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    if (a->value.size != cp_countof(r->v)) {
+        cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+        t->err->loc = v->loc;
+        return false;
+    }
+
+    for (cp_arr_each(y, r->v)) {
+        if (!get_float(&r->v[y], t, cp_v_nth(&a->value, y))) {
             return false;
         }
     }
@@ -519,7 +552,7 @@ static bool get_mat4(
     }
 
     for (cp_size_each(y, v->_array.value.size)) {
-        cp_syn_value_t const *l = v->_array.value.data[y];
+        cp_syn_value_t const *l = cp_v_nth(&v->_array.value, y);
         if ((l->type == CP_SYN_VALUE_ARRAY) &&
             (l->_array.value.size == 3))
         {
@@ -548,7 +581,7 @@ static bool get_mat3w(
 
     if (!cp_mat3w_from_mat4(r, &q)) {
         cp_vchar_printf(&t->err->msg, "Not a valid 3x3+T matrix: last row must be [0,0,0,1].\n");
-        t->err->loc = v->_array.value.data[3]->loc;
+        t->err->loc = cp_v_nth(&cp_syn_cast(_array, v)->value, 3)->loc;
         return false;
     }
 
@@ -690,12 +723,12 @@ static bool get_arg(
         get_arg(tree, loc, arg, _pos, cp_countof(_pos), _name, cp_countof(_name)); \
     })
 
-static bool multmatrix_from_func(
+static bool multmatrix_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_multmatrix_t *r = cp_scad_multmatrix(_r);
+    cp_scad_multmatrix_t *r = cp_scad_cast(_multmatrix, _r);
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
@@ -709,12 +742,12 @@ static bool multmatrix_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
-static bool cube_from_func(
+static bool cube_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_cube_t *r = cp_scad_cube(_r);
+    cp_scad_cube_t *r = cp_scad_cast(_cube, _r);
 
     r->size.x = r->size.y = r->size.z = 1;
     r->center = false;
@@ -727,12 +760,12 @@ static bool cube_from_func(
         ());
 }
 
-static bool square_from_func(
+static bool square_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_square_t *r = cp_scad_square(_r);
+    cp_scad_square_t *r = cp_scad_cast(_square, _r);
 
     r->size.x = r->size.y = 1;
     r->center = false;
@@ -745,12 +778,12 @@ static bool square_from_func(
         ());
 }
 
-static bool sphere_from_func(
+static bool sphere_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_sphere_t *r = cp_scad_sphere(_r);
+    cp_scad_sphere_t *r = cp_scad_cast(_sphere, _r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -786,12 +819,12 @@ static bool sphere_from_func(
     return true;
 }
 
-static bool circle_from_func(
+static bool circle_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_circle_t *r = cp_scad_circle(_r);
+    cp_scad_circle_t *r = cp_scad_cast(_circle, _r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -827,12 +860,12 @@ static bool circle_from_func(
     return true;
 }
 
-static bool polyhedron_from_func(
+static bool polyhedron_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polyhedron_t *r = cp_scad_polyhedron(_r);
+    cp_scad_polyhedron_t *r = cp_scad_cast(_polyhedron, _r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_triangles = NULL;
@@ -871,13 +904,13 @@ static bool polyhedron_from_func(
         t->err->loc = _points->loc;
         return false;
     }
-    cp_syn_value_array_t const *points = &_points->_array;
+    cp_syn_value_array_t const *points = cp_syn_cast(_array, _points);
     cp_v_init0(&r->points, points->value.size);
     for (cp_v_each(i, &points->value)) {
-        if (!get_vec3(&r->points.data[i].coord, t, points->value.data[i])) {
+        if (!get_vec3(&cp_v_nth(&r->points, i).coord, t, cp_v_nth(&points->value, i))) {
             return false;
         }
-        r->points.data[i].loc = points->value.data[i]->loc;
+        cp_v_nth(&r->points, i).loc = cp_v_nth(&points->value, i)->loc;
     }
 
     if (_faces->type != CP_SYN_VALUE_ARRAY) {
@@ -885,16 +918,16 @@ static bool polyhedron_from_func(
         t->err->loc = _faces->loc;
         return false;
     }
-    cp_syn_value_array_t const *faces = &_faces->_array;
+    cp_syn_value_array_t const *faces = cp_syn_cast(_array, _faces);
     cp_v_init0(&r->faces, faces->value.size);
     for (cp_v_each(i, &faces->value)) {
-        cp_syn_value_t const *_face = faces->value.data[i];
+        cp_syn_value_t const *_face = cp_v_nth(&faces->value, i);
         if (_face->type != CP_SYN_VALUE_ARRAY) {
             cp_vchar_printf(&t->err->msg, "Expected array of point indices.\n");
             t->err->loc = _face->loc;
             return false;
         }
-        cp_syn_value_array_t const *face = &_face->_array;
+        cp_syn_value_array_t const *face = cp_syn_cast(_array, _face);
         if (face->value.size < 3) {
             cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
                 face->value.size);
@@ -902,11 +935,11 @@ static bool polyhedron_from_func(
             return false;
         }
 
-        r->faces.data[i].loc = _face->loc;
-        cp_v_init0(&r->faces.data[i].points, face->value.size);
+        cp_v_nth(&r->faces, i).loc = _face->loc;
+        cp_v_init0(&cp_v_nth(&r->faces, i).points, face->value.size);
         for (cp_v_each(j, &face->value)) {
             size_t idx;
-            if (!get_size(&idx, t, face->value.data[j])) {
+            if (!get_size(&idx, t, cp_v_nth(&face->value, j))) {
                 return false;
             }
             if (!(idx < r->points.size)) {
@@ -914,26 +947,26 @@ static bool polyhedron_from_func(
                     "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
                     r->points.size,
                     idx);
-                t->err->loc = face->value.data[j]->loc;
+                t->err->loc = cp_v_nth(&face->value, j)->loc;
                 t->err->loc2 = points->loc;
                 return false;
             }
 
-            cp_vec3_loc_ref_t *pr = &r->faces.data[i].points.data[j];
-            pr->ref = &r->points.data[idx];
-            pr->loc = face->value.data[j]->loc;
+            cp_vec3_loc_ref_t *pr = &cp_v_nth(&r->faces, i).points.data[j];
+            pr->ref = &cp_v_nth(&r->points, idx);
+            pr->loc = cp_v_nth(&face->value, j)->loc;
         }
     }
 
     return true;
 }
 
-static bool polygon_from_func(
+static bool polygon_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polygon_t *r = cp_scad_polygon(_r);
+    cp_scad_polygon_t *r = cp_scad_cast(_polygon, _r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_paths = NULL;
@@ -953,20 +986,20 @@ static bool polygon_from_func(
         t->err->loc = _points->loc;
         return false;
     }
-    cp_syn_value_array_t const *points = &_points->_array;
+    cp_syn_value_array_t const *points = cp_syn_cast(_array, _points);
     cp_v_init0(&r->points, points->value.size);
     for (cp_v_each(i, &points->value)) {
-        if (!get_vec2(&r->points.data[i].coord, t, points->value.data[i])) {
+        if (!get_vec2(&cp_v_nth(&r->points, i).coord, t, cp_v_nth(&points->value, i))) {
             return false;
         }
-        r->points.data[i].loc = points->value.data[i]->loc;
+        cp_v_nth(&r->points, i).loc = cp_v_nth(&points->value, i)->loc;
     }
 
     if (_paths == NULL) {
         cp_v_init0(&r->paths, 1);
-        cp_v_init0(&r->paths.data[0].points, r->points.size);
+        cp_v_init0(&cp_v_nth(&r->paths, 0).points, r->points.size);
         for (cp_v_each(j, &r->points)) {
-            cp_vec2_loc_ref_t *pr = &r->paths.data[0].points.data[j];
+            cp_vec2_loc_ref_t *pr = &cp_v_nth(&r->paths, 0).points.data[j];
             pr->ref = &r->points.data[j];
             pr->loc = points->value.data[j]->loc;
         }
@@ -977,16 +1010,16 @@ static bool polygon_from_func(
             t->err->loc = _paths->loc;
             return false;
         }
-        cp_syn_value_array_t const *paths = &_paths->_array;
+        cp_syn_value_array_t const *paths = cp_syn_cast(_array, _paths);
         cp_v_init0(&r->paths, paths->value.size);
         for (cp_v_each(i, &paths->value)) {
-            cp_syn_value_t const *_path = paths->value.data[i];
+            cp_syn_value_t const *_path = cp_v_nth(&paths->value, i);
             if (_path->type != CP_SYN_VALUE_ARRAY) {
                 cp_vchar_printf(&t->err->msg, "Expected array of point indices.\n");
                 t->err->loc = _path->loc;
                 return false;
             }
-            cp_syn_value_array_t const *path = &_path->_array;
+            cp_syn_value_array_t const *path = cp_syn_cast(_array, _path);
             if (path->value.size < 3) {
                 cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
                     path->value.size);
@@ -994,11 +1027,11 @@ static bool polygon_from_func(
                 return false;
             }
 
-            r->paths.data[i].loc = _path->loc;
-            cp_v_init0(&r->paths.data[i].points, path->value.size);
+            cp_v_nth(&r->paths, i).loc = _path->loc;
+            cp_v_init0(&cp_v_nth(&r->paths, i).points, path->value.size);
             for (cp_v_each(j, &path->value)) {
                 size_t idx;
-                if (!get_size(&idx, t, path->value.data[j])) {
+                if (!get_size(&idx, t, cp_v_nth(&path->value, j))) {
                     return false;
                 }
                 if (!(idx < r->points.size)) {
@@ -1006,14 +1039,14 @@ static bool polygon_from_func(
                         "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
                         r->points.size,
                         idx);
-                    t->err->loc = path->value.data[j]->loc;
+                    t->err->loc = cp_v_nth(&path->value, j)->loc;
                     t->err->loc2 = points->loc;
                     return false;
                 }
 
-                cp_vec2_loc_ref_t *pr = &r->paths.data[i].points.data[j];
-                pr->ref = &r->points.data[idx];
-                pr->loc = path->value.data[j]->loc;
+                cp_vec2_loc_ref_t *pr = &cp_v_nth(&r->paths, i).points.data[j];
+                pr->ref = &cp_v_nth(&r->points, idx);
+                pr->loc = cp_v_nth(&path->value, j)->loc;
             }
         }
     }
@@ -1021,12 +1054,12 @@ static bool polygon_from_func(
     return true;
 }
 
-static bool xyz_from_func(
+static bool mirror_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_xyz_t *r = &_r->_xyz;
+    cp_scad_mirror_t *r = &_r->_mirror;
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3("v", &r->v, NULL),
@@ -1038,12 +1071,29 @@ static bool xyz_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
-static bool color_from_func(
+static bool translate_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_color_t *r = cp_scad_color(_r);
+    cp_scad_translate_t *r = &_r->_translate;
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_VEC3("v", &r->v, NULL),
+        ),
+        ()))
+    {
+        return false;
+    }
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
+static bool color_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_color_t *r = cp_scad_cast(_color, _r);
     r->rgba.a = 255;
 
     cp_syn_value_t const *_c = NULL;
@@ -1114,12 +1164,12 @@ static bool color_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
-static bool scale_from_func(
+static bool scale_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_scale_t *r = cp_scad_scale(_r);
+    cp_scad_scale_t *r = cp_scad_cast(_scale, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3_OR_FLOAT("v", &r->v, NULL),
@@ -1131,12 +1181,12 @@ static bool scale_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
-static bool rotate_from_func(
+static bool rotate_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_rotate_t *r = cp_scad_rotate(_r);
+    cp_scad_rotate_t *r = cp_scad_cast(_rotate, _r);
 
     r->a = 0;
     CP_ZERO(&r->n);
@@ -1178,12 +1228,12 @@ static bool rotate_from_func(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
-static bool cylinder_from_func(
+static bool cylinder_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_q)
 {
-    cp_scad_cylinder_t *q = cp_scad_cylinder(_q);
+    cp_scad_cylinder_t *q = cp_scad_cast(_cylinder, _q);
 
     q->_fn = 0;
     q->_fa = 12;
@@ -1296,37 +1346,37 @@ static bool v_scad_from_syn_stmt_item(
         {
            .id = "circle",
            .type = CP_SCAD_CIRCLE,
-           .from = circle_from_func
+           .from = circle_from_item
         },
         {
            .id = "color",
            .type = CP_SCAD_COLOR,
-           .from = color_from_func
+           .from = color_from_item
         },
         {
            .id = "cube",
            .type = CP_SCAD_CUBE,
-           .from = cube_from_func
+           .from = cube_from_item
         },
         {
            .id = "cylinder",
            .type = CP_SCAD_CYLINDER,
-           .from = cylinder_from_func
+           .from = cylinder_from_item
         },
         {
            .id = "difference",
            .type = CP_SCAD_DIFFERENCE,
-           .from = combine_from_func
+           .from = difference_from_item
         },
         {
            .id = "group",
            .type = CP_SCAD_UNION,
-           .from = combine_from_func
+           .from = union_from_item
         },
         {
            .id = "intersection",
            .type = CP_SCAD_INTERSECTION,
-           .from = combine_from_func
+           .from = intersection_from_item
         },
         {
            .id = "linear_extrude",
@@ -1336,42 +1386,42 @@ static bool v_scad_from_syn_stmt_item(
         {
            .id = "mirror",
            .type = CP_SCAD_MIRROR,
-           .from = xyz_from_func
+           .from = mirror_from_item
         },
         {
            .id = "multmatrix",
            .type = CP_SCAD_MULTMATRIX,
-           .from = multmatrix_from_func
+           .from = multmatrix_from_item
         },
         {
            .id = "polygon",
            .type = CP_SCAD_POLYGON,
-           .from = polygon_from_func
+           .from = polygon_from_item
         },
         {
            .id = "polyhedron",
            .type = CP_SCAD_POLYHEDRON,
-           .from = polyhedron_from_func
+           .from = polyhedron_from_item
         },
         {
            .id = "rotate",
            .type = CP_SCAD_ROTATE,
-           .from = rotate_from_func
+           .from = rotate_from_item
         },
         {
            .id = "scale",
            .type = CP_SCAD_SCALE,
-           .from = scale_from_func
+           .from = scale_from_item
         },
         {
            .id = "sphere",
            .type = CP_SCAD_SPHERE,
-           .from = sphere_from_func
+           .from = sphere_from_item
         },
         {
            .id = "square",
            .type = CP_SCAD_SQUARE,
-           .from = square_from_func
+           .from = square_from_item
         },
         {
            .id = "text",
@@ -1381,17 +1431,18 @@ static bool v_scad_from_syn_stmt_item(
         {
            .id = "translate",
            .type = CP_SCAD_TRANSLATE,
-           .from = xyz_from_func
+           .from = translate_from_item
         },
         {
            .id = "union",
            .type = CP_SCAD_UNION,
-           .from = combine_from_func
+           .from = union_from_item
         },
         {
+           /* FIXME: This has difference scoping rules, use different type. */
            .id = "{",
            .type = CP_SCAD_UNION,
-           .from = combine_from_func
+           .from = union_from_item
         },
     };
 
@@ -1418,6 +1469,8 @@ static bool v_scad_from_syn_stmt_item(
         return false;
     }
     cp_v_push(result, r);
+
+    assert(c->from != NULL);
     return c->from(t, f, r);
 }
 

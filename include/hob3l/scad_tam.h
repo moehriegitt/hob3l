@@ -110,20 +110,48 @@ typedef CP_VEC_T(cp_scad_t*) cp_v_scad_p_t;
     _CP_SCAD \
     cp_v_scad_p_t child;
 
+#define _CP_SCAD_GROUP_XYZ \
+    _CP_SCAD_GROUP \
+    cp_vec3_t v;
+
 /**
- * To store union, difference, or intersection.
- * Also the base for transformations.
+ * To store union.
  */
 typedef struct {
     _CP_SCAD_GROUP
-} cp_scad_combine_t;
+} cp_scad_union_t;
 
 /**
- * To store translate, scale, mirror */
+ * To store intersection.
+ */
 typedef struct {
     _CP_SCAD_GROUP
-    cp_vec3_t v;
-} cp_scad_xyz_t;
+} cp_scad_intersection_t;
+
+/**
+ * To store difference.
+ */
+typedef struct {
+    _CP_SCAD_GROUP
+} cp_scad_difference_t;
+
+/**
+ * To store translate */
+typedef struct {
+    _CP_SCAD_GROUP_XYZ
+} cp_scad_translate_t;
+
+/**
+ * To store mirror */
+typedef struct {
+    _CP_SCAD_GROUP_XYZ
+} cp_scad_mirror_t;
+
+/**
+ * To store scale */
+typedef struct {
+    _CP_SCAD_GROUP_XYZ
+} cp_scad_scale_t;
 
 typedef struct {
     _CP_SCAD_GROUP
@@ -156,32 +184,23 @@ typedef struct {
     cp_mat3w_t m;
 } cp_scad_multmatrix_t;
 
-typedef cp_scad_combine_t cp_scad_union_t;
-typedef cp_scad_combine_t cp_scad_difference_t;
-typedef cp_scad_combine_t cp_scad_intersection_t;
-
-typedef cp_scad_xyz_t cp_scad_translate_t;
-typedef cp_scad_xyz_t cp_scad_mirror_t;
-typedef cp_scad_xyz_t cp_scad_scale_t;
-
 union cp_scad {
     struct {
         _CP_SCAD;
     };
+
     cp_scad_sphere_t _sphere;
     cp_scad_cylinder_t _cylinder;
     cp_scad_cube_t _cube;
     cp_scad_polyhedron_t _polyhedron;
 
-    cp_scad_combine_t _combine;
-    cp_scad_combine_t _union;
-    cp_scad_combine_t _difference;
-    cp_scad_combine_t _intersection;
+    cp_scad_union_t _union;
+    cp_scad_difference_t _difference;
+    cp_scad_intersection_t _intersection;
 
-    cp_scad_xyz_t _xyz;
-    cp_scad_xyz_t _translate;
-    cp_scad_xyz_t _mirror;
-    cp_scad_xyz_t _scale;
+    cp_scad_translate_t _translate;
+    cp_scad_mirror_t _mirror;
+    cp_scad_scale_t _scale;
 
     cp_scad_rotate_t _rotate;
     cp_scad_multmatrix_t _multmatrix;
@@ -205,6 +224,25 @@ typedef struct {
      */
     cp_scad_t *root;
 } cp_scad_tree_t;
+
+#define cp_scad_typeof(type) \
+    _Generic(type, \
+        cp_scad_union_t:        CP_SCAD_UNION, \
+        cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
+        cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
+        cp_scad_sphere_t:       CP_SCAD_SPHERE, \
+        cp_scad_cylinder_t:     CP_SCAD_CYLINDER, \
+        cp_scad_cube_t:         CP_SCAD_CUBE, \
+        cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
+        cp_scad_multmatrix_t:   CP_SCAD_MULTMATRIX, \
+        cp_scad_translate_t:    CP_SCAD_TRANSLATE, \
+        cp_scad_mirror_t:       CP_SCAD_MIRROR, \
+        cp_scad_scale_t:        CP_SCAD_SCALE, \
+        cp_scad_rotate_t:       CP_SCAD_ROTATE, \
+        cp_scad_circle_t:       CP_SCAD_CIRCLE, \
+        cp_scad_square_t:       CP_SCAD_SQUARE, \
+        cp_scad_polygon_t:      CP_SCAD_POLYGON, \
+        cp_scad_color_t:        CP_SCAD_COLOR)
 
 /*
  * UNSUPPORTED:

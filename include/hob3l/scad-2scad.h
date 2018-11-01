@@ -12,6 +12,6 @@
  */
 extern void cp_scad_tree_put_scad(
     cp_stream_t *s,
-    cp_scad_tree_t *r);
+    cp_scad_tree_t const *r);
 
 #endif /* __CP_SCAD_2SCAD_H */

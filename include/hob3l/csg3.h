@@ -56,6 +56,6 @@ extern void cp_csg3_tree_max_bb(
 extern bool cp_csg3_from_scad_tree(
     cp_csg3_tree_t *r,
     cp_err_t *t,
-    cp_scad_tree_t *scad);
+    cp_scad_tree_t const *scad);
 
 #endif /* __CP_CSG3_H */

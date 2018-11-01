@@ -11,34 +11,59 @@
 static void v_scad_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_scad_p_t *r);
+    cp_v_scad_p_t const *r);
 
 static void combine_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_combine_t *r,
+    cp_v_scad_p_t const *child,
     char const *which)
 {
     cp_printf(s, "%s(){\n", which);
-    v_scad_put_scad(s, d + IND, &r->child);
+    v_scad_put_scad(s, d + IND, child);
     cp_printf(s, "%*s}\n", d, "");
 }
 
 static void xyz_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_xyz_t *r,
+    cp_v_scad_p_t const *child,
+    cp_vec3_t const *v,
     char const *which)
 {
-    cp_printf(s, "%s(v=["FF","FF","FF"]){\n", which, r->v.x, r->v.y, r->v.z);
-    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s, "%s(v=["FF","FF","FF"]){\n", which, CP_V012(*v));
+    v_scad_put_scad(s, d + IND, child);
     cp_printf(s, "%*s}\n", d, "");
+}
+
+static void translate_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_translate_t const *r)
+{
+    xyz_put_scad(s, d, &r->child, &r->v, "translate");
+}
+
+static void mirror_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_mirror_t const *r)
+{
+    xyz_put_scad(s, d, &r->child, &r->v, "mirror");
+}
+
+static void scale_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_scale_t const *r)
+{
+    xyz_put_scad(s, d, &r->child, &r->v, "scale");
 }
 
 static void color_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_color_t *r)
+    int d,
+    cp_scad_color_t const *r)
 {
     if (r->valid) {
         cp_printf(s, "color(c=[%.3g,%.3g,%.3g,%.3g]){\n",
@@ -58,7 +83,7 @@ static void color_put_scad(
 static void rotate_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_rotate_t *r)
+    cp_scad_rotate_t const *r)
 {
     if (r->around_n) {
         cp_printf(s, "rotate(a="FF",v=["FF","FF","FF"]){\n",
@@ -75,7 +100,7 @@ static void rotate_put_scad(
 static void multmatrix_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_multmatrix_t *r)
+    cp_scad_multmatrix_t const *r)
 {
     cp_mat3_t const *b = &r->m.b;
     cp_vec3_t const *w = &r->m.w;
@@ -93,8 +118,7 @@ static void multmatrix_put_scad(
 
 static void sphere_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_sphere_t *r)
+    cp_scad_sphere_t const *r)
 {
     cp_printf(s, "sphere(r="FF",$fa="FF",$fs="FF",$fn=%u);\n",
         r->r, r->_fa, r->_fs, r->_fn);
@@ -102,8 +126,7 @@ static void sphere_put_scad(
 
 static void circle_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_circle_t *r)
+    cp_scad_circle_t const *r)
 {
     cp_printf(s, "circle(r="FF",$fa="FF",$fs="FF",$fn=%u);\n",
         r->r, r->_fa, r->_fs, r->_fn);
@@ -111,8 +134,7 @@ static void circle_put_scad(
 
 static void cylinder_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_cylinder_t *r)
+    cp_scad_cylinder_t const *r)
 {
     cp_printf(s, "cylinder(h="FF",r1="FF",r2="FF",center=%s,$fa="FF",$fs="FF",$fn=%u);\n",
         r->h, r->r1, r->r2,
@@ -122,8 +144,7 @@ static void cylinder_put_scad(
 
 static void cube_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_cube_t *r)
+    cp_scad_cube_t const *r)
 {
     cp_printf(s, "cube(size=["FF","FF","FF"],center=%s);\n",
         r->size.x, r->size.y, r->size.z, r->center ? "true" : "false");
@@ -131,8 +152,7 @@ static void cube_put_scad(
 
 static void square_put_scad(
     cp_stream_t *s,
-    int d __unused,
-    cp_scad_square_t *r)
+    cp_scad_square_t const *r)
 {
     cp_printf(s, "square(size=["FF","FF"],center=%s);\n",
         r->size.x, r->size.y, r->center ? "true" : "false");
@@ -141,7 +161,7 @@ static void square_put_scad(
 static void polyhedron_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_polyhedron_t *r)
+    cp_scad_polyhedron_t const *r)
 {
     cp_printf(s, "polyhedron(\n");
     cp_printf(s, "%*spoints=[", d+IND,"");
@@ -169,7 +189,7 @@ static void polyhedron_put_scad(
 static void polygon_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_polygon_t *r)
+    cp_scad_polygon_t const *r)
 {
     cp_printf(s, "polygon(\n");
     cp_printf(s, "%*spoints=[", d+IND,"");
@@ -197,73 +217,73 @@ static void polygon_put_scad(
 static void scad_put_scad(
     cp_stream_t *s,
     int d,
-    cp_scad_t *r)
+    cp_scad_t const *r)
 {
     cp_printf(s, "%*s", d, "");
     cp_gc_modifier_put_scad(s, r->modifier);
     switch (r->type) {
     case CP_SCAD_UNION:
-        combine_put_scad(s, d, cp_scad_union(r), "union");
+        combine_put_scad(s, d, &cp_scad_cast(_union, r)->child, "union");
         return;
 
     case CP_SCAD_DIFFERENCE:
-        combine_put_scad(s, d, cp_scad_difference(r), "difference");
+        combine_put_scad(s, d, &cp_scad_cast(_difference, r)->child, "difference");
         return;
 
     case CP_SCAD_INTERSECTION:
-        combine_put_scad(s, d, cp_scad_intersection(r), "intersection");
+        combine_put_scad(s, d, &cp_scad_cast(_intersection, r)->child, "intersection");
         return;
 
     case CP_SCAD_TRANSLATE:
-        xyz_put_scad(s, d, cp_scad_translate(r), "translate");
+        translate_put_scad(s, d, cp_scad_cast(_translate, r));
         return;
 
     case CP_SCAD_MIRROR:
-        xyz_put_scad(s, d, cp_scad_mirror(r), "mirror");
+        mirror_put_scad(s, d, cp_scad_cast(_mirror, r));
         return;
 
     case CP_SCAD_SCALE:
-        xyz_put_scad(s, d, cp_scad_scale(r), "scale");
+        scale_put_scad(s, d, cp_scad_cast(_scale, r));
         return;
 
     case CP_SCAD_ROTATE:
-        rotate_put_scad(s, d, cp_scad_rotate(r));
+        rotate_put_scad(s, d, cp_scad_cast(_rotate, r));
         return;
 
     case CP_SCAD_MULTMATRIX:
-        multmatrix_put_scad(s, d, cp_scad_multmatrix(r));
+        multmatrix_put_scad(s, d, cp_scad_cast(_multmatrix, r));
         return;
 
     case CP_SCAD_SPHERE:
-        sphere_put_scad(s, d, cp_scad_sphere(r));
+        sphere_put_scad(s, cp_scad_cast(_sphere, r));
         return;
 
     case CP_SCAD_CUBE:
-        cube_put_scad(s, d, cp_scad_cube(r));
+        cube_put_scad(s, cp_scad_cast(_cube, r));
         return;
 
     case CP_SCAD_CYLINDER:
-        cylinder_put_scad(s, d, cp_scad_cylinder(r));
+        cylinder_put_scad(s, cp_scad_cast(_cylinder, r));
         return;
 
     case CP_SCAD_POLYHEDRON:
-        polyhedron_put_scad(s, d, cp_scad_polyhedron(r));
+        polyhedron_put_scad(s, d, cp_scad_cast(_polyhedron, r));
         return;
 
     case CP_SCAD_CIRCLE:
-        circle_put_scad(s, d, cp_scad_circle(r));
+        circle_put_scad(s, cp_scad_cast(_circle, r));
         return;
 
     case CP_SCAD_SQUARE:
-        square_put_scad(s, d, cp_scad_square(r));
+        square_put_scad(s, cp_scad_cast(_square, r));
         return;
 
     case CP_SCAD_POLYGON:
-        polygon_put_scad(s, d, cp_scad_polygon(r));
+        polygon_put_scad(s, d, cp_scad_cast(_polygon, r));
         return;
 
     case CP_SCAD_COLOR:
-        color_put_scad(s, d, cp_scad_color(r));
+        color_put_scad(s, d, cp_scad_cast(_color, r));
         return;
     }
     CP_NYI("type=0x%x", r->type);
@@ -272,7 +292,7 @@ static void scad_put_scad(
 static void v_scad_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_scad_p_t *r)
+    cp_v_scad_p_t const *r)
 {
     for (cp_v_each(i, r)) {
         scad_put_scad(s, d, r->data[i]);
@@ -284,7 +304,7 @@ static void v_scad_put_scad(
  */
 extern void cp_scad_tree_put_scad(
     cp_stream_t *s,
-    cp_scad_tree_t *r)
+    cp_scad_tree_t const *r)
 {
     v_scad_put_scad(s, 0, &r->toplevel);
 }

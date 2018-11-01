@@ -101,7 +101,7 @@ static bool csg3_from_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_t *s);
+    cp_scad_t const *s);
 
 static bool csg3_from_v_scad(
     bool *no,
@@ -109,7 +109,7 @@ static bool csg3_from_v_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_v_scad_p_t *ss)
+    cp_v_scad_p_t const *ss)
 {
     for (cp_v_each(i, ss)) {
         if (!csg3_from_scad(no, r, t, e, m, cp_v_nth(ss, i))) {
@@ -125,7 +125,7 @@ static bool csg3_from_union(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_combine_t *s)
+    cp_scad_union_t const *s)
 {
     return csg3_from_v_scad(no, r, t, e, m, &s->child);
 }
@@ -170,7 +170,7 @@ static bool csg3_from_difference(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_combine_t *s)
+    cp_scad_difference_t const *s)
 {
     cp_v_csg3_p_t f = CP_V_INIT;
 
@@ -301,7 +301,7 @@ static bool csg3_from_intersection(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_combine_t *s)
+    cp_scad_intersection_t const *s)
 {
     cp_v_csg3_add_p_t cut = CP_V_INIT;
 
@@ -354,7 +354,7 @@ static bool csg3_from_translate(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_xyz_t *s)
+    cp_scad_translate_t const *s)
 {
     if (cp_vec3_has_len0(&s->v)) {
         /* Avoid math ops unless necessary: for 0 length xlat,
@@ -377,7 +377,7 @@ static bool csg3_from_mirror(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_xyz_t *s)
+    cp_scad_mirror_t const *s)
 {
     if (cp_vec3_has_len0(&s->v)) {
         cp_vchar_printf(&e->msg, "Mirror plane normal has length zero.\n");
@@ -417,7 +417,7 @@ static bool csg3_from_scale(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_xyz_t *s)
+    cp_scad_scale_t const *s)
 {
     if (!good_scale(&s->v)) {
         cp_vchar_printf(&e->msg, "Scale is zero.\n");
@@ -439,7 +439,7 @@ static bool csg3_from_multmatrix(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_multmatrix_t *s)
+    cp_scad_multmatrix_t const *s)
 {
     cp_mat3wi_t *m1 = mat_new(t);
     if (!cp_mat3wi_from_mat3w(m1, &s->m)) {
@@ -460,7 +460,7 @@ static bool csg3_from_color(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_color_t *s)
+    cp_scad_color_t const *s)
 {
     mat_ctxt_t mn  = *mo;
     mn.gc.color.a = s->rgba.a;
@@ -476,7 +476,7 @@ static bool csg3_from_rotate(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_rotate_t *s)
+    cp_scad_rotate_t const *s)
 {
     cp_mat3wi_t *m1 = mat_new(t);
     if (s->around_n) {
@@ -933,7 +933,7 @@ static void set_vec3_loc(
 static void csg3_poly_make_sphere(
     cp_csg3_poly_t *o,
     cp_mat3wi_t const *m,
-    cp_scad_sphere_t *s,
+    cp_scad_sphere_t const *s,
     size_t fn)
 {
     assert(fn >= 3);
@@ -967,7 +967,7 @@ static bool csg3_from_sphere(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_sphere_t *s)
+    cp_scad_sphere_t const *s)
 {
     if (cp_le(s->r, 0)) {
         cp_vchar_printf(&e->msg, "Sphere scale is zero or negative.\n");
@@ -1017,7 +1017,7 @@ static bool csg3_from_circle(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_circle_t *s)
+    cp_scad_circle_t const *s)
 {
     if (cp_leq(s->r, 0)) {
         cp_vchar_printf(&e->msg, "Circle scale is zero or negative.\n");
@@ -1071,7 +1071,7 @@ static bool csg3_from_polyhedron(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_polyhedron_t *s)
+    cp_scad_polyhedron_t const *s)
 {
     if (s->points.size < 4) {
         cp_vchar_printf(&e->msg, "Polyhedron needs at least 4 points, but found only %"_Pz"u.\n",
@@ -1200,7 +1200,7 @@ static bool csg3_from_polygon(
     cp_v_csg3_p_t *r,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_polygon_t *s)
+    cp_scad_polygon_t const *s)
 {
     if (s->points.size < 3) {
         cp_vchar_printf(&e->msg, "Polygons needs at least 3 points, but found only %"_Pz"u.\n",
@@ -1265,7 +1265,7 @@ static bool csg3_from_cube(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_cube_t *s)
+    cp_scad_cube_t const *s)
 {
     /* size 0 in any direction is an error */
     if (!good_scale(&s->size)) {
@@ -1329,7 +1329,7 @@ static bool csg3_from_square(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_square_t *s)
+    cp_scad_square_t const *s)
 {
     /* size 0 in any direction is an error */
     if (!good_scale2(&s->size)) {
@@ -1386,7 +1386,7 @@ static bool csg3_poly_cylinder(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     cp_mat3wi_t const *m,
-    cp_scad_cylinder_t *s,
+    cp_scad_cylinder_t const *s,
     mat_ctxt_t const *mo,
     cp_scale_t r2,
     size_t fn)
@@ -1433,7 +1433,7 @@ static bool csg3_from_cylinder(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
-    cp_scad_cylinder_t *s)
+    cp_scad_cylinder_t const *s)
 {
     cp_scale_t r1 = s->r1;
     cp_scale_t r2 = s->r2;
@@ -1516,7 +1516,7 @@ static bool csg3_from_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
-    cp_scad_t *s)
+    cp_scad_t const *s)
 {
     assert(r != NULL);
     assert(t != NULL);
@@ -1539,46 +1539,46 @@ static bool csg3_from_scad(
     switch (s->type) {
     /* operators */
     case CP_SCAD_UNION:
-        return csg3_from_union(no, r, t, e, m, cp_scad_union(s));
+        return csg3_from_union(no, r, t, e, m, cp_scad_cast(_union, s));
 
     case CP_SCAD_DIFFERENCE:
-        return csg3_from_difference(no, r, t, e, m, cp_scad_difference(s));
+        return csg3_from_difference(no, r, t, e, m, cp_scad_cast(_difference, s));
 
     case CP_SCAD_INTERSECTION:
-        return csg3_from_intersection(no, r, t, e, m, cp_scad_intersection(s));
+        return csg3_from_intersection(no, r, t, e, m, cp_scad_cast(_intersection, s));
 
     /* transformations */
     case CP_SCAD_TRANSLATE:
-        return csg3_from_translate(no, r, t, e, m, cp_scad_translate(s));
+        return csg3_from_translate(no, r, t, e, m, cp_scad_cast(_translate, s));
 
     case CP_SCAD_MIRROR:
-        return csg3_from_mirror(no, r, t, e, m, cp_scad_mirror(s));
+        return csg3_from_mirror(no, r, t, e, m, cp_scad_cast(_mirror, s));
 
     case CP_SCAD_SCALE:
-        return csg3_from_scale(no, r, t, e, m, cp_scad_scale(s));
+        return csg3_from_scale(no, r, t, e, m, cp_scad_cast(_scale, s));
 
     case CP_SCAD_ROTATE:
-        return csg3_from_rotate(no, r, t, e, m, cp_scad_rotate(s));
+        return csg3_from_rotate(no, r, t, e, m, cp_scad_cast(_rotate, s));
 
     case CP_SCAD_MULTMATRIX:
-        return csg3_from_multmatrix(no, r, t, e, m, cp_scad_multmatrix(s));
+        return csg3_from_multmatrix(no, r, t, e, m, cp_scad_cast(_multmatrix, s));
 
     /* 3D objects */
     case CP_SCAD_SPHERE:
         object(no);
-        return csg3_from_sphere(r, t, e, m, cp_scad_sphere(s));
+        return csg3_from_sphere(r, t, e, m, cp_scad_cast(_sphere, s));
 
     case CP_SCAD_CUBE:
         object(no);
-        return csg3_from_cube(r, t, e, m, cp_scad_cube(s));
+        return csg3_from_cube(r, t, e, m, cp_scad_cast(_cube, s));
 
     case CP_SCAD_CYLINDER:
         object(no);
-        return csg3_from_cylinder(r, t, e, m, cp_scad_cylinder(s));
+        return csg3_from_cylinder(r, t, e, m, cp_scad_cast(_cylinder, s));
 
     case CP_SCAD_POLYHEDRON:
         object(no);
-        return csg3_from_polyhedron(r, t, e, m, cp_scad_polyhedron(s));
+        return csg3_from_polyhedron(r, t, e, m, cp_scad_cast(_polyhedron, s));
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
@@ -1587,19 +1587,19 @@ static bool csg3_from_scad(
         return true;
 #if 0
         /* FIXME: continue */
-        return csg3_from_circle(r, t, e, m, cp_scad_circle(s));
+        return csg3_from_circle(r, t, e, m, cp_scad_cast(_circle, s));
 #endif
 
     case CP_SCAD_SQUARE:
         object(no);
-        return csg3_from_square(r, t, e, m, cp_scad_square(s));
+        return csg3_from_square(r, t, e, m, cp_scad_cast(_square, s));
 
     case CP_SCAD_POLYGON:
         object(no);
-        return csg3_from_polygon(r, e, m, cp_scad_polygon(s));
+        return csg3_from_polygon(r, e, m, cp_scad_cast(_polygon, s));
 
     case CP_SCAD_COLOR:
-        return csg3_from_color(no, r, t, e, m, cp_scad_color(s));
+        return csg3_from_color(no, r, t, e, m, cp_scad_cast(_color, s));
     }
 
     CP_DIE("SCAD object type");
@@ -1623,7 +1623,7 @@ static void csg3_fini_tree(
 static bool cp_csg3_from_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
-    cp_scad_t *s)
+    cp_scad_t const *s)
 {
     assert(t != NULL);
     assert(e != NULL);
@@ -1646,7 +1646,7 @@ static bool cp_csg3_from_scad(
 static bool cp_csg3_from_v_scad(
     cp_csg3_tree_t *t,
     cp_err_t *e,
-    cp_v_scad_p_t *ss)
+    cp_v_scad_p_t const *ss)
 {
     assert(t != NULL);
     assert(e != NULL);
@@ -1777,7 +1777,7 @@ extern void cp_csg3_tree_max_bb(
 extern bool cp_csg3_from_scad_tree(
     cp_csg3_tree_t *r,
     cp_err_t *t,
-    cp_scad_tree_t *scad)
+    cp_scad_tree_t const *scad)
 {
     assert(scad != NULL);
     if (scad->root != NULL) {
