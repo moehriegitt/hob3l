@@ -294,7 +294,7 @@ static inline size_t __cp_v_bsearch(
         __typeof__(*(_vec)) *__vec = (_vec); \
         size_t __size = (_size); \
         assert(__vec != NULL); \
-        CP_CALLOC_ARR(__vec->data, __size); \
+        __vec->data = CP_NEW_ARR(*__vec->data, __size); \
         __vec->size = __size; \
         if (cp_countof(__vec->word) == 3) { \
             __vec->word[2] = __size; \

@@ -18,9 +18,7 @@
 #define CP_POOL_NEW_ARR(p, x, n) \
     ((__typeof__(x)*)cp_pool_calloc(CP_FILE, CP_LINE, p, n, sizeof(x), cp_alignof(x)))
 
-#define CP_POOL_NEW(p, x)           CP_POOL_NEW_ARR(p, x, 1)
-#define CP_POOL_CALLOC_ARR(p, x, n) ((x) = CP_POOL_NEW_ARR(p, *(x), n))
-#define CP_POOL_CALLOC(p, x)        CP_POOL_CALLOC_ARR(p, x, 1)
+#define CP_POOL_NEW(p, x) CP_POOL_NEW_ARR(p, x, 1)
 
 /**
  * Empty the allocator, i.e., throw away all content.

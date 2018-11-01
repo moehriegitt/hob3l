@@ -472,8 +472,7 @@ static void csg2_add_layer_poly(
 
     assert(d->edge.size > 0);
     size_t hea_size = CP_ROUNDUP_DIV(d->edge.size, 8*sizeof(size_t));
-    size_t *hea;
-    CP_POOL_CALLOC_ARR(pool, hea, hea_size);
+    size_t *hea = CP_POOL_NEW_ARR(pool, *hea, hea_size);
     cp_a_size_t have_edge = CP_A_INIT_WITH(hea, hea_size);
 
     ctxt_t q = {

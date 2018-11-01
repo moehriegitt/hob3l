@@ -373,6 +373,11 @@ struct cp_csg2_3node {
 };
 
 /**
+ * Array of 3node.
+ */
+typedef CP_ARR_T(cp_csg2_3node_t) cp_a_csg2_3node_t;
+
+/**
  * Edge for triangulation algorithm
  *
  * This exposes more than it should, but that's life with C.  This

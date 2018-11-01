@@ -148,4 +148,5 @@ TEST_STL.scad := \
     scad-test/uselessbox+body.scad \
     scad-test/curry.scad \
     scad-test/test31b.scad \
-    scad-test/test31c.scad
+    scad-test/test31c.scad \
+    scad-test/test31d.scad

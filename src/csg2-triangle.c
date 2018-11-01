@@ -41,6 +41,7 @@ typedef cp_csg2_3list_t list_t;
 
 typedef struct {
     cp_vec2_arr_ref_t *point_arr;
+    cp_a_csg2_3node_t *node;
     cp_v_size3_t *tri;
     cp_err_t *t;
     cp_dict_t *nx;
@@ -301,6 +302,17 @@ static void dump_ey(
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (TRI: %s) show\n", msg);
         cp_printf(cp_debug_ps, "30 55 moveto (%s) show\n", node_str(p));
+
+        /* input polygon */
+        cp_printf(cp_debug_ps, "0 0.9 0.9 setrgbcolor 1 setlinewidth\n");
+        for (cp_v_each(i, c->node)) {
+            cp_csg2_3node_t *n = &cp_v_nth(c->node, i);
+            cp_printf(cp_debug_ps,
+                "newpath %g %g moveto %g %g lineto stroke\n",
+                CP_PS_XY(*n->coord),
+                CP_PS_XY(*n->out->dst->coord));
+            cp_debug_ps_dot(CP_PS_XY(*n->coord), 3);
+        }
 
         /* sweep line */
         cp_printf(cp_debug_ps, "0.8 setgray 1 setlinewidth\n");
@@ -1322,8 +1334,7 @@ extern bool cp_csg2_tri_set(
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,
-    cp_csg2_3node_t *node,
-    size_t n)
+    cp_a_csg2_3node_t *node)
 {
     /*
      * What they fail to mention in the paper is that some nodes need
@@ -1336,18 +1347,18 @@ extern bool cp_csg2_tri_set(
      * the algorith handles subsequent colinear edges correctly without
      * needing to take special care.
      */
-    if (n == 0) {
+    if (node->size == 0) {
         return true;
     }
 
     /* allocate list cells */
-    size_t list_size = n * 2;
-    list_t *list_data;
-    CP_POOL_CALLOC_ARR(pool, list_data, list_size);
+    size_t list_size = node->size * 2;
+    list_t *list_data = CP_POOL_NEW_ARR(pool, *list_data, list_size);
     assert(cp_mem_is0(list_data, sizeof(*list_data) * list_size));
 
     /* init context */
     ctxt_t c = {
+        .node = node,
         .point_arr = point_arr,
         .tri = tri,
         .t = t,
@@ -1360,14 +1371,14 @@ extern bool cp_csg2_tri_set(
     cp_list_init(&c.list_free);
 
     /* connect nodes */
-    for (cp_size_each(i, n)) {
-        node_t *p = &node[i];
+    for (cp_v_each(i, node)) {
+        node_t *p = &cp_v_nth(node, i);
         p->out->src = p->in->dst = p;
     }
 
     /* insert nodes into set, ordered by coord_cmp() */
-    for (cp_size_each(i, n)) {
-        node_t *p = &node[i];
+    for (cp_v_each(i, node)) {
+        node_t *p = &cp_v_nth(node, i);
         cp_list_init(&p->out->list);
         cp_dict_t *dup __unused =
             cp_dict_insert(&p->node_nx, &c.nx, cmp_nx, NULL, 0);
@@ -1415,10 +1426,8 @@ extern bool cp_csg2_tri_path(
     size_t n = s->point_idx.size;
 
     /* allocate */
-    node_t *node;
-    CP_POOL_CALLOC_ARR(pool, node, n);
-    edge_t *edge;
-    CP_POOL_CALLOC_ARR(pool, edge, n);
+    node_t *node = CP_POOL_NEW_ARR(pool, *node, n);
+    edge_t *edge = CP_POOL_NEW_ARR(pool, *edge, n);
 
     /* Init nodes and edges and insert into X structure 'px'
      * To do multiple paths in one go, this would need to be
@@ -1434,7 +1443,9 @@ extern bool cp_csg2_tri_path(
         p->in = &edge[cp_wrap_sub1(i,n)];
     }
 
-    return cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n);
+    cp_a_csg2_3node_t a = CP_A_INIT_WITH(node, n);
+
+    return cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, &a);
 }
 
 /**
@@ -1468,10 +1479,8 @@ extern bool cp_csg2_tri_poly(
     }
 
     /* allocate */
-    node_t *node;
-    CP_POOL_CALLOC_ARR(pool, node, n);
-    edge_t *edge;
-    CP_POOL_CALLOC_ARR(pool, edge, n);
+    node_t *node = CP_POOL_NEW_ARR(pool, *node, n);
+    edge_t *edge = CP_POOL_NEW_ARR(pool, *edge, n);
 
     /* make edges */
     size_t m = g->path.size;
@@ -1501,8 +1510,10 @@ extern bool cp_csg2_tri_poly(
     size_t tri_cnt = (n - 2) + 2*(m - 1);
     cp_v_clear(&g->triangle, tri_cnt);
 
+    cp_a_csg2_3node_t a = CP_A_INIT_WITH(node, n);
+
     /* run the triangulation algorithm */
-    if (!cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, node, n)) {
+    if (!cp_csg2_tri_set(pool, t, &CP_VEC2_ARR_REF(&g->point, coord), &g->triangle, &a)) {
         return false;
     }
     assert(g->triangle.size  <= tri_cnt);

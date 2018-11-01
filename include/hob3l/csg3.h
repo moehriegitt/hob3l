@@ -9,6 +9,37 @@
 #include <hob3l/scad_tam.h>
 #include <hob3l/csg3-2scad.h>
 
+/** Create a CSG3 instance */
+#define cp_csg3_new(r, _loc) \
+    ({ \
+        __typeof__(r) * __r = CP_NEW(*__r); \
+        __r->type = cp_csg3_typeof(*__r); \
+        __r->loc = (_loc); \
+        __r; \
+    })
+
+/** Create a CSG3 object instance */
+#define cp_csg3_new_obj(r, _loc, _gc) \
+    ({ \
+        __typeof__(r) * __rA = cp_csg3_new(r, _loc); \
+        __rA->gc = (_gc); \
+        __rA; \
+    })
+
+/** Specialising cast w/ dynamic check */
+#define cp_csg3_cast(t,s) \
+    ({ \
+        assert((s)->type == cp_csg3_typeof(*(t))); \
+        (__typeof__(t))(s); \
+    })
+
+/**  Generalising case w/ static check */
+#define cp_csg3(t) \
+    ({ \
+        cp_static_assert(cp_csg3_typeof(*(t)) != 0); \
+        (cp_csg3_t*)(t); \
+    })
+
 /**
  * Get bounding box of all points, including those that are
  * in subtracted parts that will be outside of the final solid.

@@ -16,14 +16,6 @@
 #define CP_NEW(X)  CP_NEW_ARR(X,1)
 #endif
 
-#ifndef CP_CALLOC_ARR
-#define CP_CALLOC_ARR(X,N)  ((X) = CP_NEW_ARR(*(X), N))
-#endif
-
-#ifndef CP_CALLOC
-#define CP_CALLOC(X)  CP_CALLOC_ARR(X,1)
-#endif
-
 #ifndef CP_CLONE
 #define CP_CLONE(X) \
     ((__typeof__(X))memcpy(cp_malloc(CP_FILE, CP_LINE, sizeof(*X)), (X), sizeof(*X)))

@@ -252,7 +252,7 @@ case "debug-ps": fn {
     }
     cp_debug_ps_file = f;
 
-    CP_CALLOC(cp_debug_ps);
+    cp_debug_ps = CP_NEW(*cp_debug_ps);
     *cp_debug_ps = *CP_STREAM_FROM_FILE(f);
 
     cp_ps_doc_begin(cp_debug_ps, &opt->ps,

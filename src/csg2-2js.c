@@ -500,8 +500,7 @@ extern void cp_csg2_tree_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t)
 {
-    ctxt_t *c;
-    CP_CALLOC(c);
+    ctxt_t *c = CP_NEW(*c);
     c->tree = t;
 
     scene_flush(c, s);

@@ -68,8 +68,7 @@ extern bool cp_csg2_tri_set(
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,
-    cp_csg2_3node_t *node,
-    size_t n);
+    cp_a_csg2_3node_t *node);
 
 /**
  * Triangulate a single path.

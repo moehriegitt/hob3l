@@ -35,47 +35,6 @@ static void csg3_init(
     r->loc = loc;
 }
 
-#define csg3_new(t, l) __csg3_new(CP_FILE, CP_LINE, t, l)
-
-static cp_csg3_t *__csg3_new(
-    char const *file,
-    int line,
-    cp_csg3_type_t type,
-    cp_loc_t loc)
-{
-    static const size_t size[] = {
-        [CP_CSG3_SPHERE]   = sizeof(cp_csg3_sphere_t),
-        [CP_CSG3_CYL]      = sizeof(cp_csg3_cyl_t),
-        [CP_CSG3_POLY]     = sizeof(cp_csg3_poly_t),
-        [CP_CSG3_ADD]      = sizeof(cp_csg3_add_t),
-        [CP_CSG3_SUB]      = sizeof(cp_csg3_sub_t),
-        [CP_CSG3_CUT]      = sizeof(cp_csg3_cut_t),
-        [CP_CSG3_2D]       = sizeof(cp_csg3_2d_t),
-    };
-    assert(type < cp_countof(size));
-    assert(size[type] != 0);
-    cp_csg3_t *r = cp_calloc(file, line, 1, size[type]);
-    csg3_init(r, type, loc);
-    return r;
-}
-
-static cp_csg3_t *csg3_new_push(
-    cp_v_csg3_p_t *arr,
-    cp_csg3_type_t type,
-    cp_loc_t loc)
-{
-    cp_csg3_t *o = csg3_new(type, loc);
-    cp_v_push(arr, o);
-    return o;
-}
-
-#define csg3_new_push(a, t, l) \
-    ({ \
-        cp_v_csg3_p_t *__arr = (a); \
-        assert(__arr != NULL); \
-        csg3_new_push(__arr, t, l); \
-    })
-
 static cp_mat3wi_t const *the_unit(
     cp_csg3_tree_t *result)
 {
@@ -284,14 +243,14 @@ static bool csg3_from_difference(
         return true;
     }
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_SUB, s->loc);
-    cp_csg3_sub_t *o = cp_csg3_sub(_o);
+    cp_csg3_sub_t *o = cp_csg3_new(*o, s->loc);
+    cp_v_push(r, cp_csg3(o));
 
-    csg3_init((cp_csg3_t*)&o->add, CP_CSG3_ADD, s->loc);
+    csg3_init(cp_csg3(&o->add), CP_CSG3_ADD, s->loc);
     o->add.add = f;
     csg3_add_minmax(&o->add);
 
-    csg3_init((cp_csg3_t*)&o->sub, CP_CSG3_ADD, s->loc);
+    csg3_init(cp_csg3(&o->sub), CP_CSG3_ADD, s->loc);
     o->sub.add = g;
 
     /* o->sub only restricts the bounding box, but it is too complicated to
@@ -315,8 +274,8 @@ static void csg3_cut_push_add(
     cp_v_csg3_p_t *add)
 {
     if (add->size > 0) {
-        cp_csg3_t *_a = csg3_new(CP_CSG3_ADD, cp_v_nth(add,0)->loc);
-        cp_csg3_add_t *a = cp_csg3_add(_a);
+        cp_csg3_add_t *a = cp_csg3_new(*a, cp_v_nth(add,0)->loc);
+
         a->add = *add;
         csg3_add_minmax(a);
 
@@ -362,8 +321,9 @@ static bool csg3_from_intersection(
     csg3_cut_push_add(&cut, &add);
     assert(cut.size >= 2);
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_CUT, s->loc);
-    cp_csg3_cut_t *o = cp_csg3_cut(_o);
+    cp_csg3_cut_t *o = cp_csg3_new(*o, s->loc);
+    cp_v_push(r, cp_csg3(o));
+
     o->cut = cut;
 
     /* Intersecting the bounding boxes means using the largest minimum
@@ -845,6 +805,129 @@ static size_t get_fn(
     return fn;
 }
 
+/**
+ * From an array of points in the rough shape of a tower,
+ * make a polyhedron.  'Tower' means the shape consists
+ * of layers of polygon points stack on each other.
+ *
+ * This function also handles the case of the top collapsing into a
+ * single point.
+ *
+ * So this shape works for (polyhedronized) cylinders, cones,
+ * spheres, cubes, and linear_extrudes.
+ *
+ * If the connecting quads are not planar, then tri_side can be
+ * set to non-false to split them into triangles.  This shape is
+ * probably not nice, but correct in that the faces are planar,
+ * since every triangle is trivially planar).
+ *
+ * The top and bottom faces must be planar.
+ *
+ * rev^(m->d < 0) inverts face vertex order to allow managing
+ * mirroring and negative determinants.  This also gives some freedom
+ * for the construction: if top and bottom are swapped (i.e., the
+ * points 0..fn-1 are the top, not the bottom), then rev be passed as
+ * non-false.
+ *
+ * This also runs xform and minmax, but not make_edges.
+ */
+static void faces_from_tower(
+    cp_csg3_poly_t *o,
+    cp_mat3wi_t const *m,
+    cp_loc_t loc,
+    size_t fn,
+    size_t fnz,
+    bool rev,
+    bool tri_side)
+{
+    /* reverse based on determinant */
+    if (m->d < 0) {
+        rev = !rev;
+    }
+
+    /* in-place xform */
+    for (cp_v_each(i, &o->point)) {
+        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
+    }
+
+    bool has_top = (o->point.size == fn*fnz);
+    assert(has_top || (o->point.size == 1 + (fn * (fnz - 1))));
+
+    /* generate faces */
+    size_t k = 0;
+    cp_v_init0(&o->face, 1U + has_top + ((fnz - 1) * fn * (1U + tri_side)));;
+
+    /* bottom */
+    cp_csg3_face_t *f = &cp_v_nth(&o->face, k++);
+    cp_v_init0(&f->point, fn);
+    for (cp_size_each(j, fn)) {
+        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+        v->ref = &cp_v_nth(&o->point, j);
+        v->loc = loc;
+    }
+    face_basics(f, rev, loc);
+
+    if (has_top) {
+        /* top */
+        f = &cp_v_nth(&o->face, k++);
+        cp_v_init0(&f->point, fn);
+        for (cp_size_each(j, fn)) {
+            cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+            v->ref = &cp_v_nth(&o->point, o->point.size - j - 1);
+            v->loc = loc;
+        }
+        face_basics(f, rev, loc);
+    }
+
+    /* sides */
+    for (cp_size_each(i, fnz, 1, !has_top)) {
+        size_t k1 = i * fn;
+        size_t k0 = k1 - fn;
+        for (cp_size_each(j0, fn)) {
+            size_t j1 = cp_wrap_add1(j0, fn);
+            f = &cp_v_nth(&o->face, k++);
+            if (tri_side) {
+                face_init_from_point_ref(
+                    f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1 }, 3, !rev, loc);
+                f = &cp_v_nth(&o->face, k++);
+                face_init_from_point_ref(
+                    f, o, (size_t[4]){ k1+j1, k1+j0, k0+j0 }, 3, !rev, loc);
+            }
+            else {
+                face_init_from_point_ref(
+                    f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1, k1+j0 }, 4, !rev, loc);
+            }
+        }
+    }
+
+    if (!has_top) {
+        /* roof */
+        size_t kw = o->point.size - 1;
+        size_t kv = kw - fn;
+        for (cp_size_each(j0, fn)) {
+            size_t j1 = cp_wrap_add1(j0, fn);
+            f = &cp_v_nth(&o->face, k++);
+            face_init_from_point_ref(
+                f, o, (size_t[4]){ kv+j0, kv+j1, kw }, 3, !rev, loc);
+        }
+    }
+
+    assert(o->face.size == k);
+
+    csg3_poly_minmax(o);
+}
+
+static void set_vec3_loc(
+    cp_vec3_loc_t *p,
+    double x, double y, double z,
+    cp_loc_t loc)
+{
+    p->coord.x = x;
+    p->coord.y = y;
+    p->coord.z = z;
+    p->loc = loc;
+}
+
 static void csg3_poly_make_sphere(
     cp_csg3_poly_t *o,
     cp_mat3wi_t const *m,
@@ -869,58 +952,12 @@ static void csg3_poly_make_sphere(
         for (cp_size_each(j, fn)) {
             assert(p < (o->point.data + o->point.size));
             double t = cp_f(j) * fna;
-            p->coord.x = r*cos(t);
-            p->coord.y = r*sin(t);
-            p->coord.z = z;
-            p->loc = s->loc;
-            p++;
+            set_vec3_loc(p++, r*cos(t), r*sin(t), z, s->loc);
         }
     }
 
-    /* in-place xform */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
-    }
-
-    /* generate faces */
-    bool rev = (m->d < 0);
-    size_t k = 0;
-    cp_v_init0(&o->face, 2 + (fn * (fnz - 1)));
-
-    /* top */
-    cp_csg3_face_t *f = &cp_v_nth(&o->face, k++);
-    cp_v_init0(&f->point, fn);
-    for (cp_size_each(j, fn)) {
-        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
-        v->ref = &cp_v_nth(&o->point, j);
-        v->loc = s->loc;
-    }
-    face_basics(f, !rev, s->loc);
-
-    /* bottom */
-    f = &cp_v_nth(&o->face, k++);
-    cp_v_init0(&f->point, fn);
-    for (cp_size_each(j, fn)) {
-        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
-        v->ref = &cp_v_nth(&o->point, o->point.size - j - 1);
-        v->loc = s->loc;
-    }
-    face_basics(f, !rev, s->loc);
-
-    /* sides */
-    for (cp_size_each(i, fnz, 1)) {
-        size_t k1 = i * fn;
-        size_t k0 = k1 - fn;
-        for (cp_size_each(j0, fn)) {
-            size_t j1 = cp_wrap_add1(j0, fn);
-            f = &cp_v_nth(&o->face, k++);
-            face_init_from_point_ref(
-                f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1, k1+j0 }, 4, rev, s->loc);
-        }
-    }
-
-    assert(o->face.size == k);
-
+    /* make faces */
+    faces_from_tower(o, m, s->loc, fn, fnz, true, false);
 }
 
 static bool csg3_from_sphere(
@@ -946,12 +983,10 @@ static bool csg3_from_sphere(
 
     size_t fn = get_fn(&t->opt, s->_fn, true);
     if (fn > 0) {
-        cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-        cp_csg3_poly_t *o = cp_csg3_poly(_o);
-        o->gc = mo->gc;
+        cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+        cp_v_push(r, cp_csg3(o));
 
         csg3_poly_make_sphere(o, m, s, fn);
-        csg3_poly_minmax(o);
         if (!poly_make_edges(o, t, e)) {
             cp_vchar_printf(&e->msg,
                 " Internal Error: Sphere polyhedron construction algorithm is broken.\n");
@@ -960,9 +995,8 @@ static bool csg3_from_sphere(
         return true;
     }
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_SPHERE, s->loc);
-    cp_csg3_sphere_t *o = cp_csg3_sphere(_o);
-    o->gc = mo->gc;
+    cp_csg3_sphere_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3(o));
 
     o->non_empty = true;
     o->mat = m;
@@ -995,9 +1029,11 @@ static bool csg3_from_circle(
         cp_mat3wi_mul(m1, m, m1);
         m = m1;
     }
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG2_CIRCLE, s->loc);
-    cp_csg2_circle_t *o = &_o->circle;
-    o->gc = mo->gc;
+
+    cp_csg3_2d_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3());
+
+    o->csg3 = cp_csg2_new_obj(*o->csg3, s->loc);
 
     o->mat.n = CP_MAT2W(
         m->n.b.m[0][0], m->n.b.m[0][1], m->n.w.v[0],
@@ -1048,9 +1084,8 @@ static bool csg3_from_polyhedron(
         return false;
     }
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = cp_csg3_poly(_o);
-    o->gc = m->gc;
+    cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, m->gc);
+    cp_v_push(r, cp_csg3(o));
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1172,9 +1207,8 @@ static bool csg3_from_polygon(
         return false;
     }
 
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_2D, s->loc);
-    cp_csg3_2d_t *o2 = cp_csg3_2d(_o);
-    o2->gc = m->gc;
+    cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, m->gc);
+    cp_v_push(r, cp_csg3(o2));
 
     o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
     cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
@@ -1259,53 +1293,25 @@ static bool csg3_from_cube(
         m = m1;
     }
 
-    /* make cube shape */
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = cp_csg3_poly(_o);
-    o->gc = mo->gc;
+    /* make points */
+    cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3(o));
 
     o->is_cube = cp_mat3_is_rect_rot(&m->n.b);
 
-    // /=y (topright is pos)        1----0     0 is at (1,1,1)
-    // -=x (right is pos)  d       /|   /|
-    // |=z (top is pos)           3----2 |
-    //                            | 5--|-4
-    //                            |/   |/
-    //                            7----6       7 is at (0,0,0)
+    //   1----0
+    //  /|   /|
+    // 2----3 |
+    // | 5--|-4
+    // |/   |/
+    // 6----7
     cp_v_init0(&o->point, 8);
     for (cp_size_each(i, 8)) {
-        cp_v_nth(&o->point, i) = (cp_vec3_loc_t){
-            .coord = { .v={ !(i&1), !(i&2), !(i&4) }},
-            .loc = s->loc,
-        };
+        set_vec3_loc(&cp_v_nth(&o->point, i), !(i&1)^!(i&2), !(i&2), !(i&4), s->loc);
     }
 
-    /* in-place xform */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
-    }
-
-    /* make faces; depending on determinant, have the face forward or backward */
-    static size_t const face[6][4] = {
-        { 0, 4, 6, 2 },
-        { 2, 6, 7, 3 },
-        { 3, 7, 5, 1 },
-        { 1, 5, 4, 0 },
-        { 0, 2, 3, 1 },
-        { 4, 5, 7, 6 },
-    };
-    cp_static_assert(cp_countof(face) == 6);
-    cp_static_assert(cp_countof(face[0]) == 4);
-    cp_v_init0(&o->face, cp_countof(face));
-    for (cp_arr_each(i, face)) {
-        face_init_from_point_ref(
-            &cp_v_nth(&o->face, i), o, face[i], cp_countof(face[i]), (m->d < 0), s->loc);
-    }
-    assert(o->face.size == 6);
-    assert(cp_v_nth(&o->face, 0).point.size == 4);
-
-    /* compute bounding box */
-    csg3_poly_minmax(o);
+    /* make faces */
+    faces_from_tower(o, m, s->loc, 4, 2, false, false);
 
     /* make edges */
     if (!poly_make_edges(o, t, e)) {
@@ -1350,10 +1356,9 @@ static bool csg3_from_square(
         m = m1;
     }
 
-    /* make cube shape */
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_2D, s->loc);
-    cp_csg3_2d_t *o2 = cp_csg3_2d(_o);
-    o2->gc = mo->gc;
+    /* make square shape */
+    cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3(o2));
 
     o2->csg2 = cp_csg2_new(CP_CSG2_POLY, s->loc);
     cp_csg2_poly_t *o = cp_csg2_poly(o2->csg2);
@@ -1374,108 +1379,6 @@ static bool csg3_from_square(
     return true;
 }
 
-static void csg3_poly_make_cone(
-    cp_csg3_poly_t *o,
-    cp_mat3wi_t const *m,
-    cp_scad_cylinder_t *s,
-    size_t fn)
-{
-    /* generate the points */
-    cp_v_init0(&o->point, fn + 1);
-    for (cp_size_each(i, fn)) {
-        cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
-        cp_scale_t ss = sin(a);
-        cp_scale_t cc = cos(a);
-        cp_v_nth(&o->point, i) = (cp_vec3_loc_t){
-            .coord = { .v={ cc, ss, -.5 }},
-            .loc = s->loc,
-        };
-    }
-    cp_v_nth(&o->point, fn) = (cp_vec3_loc_t){
-        .coord = { .v={ 0, 0, +.5 }},
-        .loc = s->loc,
-    };
-
-    /* in-place xform */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
-    }
-
-    /* generate the surrounding faces */
-    bool rev = (m->d < 0);
-    cp_v_init0(&o->face, fn + 1);
-    for (cp_size_each(i, fn)) {
-        size_t j = cp_wrap_add1(i, fn);
-        face_init_from_point_ref(
-            &cp_v_nth(&o->face, i), o, (size_t[4]){ j, i, fn }, 3, rev, s->loc);
-    }
-
-    /* bottom face */
-    cp_csg3_face_t *f = &cp_v_nth(&o->face, fn);
-    cp_v_init0(&f->point, fn);
-    for (cp_v_each(i, &f->point)) {
-        cp_v_nth(&f->point, i).ref = &cp_v_nth(&o->point, i);
-        cp_v_nth(&f->point, i).loc = s->loc;
-    }
-    face_basics(f, rev, s->loc);
-}
-
-static void csg3_poly_make_cylinder(
-    cp_csg3_poly_t *o,
-    cp_mat3wi_t const *m,
-    cp_scad_cylinder_t *s,
-    cp_scale_t r2,
-    size_t fn)
-{
-    /* generate the points */
-    cp_v_init0(&o->point, 2*fn);
-    for (cp_size_each(i, fn)) {
-        cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
-        cp_scale_t ss = sin(a);
-        cp_scale_t cc = cos(a);
-        cp_v_nth(&o->point, i) = (cp_vec3_loc_t){
-            .coord = { .v={ cc, ss, -.5 }},
-            .loc = s->loc,
-        };
-        cp_v_nth(&o->point, i + fn) = (cp_vec3_loc_t){
-            .coord = { .v={ r2*cc, r2*ss, +.5 }},
-            .loc = s->loc,
-        };
-    }
-
-    /* in-place xform */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->n, &cp_v_nth(&o->point, i).coord);
-    }
-
-    /* generate the surrounding faces */
-    bool rev = (m->d < 0);
-    cp_v_init0(&o->face, fn + 2);
-    for (cp_size_each(i, fn)) {
-        size_t j = cp_wrap_add1(i, fn);
-        face_init_from_point_ref(
-            &cp_v_nth(&o->face, i), o, (size_t[4]){ i+fn, j+fn, j, i }, 4, rev, s->loc);
-    }
-
-    /* bottom face */
-    cp_csg3_face_t *f = &cp_v_nth(&o->face, fn);
-    cp_v_init0(&f->point, fn);
-    for (cp_v_each(i, &f->point)) {
-        cp_v_nth(&f->point, i).ref = &cp_v_nth(&o->point, i);
-        cp_v_nth(&f->point, i).loc = s->loc;
-    }
-    face_basics(f, rev, s->loc);
-
-    /* top face */
-    f = &cp_v_nth(&o->face, fn + 1);
-    cp_v_init0(&f->point, fn);
-    for (cp_v_each(i, &f->point)) {
-        cp_v_nth(&f->point, i).ref = &cp_v_nth(&o->point, fn + (fn - i - 1));
-        cp_v_nth(&f->point, i).loc = s->loc;
-    }
-    face_basics(f, rev, s->loc);
-}
-
 static bool csg3_poly_cylinder(
     cp_v_csg3_p_t *r,
     cp_csg3_tree_t *t,
@@ -1486,19 +1389,33 @@ static bool csg3_poly_cylinder(
     cp_scale_t r2,
     size_t fn)
 {
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_POLY, s->loc);
-    cp_csg3_poly_t *o = cp_csg3_poly(_o);
-    o->gc = mo->gc;
+    cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3(o));
 
+    /* make points */
     if (cp_eq(r2, 0)) {
-        csg3_poly_make_cone(o, m, s, fn);
+        /* cone */
+        cp_v_init0(&o->point, fn + 1);
+        for (cp_size_each(i, fn)) {
+            cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
+            set_vec3_loc(&cp_v_nth(&o->point, i), sin(a), cos(a), -.5, s->loc);
+        }
+        set_vec3_loc(&cp_v_nth(&o->point, fn), 0, 0, +.5, s->loc);
     }
     else {
-        csg3_poly_make_cylinder(o, m, s, r2, fn);
+        /* cylinder */
+        cp_v_init0(&o->point, 2*fn);
+        for (cp_size_each(i, fn)) {
+            cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
+            cp_scale_t ss = sin(a);
+            cp_scale_t cc = cos(a);
+            set_vec3_loc(&cp_v_nth(&o->point, i),    cc,    ss,    -.5, s->loc);
+            set_vec3_loc(&cp_v_nth(&o->point, i+fn), cc*r2, ss*r2, +.5, s->loc);
+        }
     }
 
-    /* bouding box */
-    csg3_poly_minmax(o);
+    /* make faces */
+    faces_from_tower(o, m, s->loc, fn, 2, false, false);
 
     /* make edges */
     if (!poly_make_edges(o, t, e)) {
@@ -1573,9 +1490,8 @@ static bool csg3_from_cylinder(
     }
 
     /* create a real cylinder */
-    cp_csg3_t *_o = csg3_new_push(r, CP_CSG3_CYL, s->loc);
-    cp_csg3_cyl_t *o = cp_csg3_cyl(_o);
-    o->gc = mo->gc;
+    cp_csg3_cyl_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+    cp_v_push(r, cp_csg3(o));
 
     o->non_empty = true;
     o->mat = m;
@@ -1692,8 +1608,7 @@ static void csg3_init_tree(
     cp_loc_t loc)
 {
     if (t->root == NULL) {
-        cp_csg3_t *_o = csg3_new(CP_CSG3_ADD, loc);
-        t->root = cp_csg3_add(_o);
+        t->root = cp_csg3_new(*t->root, loc);
     }
 }
 
