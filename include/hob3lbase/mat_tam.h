@@ -108,13 +108,6 @@ static inline cp_vec2_arr_ref_t *__cp_vec2_arr_ref_set(
             __r; \
         })))
 
-#define CP_INIT(m, ...) \
-    ({ \
-        __typeof__(*(m)) CP_GENSYM(r) = {{ __VA_ARGS__ }}; \
-        _Static_assert(CP_COUNT(__VA_ARGS__) == cp_countof(CP_GENSYM(r).v), ""); \
-        *(m) = CP_GENSYM(r); \
-    })
-
 #define CP_V01(p)   (p).v[0], (p).v[1]
 #define CP_V012(p)  (p).v[0], (p).v[1], (p).v[2]
 #define CP_V0123(p) (p).v[0], (p).v[1], (p).v[2], (p).v[3]
@@ -135,17 +128,13 @@ static inline cp_vec2_arr_ref_t *__cp_vec2_arr_ref_set(
     ((cp_mat3_t){ .v={ a,b,c, d,e,f, g,h,i } })
 
 #define CP_MAT4(a,b,c,d, e,f,g,h, i,j,k,l, m,n,o,p) \
-    ((cp_mat3_t){ .v={ a,b,c,d, e,f,g,h, i,j,k,l, m,n,o,p } })
+    ((cp_mat4_t){ .v={ a,b,c,d, e,f,g,h, i,j,k,l, m,n,o,p } })
 
 #define CP_MAT2W(_a,_b,_c, _d,_e,_f) \
     ((cp_mat2w_t){ .b={.v={ _a,_b, _d,_e }}, .w={.v={_c,_f}} })
 
 #define CP_MAT3W(a,b,c,d, e,f,g,h, i,j,k,l) \
     ((cp_mat3w_t){ .b={.v={ a,b,c, e,f,g, i,j,k }}, .w={.v={d,h,l}} })
-
-#define cp_mat2_init2 CP_INIT
-
-#define cp_mat3_init3 CP_INIT
 
 #define CP_MINMAX_EMPTY { .min={ .v={0} }, .max={ .v={-1} } }
 
@@ -155,7 +144,7 @@ static inline void cp_mat4_init3(
     cp_f_t d, cp_f_t e, cp_f_t f,
     cp_f_t g, cp_f_t h, cp_f_t i)
 {
-    CP_INIT(m,
+    *m = CP_MAT4(
         a, b, c, 0,
         d, e, f, 0,
         g, h, i, 0,

@@ -8,25 +8,6 @@ cp_f_t cp_pt_epsilon  = CP_PT_EPSILON_DEFAULT;
 cp_f_t cp_eq_epsilon  = CP_EQ_EPSILON_DEFAULT;
 cp_f_t cp_sqr_epsilon = CP_SQR_EPSILON_DEFAULT;
 
-static unsigned cp_gcd_1(unsigned a, unsigned b)
-{
-    while (b > 0) {
-        unsigned h = a % b;
-        a = b;
-        b = h;
-    }
-    return a;
-}
-
-/** gcd */
-extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size)
-{
-    for (cp_size_each(i, size)) {
-        g = cp_gcd_1(g, data[i]);
-    }
-    return g;
-}
-
 /**
  * Comparison using cp_eq_epsilon
  *

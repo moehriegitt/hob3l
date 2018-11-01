@@ -443,7 +443,7 @@ static inline void cp_vec2_port(
     cp_vec2_t const *a,
     cp_vec2_t const *b)
 {
-    CP_INIT(r, b->y - a->y, a->x - b->x);
+    *r = CP_VEC2(b->y - a->y, a->x - b->x);
 }
 
 /** unit(left(a,b)) */

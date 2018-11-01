@@ -75,35 +75,6 @@ typedef enum {
 #define __CP_CONCAT2(x,y) __CP_CONCAT3(x,y)
 #define CP_CONCAT(x,y) __CP_CONCAT2(x,y)
 
-/**
- * __CP_N_* stuff is for checking whether CP_COUNT receives more
- *  arguments than it supports (otherwise is might return
- * garbage). */
-#define __CP_N__CP_1 1
-#define __CP_N__CP_2 2
-#define __CP_N__CP_3 3
-#define __CP_N__CP_4 4
-#define __CP_N__CP_5 5
-#define __CP_N__CP_6 6
-#define __CP_N__CP_7 7
-#define __CP_N__CP_8 8
-#define __CP_N__CP_9 9
-#define __CP_N__CP_10 10
-#define __CP_N__CP_11 11
-#define __CP_N__CP_12 12
-#define __CP_N__CP_13 13
-#define __CP_N__CP_14 14
-#define __CP_N__CP_15 15
-#define __CP_N__CP_16 16
-#define __CP_COUNT(P,O,N,M,L,K,J,I,H,G,F,E,D,C,B,A,Z,...) CP_CONCAT(__CP_N,Z)
-
-#define CP_COUNT(...) \
-    __CP_COUNT(__VA_ARGS__,\
-        __CP_16, __CP_15, __CP_14, __CP_13, __CP_12, \
-        __CP_11, __CP_10, __CP_9, __CP_8, \
-        __CP_7, __CP_6, __CP_5, __CP_4, \
-        __CP_3, __CP_2, __CP_1, __CP_0)
-
 #define cp_is_pow2(x) \
     ({ \
         __typeof__(x) __x = (x); \
@@ -129,8 +100,8 @@ typedef enum {
 /**
  * Assign the prefix, zero the reset of the structure.
  *
- * This is for structs with a prefix that is not to
- * be cleared.
+ * This is for structs with a prefix that is not to be cleared, but initialised
+ * from something else.
  */
 #define CP_COPY_N_ZERO(obj, prefix, prefix_value) \
     ({ \
@@ -231,29 +202,6 @@ typedef enum {
  */
 #define cp_arr_each(i,...) __cp_arr_each(i, __VA_ARGS__, 0, 0)
 
-#define __CP_CALL3(X)      X
-#define __CP_CALL2(macro,...)  __CP_CALL3(macro(__VA_ARGS__))
-#define CP_CALL(macro,...)     __CP_CALL2(macro, __VA_ARGS__)
-
-#define __CP_PREFIX_1(t,a)         t a
-#define __CP_PREFIX_2(t,a,b)       t a, t b
-#define __CP_PREFIX_3(t,a,b,c)     t a, t b, t c
-#define __CP_PREFIX_4(t,a,b,c,d)   t a, t b, t c, t d
-#define __CP_PREFIX_5(t,a,b,c,d,e) t a, t b, t c, t d, t e
-
-#define CP_PREFIX(type,...) \
-    CP_CALL(CP_CONCAT(__CP_PREFIX_,CP_COUNT(__VA_ARGS__)),type,__VA_ARGS__)
-
-#define __CP_FOLD_1(F,a)                 (a)
-#define __CP_FOLD_2(F,a,b)               F(a,b)
-#define __CP_FOLD_3(F,a,b,c)             F(F(a,b),c)
-#define __CP_FOLD_4(F,a,b,c,d)           F(F(F(a,b),c),d)
-#define __CP_FOLD_5(F,a,b,c,d,e)         F(F(F(F(a,b),c),d),e)
-#define __CP_FOLD_6(F,a,b,c,d,e,f)       F(F(F(F(F(a,b),c),d),e),f)
-#define __CP_FOLD_7(F,a,b,c,d,e,f,g)     F(F(F(F(F(F(a,b),c),d),e),f),g)
-#define __CP_FOLD_8(F,a,b,c,d,e,f,g,h)   F(F(F(F(F(F(F(a,b),c),d),e),f),g),h)
-#define __CP_FOLD_9(F,a,b,c,d,e,f,g,h,i) F(F(F(F(F(F(F(F(a,b),c),d),e),f),g),h),i)
-
 /**
  * Address of a surrouning container of an embedded substructure.
  *
@@ -274,8 +222,6 @@ typedef enum {
         __typeof__(*(P)) *__pA = (P); \
         (__pA == NULL ? NULL : CP_BOX_OF(__pA, T, F)); \
     })
-
-#define CP_UNCONST(T,X) ((T*)(size_t)(0?((T const*)0):(X)))
 
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */

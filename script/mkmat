@@ -1178,7 +1178,7 @@ sub gen_xlat_matw($$$)
     my $p = proto($t, 'void', $elem, r=>$t, xt('X_dim_t', @c));
     my $s = '';
     $s.= "    X_$t->{base}{name}_unit(&r->b);\n";
-    $s.= "    X_INIT(&r->w, ".join(", ", @c).");\n";
+    $s.= "    r->w = X_VEC$j(".join(", ", @c).");\n";
     publish_inline($oc, $p, $s);
 }
 

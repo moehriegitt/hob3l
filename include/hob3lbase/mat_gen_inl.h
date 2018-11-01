@@ -780,7 +780,7 @@ static inline void cp_mat2w_xlat(
     cp_dim_t y)
 {
     cp_mat2_unit(&r->b);
-    CP_INIT(&r->w, x, y);
+    r->w = CP_VEC2(x, y);
 }
 
 static inline void cp_mat2wi_xlat(
@@ -810,7 +810,7 @@ static inline void cp_mat3w_xlat(
     cp_dim_t z)
 {
     cp_mat3_unit(&r->b);
-    CP_INIT(&r->w, x, y, z);
+    r->w = CP_VEC3(x, y, z);
 }
 
 static inline void cp_mat3i_xlat(

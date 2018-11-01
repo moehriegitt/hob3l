@@ -7,13 +7,6 @@
 #include <hob3lbase/def.h>
 #include <hob3lbase/arith_tam.h>
 
-/** gcd */
-#define cp_gcd(...) \
-    ({ \
-        unsigned CP_GENSYM(__d)[] = { __VA_ARGS__ }; \
-        cp_gcd_a(CP_GENSYM(__d)[0], CP_GENSYM(__d)+1, cp_countof(CP_GENSYM(__d))-1); \
-    })
-
 /**
  * Epsilon for identifying point coordinates, i.e., granularity of coordinates
  * of points. */
@@ -33,9 +26,6 @@ extern cp_f_t cp_eq_epsilon;
  * Typically the square of cp_eq_epsilon.
  */
 extern cp_f_t cp_sqr_epsilon;
-
-/** gcd */
-extern unsigned cp_gcd_a(unsigned g, unsigned const *data, size_t size);
 
 /**
  * Comparison using cp_eq_epsilon
@@ -97,14 +87,11 @@ static inline size_t __cp_min_z(size_t a, size_t b)
     return a <= b ? a : b;
 }
 
-#define __cp_min(a,b) \
+#define cp_min(a,b) \
     (_Generic(a, \
         size_t:  __cp_min_z, \
         int:     __cp_min_z, \
         default: __cp_min_f)(a,b))
-
-#define cp_min(...) \
-    CP_CALL(CP_CONCAT(__CP_FOLD_,CP_COUNT(__VA_ARGS__)),__cp_min, __VA_ARGS__)
 
 #define cp_min_update(a,...) \
     do{ \
@@ -123,14 +110,11 @@ static inline size_t __cp_max_z(size_t a, size_t b)
     return a >= b ? a : b;
 }
 
-#define __cp_max(a,b) \
+#define cp_max(a,b) \
     (_Generic(a, \
         size_t:  __cp_max_z, \
         int:     __cp_max_z, \
         default: __cp_max_f)(a,b))
-
-#define cp_max(...) \
-    CP_CALL(CP_CONCAT(__CP_FOLD_,CP_COUNT(__VA_ARGS__)),__cp_max, __VA_ARGS__)
 
 #define cp_max_update(a,...) \
     do{ \
