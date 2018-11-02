@@ -29,6 +29,7 @@
         cp_scad_circle_t:       CP_SCAD_CIRCLE, \
         cp_scad_square_t:       CP_SCAD_SQUARE, \
         cp_scad_polygon_t:      CP_SCAD_POLYGON, \
+        cp_scad_linext_t:       CP_SCAD_LINEXT, \
         cp_scad_color_t:        CP_SCAD_COLOR)
 
 /**
@@ -53,11 +54,13 @@ typedef enum {
     CP_SCAD_SQUARE,
     CP_SCAD_POLYGON,
 
+    CP_SCAD_LINEXT,
+
     CP_SCAD_COLOR,
 } cp_scad_type_t;
 
 #define _CP_SCAD \
-    cp_scad_type_t type; \
+    unsigned type; \
     char const *loc; \
     unsigned modifier;
 
@@ -207,6 +210,16 @@ typedef struct {
     cp_mat3w_t m;
 } cp_scad_multmatrix_t;
 
+typedef struct {
+    _CP_SCAD_GROUP
+    cp_f_t height;
+    cp_f_t twist;
+    cp_vec2_t scale;
+    size_t slices;
+    unsigned convexity;
+    bool center;
+} cp_scad_linext_t;
+
 union cp_scad {
     struct {
         _CP_SCAD;
@@ -231,6 +244,8 @@ union cp_scad {
     cp_scad_circle_t _circle;
     cp_scad_square_t _square;
     cp_scad_polygon_t _polygon;
+
+    cp_scad_linext_t _linext;
 
     cp_scad_color_t _color;
 };

@@ -304,6 +304,93 @@ extern void cp_vec4_minmax(
     cp_vec4_max(&r->max, &r->max, a);
 }
 
+extern void cp_vec2_minmax_or(
+    cp_vec2_minmax_t * r,
+    cp_vec2_minmax_t * a,
+    cp_vec2_minmax_t * b)
+{
+    if (!cp_vec2_minmax_valid(a)) { *r = *b; return; }
+    if (!cp_vec2_minmax_valid(b)) { *r = *a; return; }
+    cp_vec2_min(&r->min, &a->min, &b->min);
+    cp_vec2_max(&r->max, &a->max, &b->max);
+}
+
+extern void cp_vec3_minmax_or(
+    cp_vec3_minmax_t * r,
+    cp_vec3_minmax_t * a,
+    cp_vec3_minmax_t * b)
+{
+    if (!cp_vec3_minmax_valid(a)) { *r = *b; return; }
+    if (!cp_vec3_minmax_valid(b)) { *r = *a; return; }
+    cp_vec3_min(&r->min, &a->min, &b->min);
+    cp_vec3_max(&r->max, &a->max, &b->max);
+}
+
+extern void cp_vec4_minmax_or(
+    cp_vec4_minmax_t * r,
+    cp_vec4_minmax_t * a,
+    cp_vec4_minmax_t * b)
+{
+    if (!cp_vec4_minmax_valid(a)) { *r = *b; return; }
+    if (!cp_vec4_minmax_valid(b)) { *r = *a; return; }
+    cp_vec4_min(&r->min, &a->min, &b->min);
+    cp_vec4_max(&r->max, &a->max, &b->max);
+}
+
+extern void cp_vec2_minmax_and(
+    cp_vec2_minmax_t * r,
+    cp_vec2_minmax_t * a,
+    cp_vec2_minmax_t * b)
+{
+    cp_vec2_max(&r->min, &a->min, &b->min);
+    cp_vec2_min(&r->max, &a->max, &b->max);
+}
+
+extern void cp_vec3_minmax_and(
+    cp_vec3_minmax_t * r,
+    cp_vec3_minmax_t * a,
+    cp_vec3_minmax_t * b)
+{
+    cp_vec3_max(&r->min, &a->min, &b->min);
+    cp_vec3_min(&r->max, &a->max, &b->max);
+}
+
+extern void cp_vec4_minmax_and(
+    cp_vec4_minmax_t * r,
+    cp_vec4_minmax_t * a,
+    cp_vec4_minmax_t * b)
+{
+    cp_vec4_max(&r->min, &a->min, &b->min);
+    cp_vec4_min(&r->max, &a->max, &b->max);
+}
+
+extern bool cp_vec2_minmax_valid(
+    cp_vec2_minmax_t * a)
+{
+    if (cp_gt(a->min.v[0], a->max.v[0])) { return false; }
+    if (cp_gt(a->min.v[1], a->max.v[1])) { return false; }
+   return true;
+}
+
+extern bool cp_vec3_minmax_valid(
+    cp_vec3_minmax_t * a)
+{
+    if (cp_gt(a->min.v[0], a->max.v[0])) { return false; }
+    if (cp_gt(a->min.v[1], a->max.v[1])) { return false; }
+    if (cp_gt(a->min.v[2], a->max.v[2])) { return false; }
+   return true;
+}
+
+extern bool cp_vec4_minmax_valid(
+    cp_vec4_minmax_t * a)
+{
+    if (cp_gt(a->min.v[0], a->max.v[0])) { return false; }
+    if (cp_gt(a->min.v[1], a->max.v[1])) { return false; }
+    if (cp_gt(a->min.v[2], a->max.v[2])) { return false; }
+    if (cp_gt(a->min.v[3], a->max.v[3])) { return false; }
+   return true;
+}
+
 extern cp_dim_t cp_vec2_max_abs_coord(
     cp_vec2_t const* a)
 {

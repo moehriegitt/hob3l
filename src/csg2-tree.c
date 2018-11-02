@@ -6,6 +6,7 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
+#include <hob3l/obj.h>
 #include <hob3l/csg2.h>
 #include <hob3l/csg3.h>
 #include <hob3l/ps.h>
@@ -32,51 +33,48 @@ static cp_csg2_t *csg2_tree_from_csg3(
 static void csg2_tree_from_v_csg3(
     cp_csg2_tree_t *r,
     cp_range_t const *s,
-    cp_v_csg2_p_t *c,
-    cp_v_csg3_p_t const *d)
+    cp_v_obj_p_t *c,
+    cp_v_obj_p_t const *d)
 {
     cp_v_ensure_size(c, d->size);
     for (cp_v_each(i, d)) {
-        cp_v_nth(c,i) = csg2_tree_from_csg3(r, s, cp_v_nth(d,i));
+        cp_v_nth(c,i) = cp_obj(csg2_tree_from_csg3(r, s, cp_csg3(cp_v_nth(d,i))));
     }
 }
 
-static cp_csg2_t *csg2_tree_from_csg3_add(
+static cp_csg_add_t *csg2_tree_from_csg3_add(
     cp_csg2_tree_t *r,
     cp_range_t const *s,
-    cp_csg3_add_t const *d)
+    cp_csg_add_t const *d)
 {
-    cp_csg2_add_t *c = cp_csg2_new(*c, d->loc);
+    cp_csg_add_t *c = cp_csg2_new(*c, d->loc);
     csg2_tree_from_v_csg3(r, s, &c->add, &d->add);
-    return cp_csg2(c);
+    return c;
 }
 
-static cp_csg2_t *csg2_tree_from_csg3_sub(
+static cp_csg_sub_t *csg2_tree_from_csg3_sub(
     cp_csg2_tree_t *r,
     cp_range_t const *s,
-    cp_csg3_sub_t const *d)
+    cp_csg_sub_t const *d)
 {
-    cp_csg2_sub_t *c = cp_csg2_new(*c, d->loc);
-    cp_csg2_add_init_perhaps(&c->add, c->loc);
-    cp_csg2_add_init_perhaps(&c->sub, c->loc);
-    csg2_tree_from_v_csg3(r, s, &c->add.add, &d->add.add);
-    csg2_tree_from_v_csg3(r, s, &c->sub.add, &d->sub.add);
-    return cp_csg2(c);
+    cp_csg_sub_t *c = cp_csg2_new(*c, d->loc);
+    c->add = csg2_tree_from_csg3_add(r, s, d->add);
+    c->sub = csg2_tree_from_csg3_add(r, s, d->sub);
+    return c;
 }
 
-static cp_csg2_t *csg2_tree_from_csg3_cut(
+static cp_csg_cut_t *csg2_tree_from_csg3_cut(
     cp_csg2_tree_t *r,
     cp_range_t const *s,
-    cp_csg3_cut_t const *d)
+    cp_csg_cut_t const *d)
 {
-    cp_csg2_cut_t *c = cp_csg2_new(*c, d->loc);
+    cp_csg_cut_t *c = cp_csg2_new(*c, d->loc);
 
     cp_v_init0(&c->cut, d->cut.size);
     for (cp_v_each(i, &c->cut)) {
-        cp_csg2_t *_q = csg2_tree_from_csg3_add(r, s, cp_v_nth(&d->cut, i));
-        cp_v_nth(&c->cut, i) = cp_csg2_cast(_add, _q);
+        cp_v_nth(&c->cut, i) = csg2_tree_from_csg3_add(r, s, cp_v_nth(&d->cut, i));
     }
-    return cp_csg2(c);
+    return c;
 }
 
 static cp_csg2_t *csg2_tree_from_csg3_obj(
@@ -107,13 +105,13 @@ static cp_csg2_t *csg2_tree_from_csg3(
         return csg2_tree_from_csg3_obj(s, d);
 
     case CP_CSG3_ADD:
-        return csg2_tree_from_csg3_add(r, s, cp_csg3_cast(_add, d));
+        return cp_csg2(csg2_tree_from_csg3_add(r, s, cp_csg3_cast(_add, d)));
 
     case CP_CSG3_SUB:
-        return csg2_tree_from_csg3_sub(r, s, cp_csg3_cast(_sub, d));
+        return cp_csg2(csg2_tree_from_csg3_sub(r, s, cp_csg3_cast(_sub, d)));
 
     case CP_CSG3_CUT:
-        return csg2_tree_from_csg3_cut(r, s, cp_csg3_cast(_cut, d));
+        return cp_csg2(csg2_tree_from_csg3_cut(r, s, cp_csg3_cast(_cut, d)));
     }
 
     CP_DIE("3D object type");
@@ -123,22 +121,22 @@ static cp_csg2_t *csg2_tree_from_csg3(
 /* extern */
 
 /**
- * Initialise a cp_csg2_add_t object unless it is initialised
+ * Initialise a cp_csg_add_t object unless it is initialised
  * already.
  *
  * For this to work, the data must be zeroed first, then this
  * function can be used to initialise it, if it is not yet
  * initialised.
  */
-extern void cp_csg2_add_init_perhaps(
-    cp_csg2_add_t *r,
+extern void cp_csg_add_init_perhaps(
+    cp_csg_add_t **r,
     cp_loc_t loc)
 {
-    assert((r->type == 0) || (r->type == CP_CSG2_ADD));
-    if (r->type == CP_CSG2_ADD) {
+    if (*r != NULL) {
+        assert((*r)->type == CP_CSG2_ADD);
         return;
     }
-    CP_CSG2_INIT(r, CP_CSG2_ADD, loc);
+    *r = cp_csg2_new(**r, loc);
 }
 
 /**
@@ -154,7 +152,7 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg2_tree_opt_t const *o)
 {
-    cp_csg2_add_t *root = cp_csg2_new(*root, d->root->loc);
+    cp_csg_add_t *root = cp_csg2_new(*root, d->root->loc);
     r->root = cp_csg2(root);
     r->thick = s->step;
     r->opt = *o;

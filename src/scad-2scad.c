@@ -60,6 +60,19 @@ static void scale_put_scad(
     xyz_put_scad(s, d, &r->child, &r->v, "scale");
 }
 
+static void linext_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_linext_t const *r)
+{
+    cp_printf(s, "linear_extrude("
+        "height="FF", scale=["FF","FF"], twist="FF", slices=%"_Pz"u, convexity=%u, center=%s){\n",
+        r->height, r->scale.x, r->scale.y, r->twist,
+        r->slices, r->convexity, r->center ? "true" : "false");
+    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s,"%*s}\n", d, "");
+}
+
 static void color_put_scad(
     cp_stream_t *s,
     int d,
@@ -280,6 +293,10 @@ static void scad_put_scad(
 
     case CP_SCAD_POLYGON:
         polygon_put_scad(s, d, cp_scad_cast(_polygon, r));
+        return;
+
+    case CP_SCAD_LINEXT:
+        linext_put_scad(s, d, cp_scad_cast(_linext, r));
         return;
 
     case CP_SCAD_COLOR:

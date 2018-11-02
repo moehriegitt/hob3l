@@ -535,6 +535,49 @@ sub gen_minmax_vec($$$)
     publish_extern($oc, $p, $s);
 }
 
+#### MINMAX_VALID ####
+
+sub gen_minmax_valid_vec($$$)
+{
+    my ($oc, $t, $elem) = @_;
+    my $tm = "X_$t->{name}_minmax_t *";
+    my $p = proto($t, 'bool', $elem, a=>$tm);
+    my $s = '';
+    for my $i (0..$t->{dim}-1) {
+        $s.= "    if (X_gt(a->min.v[$i], a->max.v[$i])) { return false; }\n";
+    }
+    $s.= "   return true;\n";
+    publish_extern($oc, $p, $s);
+}
+
+#### MINMAX_OR ####
+
+sub gen_minmax_or_vec($$$)
+{
+    my ($oc, $t, $elem) = @_;
+    my $tm = "X_$t->{name}_minmax_t *";
+    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tm, b=>$tm);
+    my $s = '';
+    $s.= "    if (!X_$t->{name}_minmax_valid(a)) { *r = *b; return; }\n";
+    $s.= "    if (!X_$t->{name}_minmax_valid(b)) { *r = *a; return; }\n";
+    $s.= "    X_$t->{name}_min(&r->min, &a->min, &b->min);\n";
+    $s.= "    X_$t->{name}_max(&r->max, &a->max, &b->max);\n";
+    publish_extern($oc, $p, $s);
+}
+
+#### MINMAX_AND ####
+
+sub gen_minmax_and_vec($$$)
+{
+    my ($oc, $t, $elem) = @_;
+    my $tm = "X_$t->{name}_minmax_t *";
+    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tm, b=>$tm);
+    my $s = '';
+    $s.= "    X_$t->{name}_max(&r->min, &a->min, &b->min);\n";
+    $s.= "    X_$t->{name}_min(&r->max, &a->max, &b->max);\n";
+    publish_extern($oc, $p, $s);
+}
+
 #### MAX_ABS_COORD ####
 
 sub gen_max_abs_coord_vec($$$)
@@ -1436,6 +1479,15 @@ my @gen = (
     }],
     ['minmax', {
         vec => \&gen_minmax_vec,
+    }],
+    ['minmax_or', {
+        vec => \&gen_minmax_or_vec,
+    }],
+    ['minmax_and', {
+        vec => \&gen_minmax_and_vec,
+    }],
+    ['minmax_valid', {
+        vec => \&gen_minmax_valid_vec,
     }],
     ['max_abs_coord', {
         vec => \&gen_max_abs_coord_vec,

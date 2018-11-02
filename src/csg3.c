@@ -4,8 +4,10 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
-#include <hob3l/csg3.h>
+#include <hob3l/obj.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
+#include <hob3l/csg3.h>
 #include <hob3l/scad.h>
 #include "internal.h"
 
@@ -24,15 +26,6 @@ static cp_mat3wi_t *mat_new(
     cp_mat3wi_unit(m);
     cp_v_push(&t->mat, m);
     return m;
-}
-
-static void csg3_init(
-    cp_csg3_t *r,
-    cp_csg3_type_t type,
-    cp_loc_t loc)
-{
-    r->type = type;
-    r->loc = loc;
 }
 
 static cp_mat3wi_t const *the_unit(
@@ -56,37 +49,6 @@ static void mat_ctxt_init(
     m->gc.color.a = 255;
 }
 
-static void csg3_add_minmax(
-    cp_csg3_add_t *r)
-{
-    r->non_empty = false;
-    for (cp_v_each(i, &r->add)) {
-        cp_csg3_t *c = cp_v_nth(&r->add, i);
-        if (c->non_empty) {
-            if (r->non_empty) {
-                cp_vec3_min(&r->bb.min, &r->bb.min, &c->bb.min);
-                cp_vec3_max(&r->bb.max, &r->bb.max, &c->bb.max);
-            }
-            else {
-                r->bb = c->bb;
-                r->non_empty = true;
-            }
-        }
-    }
-}
-
-static void csg3_poly_minmax(
-    cp_csg3_poly_t *r)
-{
-    r->non_empty = (r->face.size >= 4);
-    if (r->non_empty) {
-        r->bb.min = r->bb.max = cp_v_nth(&r->point, 0).coord;
-        for (cp_v_each(i, &r->point, 1)) {
-            cp_vec3_minmax(&r->bb, &cp_v_nth(&r->point, i).coord);
-        }
-    }
-}
-
 static bool csg3_from_scad(
     /**
      * 'non-empty object': set to true if a non-ignored object is
@@ -97,7 +59,7 @@ static bool csg3_from_scad(
      * the input is non-empty.
      */
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
@@ -105,7 +67,7 @@ static bool csg3_from_scad(
 
 static bool csg3_from_v_scad(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
@@ -121,7 +83,7 @@ static bool csg3_from_v_scad(
 
 static bool csg3_from_union(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
@@ -130,49 +92,15 @@ static bool csg3_from_union(
     return csg3_from_v_scad(no, r, t, e, m, &s->child);
 }
 
-/**
- * Returns false if the result becomes empty
- */
-static bool try_subtract_cube(
-    cp_vec3_minmax_t *bb,
-    cp_csg3_t *_c)
-{
-    (void)bb;
-    (void)_c;
-#if 0
-    /* FIXME: later, cut off cubes to improve prediction of
-     * bounding box. */
-    assert(_c != NULL);
-    if (_c->type != CP_CSG3_POLY) {
-        return;
-    }
-    cp_csg3_poly_t *c = &_c->poly;
-    if (!c->is_cube) {
-        return;
-    }
-
-    bool allx = (bb->min.x <= c->bb.min.x) && (bb->max.x >= c->bb.max.x);
-    bool ally = (bb->min.y <= c->bb.min.y) && (bb->max.y >= c->bb.max.y);
-    bool allz = (bb->min.z <= c->bb.min.z) && (bb->max.z >= c->bb.max.z);
-
-    if (allx && ally) {
-        if (allz) {
-            return false;
-        }
-    }
-#endif /*0*/
-    return true;
-}
-
 static bool csg3_from_difference(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
     cp_scad_difference_t const *s)
 {
-    cp_v_csg3_p_t f = CP_V_INIT;
+    cp_v_obj_p_t f = CP_V_INIT;
 
     /* First child is positive.
      *
@@ -215,7 +143,7 @@ static bool csg3_from_difference(
         for (cp_v_each(i, &s->child, sub_i)) {
             if (!csg3_from_scad(
                 no,
-                &cp_csg3_cast(_sub, cp_v_nth(&f, 0))->sub.add,
+                &cp_csg3_cast(_sub, cp_csg3(cp_v_nth(&f, 0)))->sub->add,
                 t, e, m, cp_v_nth(&s->child, i)))
             {
                 return false;
@@ -229,7 +157,7 @@ static bool csg3_from_difference(
         return true;
     }
 
-    cp_v_csg3_p_t g = CP_V_INIT;
+    cp_v_obj_p_t g = CP_V_INIT;
 
     /* all others children are negative */
     for (cp_v_each(i, &s->child, sub_i)) {
@@ -245,41 +173,26 @@ static bool csg3_from_difference(
         return true;
     }
 
-    cp_csg3_sub_t *o = cp_csg3_new(*o, s->loc);
-    cp_v_push(r, cp_csg3(o));
+    cp_csg_sub_t *o = cp_csg3_new(*o, s->loc);
+    cp_v_push(r, cp_obj(o));
 
-    csg3_init(cp_csg3(&o->add), CP_CSG3_ADD, s->loc);
-    o->add.add = f;
-    csg3_add_minmax(&o->add);
+    o->add = cp_csg3_new(*o->add, s->loc);
+    o->add->add = f;
 
-    csg3_init(cp_csg3(&o->sub), CP_CSG3_ADD, s->loc);
-    o->sub.add = g;
-
-    /* o->sub only restricts the bounding box, but it is too complicated to
-     * know how.  So we basically ignore it.  Since often, large cubes  are used to
-     * cut off stuff, we do search for those to restrict bb. */
-    o->bb = o->add.bb;
-    o->non_empty = o->add.non_empty;
-
-    for (cp_v_each(i, &o->sub.add)) {
-        if (!try_subtract_cube(&o->bb, cp_v_nth(&o->sub.add, i))) {
-            o->non_empty = false;
-            break;
-        }
-    }
+    o->sub = cp_csg3_new(*o->add, s->loc);
+    o->sub->add = g;
 
     return true;
 }
 
 static void csg3_cut_push_add(
-    cp_v_csg3_add_p_t *cut,
-    cp_v_csg3_p_t *add)
+    cp_v_csg_add_p_t *cut,
+    cp_v_obj_p_t *add)
 {
     if (add->size > 0) {
-        cp_csg3_add_t *a = cp_csg3_new(*a, cp_v_nth(add,0)->loc);
+        cp_csg_add_t *a = cp_csg3_new(*a, cp_v_nth(add,0)->loc);
 
         a->add = *add;
-        csg3_add_minmax(a);
 
         cp_v_push(cut, a);
 
@@ -287,26 +200,18 @@ static void csg3_cut_push_add(
     }
 }
 
-static bool bb_valid(cp_vec3_minmax_t const *a)
-{
-    return
-        (a->min.x < a->max.x) &&
-        (a->min.y < a->max.y) &&
-        (a->min.z < a->max.z);
-}
-
 static bool csg3_from_intersection(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
     cp_scad_intersection_t const *s)
 {
-    cp_v_csg3_add_p_t cut = CP_V_INIT;
+    cp_v_csg_add_p_t cut = CP_V_INIT;
 
     /* each child is a union */
-    cp_v_csg3_p_t add = CP_V_INIT;
+    cp_v_obj_p_t add = CP_V_INIT;
     for (cp_v_each(i, &s->child)) {
         csg3_cut_push_add(&cut, &add);
         if (!csg3_from_scad(no, &add, t, e, m, cp_v_nth(&s->child, i))) {
@@ -323,34 +228,17 @@ static bool csg3_from_intersection(
     csg3_cut_push_add(&cut, &add);
     assert(cut.size >= 2);
 
-    cp_csg3_cut_t *o = cp_csg3_new(*o, s->loc);
-    cp_v_push(r, cp_csg3(o));
+    cp_csg_cut_t *o = cp_csg3_new(*o, s->loc);
+    cp_v_push(r, cp_obj(o));
 
     o->cut = cut;
-
-    /* Intersecting the bounding boxes means using the largest minimum
-     * and the smallest maximum, which may mean we may already know
-     * here that something is empty.  But we will not discard anything
-     * now. */
-    o->non_empty = cp_v_nth(&cut, 0)->non_empty;
-    o->bb = cp_v_nth(&cut, 0)->bb;
-    for (cp_v_each(i, &cut, 1)) {
-        cp_vec3_max(&o->bb.min, &o->bb.min, &cp_v_nth(&cut, i)->bb.min);
-        cp_vec3_min(&o->bb.max, &o->bb.max, &cp_v_nth(&cut, i)->bb.max);
-        if (!cp_v_nth(&cut, i)->non_empty) {
-            o->non_empty = false;
-        }
-    }
-    if (!bb_valid(&o->bb)) {
-        o->non_empty = false;
-    }
 
     return true;
 }
 
 static bool csg3_from_translate(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -373,7 +261,7 @@ static bool csg3_from_translate(
 
 static bool csg3_from_mirror(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -413,7 +301,7 @@ static bool good_scale2(
 
 static bool csg3_from_scale(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -435,7 +323,7 @@ static bool csg3_from_scale(
 
 static bool csg3_from_multmatrix(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -456,7 +344,7 @@ static bool csg3_from_multmatrix(
 
 static bool csg3_from_color(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -472,7 +360,7 @@ static bool csg3_from_color(
 
 static bool csg3_from_rotate(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -915,8 +803,6 @@ static void faces_from_tower(
     }
 
     assert(o->face.size == k);
-
-    csg3_poly_minmax(o);
 }
 
 static void set_vec3_loc(
@@ -963,7 +849,7 @@ static void csg3_poly_make_sphere(
 }
 
 static bool csg3_from_sphere(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -986,7 +872,7 @@ static bool csg3_from_sphere(
     size_t fn = get_fn(&t->opt, s->_fn, true);
     if (fn > 0) {
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-        cp_v_push(r, cp_csg3(o));
+        cp_v_push(r, cp_obj(o));
 
         csg3_poly_make_sphere(o, m, s, fn);
         if (!poly_make_edges(o, t, e)) {
@@ -998,22 +884,20 @@ static bool csg3_from_sphere(
     }
 
     cp_csg3_sphere_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3(o));
+    cp_v_push(r, cp_obj(o));
 
-    o->non_empty = true;
     o->mat = m;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = t->opt.max_fn;
 
-    csg3_sphere_minmax(&o->bb, o->mat);
     return true;
 }
 
 #if 0
 /* FIXME: continue */
 static bool csg3_from_circle(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -1033,7 +917,7 @@ static bool csg3_from_circle(
     }
 
     cp_csg3_2d_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3());
+    cp_v_push(r, cp_obj());
 
     o->csg3 = cp_csg2_new(*o->csg3, s->loc);
 
@@ -1067,7 +951,7 @@ static int cmp_vec3_loc(
 }
 
 static bool csg3_from_polyhedron(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
@@ -1087,7 +971,7 @@ static bool csg3_from_polyhedron(
     }
 
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, m->gc);
-    cp_v_push(r, cp_csg3(o));
+    cp_v_push(r, cp_obj(o));
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1192,12 +1076,11 @@ static bool csg3_from_polyhedron(
 #endif /* CP_CSG3_NORMAL */
     }
 
-    csg3_poly_minmax(o);
     return poly_make_edges(o, t, e);
 }
 
 static bool csg3_from_polygon(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_err_t *e,
     mat_ctxt_t const *m,
     cp_scad_polygon_t const *s)
@@ -1209,11 +1092,8 @@ static bool csg3_from_polygon(
         return false;
     }
 
-    cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, m->gc);
-    cp_v_push(r, cp_csg3(o2));
-
     cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
-    o2->csg2 = cp_csg2(o);
+    cp_v_push(r, cp_obj(o));
 
     /* check that no point is duplicate: abuse the array we'll use in
      * the end, too, for temporarily sorting the points */
@@ -1235,12 +1115,14 @@ static bool csg3_from_polygon(
     /* copy points (same data type, just copy the array) */
     cp_v_init_with(&o->point, s->points.data, s->points.size);
 
-    /* in-place xform */
+    /* in-place xform + color */
     for (cp_v_each(i, &o->point)) {
         cp_vec3_t v = { .z = 0 };
-        v.b = cp_v_nth(&o->point, i).coord;
+        cp_vec2_loc_t *w = &cp_v_nth(&o->point, i);
+        v.b = w->coord;
         cp_vec3w_xform(&v, &m->mat->n, &v);
-        cp_v_nth(&o->point, i).coord = v.b;
+        w->coord = v.b;
+        w->color = m->gc.color;
     }
 
     /* copy faces */
@@ -1261,7 +1143,7 @@ static bool csg3_from_polygon(
 }
 
 static bool csg3_from_cube(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -1297,7 +1179,7 @@ static bool csg3_from_cube(
 
     /* make points */
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3(o));
+    cp_v_push(r, cp_obj(o));
 
     o->is_cube = cp_mat3_is_rect_rot(&m->n.b);
 
@@ -1325,7 +1207,7 @@ static bool csg3_from_cube(
 }
 
 static bool csg3_from_square(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -1359,11 +1241,8 @@ static bool csg3_from_square(
     }
 
     /* make square shape */
-    cp_csg3_2d_t *o2 = cp_csg3_new_obj(*o2, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3(o2));
-
     cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
-    o2->csg2 = cp_csg2(o);
+    cp_v_push(r, cp_obj(o));
 
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {
@@ -1371,6 +1250,7 @@ static bool csg3_from_square(
         p->coord.x = cp_dim(i & 1);
         p->coord.y = cp_dim(i & 2);
         p->loc = s->loc;
+        p->color = mo->gc.color;
     }
 
     cp_v_push(&path->point_idx, 0);
@@ -1382,7 +1262,7 @@ static bool csg3_from_square(
 }
 
 static bool csg3_poly_cylinder(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     cp_mat3wi_t const *m,
@@ -1392,7 +1272,7 @@ static bool csg3_poly_cylinder(
     size_t fn)
 {
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3(o));
+    cp_v_push(r, cp_obj(o));
 
     /* make points */
     if (cp_eq(r2, 0)) {
@@ -1429,7 +1309,7 @@ static bool csg3_poly_cylinder(
 }
 
 static bool csg3_from_cylinder(
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *mo,
@@ -1493,14 +1373,55 @@ static bool csg3_from_cylinder(
 
     /* create a real cylinder */
     cp_csg3_cyl_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_csg3(o));
+    cp_v_push(r, cp_obj(o));
 
-    o->non_empty = true;
     o->mat = m;
     o->r2 = r2;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
     o->_fn = fn;
+    return true;
+}
+
+static bool csg3_from_linext(
+    cp_v_obj_p_t *r,
+    cp_csg3_tree_t *t,
+    cp_err_t *e,
+    mat_ctxt_t const *mo,
+    cp_scad_linext_t const *s)
+{
+    if (cp_le(s->height, 0)) {
+        cp_vchar_printf(&e->msg, "linear_extrude height is zero or negative.\n");
+        e->loc = s->loc;
+        return false;
+    }
+    if (s->slices < 1) {
+        cp_vchar_printf(&e->msg, "linear_extrude slice count is zero.\n");
+        e->loc = s->loc;
+        return false;
+    }
+
+    cp_mat3wi_t const *m = mo->mat;
+
+    /* normalise height */
+    if (!cp_eq(s->height, 1)) {
+        cp_mat3wi_t *m1 = mat_new(t);
+        cp_mat3wi_scale(m1, 1, 1, s->height);
+        cp_mat3wi_mul(m1, m, m1);
+        m = m1;
+    }
+
+    /* normalise center */
+    if (!s->center) {
+        cp_mat3wi_t *m1 = mat_new(t);
+        cp_mat3wi_xlat(m1, 0, 0, +.5);
+        cp_mat3wi_mul(m1, m, m1);
+        m = m1;
+    }
+
+    /* FIXME: continue */
+    (void)r;
+
     return true;
 }
 
@@ -1512,7 +1433,7 @@ static void object(
 
 static bool csg3_from_scad(
     bool *no,
-    cp_v_csg3_p_t *r,
+    cp_v_obj_p_t *r,
     cp_csg3_tree_t *t,
     cp_err_t *e,
     mat_ctxt_t const *m,
@@ -1598,6 +1519,12 @@ static bool csg3_from_scad(
         object(no);
         return csg3_from_polygon(r, e, m, cp_scad_cast(_polygon, s));
 
+    /* 2D->3D extruding */
+    case CP_SCAD_LINEXT:
+        object(no);
+        return csg3_from_linext(r, t, e, m, cp_scad_cast(_linext, s));
+
+    /* graphics context manipulations */
     case CP_SCAD_COLOR:
         return csg3_from_color(no, r, t, e, m, cp_scad_cast(_color, s));
     }
@@ -1612,12 +1539,6 @@ static void csg3_init_tree(
     if (t->root == NULL) {
         t->root = cp_csg3_new(*t->root, loc);
     }
-}
-
-static void csg3_fini_tree(
-    cp_csg3_tree_t *t)
-{
-    csg3_add_minmax(t->root);
 }
 
 static bool cp_csg3_from_scad(
@@ -1639,7 +1560,6 @@ static bool cp_csg3_from_scad(
     if (!csg3_from_scad(&no, &t->root->add, t, e, &m, s)) {
         return false;
     }
-    csg3_fini_tree(t);
     return true;
 }
 
@@ -1666,92 +1586,121 @@ static bool cp_csg3_from_v_scad(
         return false;
     }
 
-    csg3_fini_tree(t);
     return true;
 }
 
-static void get_max_bb_csg3(
+static void get_bb_csg3(
     cp_vec3_minmax_t *bb,
-    cp_csg3_t const *r);
+    cp_csg3_t const *r,
+    bool max);
 
-static void get_max_bb_v_csg3(
+static void get_bb_v_csg3(
     cp_vec3_minmax_t *bb,
-    cp_v_csg3_p_t const *r)
+    cp_v_obj_p_t const *r,
+    bool max)
 {
     for (cp_v_each(i, r)) {
-        get_max_bb_csg3(bb, cp_v_nth(r, i));
+        get_bb_csg3(bb, cp_csg3(cp_v_nth(r, i)), max);
     }
 }
 
-static void get_max_bb_add(
+static void get_bb_add(
     cp_vec3_minmax_t *bb,
-    cp_csg3_add_t const *r)
+    cp_csg_add_t const *r,
+    bool max)
 {
-    get_max_bb_v_csg3(bb, &r->add);
+    get_bb_v_csg3(bb, &r->add, max);
 }
 
-static void get_max_bb_sub(
+static void get_bb_sub(
     cp_vec3_minmax_t *bb,
-    cp_csg3_sub_t const *r)
+    cp_csg_sub_t const *r,
+    bool max)
 {
-    get_max_bb_add(bb, &r->add);
-    get_max_bb_add(bb, &r->sub);
-}
-
-static void get_max_bb_cut(
-    cp_vec3_minmax_t *bb,
-    cp_csg3_cut_t const *r)
-{
-    for (cp_v_each(i, &r->cut)) {
-        get_max_bb_add(bb, cp_v_nth(&r->cut, i));
+    get_bb_add(bb, r->add, max);
+    if (max) {
+        get_bb_add(bb, r->sub, max);
     }
 }
 
-static void get_max_bb_poly(
+static void get_bb_cut(
+    cp_vec3_minmax_t *bb,
+    cp_csg_cut_t const *r,
+    bool max)
+{
+    if (r->cut.size == 0) {
+        return;
+    }
+
+    if (max) {
+        for (cp_v_each(i, &r->cut)) {
+            get_bb_add(bb, cp_v_nth(&r->cut, i), max);
+        }
+    }
+    else {
+        cp_vec3_minmax_t bb2 = CP_VEC3_MINMAX_FULL;
+        for (cp_v_each(i, &r->cut, 1)) {
+            cp_vec3_minmax_t bb3 = CP_VEC3_MINMAX_EMPTY;
+            get_bb_add(&bb3, cp_v_nth(&r->cut,i), max);
+            cp_vec3_minmax_and(&bb2, &bb2, &bb3);
+            if (!cp_vec3_minmax_valid(&bb2)) {
+                break;
+            }
+        }
+        cp_vec3_minmax_or(bb, bb, &bb2);
+    }
+}
+
+static void get_bb_poly(
     cp_vec3_minmax_t *bb,
     cp_csg3_poly_t const *r)
 {
+    if ((r->point.size == 0) || (r->face.size < 4)) {
+        return;
+    }
     for (cp_v_each(i, &r->point)) {
         cp_vec3_minmax(bb, &cp_v_nth(&r->point, i).coord);
     }
 }
 
-static void get_max_bb_sphere(
+static void get_bb_sphere(
     cp_vec3_minmax_t *bb,
     cp_csg3_sphere_t const *r)
 {
     csg3_sphere_minmax(bb, r->mat);
 }
 
-static void get_max_bb_csg3(
+static void get_bb_csg3(
     cp_vec3_minmax_t *bb,
-    cp_csg3_t const *r)
+    cp_csg3_t const *r,
+    bool max)
 {
     switch (r->type) {
     case CP_CSG3_ADD:
-        get_max_bb_add(bb, cp_csg3_cast(_add, r));
+        get_bb_add(bb, cp_csg3_cast(_add, r), max);
         return;
 
     case CP_CSG3_SUB:
-        get_max_bb_sub(bb, cp_csg3_cast(_sub, r));
+        get_bb_sub(bb, cp_csg3_cast(_sub, r), max);
         return;
 
     case CP_CSG3_CUT:
-        get_max_bb_cut(bb, cp_csg3_cast(_cut, r));
+        get_bb_cut(bb, cp_csg3_cast(_cut, r), max);
         return;
 
     case CP_CSG3_SPHERE:
-        get_max_bb_sphere(bb, cp_csg3_cast(_sphere, r));
+        get_bb_sphere(bb, cp_csg3_cast(_sphere, r));
         return;
 
     case CP_CSG3_CYL:
-        /* get_max_bb_cyl(bb, &r->cyl); FIXME: continue */
+        /* return get_bb_cyl(bb, &r->cyl); FIXME: continue */
         return;
 
     case CP_CSG3_POLY:
-        get_max_bb_poly(bb, cp_csg3_cast(_poly, r));
+        get_bb_poly(bb, cp_csg3_cast(_poly, r));
         return;
     }
+    CP_NYI();
 }
 
 /* ********************************************************************** */
@@ -1760,15 +1709,24 @@ static void get_max_bb_csg3(
  * Get bounding box of all points, including those that are
  * in subtracted parts that will be outside of the final solid.
  *
+ * If max is non-false, the bb will include structures that are
+ * subtracted.
+ *
  * bb will not be cleared, but only updated.
+ *
+ * Returns whether there the structure is non-empty, i.e.,
+ * whether bb has been updated.
  */
-extern void cp_csg3_tree_max_bb(
+extern void cp_csg3_tree_bb(
     cp_vec3_minmax_t *bb,
-    cp_csg3_tree_t const *r)
+    cp_csg3_tree_t const *r,
+    bool max)
 {
-    if (r->root) {
-        get_max_bb_add(bb, r->root);
+    if (r->root == NULL) {
+        return;
     }
+
+    get_bb_add(bb, r->root, max);
 }
 
 /**

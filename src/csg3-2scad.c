@@ -3,15 +3,16 @@
 
 #include <hob3lbase/mat.h>
 #include <hob3lbase/panic.h>
-#include <hob3l/csg3.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
+#include <hob3l/csg3.h>
 #include <hob3l/gc.h>
 #include "internal.h"
 
 static void v_csg3_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_csg3_p_t *r);
+    cp_v_obj_p_t *r);
 
 static void mat3wi_put_scad(
     cp_stream_t *s,
@@ -71,7 +72,7 @@ static void cyl_put_scad(
 static void union_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_csg3_p_t *r)
+    cp_v_obj_p_t *r)
 {
     if (r->size == 1) {
         v_csg3_put_scad(s, d, r);
@@ -85,20 +86,20 @@ static void union_put_scad(
 static void sub_put_scad(
     cp_stream_t *s,
     int d,
-    cp_csg3_sub_t *r)
+    cp_csg_sub_t *r)
 {
     cp_printf(s, "%*sdifference(){\n", d, "");
     cp_printf(s, "%*s// add\n", d+IND, "");
-    union_put_scad (s, d + IND, &r->add.add);
+    union_put_scad (s, d + IND, &r->add->add);
     cp_printf(s, "%*s// sub\n", d+IND, "");
-    v_csg3_put_scad(s, d + IND, &r->sub.add);
+    v_csg3_put_scad(s, d + IND, &r->sub->add);
     cp_printf(s, "%*s}\n", d, "");
 }
 
 static void cut_put_scad(
     cp_stream_t *s,
     int d,
-    cp_csg3_cut_t *r)
+    cp_csg_cut_t *r)
 {
     cp_printf(s, "%*sintersection(){\n", d, "");
     for (cp_v_each(i, &r->cut)) {
@@ -166,24 +167,6 @@ static void poly2_put_scad(
     cp_printf(s, "]);\n");
 }
 
-static void twoD_put_scad(
-    cp_stream_t *s,
-    int d,
-    cp_csg3_2d_t *r)
-{
-    switch (r->csg2->type) {
-    case CP_CSG2_CIRCLE:
-        CP_DIE("Not implemented: circle");
-
-    case CP_CSG2_POLY:
-        poly2_put_scad(s, d, cp_csg2_cast(_poly, r->csg2));
-        break;
-
-    default:
-        CP_DIE("Unrecognized CSG2 object type");
-    }
-}
-
 static void csg3_put_scad(
     cp_stream_t *s,
     int d,
@@ -214,8 +197,8 @@ static void csg3_put_scad(
         poly_put_scad(s, d, cp_csg3_cast(_poly, r));
         break;
 
-    case CP_CSG3_2D:
-        twoD_put_scad(s, d, cp_csg3_cast(_2d, r));
+    case CP_CSG2_POLY:
+        poly2_put_scad(s, d, cp_csg3_cast(_poly2, r));
         break;
 
     default:
@@ -226,10 +209,10 @@ static void csg3_put_scad(
 static void v_csg3_put_scad(
     cp_stream_t *s,
     int d,
-    cp_v_csg3_p_t *r)
+    cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg3_put_scad(s, d, r->data[i]);
+        csg3_put_scad(s, d, cp_csg3(cp_v_nth(r,i)));
     }
 }
 

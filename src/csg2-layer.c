@@ -9,6 +9,8 @@
 #include <hob3lbase/alloc.h>
 #include <hob3lbase/pool.h>
 #include <hob3l/gc.h>
+#include <hob3l/obj.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/csg3.h>
 #include "internal.h"
@@ -460,7 +462,7 @@ static void csg2_add_layer_poly(
     cp_csg2_tree_opt_t const*opt,
     cp_pool_t *pool,
     double z,
-    cp_v_csg2_p_t *c,
+    cp_v_obj_p_t *c,
     cp_csg3_poly_t const *d)
 {
     /* try paths from all edges */
@@ -514,7 +516,7 @@ static void csg2_add_layer_poly(
 
         /* make a new 2D polygon */
         cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
-        cp_v_push(c, cp_csg2(r));
+        cp_v_push(c, cp_obj(r));
 
         r->point = point;
         r->path = path;
@@ -524,7 +526,7 @@ static void csg2_add_layer_poly(
 static void csg2_add_layer_sphere(
     cp_csg2_tree_opt_t const *opt,
     double z,
-    cp_v_csg2_p_t *c,
+    cp_v_obj_p_t *c,
     cp_csg3_sphere_t const *d)
 {
     /* Mechanism for slicing an ellipse from the ellipsoid:
@@ -607,7 +609,7 @@ static void csg2_add_layer_sphere(
     if (CP_CSG2_HAVE_CIRCLE) {
         /* store real circle */
         cp_csg2_circle_t *r = cp_csg2_new(*r, d->loc);
-        cp_v_push(c, cp_csg2(r));
+        cp_v_push(c, cp_obj(r));
 
         r->color = d->gc.color;
 
@@ -619,7 +621,7 @@ static void csg2_add_layer_sphere(
     else {
         /* render ellipse polygon */
         cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
-        cp_v_push(c, cp_csg2(r));
+        cp_v_push(c, cp_obj(r));
 
         cp_csg2_path_t *o = cp_v_push0(&r->path);
         size_t fn = d->_fn;
@@ -655,10 +657,10 @@ static bool csg2_add_layer_v(
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
-    cp_v_csg2_p_t *c)
+    cp_v_obj_p_t *c)
 {
     for (cp_v_each(i, c)) {
-        if (!csg2_add_layer(no, pool, r, t, zi, cp_v_nth(c,i))) {
+        if (!csg2_add_layer(no, pool, r, t, zi, cp_csg2(cp_v_nth(c,i)))) {
             return false;
         }
     }
@@ -671,7 +673,7 @@ static bool csg2_add_layer_add(
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
-    cp_csg2_add_t *c)
+    cp_csg_add_t *c)
 {
     return csg2_add_layer_v(no, pool, r, t, zi, &c->add);
 }
@@ -682,15 +684,15 @@ static bool csg2_add_layer_sub(
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
-    cp_csg2_sub_t *c)
+    cp_csg_sub_t *c)
 {
     bool add_no = false;
-    if (!csg2_add_layer_add(&add_no, pool, r, t, zi, &c->add)) {
+    if (!csg2_add_layer_add(&add_no, pool, r, t, zi, c->add)) {
         return false;
     }
     if (add_no) {
         *no = true;
-        if (!csg2_add_layer_add(no, pool, r, t, zi, &c->sub)) {
+        if (!csg2_add_layer_add(no, pool, r, t, zi, c->sub)) {
             return false;
         }
     }
@@ -703,7 +705,7 @@ static bool csg2_add_layer_cut(
     cp_csg2_tree_t *r,
     cp_err_t *t,
     size_t zi,
-    cp_csg2_cut_t *c)
+    cp_csg_cut_t *c)
 {
     for (cp_v_each(i, &c->cut)) {
         if (!csg2_add_layer_add(no, pool, r, t, zi, cp_v_nth(&c->cut, i))) {
@@ -729,19 +731,19 @@ static bool csg2_add_layer_stack(
         return true;
     }
 
-    cp_csg2_add_init_perhaps(&l->root, d->loc);
+    cp_csg_add_init_perhaps(&l->root, d->loc);
     l->zi = zi;
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        csg2_add_layer_sphere(&r->opt, z, &l->root.add, cp_csg3_cast(_sphere, d));
+        csg2_add_layer_sphere(&r->opt, z, &l->root->add, cp_csg3_cast(_sphere, d));
         break;
 
     case CP_CSG3_CYL:
         CP_NYI("cylinder");
 
     case CP_CSG3_POLY:
-        csg2_add_layer_poly(&r->opt, pool, z, &l->root.add, cp_csg3_cast(_poly, d));
+        csg2_add_layer_poly(&r->opt, pool, z, &l->root->add, cp_csg3_cast(_poly, d));
         break;
 
     case CP_CSG2_POLY:
@@ -752,7 +754,7 @@ static bool csg2_add_layer_stack(
         CP_DIE("3D object");
     }
 
-    if (l->root.add.size > 0) {
+    if (cp_csg_add_size(l->root) > 0) {
         *no = true;
     }
 

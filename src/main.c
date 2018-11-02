@@ -182,14 +182,13 @@ static bool do_file(
         return false;
     }
 
-    cp_vec3_minmax_t full_bb;
-    CP_ZERO(&full_bb);
+    cp_vec3_minmax_t full_bb = CP_VEC3_MINMAX_EMPTY;
     if (csg3->root != NULL) {
-        full_bb = csg3->root->bb;
-        cp_csg3_tree_max_bb(&full_bb, csg3);
+        cp_csg3_tree_bb(&full_bb, csg3, true);
 #ifdef PSTRACE
         cp_ps_xform_from_bb(&cp_debug_ps_xform,
-            full_bb.min.x, full_bb.min.y, full_bb.max.x, full_bb.max.y);
+            full_bb.min.x, full_bb.min.y,
+            full_bb.max.x, full_bb.max.y);
         cp_debug_ps_xform.add_x -= CP_PS_PAPER_X/2;
         cp_debug_ps_xform.add_y -= CP_PS_PAPER_Y/2;
         cp_debug_ps_xform.add_x *= cp_debug_ps_scale_x;
@@ -209,9 +208,13 @@ static bool do_file(
         return true;
     }
 
+    /* Get bounding box (normal one, i.e., ignoring stuff that is subtracted) */
+    cp_vec3_minmax_t bb = CP_VEC3_MINMAX_EMPTY;
+    cp_csg3_tree_bb(&bb, csg3, false);
+
     /* stage 4: 2D CSG */
-    cp_dim_t z_min = csg3->root->bb.min.z + opt->z_step/2;
-    cp_dim_t z_max = csg3->root->bb.max.z;
+    cp_dim_t z_min = bb.min.z + opt->z_step/2;
+    cp_dim_t z_max = bb.max.z;
     if (opt->have_z_min) {
         z_min = opt->z_min;
     }
@@ -278,8 +281,8 @@ static bool do_file(
 
         case 1:
             cp_ps_xform_from_bb(&xform,
-                csg3->root->bb.min.x, csg3->root->bb.min.y,
-                csg3->root->bb.max.x, csg3->root->bb.max.y);
+                bb.min.x, bb.min.y,
+                bb.max.x, bb.max.y);
             break;
 
         case 2:

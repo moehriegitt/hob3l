@@ -13,6 +13,8 @@ typedef double cp_f_t;
 #define CP_EQ_EPSILON_DEFAULT  0x1p-15
 #define CP_SQR_EPSILON_DEFAULT (CP_EQ_EPSILON_DEFAULT * CP_EQ_EPSILON_DEFAULT)
 
+#define CP_F_MAX 0x1.fffffffffffffp+1023
+
 #define CP_FF  "%g"
 #define CP_FD  "%+9.5f"
 

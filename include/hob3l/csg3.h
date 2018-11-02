@@ -13,6 +13,7 @@
 #define cp_csg3_new(r, _loc) \
     ({ \
         __typeof__(r) * __r = CP_NEW(*__r); \
+        cp_static_assert(cp_csg3_typeof(*__r) != CP_ABSTRACT); \
         __r->type = cp_csg3_typeof(*__r); \
         __r->loc = (_loc); \
         __r; \
@@ -26,29 +27,40 @@
         __rA; \
     })
 
-/** Specialising cast w/ dynamic check */
-#define cp_csg3_cast(_t,s) \
-    ({ \
-        assert((s)->type == cp_csg3_typeof((s)->_t)); \
-        &(s)->_t; \
-    })
-
 /**  Generalising cast w/ static check */
 #define cp_csg3(t) \
     ({ \
-        cp_static_assert(cp_csg3_typeof(*(t)) != 0); \
-        (cp_csg3_t*)(t); \
+        __typeof__(*(t)) *__t = (t); \
+        cp_static_assert(cp_csg3_typeof(*__t) != 0); \
+        unsigned __m = __t->type & CP_TYPE_MASK; \
+        assert((__m == CP_CSG_TYPE) || (__m == CP_CSG2_TYPE) || (__m == CP_CSG3_TYPE)); \
+        (cp_csg3_t*)__t; \
+    })
+
+/** Specialising cast w/ dynamic check */
+#define cp_csg3_cast(_t,s) \
+    ({ \
+        __typeof__(*(s)) *__s = (s); \
+        assert(__s->type == cp_csg3_typeof(__s->_t)); \
+        &__s->_t; \
     })
 
 /**
  * Get bounding box of all points, including those that are
  * in subtracted parts that will be outside of the final solid.
  *
+ * If max is non-false, the bb will include structures that are
+ * subtracted.
+ *
  * bb will not be cleared, but only updated.
+ *
+ * Returns whether there the structure is non-empty, i.e.,
+ * whether bb has been updated.
  */
-extern void cp_csg3_tree_max_bb(
+extern void cp_csg3_tree_bb(
     cp_vec3_minmax_t *bb,
-    cp_csg3_tree_t const *r);
+    cp_csg3_tree_t const *r,
+    bool max);
 
 /**
  * Convert a SCAD AST into a CSG3 tree.

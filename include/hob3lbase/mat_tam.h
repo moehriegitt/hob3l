@@ -27,6 +27,30 @@
 #include <hob3lbase/err_tam.h>
 #include <hob3lbase/color_tam.h>
 
+#define CP_VEC2_MINMAX_EMPTY { \
+    {{ +CP_F_MAX, +CP_F_MAX }}, \
+    {{ -CP_F_MAX, -CP_F_MAX }} }
+
+#define CP_VEC3_MINMAX_EMPTY { \
+    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }}, \
+    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }} }
+
+#define CP_VEC4_MINMAX_EMPTY { \
+    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }}, \
+    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }} }
+
+#define CP_VEC2_MINMAX_FULL { \
+    {{ -CP_F_MAX, -CP_F_MAX }}, \
+    {{ +CP_F_MAX, +CP_F_MAX }} }
+
+#define CP_VEC3_MINMAX_FULL { \
+    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }}, \
+    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }} }
+
+#define CP_VEC4_MINMAX_FULL { \
+    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }}, \
+    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }} }
+
 typedef struct {
     cp_vec2_t coord;
     cp_loc_t loc;
@@ -135,8 +159,6 @@ static inline cp_vec2_arr_ref_t *__cp_vec2_arr_ref_set(
 
 #define CP_MAT3W(a,b,c,d, e,f,g,h, i,j,k,l) \
     ((cp_mat3w_t){ .b={.v={ a,b,c, e,f,g, i,j,k }}, .w={.v={d,h,l}} })
-
-#define CP_MINMAX_EMPTY { .min={ .v={0} }, .max={ .v={-1} } }
 
 static inline void cp_mat4_init3(
     cp_mat4_t *m,

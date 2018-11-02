@@ -43,6 +43,8 @@
 #include <hob3lbase/alloc.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/panic.h>
+#include <hob3l/obj.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/ps.h>
 #include <hob3l/csg2-bitmap.h>
@@ -1733,12 +1735,12 @@ static void csg2_op_v_csg2(
     cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
-    cp_v_csg2_p_t *a)
+    cp_v_obj_p_t *a)
 {
     TRACE("n=%"_Pz"u", a->size);
     assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, a)) {
-        cp_csg2_t *ai = cp_v_nth(a,i);
+        cp_csg2_t *ai = cp_csg2(cp_v_nth(a,i));
         if (i == 0) {
             csg2_op_csg2(opt, pool, r, zi, o, ai);
         }
@@ -1757,7 +1759,7 @@ static void csg2_op_add(
     cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
-    cp_csg2_add_t *a)
+    cp_csg_add_t *a)
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
@@ -1770,12 +1772,12 @@ static void csg2_op_cut(
     cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
-    cp_csg2_cut_t *a)
+    cp_csg_cut_t *a)
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, &a->cut)) {
-        cp_csg2_add_t *b = cp_v_nth(&a->cut, i);
+        cp_csg_add_t *b = cp_v_nth(&a->cut, i);
         if (i == 0) {
             csg2_op_add(opt, pool, r, zi, o, b);
         }
@@ -1797,7 +1799,10 @@ static void csg2_op_layer(
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_add(opt, pool, r, a->zi, o, &a->root);
+    if (a->root == NULL) {
+        return;
+    }
+    csg2_op_add(opt, pool, r, a->zi, o, a->root);
 }
 
 static void csg2_op_sub(
@@ -1806,14 +1811,14 @@ static void csg2_op_sub(
     cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
-    cp_csg2_sub_t *a)
+    cp_csg_sub_t *a)
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_add(opt, pool, r, zi, o, &a->add);
+    csg2_op_add(opt, pool, r, zi, o, a->add);
 
     cp_csg2_lazy_t os = {0};
-    csg2_op_add(opt, pool, r, zi, &os, &a->sub);
+    csg2_op_add(opt, pool, r, zi, &os, a->sub);
     LOG("SUB\n");
     cp_csg2_op_lazy(opt, pool, o, &os, CP_OP_SUB);
 }
@@ -2011,13 +2016,15 @@ static void csg2_op_diff2_layer(
     cp_csg2_layer_t *a1)
 {
     TRACE();
-    if (a0->root.add.size != 1) {
+    if (cp_csg_add_size(a0->root) != 1) {
         return;
     }
-    if (a1->root.add.size != 1) {
+    if (cp_csg_add_size(a1->root) != 1) {
         return;
     }
-    csg2_op_diff2(opt, pool, cp_v_nth(&a0->root.add,0), cp_v_nth(&a1->root.add,0));
+    csg2_op_diff2(opt, pool,
+        cp_csg2(cp_v_nth(&a0->root->add,0)),
+        cp_csg2(cp_v_nth(&a1->root->add,0)));
 }
 
 static void csg2_op_diff_stack(
@@ -2246,14 +2253,14 @@ extern void cp_csg2_op_add_layer(
         /* new layer */
         cp_csg2_layer_t *layer = cp_csg2_stack_get_layer(s, zi);
         assert(layer != NULL);
-        cp_csg2_add_init_perhaps(&layer->root, NULL);
+        cp_csg_add_init_perhaps(&layer->root, NULL);
 
         layer->zi = zi;
 
         cp_v_nth(&r->flag, zi) |= CP_CSG2_FLAG_NON_EMPTY;
 
         /* single polygon per layer */
-        cp_v_push(&layer->root.add, (cp_csg2_t*)o);
+        cp_v_push(&layer->root->add, cp_obj(o));
     }
 }
 

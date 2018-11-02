@@ -25,7 +25,7 @@ static void v_csg2_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r);
+    cp_v_obj_p_t *r);
 
 static void coord(cp_vec2_t *v, ctxt_t *k, cp_vec2_t *p, double z)
 {
@@ -167,17 +167,17 @@ static void sub_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_sub_t *r)
+    cp_csg_sub_t *r)
 {
-    v_csg2_put_ps(k, t, zi, &r->add.add);
-    v_csg2_put_ps(k, t, zi, &r->sub.add);
+    v_csg2_put_ps(k, t, zi, &r->add->add);
+    v_csg2_put_ps(k, t, zi, &r->sub->add);
 }
 
 static void add_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_add_t *r)
+    cp_csg_add_t *r)
 {
     v_csg2_put_ps(k, t, zi, &r->add);
 }
@@ -186,7 +186,7 @@ static void cut_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_cut_t *r)
+    cp_csg_cut_t *r)
 {
     for (cp_v_each(i, &r->cut)) {
         v_csg2_put_ps(k, t, zi, &cp_v_nth(&r->cut, i)->add);
@@ -202,7 +202,7 @@ static void layer_put_ps(
     if (zi != r->zi) {
         return;
     }
-    v_csg2_put_ps(k, t, zi, &r->root.add);
+    v_csg2_put_ps(k, t, zi, &r->root->add);
 }
 
 static void stack_put_ps(
@@ -254,10 +254,10 @@ static void v_csg2_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_ps(k, t, zi, cp_v_nth(r,i));
+        csg2_put_ps(k, t, zi, cp_csg2(cp_v_nth(r,i)));
     }
 }
 

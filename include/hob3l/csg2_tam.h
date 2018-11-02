@@ -7,23 +7,32 @@
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/dict.h>
 #include <hob3lbase/err_tam.h>
+#include <hob3l/csg_tam.h>
 #include <hob3l/csg2_fwd.h>
 #include <hob3l/csg3_fwd.h>
 #include <hob3l/gc_tam.h>
 
 /**
- * Whether to support circles in 2D engine.
+ * Whether to support real round circles in 2D engine.
  * FIXME: Not yet implemented.
  */
 #define CP_CSG2_HAVE_CIRCLE 0
 
+/**
+ * Map type to type ID.
+ *
+ * If this maps to CP_OBJ, then no object can be generated,
+ * but the type is a supertype.
+ */
 #define cp_csg2_typeof(type) \
     _Generic(type, \
+        cp_obj_t:         CP_ABSTRACT, \
+        cp_csg_t:         CP_ABSTRACT, \
+        cp_csg_add_t:     CP_CSG_ADD, \
+        cp_csg_sub_t:     CP_CSG_SUB, \
+        cp_csg_cut_t:     CP_CSG_CUT, \
         cp_csg2_circle_t: CP_CSG2_CIRCLE, \
         cp_csg2_poly_t:   CP_CSG2_POLY, \
-        cp_csg2_add_t:    CP_CSG2_ADD, \
-        cp_csg2_sub_t:    CP_CSG2_SUB, \
-        cp_csg2_cut_t:    CP_CSG2_CUT, \
         cp_csg2_stack_t:  CP_CSG2_STACK)
 
 /**
@@ -44,6 +53,11 @@
  * avoid as long as possible.
  */
 typedef enum {
+    /* Have add, sub, cut in this enum for switch() */
+    CP_CSG2_ADD = CP_CSG_ADD,
+    CP_CSG2_SUB = CP_CSG_SUB,
+    CP_CSG2_CUT = CP_CSG_CUT,
+
     /**
      * Circle with radius 1, centered a [0,0] */
     CP_CSG2_CIRCLE = CP_CSG2_TYPE + 1,
@@ -53,37 +67,18 @@ typedef enum {
     CP_CSG2_POLY,
 
     /**
-     * Bool op: union (boolean '|') */
-    CP_CSG2_ADD,
-
-    /**
-     * Bool op: difference (boolean '&~')*/
-    CP_CSG2_SUB,
-
-    /**
-     * Bool op: cut (boolean '&') */
-    CP_CSG2_CUT,
-
-    /**
      * A stack of 2D layers */
     CP_CSG2_STACK,
 } cp_csg2_type_t;
 
 #define _CP_CSG2 \
-    unsigned type; \
-    char const *loc;
-
-#define _CP_CSG2_OBJ_ \
-    _CP_CSG2
-
-#define _CP_CSG2_OBJ \
     union { \
-        struct { _CP_CSG2_OBJ_ }; \
-        struct { _CP_CSG2_OBJ_ } obj; \
+        struct { _CP_OBJ }; \
+        struct { _CP_OBJ } obj; \
     };
 
 #define _CP_CSG2_SIMPLE \
-    _CP_CSG2_OBJ \
+    _CP_CSG2 \
     cp_mat2wi_t mat; \
     cp_f_t _fa, _fs; \
     size_t _fn;
@@ -95,34 +90,8 @@ typedef struct {
     cp_color_rgba_t color;
 } cp_csg2_circle_t;
 
-typedef CP_VEC_T(cp_csg2_t*) cp_v_csg2_p_t;
-
 typedef struct {
-    /**
-     * type is CP_CSG2_ADD */
-    _CP_CSG2
-    cp_v_csg2_p_t add;
-} cp_csg2_add_t;
-
-typedef CP_VEC_T(cp_csg2_add_t*) cp_v_csg2_add_p_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG2_SUB */
-    _CP_CSG2
-    cp_csg2_add_t add;
-    cp_csg2_add_t sub;
-} cp_csg2_sub_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG2_CUT */
-    _CP_CSG2
-    cp_v_csg2_add_p_t cut;
-} cp_csg2_cut_t;
-
-typedef struct {
-    cp_csg2_add_t root;
+    cp_csg_add_t *root;
     size_t zi;
 } cp_csg2_layer_t;
 
@@ -132,7 +101,7 @@ typedef CP_ARR_T(cp_csg2_layer_t) cp_a_csg2_layer_t;
 typedef struct {
     /**
      * type is CP_CSG2_STACK */
-    _CP_CSG2
+    _CP_OBJ
 
     /**
      * Actual first global index at index[0] in \a layer */
@@ -171,7 +140,7 @@ typedef CP_VEC_T(cp_csg2_path_t) cp_v_csg2_path_t;
 struct cp_csg2_poly {
     /**
      * type is CP_CSG2_POLY */
-    _CP_CSG2_OBJ
+    _CP_CSG2
 
     /**
      * The vertices of the polygon.
@@ -229,17 +198,17 @@ struct cp_csg2_poly {
     cp_csg2_poly_t *diff_above;
 };
 
-union cp_csg2 {
-    struct {
-        _CP_CSG2
-    };
+typedef union {
+    struct { _CP_OBJ };
+    cp_obj_t _obj;
+    cp_csg_t _csg;
+    cp_csg_add_t _add;
+    cp_csg_sub_t _sub;
+    cp_csg_cut_t _cut;
     cp_csg2_circle_t _circle;
     cp_csg2_poly_t _poly;
-    cp_csg2_add_t _add;
-    cp_csg2_sub_t _sub;
-    cp_csg2_cut_t _cut;
     cp_csg2_stack_t _stack;
-};
+} cp_csg2_t;
 
 /**
  * Empty polygon optimisation.

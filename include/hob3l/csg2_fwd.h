@@ -4,8 +4,6 @@
 #ifndef __CP_CSG2_FWD_H
 #define __CP_CSG2_FWD_H
 
-typedef union cp_csg2 cp_csg2_t;
-
 typedef struct cp_csg2_poly cp_csg2_poly_t;
 
 typedef struct cp_csg2_3node cp_csg2_3node_t;

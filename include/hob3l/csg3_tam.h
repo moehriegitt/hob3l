@@ -7,6 +7,8 @@
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/err_tam.h>
 #include <hob3l/gc_tam.h>
+#include <hob3l/obj_tam.h>
+#include <hob3l/csg_tam.h>
 #include <hob3l/csg2_tam.h>
 #include <hob3l/csg3_fwd.h>
 
@@ -30,13 +32,16 @@
  * Map type to type ID */
 #define cp_csg3_typeof(type) \
     _Generic(type, \
+        cp_obj_t:         CP_ABSTRACT, \
+        cp_csg_t:         CP_ABSTRACT, \
+        cp_csg2_t:        CP_ABSTRACT, \
+        cp_csg_add_t:     CP_CSG_ADD, \
+        cp_csg_sub_t:     CP_CSG_SUB, \
+        cp_csg_cut_t:     CP_CSG_CUT, \
+        cp_csg2_poly_t:   CP_CSG2_POLY, \
         cp_csg3_sphere_t: CP_CSG3_SPHERE, \
         cp_csg3_cyl_t:    CP_CSG3_CYL, \
-        cp_csg3_poly_t:   CP_CSG3_POLY, \
-        cp_csg3_add_t:    CP_CSG3_ADD, \
-        cp_csg3_sub_t:    CP_CSG3_SUB, \
-        cp_csg3_cut_t:    CP_CSG3_CUT, \
-        cp_csg3_2d_t:     CP_CSG3_2D)
+        cp_csg3_poly_t:   CP_CSG3_POLY)
 
 /**
  * 3D CSG basic shapes and operations.
@@ -51,6 +56,11 @@
  * must have children of type 'add'.
  */
 typedef enum {
+    /* Have add, sub, cut in this enum for switch() */
+    CP_CSG3_ADD = CP_CSG_ADD,
+    CP_CSG3_SUB = CP_CSG_SUB,
+    CP_CSG3_CUT = CP_CSG_CUT,
+
     /**
      * Sphere with radius 1, centered a [0,0,0] */
     CP_CSG3_SPHERE = CP_CSG3_TYPE + 1,
@@ -63,52 +73,17 @@ typedef enum {
     /**
      * Polyhedron */
     CP_CSG3_POLY,
-
-    /**
-     * 2D Object */
-    CP_CSG3_2D,
-
-    /**
-     * Bool op: union */
-    CP_CSG3_ADD,
-
-    /**
-     * Bool op: difference */
-    CP_CSG3_SUB,
-
-    /**
-     * Bool op: cut */
-    CP_CSG3_CUT,
 } cp_csg3_type_t;
 
-/*
- * The \p bb bounding box:
- *
- * If max.x < min.x, the box is invalid (i.e., not computed).  Otherwise,
- * for non-empty objects, it should hold that:
- * min.C < max.C where C <- {x,y,z}.
- *
- * If non_empty, then the bounding box is valid.
- *
- * The bounding box does not consider parts that are subtracted, because
- * they will not be part of the final solid.  To get the bounding box that
- * includes all points, use cp_csg3_tree_max_bb().
- */
-
 #define _CP_CSG3 \
-    unsigned type; \
-    char const *loc; \
-    cp_vec3_minmax_t bb; \
-    bool non_empty; \
-    cp_a_size_t group; \
-    cp_csg3_t *group_as;
-
-#define _CP_CSG3_OBJ \
-    _CP_CSG3 \
+    union { \
+        struct { _CP_OBJ }; \
+        struct { _CP_OBJ } obj; \
+    }; \
     cp_gc_t gc;
 
-#define _CP_CSG3_OBJ_SIMPLE \
-    _CP_CSG3_OBJ \
+#define _CP_CSG3_SIMPLE \
+    _CP_CSG3 \
     cp_mat3wi_t const *mat; \
     cp_f_t _fa, _fs; \
     size_t _fn;
@@ -116,48 +91,22 @@ typedef enum {
 typedef struct {
     /**
      * type is CP_CSG3_SPHERE */
-    _CP_CSG3_OBJ_SIMPLE
+    _CP_CSG3_SIMPLE
 } cp_csg3_sphere_t;
 
 typedef struct {
     /**
      * type is CP_CSG3_2D */
-    _CP_CSG3_OBJ_SIMPLE
+    _CP_CSG3_SIMPLE
     cp_csg2_t *csg2;
 } cp_csg3_2d_t;
 
 typedef struct {
     /**
      * type is CP_CSG3_CYL */
-    _CP_CSG3_OBJ_SIMPLE
+    _CP_CSG3_SIMPLE
     double r2;
 } cp_csg3_cyl_t;
-
-typedef CP_VEC_T(cp_csg3_t*) cp_v_csg3_p_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG3_ADD */
-    _CP_CSG3
-    cp_v_csg3_p_t add;
-} cp_csg3_add_t;
-
-typedef CP_VEC_T(cp_csg3_add_t*) cp_v_csg3_add_p_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG3_SUB */
-    _CP_CSG3
-    cp_csg3_add_t add;
-    cp_csg3_add_t sub;
-} cp_csg3_sub_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG3_CUT */
-    _CP_CSG3
-    cp_v_csg3_add_p_t cut;
-} cp_csg3_cut_t;
 
 struct cp_csg3_edge {
     /**
@@ -191,7 +140,7 @@ struct cp_csg3_edge {
     cp_csg3_face_t *back;
 };
 
-typedef CP_ARR_T(cp_csg3_edge_t) cp_a_csg3_edge_t;
+typedef CP_ARR_T(cp_csg3_edge_t)  cp_a_csg3_edge_t;
 typedef CP_ARR_T(cp_csg3_edge_t*) cp_a_csg3_edge_p_t;
 
 struct cp_csg3_face {
@@ -228,7 +177,7 @@ typedef CP_ARR_T(cp_csg3_face_t) cp_a_csg3_face_t;
 typedef struct {
     /**
      * type is CP_CSG3_POLY */
-    _CP_CSG3_OBJ
+    _CP_CSG3
 
     /**
      * All points in the polyhedron.
@@ -271,17 +220,15 @@ typedef cp_csg2_poly_t cp_csg3_poly2_t;
  * Any of the CP_CSG3_* objects and some CP_CSG2_*.
  */
 union cp_csg3 {
-    struct {
-        _CP_CSG3
-    };
-
+    struct { _CP_CSG3 };
+    cp_csg_t _csg;
     cp_csg3_sphere_t _sphere;
+    cp_csg_add_t _add;
+    cp_csg_sub_t _sub;
+    cp_csg_cut_t _cut;
     cp_csg3_cyl_t _cyl;
     cp_csg3_poly_t _poly;
-    cp_csg3_add_t _add;
-    cp_csg3_sub_t _sub;
-    cp_csg3_cut_t _cut;
-    cp_csg3_2d_t _2d;
+    cp_csg2_poly_t _poly2;
 };
 
 typedef struct {
@@ -291,7 +238,7 @@ typedef struct {
 typedef struct {
     cp_csg3_opt_t opt;
     cp_v_mat3wi_p_t mat;
-    cp_csg3_add_t *root;
+    cp_csg_add_t *root;
 } cp_csg3_tree_t;
 
 #endif /* __CP_CSG3_TAM_H */

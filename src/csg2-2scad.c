@@ -9,6 +9,7 @@
 #include <hob3lbase/stream.h>
 #include <hob3lbase/panic.h>
 #include <hob3l/gc.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include "internal.h"
 
@@ -19,7 +20,7 @@ static void v_csg2_put_scad(
     int d,
     /** z index */
     size_t zi,
-    cp_v_csg2_p_t *r);
+    cp_v_obj_p_t *r);
 
 static inline cp_dim_t layer_gap(cp_dim_t x)
 {
@@ -73,7 +74,7 @@ static void union_put_scad(
     cp_csg2_tree_t *t,
     int d,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     if (r->size == 1) {
         v_csg2_put_scad(s, t, d, zi, r);
@@ -89,7 +90,7 @@ static void add_put_scad(
     cp_csg2_tree_t *t,
     int d,
     size_t zi,
-    cp_csg2_add_t *r)
+    cp_csg_add_t *r)
 {
     v_csg2_put_scad(s, t, d, zi, &r->add);
 }
@@ -99,13 +100,13 @@ static void sub_put_scad(
     cp_csg2_tree_t *t,
     int d,
     size_t zi,
-    cp_csg2_sub_t *r)
+    cp_csg_sub_t *r)
 {
     cp_printf(s, "%*sdifference(){\n", d, "");
     cp_printf(s, "%*s// add\n", d+IND, "");
-    union_put_scad (s, t, d + IND, zi, &r->add.add);
+    union_put_scad (s, t, d + IND, zi, &r->add->add);
     cp_printf(s, "%*s// sub\n", d+IND, "");
-    v_csg2_put_scad(s, t, d + IND, zi, &r->sub.add);
+    v_csg2_put_scad(s, t, d + IND, zi, &r->sub->add);
     cp_printf(s, "%*s}\n", d, "");
 }
 
@@ -114,7 +115,7 @@ static void cut_put_scad(
     cp_csg2_tree_t *t,
     int d,
     size_t zi,
-    cp_csg2_cut_t *r)
+    cp_csg_cut_t *r)
 {
     cp_printf(s, "%*sintersection(){\n", d, "");
     for (cp_v_each(i, &r->cut)) {
@@ -130,7 +131,7 @@ static void layer_put_scad(
     size_t zi __unused,
     cp_csg2_layer_t *r)
 {
-    if (r->root.add.size == 0) {
+    if (cp_csg_add_size(r->root) == 0) {
         return;
     }
     assert(zi == r->zi);
@@ -139,7 +140,7 @@ static void layer_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "translate([0,0,"FF"]) {\n", z);
 
-    v_csg2_put_scad(s, t, d + IND, r->zi, &r->root.add);
+    v_csg2_put_scad(s, t, d + IND, r->zi, &r->root->add);
 
     cp_printf(s, "%*s", d,"");
     cp_printf(s, "}\n");
@@ -204,10 +205,10 @@ static void v_csg2_put_scad(
     cp_csg2_tree_t *t,
     int d,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_scad(s, t, d, zi, cp_v_nth(r, i));
+        csg2_put_scad(s, t, d, zi, cp_csg2(cp_v_nth(r, i)));
     }
 }
 

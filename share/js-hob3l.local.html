@@ -979,6 +979,7 @@
         clickDown = ev.buttons;
         clickShift = ev.shiftKey;
         clickMatView = mat4.clone(matView);
+
         return false;
     }
 
@@ -993,6 +994,7 @@
         if (!clickDown) {
             return;
         }
+
         var deltaX     = (ev.clientX - clickX) / canvas.width;
         var deltaY     = (ev.clientY - clickY) / canvas.height;
         var deltaOrigX = (ev.clientX - clickOrigX) / canvas.width;
@@ -1019,7 +1021,7 @@
                 var camStep = 0.3 * camDist();
                 midMove(-5 * camStep * deltaX, +5 * camStep * deltaY, 0);
             }
-            if (clickDown == 4) {
+            if ((clickDown == 4) || (clickDown == 3)) {
                 var camStep = 0.3 * camDist();
                 camMove(0, 0, +5 * camStep * deltaY);
             }

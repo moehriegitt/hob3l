@@ -57,11 +57,11 @@ typedef enum {
 } cp_syn_stmt_type_t;
 
 #define CP_SYN_VALUE_BASE \
-    cp_syn_value_type_t type; \
+    unsigned type; \
     cp_loc_t loc;
 
 #define CP_SYN_STMT_BASE \
-    cp_syn_stmt_type_t type; \
+    unsigned type; \
     cp_loc_t loc;
 
 /**

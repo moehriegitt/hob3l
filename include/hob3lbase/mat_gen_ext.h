@@ -145,6 +145,45 @@ extern void cp_vec4_minmax(
     cp_vec4_minmax_t * r,
     cp_vec4_t const* a);
 
+extern void cp_vec2_minmax_or(
+    cp_vec2_minmax_t * r,
+    cp_vec2_minmax_t * a,
+    cp_vec2_minmax_t * b);
+
+extern void cp_vec3_minmax_or(
+    cp_vec3_minmax_t * r,
+    cp_vec3_minmax_t * a,
+    cp_vec3_minmax_t * b);
+
+extern void cp_vec4_minmax_or(
+    cp_vec4_minmax_t * r,
+    cp_vec4_minmax_t * a,
+    cp_vec4_minmax_t * b);
+
+extern void cp_vec2_minmax_and(
+    cp_vec2_minmax_t * r,
+    cp_vec2_minmax_t * a,
+    cp_vec2_minmax_t * b);
+
+extern void cp_vec3_minmax_and(
+    cp_vec3_minmax_t * r,
+    cp_vec3_minmax_t * a,
+    cp_vec3_minmax_t * b);
+
+extern void cp_vec4_minmax_and(
+    cp_vec4_minmax_t * r,
+    cp_vec4_minmax_t * a,
+    cp_vec4_minmax_t * b);
+
+extern bool cp_vec2_minmax_valid(
+    cp_vec2_minmax_t * a);
+
+extern bool cp_vec3_minmax_valid(
+    cp_vec3_minmax_t * a);
+
+extern bool cp_vec4_minmax_valid(
+    cp_vec4_minmax_t * a);
+
 extern cp_dim_t cp_vec2_max_abs_coord(
     cp_vec2_t const* a);
 

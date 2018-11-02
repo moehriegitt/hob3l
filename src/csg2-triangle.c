@@ -1095,7 +1095,7 @@ static bool csg2_tri_circle(
 static bool csg2_tri_v_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_v_csg2_p_t *r,
+    cp_v_obj_p_t *r,
     size_t zi);
 
 static bool csg2_tri_layer(
@@ -1103,7 +1103,10 @@ static bool csg2_tri_layer(
     cp_err_t *t,
     cp_csg2_layer_t *r)
 {
-    return csg2_tri_v_csg2(pool, t, &r->root.add, r->zi);
+    if (r->root == NULL) {
+        return true;
+    }
+    return csg2_tri_v_csg2(pool, t, &r->root->add, r->zi);
 }
 
 static bool csg2_tri_stack(
@@ -1113,7 +1116,7 @@ static bool csg2_tri_stack(
     size_t zi)
 {
     cp_csg2_layer_t *l = cp_csg2_stack_get_layer(r, zi);
-    if (l == NULL) {
+    if ((l == NULL) || (l->root == NULL)) {
         return true;
     }
     return csg2_tri_layer(pool, t, l);
@@ -1122,18 +1125,18 @@ static bool csg2_tri_stack(
 static bool csg2_tri_sub(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_csg2_sub_t *r,
+    cp_csg_sub_t *r,
     size_t zi)
 {
     return
-        csg2_tri_v_csg2(pool, t, &r->add.add, zi) &&
-        csg2_tri_v_csg2(pool, t, &r->sub.add, zi);
+        csg2_tri_v_csg2(pool, t, &r->add->add, zi) &&
+        csg2_tri_v_csg2(pool, t, &r->sub->add, zi);
 }
 
 static bool csg2_tri_add(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_csg2_add_t *r,
+    cp_csg_add_t *r,
     size_t zi)
 {
     return csg2_tri_v_csg2(pool, t, &r->add, zi);
@@ -1142,7 +1145,7 @@ static bool csg2_tri_add(
 static bool csg2_tri_cut(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_csg2_cut_t *r,
+    cp_csg_cut_t *r,
     size_t zi)
 {
     for (cp_v_each(i, &r->cut)) {
@@ -1185,11 +1188,11 @@ static bool csg2_tri_csg2(
 static bool csg2_tri_v_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_v_csg2_p_t *r,
+    cp_v_obj_p_t *r,
     size_t zi)
 {
     for (cp_v_each(i, r)) {
-        if (!csg2_tri_csg2(pool, t, r->data[i], zi)) {
+        if (!csg2_tri_csg2(pool, t, cp_csg2(cp_v_nth(r,i)), zi)) {
             return false;
         }
     }
@@ -1199,7 +1202,7 @@ static bool csg2_tri_v_csg2(
 static bool csg2_tri_diff_v_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_v_csg2_p_t *r,
+    cp_v_obj_p_t *r,
     size_t zi);
 
 static bool csg2_tri_diff_layer(
@@ -1207,7 +1210,10 @@ static bool csg2_tri_diff_layer(
     cp_err_t *t,
     cp_csg2_layer_t *r)
 {
-    return csg2_tri_diff_v_csg2(pool, t, &r->root.add, r->zi);
+    if (r->root == NULL) {
+        return true;
+    }
+    return csg2_tri_diff_v_csg2(pool, t, &r->root->add, r->zi);
 }
 
 static bool csg2_tri_diff_stack(
@@ -1260,11 +1266,11 @@ static bool csg2_tri_diff_csg2(
 static bool csg2_tri_diff_v_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
-    cp_v_csg2_p_t *r,
+    cp_v_obj_p_t *r,
     size_t zi)
 {
     for (cp_v_each(i, r)) {
-        if (!csg2_tri_diff_csg2(pool, t, r->data[i], zi)) {
+        if (!csg2_tri_diff_csg2(pool, t, cp_csg2(cp_v_nth(r,i)), zi)) {
             return false;
         }
     }

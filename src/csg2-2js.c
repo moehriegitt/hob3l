@@ -14,6 +14,7 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/alloc.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/gc.h>
 #include "internal.h"
@@ -50,7 +51,7 @@ static void v_csg2_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r);
+    cp_v_obj_p_t *r);
 
 static int idx_val(
     int *last,
@@ -267,7 +268,7 @@ static void union_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     v_csg2_put_js(c, s, t, zi, r);
 }
@@ -277,7 +278,7 @@ static void add_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_add_t *r)
+    cp_csg_add_t *r)
 {
     union_put_js (c, s, t, zi, &r->add);
 }
@@ -287,11 +288,11 @@ static void sub_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_sub_t *r)
+    cp_csg_sub_t *r)
 {
     /* This output format cannot do SUB, only UNION, so we ignore
      * the 'sub' part.  It is wrong, but you asked for it. */
-    union_put_js (c, s, t, zi, &r->add.add);
+    union_put_js (c, s, t, zi, &r->add->add);
 }
 
 static void cut_put_js(
@@ -299,7 +300,7 @@ static void cut_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_cut_t *r)
+    cp_csg_cut_t *r)
 {
     /* This output format cannot do CUT, only UNION, so just print
      * the first part.  It is wrong, but you asked for it. */
@@ -315,11 +316,11 @@ static void layer_put_js(
     size_t zi __unused,
     cp_csg2_layer_t *r)
 {
-    if (r->root.add.size == 0) {
+    if (cp_csg_add_size(r->root) == 0) {
         return;
     }
     assert(zi == r->zi);
-    v_csg2_put_js(c, s, t, r->zi, &r->root.add);
+    v_csg2_put_js(c, s, t, r->zi, &r->root->add);
 }
 
 static void stack_put_js(
@@ -374,15 +375,15 @@ static void v_csg2_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_js(c, s, t, zi, cp_v_nth(r, i));
+        csg2_put_js(c, s, t, zi, cp_csg2(cp_v_nth(r, i)));
     }
 }
 
 static size_t v_csg2_max_point_cnt(
-    cp_v_csg2_p_t *r);
+    cp_v_obj_p_t *r);
 
 static size_t poly_max_point_cnt(
     cp_csg2_poly_t *r)
@@ -398,26 +399,26 @@ static size_t poly_max_point_cnt(
 }
 
 static size_t union_max_point_cnt(
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     return v_csg2_max_point_cnt(r);
 }
 
 static size_t add_max_point_cnt(
-    cp_csg2_add_t *r)
+    cp_csg_add_t *r)
 {
     return union_max_point_cnt (&r->add);
 }
 
 static size_t sub_max_point_cnt(
-    cp_csg2_sub_t *r)
+    cp_csg_sub_t *r)
 {
     /* add only, sub is ignored */
-    return union_max_point_cnt (&r->add.add);
+    return union_max_point_cnt (&r->add->add);
 }
 
 static size_t cut_max_point_cnt(
-    cp_csg2_cut_t *r)
+    cp_csg_cut_t *r)
 {
     /* first element only */
     if (r->cut.size == 0) {
@@ -429,10 +430,10 @@ static size_t cut_max_point_cnt(
 static size_t layer_max_point_cnt(
     cp_csg2_layer_t *r)
 {
-    if (r->root.add.size == 0) {
+    if (cp_csg_add_size(r->root) == 0) {
         return 0;
     }
-    return v_csg2_max_point_cnt(&r->root.add);
+    return v_csg2_max_point_cnt(&r->root->add);
 }
 
 static size_t stack_max_point_cnt(
@@ -475,11 +476,11 @@ static size_t csg2_max_point_cnt(
 }
 
 static size_t v_csg2_max_point_cnt(
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     size_t cnt = 0;
     for (cp_v_each(i, r)) {
-        size_t k = csg2_max_point_cnt(cp_v_nth(r, i));
+        size_t k = csg2_max_point_cnt(cp_csg2(cp_v_nth(r, i)));
         if (k > cnt) {
             cnt = k;
         }

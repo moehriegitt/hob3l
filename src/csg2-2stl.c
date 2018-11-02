@@ -5,6 +5,7 @@
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat.h>
 #include <hob3lbase/panic.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/gc.h>
 #include "internal.h"
@@ -13,7 +14,7 @@ static void v_csg2_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r);
+    cp_v_obj_p_t *r);
 
 static inline void triangle_put_stl(
     cp_stream_t *s,
@@ -122,7 +123,7 @@ static void union_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     v_csg2_put_stl(s, t, zi, r);
 }
@@ -131,7 +132,7 @@ static void add_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_add_t *r)
+    cp_csg_add_t *r)
 {
     union_put_stl (s, t, zi, &r->add);
 }
@@ -140,18 +141,18 @@ static void sub_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_sub_t *r)
+    cp_csg_sub_t *r)
 {
     /* This output format cannot do SUB, only UNION, so we ignore
      * the 'sub' part.  It is wrong, but you asked for it. */
-    union_put_stl (s, t, zi, &r->add.add);
+    union_put_stl (s, t, zi, &r->add->add);
 }
 
 static void cut_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_csg2_cut_t *r)
+    cp_csg_cut_t *r)
 {
     /* This output format cannot do CUT, only UNION, so just print
      * the first part.  It is wrong, but you asked for it. */
@@ -166,11 +167,11 @@ static void layer_put_stl(
     size_t zi __unused,
     cp_csg2_layer_t *r)
 {
-    if (r->root.add.size == 0) {
+    if (cp_csg_add_size(r->root) == 0) {
         return;
     }
     assert(zi == r->zi);
-    v_csg2_put_stl(s, t, r->zi, &r->root.add);
+    v_csg2_put_stl(s, t, r->zi, &r->root->add);
 }
 
 static void stack_put_stl(
@@ -222,10 +223,10 @@ static void v_csg2_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     size_t zi,
-    cp_v_csg2_p_t *r)
+    cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_stl(s, t, zi, cp_v_nth(r, i));
+        csg2_put_stl(s, t, zi, cp_csg2(cp_v_nth(r, i)));
     }
 }
 

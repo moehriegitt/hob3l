@@ -10,15 +10,15 @@
 #include <hob3l/csg3_tam.h>
 
 /**
- * Initialise a cp_csg2_add_t object unless it is initialised
+ * Initialise a cp_csg_add_t object unless it is initialised
  * already.
  *
  * For this to work, the data must be zeroed first, then this
  * function can be used to initialise it, if it is not yet
  * initialised.
  */
-extern void cp_csg2_add_init_perhaps(
-    cp_csg2_add_t *r,
+extern void cp_csg_add_init_perhaps(
+    cp_csg_add_t **r,
     cp_loc_t loc);
 
 /**
