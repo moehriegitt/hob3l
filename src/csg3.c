@@ -406,32 +406,6 @@ static void face_basics(
     if (rev) {
         cp_v_reverse(&face->point, 0, face->point.size);
     }
-
-#if CP_CSG3_NORMAL
-    /* Compute normal.  Spread the indices to get a more stable value for
-     * fine structures. */
-    size_t u = face->point.size / 3; /* >= 1 */
-    size_t v = u * 2;                /* < face->point.size */
-    bool normal_ok __unused = cp_vec3_right_normal3(&face->normal,
-        &cp_v_nth(&face->point, 0).ref->coord,
-        &cp_v_nth(&face->point, u).ref->coord,
-        &cp_v_nth(&face->point, v).ref->coord);
-    assert(normal_ok);
-
-#ifndef NDEBUG
-    for (cp_v_each(i, &face->point)) {
-        size_t j = cp_wrap_sub1(i, face->point.size);
-        size_t k = cp_wrap_sub1(j, face->point.size);
-        cp_vec3_t n;
-        normal_ok = cp_vec3_right_normal3(&n,
-            &cp_v_nth(&face->point, k).ref->coord,
-            &cp_v_nth(&face->point, j).ref->coord,
-            &cp_v_nth(&face->point, i).ref->coord);
-        assert(normal_ok);
-        assert(cp_vec3_equ(&n, &face->normal));
-    }
-#endif
-#endif /* CP_CSG3_NORMAL */
 }
 
 static cp_csg3_face_t *face_init_from_point_ref(
@@ -1015,65 +989,6 @@ static bool csg3_from_polyhedron(
 
         /* init edge to same size as point */
         cp_v_init0(&cf->edge,  cf->point.size);
-
-#if CP_CSG3_NORMAL
-        /* only convex faces on polyhedron */
-        /* compute normal.
-         * FIXME: This only works for convex faces.  Use the cross product sum for
-         * arbitrary polygons instead (we are not doing that here yet because its
-         * naive implementation may be unstable due to large amounts of summands).
-         */
-        bool have_normal = false;
-        for (cp_v_each(j, &cf->point, 2)) {
-            if (cp_vec3_right_normal3(&cf->normal,
-                &cp_v_nth(&cf->point, j-2).ref->coord,
-                &cp_v_nth(&cf->point, j-1).ref->coord,
-                &cp_v_nth(&cf->point, j).ref->coord))
-            {
-                have_normal = true;
-                break;
-            }
-        }
-        if (!have_normal) {
-            cp_vchar_printf(&e->msg, "No normal can be computed at any vertex of face.\n");
-            e->loc = cp_v_nth(&cf->point, 0).loc;
-            return false;
-        }
-
-        cp_vec3_t normal2;
-        for (cp_v_each(j, &cf->point)) {
-            size_t k = cp_wrap_sub1(j, cf->point.size);
-            size_t l = cp_wrap_sub1(k, cf->point.size);
-            if (!cp_vec3_right_normal3(&normal2,
-                &cp_v_nth(&cf->point, l).ref->coord,
-                &cp_v_nth(&cf->point, k).ref->coord,
-                &cp_v_nth(&cf->point, j).ref->coord))
-            {
-                continue;
-            }
-
-            if (!cp_vec3_equ(&cf->normal, &normal2)) {
-                cp_vec3_neg(&normal2, &normal2);
-                if (cp_vec3_equ(&cf->normal, &normal2)) {
-                    /* FIXME: csg2-layer needs convex faces, but we could just make them
-                     * convex (e.g. by triangulating them and re-assembling them). */
-                    cp_vchar_printf(&e->msg,
-                        "Not yet implemented: convex face expected, but found concave corner.\n");
-                }
-                else {
-                    cp_vchar_printf(&e->msg,
-                        "Face points are not inside a plane.  Normals are:\n"
-                        " n1=("FD3") vs.\n"
-                        " n2=("FD3")\n",
-                        CP_V012(cf->normal),
-                        CP_V012(normal2));
-                    e->loc2 = cp_v_nth(&cf->point, 1).loc;
-                }
-                e->loc = cp_v_nth(&cf->point, k).loc;
-                return false;
-            }
-        }
-#endif /* CP_CSG3_NORMAL */
     }
 
     return poly_make_edges(o, t, e);
