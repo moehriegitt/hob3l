@@ -1724,7 +1724,6 @@ static void csg2_op_poly(
 static void csg2_op_csg2(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg2_t *a);
@@ -1732,7 +1731,6 @@ static void csg2_op_csg2(
 static void csg2_op_v_csg2(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_v_obj_p_t *a)
@@ -1742,11 +1740,11 @@ static void csg2_op_v_csg2(
     for (cp_v_each(i, a)) {
         cp_csg2_t *ai = cp_csg2_cast(*ai, cp_v_nth(a,i));
         if (i == 0) {
-            csg2_op_csg2(opt, pool, r, zi, o, ai);
+            csg2_op_csg2(opt, pool, zi, o, ai);
         }
         else {
             cp_csg2_lazy_t oi = { 0 };
-            csg2_op_csg2(opt, pool, r, zi, &oi, ai);
+            csg2_op_csg2(opt, pool, zi, &oi, ai);
             LOG("ADD\n");
             cp_csg2_op_lazy(opt, pool, o, &oi, CP_OP_ADD);
         }
@@ -1756,20 +1754,18 @@ static void csg2_op_v_csg2(
 static void csg2_op_add(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg_add_t *a)
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_v_csg2(opt, pool, r, zi, o, &a->add);
+    csg2_op_v_csg2(opt, pool, zi, o, &a->add);
 }
 
 static void csg2_op_cut(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg_cut_t *a)
@@ -1779,11 +1775,11 @@ static void csg2_op_cut(
     for (cp_v_each(i, &a->cut)) {
         cp_csg_add_t *b = cp_v_nth(&a->cut, i);
         if (i == 0) {
-            csg2_op_add(opt, pool, r, zi, o, b);
+            csg2_op_add(opt, pool, zi, o, b);
         }
         else {
             cp_csg2_lazy_t oc = {0};
-            csg2_op_add(opt, pool, r, zi, &oc, b);
+            csg2_op_add(opt, pool, zi, &oc, b);
             LOG("CUT\n");
             cp_csg2_op_lazy(opt, pool, o, &oc, CP_OP_CUT);
         }
@@ -1793,7 +1789,6 @@ static void csg2_op_cut(
 static void csg2_op_layer(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     cp_csg2_lazy_t *o,
     cp_csg2_layer_t *a)
 {
@@ -1802,23 +1797,22 @@ static void csg2_op_layer(
     if (a->root == NULL) {
         return;
     }
-    csg2_op_add(opt, pool, r, a->zi, o, a->root);
+    csg2_op_add(opt, pool, a->zi, o, a->root);
 }
 
 static void csg2_op_sub(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg_sub_t *a)
 {
     TRACE();
     assert(cp_mem_is0(o, sizeof(*o)));
-    csg2_op_add(opt, pool, r, zi, o, a->add);
+    csg2_op_add(opt, pool, zi, o, a->add);
 
     cp_csg2_lazy_t os = {0};
-    csg2_op_add(opt, pool, r, zi, &os, a->sub);
+    csg2_op_add(opt, pool, zi, &os, a->sub);
     LOG("SUB\n");
     cp_csg2_op_lazy(opt, pool, o, &os, CP_OP_SUB);
 }
@@ -1826,7 +1820,6 @@ static void csg2_op_sub(
 static void csg2_op_stack(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg2_stack_t *a)
@@ -1844,13 +1837,12 @@ static void csg2_op_stack(
     }
 
     assert(zi == l->zi);
-    csg2_op_layer(opt, pool, r, o, l);
+    csg2_op_layer(opt, pool, o, l);
 }
 
 static void csg2_op_csg2(
     cp_csg2_tree_opt_t const *opt,
     cp_pool_t *pool,
-    cp_csg2_tree_t *r,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg2_t *a)
@@ -1868,19 +1860,19 @@ static void csg2_op_csg2(
         return;
 
     case CP_CSG2_STACK:
-        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_cast(cp_csg2_stack_t, a));
+        csg2_op_stack(opt, pool, zi, o, cp_csg2_cast(cp_csg2_stack_t, a));
         return;
 
     case CP_CSG2_ADD:
-        csg2_op_add(opt, pool, r, zi, o, cp_csg_cast(cp_csg_add_t, a));
+        csg2_op_add(opt, pool, zi, o, cp_csg_cast(cp_csg_add_t, a));
         return;
 
     case CP_CSG2_SUB:
-        csg2_op_sub(opt, pool, r, zi, o, cp_csg_cast(cp_csg_sub_t, a));
+        csg2_op_sub(opt, pool, zi, o, cp_csg_cast(cp_csg_sub_t, a));
         return;
 
     case CP_CSG2_CUT:
-        csg2_op_cut(opt, pool, r, zi, o, cp_csg_cast(cp_csg_cut_t, a));
+        csg2_op_cut(opt, pool, zi, o, cp_csg_cast(cp_csg_cut_t, a));
         return;
     }
 
@@ -2245,7 +2237,7 @@ extern void cp_csg2_op_add_layer(
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
-    csg2_op_csg2(opt, pool, r, zi, &ol, a->root);
+    csg2_op_csg2(opt, pool, zi, &ol, a->root);
     cp_csg2_op_reduce(pool, &ol);
 
     cp_csg2_poly_t *o = ol.data[0];
