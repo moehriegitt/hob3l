@@ -323,8 +323,11 @@ Alternatives are possible, separated by `||`.
 
 As mentioned, I think the OpenSCAD syntax is broken wrt. the
 definition of the first empty child, which makes `difference`
-particularly hard to define formally, and confusing to use.  In
-essence, the decision of what is the first non-empty child needs
+particularly hard to define formally, and confusing to use.  This
+extends to `intersection`, too, because that function also ignores
+any children that have no non-empty child themselves
+
+In essence, the decision of what is the first non-empty child needs
 semantics.  In the case of `projection` et.el., emptiness is decided
 even dynamically at runtime.
 
@@ -336,9 +339,6 @@ children as `Cs`.  `;` matches the same as `{}`, e.g., `group();`
 matches `group() Cs` with `Cs = {}`.
 
 Parameters of functors are matched by `...`.
-
-Some places use natural language inside `[...]` to describe a
-condition to avoid overly formal definitions.
 
 Note that OpenSCAD ignores 3D objects with a warning inside 2D
 context, that's why the definition is so complex inside
@@ -390,7 +390,7 @@ assumed that these only occur at toplevel, never as a child.
         `render`, `hull`, `minkowski`, `resize`
 
   * FNEC2D(`projection(...) Cs`) =
-    if [the resulting polygon is empty]
+    if (FNEC(`Cs`) == NIL) || (`the resulting polygon is empty`)
     then NIL
     else `projection(...) Cs`
 
@@ -527,9 +527,9 @@ difference() { ... }
 The first non-empty child is the basic object from which all other
 substructures are subtracted.
 
-_Caution_: SCAD has a complex definition of 'non-empty substructure':
+_Caution_: SCAD has a complex definition of 'first non-empty child':
 
-See definition of [first non-empty child](#first-non-empty-child).
+See [the definition](#first-non-empty-child).
 
 ### group
 
@@ -548,6 +548,18 @@ operation, also referred to as the Boolean 'AND' operation.
 ```
 intersection() { ... }
 ```
+
+This intersects the first non-empty child of each of its children,
+ignoring children that have no first non-empty child.
+
+Note again: an intuitively empty child will not necessarily produce an
+empty result.  Only if it is not ignore will the result be
+empty. E.g. `cube(0)` will make the result empty, but `group(){}` is
+ignored and has no influence on the result.
+
+_Caution_: SCAD has a complex definition of 'first non-empty child':
+
+See [the definition](#first-non-empty-child).
 
 ### linear_extrude
 
