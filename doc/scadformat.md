@@ -365,7 +365,7 @@ assumed that these only occur at toplevel, never as a child.
     then FNEC(`C1`)
     else FNEC(`{ C2, ... Cn }`)
 
-  * FNEC(`F() Cs`) = FNEC(`Cs`)
+  * FNEC(`F(...) Cs`) = FNEC(`Cs`)
     where F in
         `group`, `union`, `intersection`, `difference`,
         `translate`, `scale`, `rotate`, `mirror`,
@@ -373,7 +373,7 @@ assumed that these only occur at toplevel, never as a child.
         `render`, `hull`, `minkowski`, `offset`,
         `for`, `intersection_for`
 
-  * FNEC(`F() Cs`) = FNEC2D(`Cs`)
+  * FNEC(`F(...) Cs`) = FNEC2D(`Cs`)
     where F in
         `linear_extrude`, `rotate_extrude`
 
