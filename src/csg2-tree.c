@@ -101,7 +101,6 @@ static cp_csg2_t *csg2_tree_from_csg3(
     case CP_CSG3_SPHERE:
     case CP_CSG3_CYL:
     case CP_CSG3_POLY:
-    case CP_CSG2_CIRCLE:
     case CP_CSG2_POLY:
         return csg2_tree_from_csg3_obj(s, d);
 

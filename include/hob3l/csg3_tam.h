@@ -13,19 +13,12 @@
 #include <hob3l/csg3_fwd.h>
 
 /**
- * Whether to support fully circular cylinders.
- * FIXME: Not yet implemented.
- */
-#define CP_CSG3_CIRCULAR_CYLINDER 0
-
-/**
  * Map type to type ID */
 #define cp_csg3_typeof(type) \
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
         cp_csg3_t:        CP_ABSTRACT, \
         cp_csg3_sphere_t: CP_CSG3_SPHERE, \
-        cp_csg3_cyl_t:    CP_CSG3_CYL, \
         cp_csg3_poly_t:   CP_CSG3_POLY)
 
 /**
@@ -85,13 +78,6 @@ typedef struct {
     _CP_CSG3_SIMPLE
     cp_csg2_t *csg2;
 } cp_csg3_2d_t;
-
-typedef struct {
-    /**
-     * type is CP_CSG3_CYL */
-    _CP_CSG3_SIMPLE
-    double r2;
-} cp_csg3_cyl_t;
 
 struct cp_csg3_edge {
     /**

@@ -361,10 +361,6 @@ static void csg2_put_js(
     case CP_CSG2_STACK:
         stack_put_js(c, s, t, cp_csg2_cast(cp_csg2_stack_t, r));
         return;
-
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle in stl");
-        return;
     }
 
     CP_DIE();
@@ -467,9 +463,6 @@ static size_t csg2_max_point_cnt(
 
     case CP_CSG2_STACK:
         return stack_max_point_cnt(cp_csg2_cast(cp_csg2_stack_t, r));
-
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle in stl");
     }
 
     CP_DIE();

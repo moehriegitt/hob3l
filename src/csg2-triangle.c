@@ -1082,17 +1082,6 @@ static bool transition(
     return true;
 }
 
-static bool csg2_tri_circle(
-    cp_pool_t *pool,
-    cp_err_t *t,
-    cp_csg2_circle_t *r)
-{
-    (void)pool;
-    (void)t;
-    (void)r;
-    return true;
-}
-
 static bool csg2_tri_v_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
@@ -1164,9 +1153,6 @@ static bool csg2_tri_csg2(
     size_t zi)
 {
     switch (r->type) {
-    case CP_CSG2_CIRCLE:
-        return csg2_tri_circle(pool, t, cp_csg2_cast(cp_csg2_circle_t, r));
-
     case CP_CSG2_POLY:
         return cp_csg2_tri_poly(pool, t, cp_csg2_cast(cp_csg2_poly_t, r));
 

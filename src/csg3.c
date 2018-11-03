@@ -1280,22 +1280,9 @@ static bool csg3_from_cylinder(
         r2 /= r1;
     }
 
-    /* possibly generate a polyhedron */
-    size_t fn = get_fn(t->opt, s->_fn, CP_CSG3_CIRCULAR_CYLINDER);
-    if (fn > 0) {
-        return csg3_poly_cylinder(r, t, e, m, s, mo, r2, fn);
-    }
-
-    /* create a real cylinder */
-    cp_csg3_cyl_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_obj(o));
-
-    o->mat = m;
-    o->r2 = r2;
-    o->_fa = s->_fa;
-    o->_fs = s->_fs;
-    o->_fn = fn;
-    return true;
+    /* cp_csg3_cylinder_t: for now, generate a polyhedron */
+    size_t fn = get_fn(t->opt, s->_fn, false);
+    return csg3_poly_cylinder(r, t, e, m, s, mo, r2, fn);
 }
 
 static bool csg3_from_linext(

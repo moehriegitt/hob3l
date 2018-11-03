@@ -243,9 +243,6 @@ static void csg2_put_ps(
     case CP_CSG2_POLY:
         poly_put_ps(k, cp_csg2_cast(cp_csg2_poly_t, r), cp_v_nth(&t->z, zi));
         return;
-
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle");
     }
 
     CP_DIE("2D object type");

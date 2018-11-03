@@ -191,10 +191,6 @@ static void csg2_put_scad(
     case CP_CSG2_STACK:
         stack_put_scad(s, t, d, cp_csg2_cast(cp_csg2_stack_t, r));
         return;
-
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle");
-        return;
     }
 
     CP_DIE("2D object type %#x", r->type);

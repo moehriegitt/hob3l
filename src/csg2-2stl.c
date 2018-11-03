@@ -210,10 +210,6 @@ static void csg2_put_stl(
     case CP_CSG2_STACK:
         stack_put_stl(s, t, cp_csg2_cast(cp_csg2_stack_t, r));
         return;
-
-    case CP_CSG2_CIRCLE:
-        CP_NYI("circle in stl");
-        return;
     }
 
     CP_DIE();

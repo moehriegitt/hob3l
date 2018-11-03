@@ -605,41 +605,26 @@ static void csg2_add_layer_sphere(
     cp_mat2wi_t mt2;
     (void)cp_mat2wi_from_mat3wi(&mt2, &mt);
 
-    /* add ellipse to output layer */
-    if (CP_CSG2_HAVE_CIRCLE) {
-        /* store real circle */
-        cp_csg2_circle_t *r = cp_csg2_new(*r, d->loc);
-        cp_v_push(c, cp_obj(r));
+    /* cp_csg2_circle_t: for now, render ellipse polygon */
+    cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
+    cp_v_push(c, cp_obj(r));
 
-        r->color = d->gc.color;
-
-        r->mat = mt2;
-        r->_fa = d->_fa;
-        r->_fs = d->_fs;
-        r->_fn = d->_fn;
+    cp_csg2_path_t *o = cp_v_push0(&r->path);
+    size_t fn = d->_fn;
+    assert(fn >= 3);
+    double a = CP_TAU/cp_f(fn);
+    for (cp_size_each(i, fn)) {
+        cp_vec2_loc_t *p = cp_v_push0(&r->point);
+        p->coord.x = cos(a * cp_f(i));
+        p->coord.y = sin(a * cp_f(i));
+        p->loc = d->loc;
+        p->color = d->gc.color;
+        rand_color3(&p->color, opt, &d->gc.color);
+        cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
+        cp_v_push(&o->point_idx, i);
     }
-    else {
-        /* render ellipse polygon */
-        cp_csg2_poly_t *r = cp_csg2_new(*r, d->loc);
-        cp_v_push(c, cp_obj(r));
-
-        cp_csg2_path_t *o = cp_v_push0(&r->path);
-        size_t fn = d->_fn;
-        assert(fn >= 3);
-        double a = CP_TAU/cp_f(fn);
-        for (cp_size_each(i, fn)) {
-            cp_vec2_loc_t *p = cp_v_push0(&r->point);
-            p->coord.x = cos(a * cp_f(i));
-            p->coord.y = sin(a * cp_f(i));
-            p->loc = d->loc;
-            p->color = d->gc.color;
-            rand_color3(&p->color, opt, &d->gc.color);
-            cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
-            cp_v_push(&o->point_idx, i);
-        }
-        if (mt2.d > 0) {
-            cp_v_reverse(&o->point_idx, 0, -(size_t)1);
-        }
+    if (mt2.d > 0) {
+        cp_v_reverse(&o->point_idx, 0, -(size_t)1);
     }
 }
 
@@ -748,7 +733,6 @@ static bool csg2_add_layer_stack(
         break;
 
     case CP_CSG2_POLY:
-    case CP_CSG2_CIRCLE:
         CP_DIE("2D object");
 
     default:
@@ -784,7 +768,6 @@ static bool csg2_add_layer(
         return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg_cast(cp_csg_cut_t, c));
 
     case CP_CSG2_POLY:
-    case CP_CSG2_CIRCLE:
         CP_DIE("unexpected tree structure: objects should be inside stack");
     }
 

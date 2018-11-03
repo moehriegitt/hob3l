@@ -56,19 +56,6 @@ static void circle_put_scad(
 }
 #endif
 
-static void cyl_put_scad(
-    cp_stream_t *s,
-    int d,
-    cp_csg3_cyl_t *r)
-{
-    cp_printf(s, "%*s", d,"");
-    cp_gc_modifier_put_scad(s, r->gc.modifier);
-    mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " cylinder(h=1,r1=1,r2=%g,center=true,$fa="FF",$fs="FF",$fn=%"_Pz"u);\n",
-        r->r2,
-        r->_fa, r->_fs, r->_fn);
-}
-
 static void union_put_scad(
     cp_stream_t *s,
     int d,
@@ -187,10 +174,6 @@ static void csg3_put_scad(
 
     case CP_CSG3_SPHERE:
         sphere_put_scad(s, d, cp_csg3_cast(cp_csg3_sphere_t, r));
-        break;
-
-    case CP_CSG3_CYL:
-        cyl_put_scad(s, d, cp_csg3_cast(cp_csg3_cyl_t, r));
         break;
 
     case CP_CSG3_POLY:

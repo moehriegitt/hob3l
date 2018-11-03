@@ -13,12 +13,6 @@
 #include <hob3l/gc_tam.h>
 
 /**
- * Whether to support real round circles in 2D engine.
- * FIXME: Not yet implemented.
- */
-#define CP_CSG2_HAVE_CIRCLE 0
-
-/**
  * Map type to type ID.
  *
  * If this maps to CP_OBJ, then no object can be generated,
@@ -28,7 +22,6 @@
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
         cp_csg2_t:        CP_ABSTRACT, \
-        cp_csg2_circle_t: CP_CSG2_CIRCLE, \
         cp_csg2_poly_t:   CP_CSG2_POLY, \
         cp_csg2_stack_t:  CP_CSG2_STACK)
 
@@ -56,12 +49,8 @@ typedef enum {
     CP_CSG2_CUT = CP_CSG_CUT,
 
     /**
-     * Circle with radius 1, centered a [0,0] */
-    CP_CSG2_CIRCLE = CP_CSG2_TYPE + 1,
-
-    /**
      * Polygon */
-    CP_CSG2_POLY,
+    CP_CSG2_POLY = CP_CSG2_TYPE + 1,
 
     /**
      * A stack of 2D layers */
