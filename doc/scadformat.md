@@ -15,7 +15,29 @@
   * [Dimensions](#dimensions)
   * [Coordinate Matrix](#coordinate-matrix)
   * [Functor Calls](#functor-calls)
-  * [First Non-empty Child](#first-non-empty-child)
+  * [First Non-Empty Child](#first-non-empty-child)
+  * [Functors](#functors)
+      * [circle](#circle)
+      * [color](#color)
+      * [cube](#cube)
+      * [cylinder](#cylinder)
+      * [difference](#difference)
+      * [group](#group)
+      * [intersection](#intersection)
+      * [linear_extrude](#linear-extrude)
+      * [mirror](#mirror)
+      * [multmatrix](#multmatrix)
+      * [polygon](#polygon)
+      * [polyhedron](#polyhedron)
+      * [rotate](#rotate)
+          * [If `v` is not specified](#if-v-is-not-specified)
+          * [If `v` is specified](#if-v-is-specified)
+      * [scale](#scale)
+      * [sphere](#sphere)
+      * [square](#square)
+      * [text](#text)
+      * [translate](#translate)
+      * [union](#union)
 
 ## Introduction
 
@@ -319,7 +341,7 @@ recognised by name, not by position.
 For each parameter, also the possible types are listed after a `::`.
 Alternatives are possible, separated by `||`.
 
-## First Non-empty Child
+## First Non-Empty Child
 
 As mentioned, I think the OpenSCAD syntax is broken wrt. the
 definition of the first empty child, which makes `difference`
@@ -553,7 +575,7 @@ This intersects the first non-empty child of each of its children,
 ignoring children that have no first non-empty child.
 
 Note again: an intuitively empty child will not necessarily produce an
-empty result.  Only if it is not ignore will the result be
+empty result.  Only if the child is not ignored will the result be
 empty. E.g. `cube(0)` will make the result empty, but `group(){}` is
 ignored and has no influence on the result.
 
