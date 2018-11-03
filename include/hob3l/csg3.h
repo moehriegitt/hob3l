@@ -7,17 +7,11 @@
 #include <hob3lbase/stream.h>
 #include <hob3l/csg3_tam.h>
 #include <hob3l/scad_tam.h>
+#include <hob3l/obj.h>
 #include <hob3l/csg3-2scad.h>
 
 /** Create a CSG3 instance */
-#define cp_csg3_new(r, _loc) \
-    ({ \
-        __typeof__(r) * __r = CP_NEW(*__r); \
-        cp_static_assert(cp_csg3_typeof(*__r) != CP_ABSTRACT); \
-        __r->type = cp_csg3_typeof(*__r); \
-        __r->loc = (_loc); \
-        __r; \
-    })
+#define cp_csg3_new(r, l) _cp_new(cp_csg3_typeof, r, l)
 
 /** Create a CSG3 object instance */
 #define cp_csg3_new_obj(r, _loc, _gc) \
@@ -27,23 +21,11 @@
         __rA; \
     })
 
-/**  Generalising cast w/ static check */
-#define cp_csg3(t) \
-    ({ \
-        __typeof__(*(t)) *__t = (t); \
-        cp_static_assert(cp_csg3_typeof(*__t) != 0); \
-        unsigned __m = __t->type & CP_TYPE_MASK; \
-        assert((__m == CP_CSG_TYPE) || (__m == CP_CSG2_TYPE) || (__m == CP_CSG3_TYPE)); \
-        (cp_csg3_t*)__t; \
-    })
+/** Cast w/ dynamic check */
+#define cp_csg3_cast(t,s) _cp_cast(cp_csg3_typeof, t, s)
 
-/** Specialising cast w/ dynamic check */
-#define cp_csg3_cast(_t,s) \
-    ({ \
-        __typeof__(*(s)) *__s = (s); \
-        assert(__s->type == cp_csg3_typeof(__s->_t)); \
-        &__s->_t; \
-    })
+/** Cast w/ dynamic check */
+#define cp_csg3_try_cast(t,s) _cp_try_cast(cp_csg3_typeof, t, s)
 
 /**
  * Get bounding box of all points, including those that are

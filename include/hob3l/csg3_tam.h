@@ -23,12 +23,7 @@
 #define cp_csg3_typeof(type) \
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
-        cp_csg_t:         CP_ABSTRACT, \
-        cp_csg2_t:        CP_ABSTRACT, \
-        cp_csg_add_t:     CP_CSG_ADD, \
-        cp_csg_sub_t:     CP_CSG_SUB, \
-        cp_csg_cut_t:     CP_CSG_CUT, \
-        cp_csg2_poly_t:   CP_CSG2_POLY, \
+        cp_csg3_t:        CP_ABSTRACT, \
         cp_csg3_sphere_t: CP_CSG3_SPHERE, \
         cp_csg3_cyl_t:    CP_CSG3_CYL, \
         cp_csg3_poly_t:   CP_CSG3_POLY)
@@ -197,19 +192,11 @@ typedef struct {
 typedef cp_csg2_poly_t cp_csg3_poly2_t;
 
 /**
- * Any of the CP_CSG3_* objects and some CP_CSG2_*.
+ * CSG3 Version of an object.
+ *
+ * This indicates that (mainly) 2D objects are stored/processed.
  */
-union cp_csg3 {
-    struct { _CP_CSG3 };
-    cp_csg_t _csg;
-    cp_csg3_sphere_t _sphere;
-    cp_csg_add_t _add;
-    cp_csg_sub_t _sub;
-    cp_csg_cut_t _cut;
-    cp_csg3_cyl_t _cyl;
-    cp_csg3_poly_t _poly;
-    cp_csg2_poly_t _poly2;
-};
+struct cp_csg3 { _CP_OBJ; };
 
 typedef struct {
     size_t max_fn;

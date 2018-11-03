@@ -4,6 +4,6 @@
 #ifndef __CP_CSG_FWD_H
 #define __CP_CSG_FWD_H
 
-typedef union cp_csg cp_csg_t;
+typedef struct cp_csg cp_csg_t;
 
 #endif /* __CP_CSG_FWD_H */

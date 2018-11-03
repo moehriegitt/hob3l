@@ -112,7 +112,11 @@ typedef enum {
         (void)memset(((char*)obj) + __psz, 0, sizeof(*(obj)) - __psz); \
     })
 
-#define CP_GENSYM(name) CP_CONCAT(name, __LINE__)
+#ifdef __COUNTER__
+#  define CP_GENSYM(name) CP_CONCAT(name, __COUNTER__)
+#else
+#  define CP_GENSYM(name) CP_CONCAT(name, __LINE__)
+#endif
 
 /**
  * Swap two structures.
@@ -149,15 +153,21 @@ typedef enum {
  */
 #define CP_BIT_COPY(a,b,c) ((c) ? ((a) | (b)) : CP_BIC(a,b))
 
+/* Helper to gensym local symbols for __cp_size_each */
+#define __cp_size_each_aux(__skipZ, __n, i,n,skipA,skipZ) \
+    size_t i = (skipA), \
+         __skipZ = (skipZ), \
+         __n = (n); \
+    i + __skipZ < __n; \
+    i++
+
+
 /**
  * Helper macro to allos cp_range_each to have optional arguments.
  */
 #define __cp_size_each(i,n,skipA,skipZ,...) \
-    size_t i = (skipA), \
-         CP_GENSYM(__skipZ) = (skipZ), \
-         CP_GENSYM(__n) = (n); \
-    i + CP_GENSYM(__skipZ) < CP_GENSYM(__n); \
-    i++
+    __cp_size_each_aux( \
+        CP_GENSYM(__skipZ), CP_GENSYM(__n), i, n, skipA, skipZ)
 
 /**
  * Iterator expression (for 'for') for a size_t iterator.

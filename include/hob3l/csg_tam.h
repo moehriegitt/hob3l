@@ -6,10 +6,13 @@
 
 #include <hob3l/obj_tam.h>
 #include <hob3l/csg_fwd.h>
+#include <hob3l/csg2_fwd.h>
+#include <hob3l/csg3_fwd.h>
 
 #define cp_csg_typeof(type) \
     _Generic(type, \
         cp_obj_t:     CP_ABSTRACT, \
+        cp_csg_t:     CP_ABSTRACT, \
         cp_csg_add_t: CP_CSG_ADD, \
         cp_csg_sub_t: CP_CSG_SUB, \
         cp_csg_cut_t: CP_CSG_CUT)
@@ -55,12 +58,13 @@ typedef struct {
     cp_v_csg_add_p_t cut;
 } cp_csg_cut_t;
 
-union cp_csg {
-    struct { _CP_OBJ };
-    cp_obj_t _obj;
-    cp_csg_add_t _add;
-    cp_csg_sub_t _sub;
-    cp_csg_cut_t _cut;
-};
+/**
+ * cp_csg_t is basically a cp_obj_t indicating CSG handling.
+ *
+ * This is used to indicate that mainly CSG data is processed.
+ * Using cp_obj_t would work, too, but this type is an additional
+ * abstract type for clarity.
+ */
+struct cp_csg { _CP_OBJ };
 
 #endif /* __CP_CSG_TAM_H */

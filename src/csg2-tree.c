@@ -7,6 +7,7 @@
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
 #include <hob3l/obj.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/csg3.h>
 #include <hob3l/ps.h>
@@ -38,7 +39,7 @@ static void csg2_tree_from_v_csg3(
 {
     cp_v_ensure_size(c, d->size);
     for (cp_v_each(i, d)) {
-        cp_v_nth(c,i) = cp_obj(csg2_tree_from_csg3(r, s, cp_csg3(cp_v_nth(d,i))));
+        cp_v_nth(c,i) = cp_obj(csg2_tree_from_csg3(r, s, cp_csg3_cast(cp_csg3_t, cp_v_nth(d,i))));
     }
 }
 
@@ -47,7 +48,7 @@ static cp_csg_add_t *csg2_tree_from_csg3_add(
     cp_range_t const *s,
     cp_csg_add_t const *d)
 {
-    cp_csg_add_t *c = cp_csg2_new(*c, d->loc);
+    cp_csg_add_t *c = cp_csg_new(*c, d->loc);
     csg2_tree_from_v_csg3(r, s, &c->add, &d->add);
     return c;
 }
@@ -57,7 +58,7 @@ static cp_csg_sub_t *csg2_tree_from_csg3_sub(
     cp_range_t const *s,
     cp_csg_sub_t const *d)
 {
-    cp_csg_sub_t *c = cp_csg2_new(*c, d->loc);
+    cp_csg_sub_t *c = cp_csg_new(*c, d->loc);
     c->add = csg2_tree_from_csg3_add(r, s, d->add);
     c->sub = csg2_tree_from_csg3_add(r, s, d->sub);
     return c;
@@ -68,7 +69,7 @@ static cp_csg_cut_t *csg2_tree_from_csg3_cut(
     cp_range_t const *s,
     cp_csg_cut_t const *d)
 {
-    cp_csg_cut_t *c = cp_csg2_new(*c, d->loc);
+    cp_csg_cut_t *c = cp_csg_new(*c, d->loc);
 
     cp_v_init0(&c->cut, d->cut.size);
     for (cp_v_each(i, &c->cut)) {
@@ -88,7 +89,7 @@ static cp_csg2_t *csg2_tree_from_csg3_obj(
     cp_v_init0(&c->layer, s->cnt);
     assert(c->layer.size == s->cnt);
 
-    return cp_csg2(c);
+    return cp_csg2_cast(cp_csg2_t, c);
 }
 
 static cp_csg2_t *csg2_tree_from_csg3(
@@ -105,13 +106,16 @@ static cp_csg2_t *csg2_tree_from_csg3(
         return csg2_tree_from_csg3_obj(s, d);
 
     case CP_CSG3_ADD:
-        return cp_csg2(csg2_tree_from_csg3_add(r, s, cp_csg3_cast(_add, d)));
+        return cp_csg2_cast(cp_csg2_t,
+            csg2_tree_from_csg3_add(r, s, cp_csg_cast(cp_csg_add_t, d)));
 
     case CP_CSG3_SUB:
-        return cp_csg2(csg2_tree_from_csg3_sub(r, s, cp_csg3_cast(_sub, d)));
+        return cp_csg2_cast(cp_csg2_t,
+            csg2_tree_from_csg3_sub(r, s, cp_csg_cast(cp_csg_sub_t, d)));
 
     case CP_CSG3_CUT:
-        return cp_csg2(csg2_tree_from_csg3_cut(r, s, cp_csg3_cast(_cut, d)));
+        return cp_csg2_cast(cp_csg2_t,
+            csg2_tree_from_csg3_cut(r, s, cp_csg_cast(cp_csg_cut_t, d)));
     }
 
     CP_DIE("3D object type");
@@ -136,7 +140,7 @@ extern void cp_csg_add_init_perhaps(
         assert((*r)->type == CP_CSG2_ADD);
         return;
     }
-    *r = cp_csg2_new(**r, loc);
+    *r = cp_csg_new(**r, loc);
 }
 
 /**
@@ -152,8 +156,8 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg2_tree_opt_t const *o)
 {
-    cp_csg_add_t *root = cp_csg2_new(*root, d->root->loc);
-    r->root = cp_csg2(root);
+    cp_csg_add_t *root = cp_csg_new(*root, d->root->loc);
+    r->root = cp_csg2_cast(*r->root, root);
     r->thick = s->step;
     r->opt = *o;
 
@@ -168,5 +172,5 @@ extern void cp_csg2_tree_from_csg3(
         return;
     }
 
-    csg2_tree_from_v_csg3(r, s, &cp_csg2_cast(_add, r->root)->add, &d->root->add);
+    csg2_tree_from_v_csg3(r, s, &cp_csg_cast(cp_csg_add_t, r->root)->add, &d->root->add);
 }

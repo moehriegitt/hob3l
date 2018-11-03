@@ -9,6 +9,7 @@
 #include <hob3lbase/list.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/pool.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/ps.h>
 #include "internal.h"
@@ -1164,22 +1165,22 @@ static bool csg2_tri_csg2(
 {
     switch (r->type) {
     case CP_CSG2_CIRCLE:
-        return csg2_tri_circle(pool, t, cp_csg2_cast(_circle, r));
+        return csg2_tri_circle(pool, t, cp_csg2_cast(cp_csg2_circle_t, r));
 
     case CP_CSG2_POLY:
-        return cp_csg2_tri_poly(pool, t, cp_csg2_cast(_poly, r));
+        return cp_csg2_tri_poly(pool, t, cp_csg2_cast(cp_csg2_poly_t, r));
 
     case CP_CSG2_STACK:
-        return csg2_tri_stack(pool, t, cp_csg2_cast(_stack, r), zi);
+        return csg2_tri_stack(pool, t, cp_csg2_cast(cp_csg2_stack_t, r), zi);
 
     case CP_CSG2_ADD:
-        return csg2_tri_add(pool, t, cp_csg2_cast(_add, r), zi);
+        return csg2_tri_add(pool, t, cp_csg_cast(cp_csg_add_t, r), zi);
 
     case CP_CSG2_SUB:
-        return csg2_tri_sub(pool, t, cp_csg2_cast(_sub, r), zi);
+        return csg2_tri_sub(pool, t, cp_csg_cast(cp_csg_sub_t, r), zi);
 
     case CP_CSG2_CUT:
-        return csg2_tri_cut(pool, t, cp_csg2_cast(_cut, r), zi);
+        return csg2_tri_cut(pool, t, cp_csg_cast(cp_csg_cut_t, r), zi);
     }
 
     CP_DIE("2D object type: %#x", r->type);
@@ -1192,7 +1193,7 @@ static bool csg2_tri_v_csg2(
     size_t zi)
 {
     for (cp_v_each(i, r)) {
-        if (!csg2_tri_csg2(pool, t, cp_csg2(cp_v_nth(r,i)), zi)) {
+        if (!csg2_tri_csg2(pool, t, cp_csg2_cast(cp_csg2_t, cp_v_nth(r,i)), zi)) {
             return false;
         }
     }
@@ -1255,9 +1256,9 @@ static bool csg2_tri_diff_csg2(
 {
     switch (r->type) {
     case CP_CSG2_POLY:
-        return csg2_tri_diff_poly(pool, t, cp_csg2_cast(_poly, r));
+        return csg2_tri_diff_poly(pool, t, cp_csg2_cast(cp_csg2_poly_t, r));
     case CP_CSG2_STACK:
-        return csg2_tri_diff_stack(pool, t, cp_csg2_cast(_stack, r), zi);
+        return csg2_tri_diff_stack(pool, t, cp_csg2_cast(cp_csg2_stack_t, r), zi);
     default:
         return true;
     }
@@ -1270,7 +1271,7 @@ static bool csg2_tri_diff_v_csg2(
     size_t zi)
 {
     for (cp_v_each(i, r)) {
-        if (!csg2_tri_diff_csg2(pool, t, cp_csg2(cp_v_nth(r,i)), zi)) {
+        if (!csg2_tri_diff_csg2(pool, t, cp_csg2_cast(cp_csg2_t, cp_v_nth(r,i)), zi)) {
             return false;
         }
     }

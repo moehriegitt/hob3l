@@ -4,32 +4,43 @@
 #ifndef __CP_CSG_H
 #define __CP_CSG_H
 
+#include <hob3l/obj_tam.h>
 #include <hob3l/csg_tam.h>
 
-/** Create a CSG instance */
-#define cp_csg_new(r, _loc) \
-    ({ \
-        __typeof__(r) * __r = CP_NEW(*__r); \
-        cp_static_assert(cp_csg_typeof(*__r) != CP_ABSTRACT); \
-        __r->type = cp_csg_typeof(*__r); \
-        __r->loc = (_loc); \
-        __r; \
-    })
+/**
+ * Create a CSG instance.
+ *
+ * \p t is either a type or an expression of the desired type.
+ *
+ * This creates an object of the desired type and writes into its
+ * 'type' the typeid defined by cp_csg_typeof().  Casting among
+ * objects of the set of types defined by cp_csg_typeof() is done
+ * by cp_csg_cast().
+ */
+#define cp_csg_new(r,l) _cp_new(cp_csg_typeof, r, l)
 
-/** Case to abstract type cast w/ static check */
-#define cp_csg(t) \
-    ({ \
-        cp_static_assert(cp_csg_typeof(*(t)) != 0); \
-        (cp_csg_t*)(t); \
-    })
+/**
+ * Cast to more generic or special type w/ dynamic type check.
+ *
+ * \p Type is the designed type or an expression of the designed type.
+ * The resulting expression type is a pointer to that that is const
+ * if \p x is const or \p t is const.  The value is not changed, i.e., value
+ * wise, this is the identity.
+ *
+ * The definition of what can be cast how is based on cp_csg_typeof(), just
+ * like the definition of cp_csg_new().
+ *
+ * \code
+ *    cp_obj_t *q = ...
+ *    ...
+ *    cp_csg2_poly_t *p = cp_csg_cast(*p, q);
+ * \endcode
+ */
+#define cp_csg_cast(t, x) _cp_cast(cp_csg_typeof, t, x)
 
-/** Specialising cast w/ dynamic check */
-#define cp_csg_cast(_t,s) \
-    ({ \
-        cp_csg_t __s = cp_csg(s); \
-        assert(__s->type == cp_csg_typeof(__s->_t)); \
-        &__s->_t; \
-    })
+/**
+ * Versionof cp_csg_cast() that returns NULL instead of assert-failing. */
+#define cp_csg_try_cast(t, x) _cp_try_cast(cp_csg_typeof, t, x)
 
 static inline size_t cp_csg_add_size(
     cp_csg_add_t *a)

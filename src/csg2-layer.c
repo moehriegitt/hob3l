@@ -660,7 +660,7 @@ static bool csg2_add_layer_v(
     cp_v_obj_p_t *c)
 {
     for (cp_v_each(i, c)) {
-        if (!csg2_add_layer(no, pool, r, t, zi, cp_csg2(cp_v_nth(c,i)))) {
+        if (!csg2_add_layer(no, pool, r, t, zi, cp_csg2_cast(cp_csg2_t, cp_v_nth(c,i)))) {
             return false;
         }
     }
@@ -736,14 +736,15 @@ static bool csg2_add_layer_stack(
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        csg2_add_layer_sphere(&r->opt, z, &l->root->add, cp_csg3_cast(_sphere, d));
+        csg2_add_layer_sphere(&r->opt, z, &l->root->add, cp_csg3_cast(cp_csg3_sphere_t, d));
         break;
 
     case CP_CSG3_CYL:
         CP_NYI("cylinder");
 
     case CP_CSG3_POLY:
-        csg2_add_layer_poly(&r->opt, pool, z, &l->root->add, cp_csg3_cast(_poly, d));
+        csg2_add_layer_poly(&r->opt, pool, z, &l->root->add,
+            cp_csg3_cast(cp_csg3_poly_t, d));
         break;
 
     case CP_CSG2_POLY:
@@ -771,16 +772,16 @@ static bool csg2_add_layer(
 {
     switch (c->type) {
     case CP_CSG2_STACK:
-        return csg2_add_layer_stack(no, pool, r, zi, cp_csg2_cast(_stack, c));
+        return csg2_add_layer_stack(no, pool, r, zi, cp_csg2_cast(cp_csg2_stack_t, c));
 
     case CP_CSG2_ADD:
-        return csg2_add_layer_add(no, pool, r, t, zi, cp_csg2_cast(_add, c));
+        return csg2_add_layer_add(no, pool, r, t, zi, cp_csg_cast(cp_csg_add_t, c));
 
     case CP_CSG2_SUB:
-        return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg2_cast(_sub, c));
+        return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg_cast(cp_csg_sub_t, c));
 
     case CP_CSG2_CUT:
-        return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg2_cast(_cut, c));
+        return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg_cast(cp_csg_cut_t, c));
 
     case CP_CSG2_POLY:
     case CP_CSG2_CIRCLE:
@@ -833,7 +834,7 @@ extern bool cp_csg2_tree_add_layer(
     assert(r->root->type == CP_CSG2_ADD);
     assert(zi < r->z.size);
     bool no = false;
-    return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg2_cast(_add, r->root));
+    return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg_cast(cp_csg_add_t, r->root));
 }
 
 /**

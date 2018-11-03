@@ -343,23 +343,23 @@ static void csg2_put_js(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_js(c, s, t, zi, cp_csg2_cast(_add, r));
+        add_put_js(c, s, t, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_js(c, s, t, zi, cp_csg2_cast(_sub, r));
+        sub_put_js(c, s, t, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_js(c, s, t, zi, cp_csg2_cast(_cut, r));
+        cut_put_js(c, s, t, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_js(c, s, t, zi, cp_csg2_cast(_poly, r));
+        poly_put_js(c, s, t, zi, cp_csg2_cast(cp_csg2_poly_t, r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_js(c, s, t, cp_csg2_cast(_stack, r));
+        stack_put_js(c, s, t, cp_csg2_cast(cp_csg2_stack_t, r));
         return;
 
     case CP_CSG2_CIRCLE:
@@ -378,7 +378,7 @@ static void v_csg2_put_js(
     cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_js(c, s, t, zi, cp_csg2(cp_v_nth(r, i)));
+        csg2_put_js(c, s, t, zi, cp_csg2_cast(cp_csg2_t, cp_v_nth(r, i)));
     }
 }
 
@@ -454,19 +454,19 @@ static size_t csg2_max_point_cnt(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        return add_max_point_cnt(cp_csg2_cast(_add, r));
+        return add_max_point_cnt(cp_csg_cast(cp_csg_add_t, r));
 
     case CP_CSG2_SUB:
-        return sub_max_point_cnt(cp_csg2_cast(_sub, r));
+        return sub_max_point_cnt(cp_csg_cast(cp_csg_sub_t, r));
 
     case CP_CSG2_CUT:
-        return cut_max_point_cnt(cp_csg2_cast(_cut, r));
+        return cut_max_point_cnt(cp_csg_cast(cp_csg_cut_t, r));
 
     case CP_CSG2_POLY:
-        return poly_max_point_cnt(cp_csg2_cast(_poly, r));
+        return poly_max_point_cnt(cp_csg2_cast(cp_csg2_poly_t, r));
 
     case CP_CSG2_STACK:
-        return stack_max_point_cnt(cp_csg2_cast(_stack, r));
+        return stack_max_point_cnt(cp_csg2_cast(cp_csg2_stack_t, r));
 
     case CP_CSG2_CIRCLE:
         CP_NYI("circle in stl");
@@ -480,7 +480,7 @@ static size_t v_csg2_max_point_cnt(
 {
     size_t cnt = 0;
     for (cp_v_each(i, r)) {
-        size_t k = csg2_max_point_cnt(cp_csg2(cp_v_nth(r, i)));
+        size_t k = csg2_max_point_cnt(cp_csg2_cast(cp_csg2_t, cp_v_nth(r, i)));
         if (k > cnt) {
             cnt = k;
         }

@@ -1740,7 +1740,7 @@ static void csg2_op_v_csg2(
     TRACE("n=%"_Pz"u", a->size);
     assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, a)) {
-        cp_csg2_t *ai = cp_csg2(cp_v_nth(a,i));
+        cp_csg2_t *ai = cp_csg2_cast(*ai, cp_v_nth(a,i));
         if (i == 0) {
             csg2_op_csg2(opt, pool, r, zi, o, ai);
         }
@@ -1864,23 +1864,23 @@ static void csg2_op_csg2(
         return;
 
     case CP_CSG2_POLY:
-        csg2_op_poly(o, cp_csg2_cast(_poly, a));
-        return;
-
-    case CP_CSG2_ADD:
-        csg2_op_add(opt, pool, r, zi, o, cp_csg2_cast(_add, a));
-        return;
-
-    case CP_CSG2_SUB:
-        csg2_op_sub(opt, pool, r, zi, o, cp_csg2_cast(_sub, a));
-        return;
-
-    case CP_CSG2_CUT:
-        csg2_op_cut(opt, pool, r, zi, o, cp_csg2_cast(_cut, a));
+        csg2_op_poly(o, cp_csg2_cast(cp_csg2_poly_t, a));
         return;
 
     case CP_CSG2_STACK:
-        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_cast(_stack, a));
+        csg2_op_stack(opt, pool, r, zi, o, cp_csg2_cast(cp_csg2_stack_t, a));
+        return;
+
+    case CP_CSG2_ADD:
+        csg2_op_add(opt, pool, r, zi, o, cp_csg_cast(cp_csg_add_t, a));
+        return;
+
+    case CP_CSG2_SUB:
+        csg2_op_sub(opt, pool, r, zi, o, cp_csg_cast(cp_csg_sub_t, a));
+        return;
+
+    case CP_CSG2_CUT:
+        csg2_op_cut(opt, pool, r, zi, o, cp_csg_cast(cp_csg_cut_t, a));
         return;
     }
 
@@ -2000,13 +2000,15 @@ static void csg2_op_diff2(
     cp_csg2_t *a1)
 {
     TRACE();
-    if (a0->type != CP_CSG2_POLY) {
+    cp_csg2_poly_t *p0 = cp_csg2_try_cast(*p0, a0);
+    if (p0 == NULL) {
         return;
     }
-    if (a1->type != CP_CSG2_POLY) {
+    cp_csg2_poly_t *p1 = cp_csg2_try_cast(*p0, a1);
+    if (p1 == NULL) {
         return;
     }
-    csg2_op_diff2_poly(opt, pool, cp_csg2_cast(_poly, a0), cp_csg2_cast(_poly, a1));
+    csg2_op_diff2_poly(opt, pool, p0, p1);
 }
 
 static void csg2_op_diff2_layer(
@@ -2023,8 +2025,8 @@ static void csg2_op_diff2_layer(
         return;
     }
     csg2_op_diff2(opt, pool,
-        cp_csg2(cp_v_nth(&a0->root->add,0)),
-        cp_csg2(cp_v_nth(&a1->root->add,0)));
+        cp_csg2_cast(cp_csg2_t, cp_v_nth(&a0->root->add,0)),
+        cp_csg2_cast(cp_csg2_t, cp_v_nth(&a1->root->add,0)));
 }
 
 static void csg2_op_diff_stack(
@@ -2061,7 +2063,7 @@ static void csg2_op_diff_csg2(
     /* only work on stacks, ignore anything else */
     switch (a->type) {
     case CP_CSG2_STACK:
-        csg2_op_diff_stack(opt, pool, zi, cp_csg2_cast(_stack, a));
+        csg2_op_diff_stack(opt, pool, zi, cp_csg2_cast(cp_csg2_stack_t, a));
         return;
     default:
         return;
@@ -2238,7 +2240,7 @@ extern void cp_csg2_op_add_layer(
     size_t zi)
 {
     TRACE();
-    cp_csg2_stack_t *s = cp_csg2_cast(_stack, r->root);
+    cp_csg2_stack_t *s = cp_csg2_cast(*s, r->root);
     assert(zi < s->layer.size);
 
     cp_csg2_lazy_t ol;
@@ -2282,7 +2284,7 @@ extern void cp_csg2_op_diff_layer(
     size_t zi)
 {
     TRACE();
-    cp_csg2_stack_t *s __unused = cp_csg2_cast(_stack, a->root);
+    cp_csg2_stack_t *s __unused = cp_csg2_cast(*s, a->root);
     assert(zi < s->layer.size);
 
     csg2_op_diff_csg2(opt, pool, zi, a->root);
@@ -2304,13 +2306,13 @@ extern void cp_csg2_op_tree_init(
 {
     TRACE();
     cp_csg2_stack_t *root = cp_csg2_new(*root, NULL);
-    r->root = cp_csg2(root);
+    r->root = cp_csg2_cast(*r->root, root);
     r->thick = a->thick;
     r->opt = a->opt;
 
     size_t cnt = a->z.size;
 
-    cp_csg2_stack_t *c = cp_csg2_cast(_stack, r->root);
+    cp_csg2_stack_t *c = cp_csg2_cast(*c, r->root);
     cp_v_init0(&c->layer, cnt);
 
     cp_v_init0(&r->z, cnt);

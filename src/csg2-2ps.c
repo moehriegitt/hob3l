@@ -9,6 +9,7 @@
 #include <hob3lbase/stream.h>
 #include <hob3lbase/panic.h>
 #include <hob3l/gc.h>
+#include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/ps.h>
 #include "internal.h"
@@ -224,23 +225,23 @@ static void csg2_put_ps(
 {
     switch (r->type) {
     case CP_CSG2_ADD:
-        add_put_ps(k, t, zi, cp_csg2_cast(_add, r));
+        add_put_ps(k, t, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
     case CP_CSG2_SUB:
-        sub_put_ps(k, t, zi, cp_csg2_cast(_sub, r));
+        sub_put_ps(k, t, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
     case CP_CSG2_CUT:
-        cut_put_ps(k, t, zi, cp_csg2_cast(_cut, r));
+        cut_put_ps(k, t, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 
     case CP_CSG2_STACK:
-        stack_put_ps(k, t, zi, cp_csg2_cast(_stack, r));
+        stack_put_ps(k, t, zi, cp_csg2_cast(cp_csg2_stack_t, r));
         return;
 
     case CP_CSG2_POLY:
-        poly_put_ps(k, cp_csg2_cast(_poly, r), cp_v_nth(&t->z, zi));
+        poly_put_ps(k, cp_csg2_cast(cp_csg2_poly_t, r), cp_v_nth(&t->z, zi));
         return;
 
     case CP_CSG2_CIRCLE:
@@ -257,7 +258,7 @@ static void v_csg2_put_ps(
     cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg2_put_ps(k, t, zi, cp_csg2(cp_v_nth(r,i)));
+        csg2_put_ps(k, t, zi, cp_csg2_cast(cp_csg2_t, cp_v_nth(r,i)));
     }
 }
 

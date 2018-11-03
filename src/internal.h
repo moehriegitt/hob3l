@@ -71,11 +71,14 @@ static inline double three_steps(size_t i)
 
 #define LOG(...) fprintf(stderr, __VA_ARGS__)
 
-#define TRACE(...) \
+#define TRACE_AUX(__tf, ...) \
     __attribute__((cleanup(trace_func_leave))) \
-    trace_func_t CP_GENSYM(__tf) = { __FUNCTION__, __FILE__, __LINE__, "" }; \
-    snprintf(CP_GENSYM(__tf).msg, sizeof(CP_GENSYM(__tf).msg), " " __VA_ARGS__); \
-    trace_func_enter(&CP_GENSYM(__tf));
+    trace_func_t __tf = { __FUNCTION__, __FILE__, __LINE__, "" }; \
+    snprintf(__tf.msg, sizeof(__tf.msg), " " __VA_ARGS__); \
+    trace_func_enter(&__tf);
+
+#define TRACE(...) \
+    TRACE_AUX(CP_GENSYM(__tf), __VA_ARGS__)
 
 #define TRACE_LOCUS 0
 

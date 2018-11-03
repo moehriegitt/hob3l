@@ -178,27 +178,27 @@ static void csg3_put_scad(
         break;
 
     case CP_CSG3_SUB:
-        sub_put_scad(s, d, cp_csg3_cast(_sub, r));
+        sub_put_scad(s, d, cp_csg_cast(cp_csg_sub_t, r));
         break;
 
     case CP_CSG3_CUT:
-        cut_put_scad(s, d, cp_csg3_cast(_cut, r));
+        cut_put_scad(s, d, cp_csg_cast(cp_csg_cut_t, r));
         break;
 
     case CP_CSG3_SPHERE:
-        sphere_put_scad(s, d, cp_csg3_cast(_sphere, r));
+        sphere_put_scad(s, d, cp_csg3_cast(cp_csg3_sphere_t, r));
         break;
 
     case CP_CSG3_CYL:
-        cyl_put_scad(s, d, cp_csg3_cast(_cyl, r));
+        cyl_put_scad(s, d, cp_csg3_cast(cp_csg3_cyl_t, r));
         break;
 
     case CP_CSG3_POLY:
-        poly_put_scad(s, d, cp_csg3_cast(_poly, r));
+        poly_put_scad(s, d, cp_csg3_cast(cp_csg3_poly_t, r));
         break;
 
     case CP_CSG2_POLY:
-        poly2_put_scad(s, d, cp_csg3_cast(_poly2, r));
+        poly2_put_scad(s, d, cp_csg2_cast(cp_csg2_poly_t, r));
         break;
 
     default:
@@ -212,7 +212,7 @@ static void v_csg3_put_scad(
     cp_v_obj_p_t *r)
 {
     for (cp_v_each(i, r)) {
-        csg3_put_scad(s, d, cp_csg3(cp_v_nth(r,i)));
+        csg3_put_scad(s, d, cp_csg3_cast(cp_csg3_t, cp_v_nth(r,i)));
     }
 }
 

@@ -143,7 +143,7 @@ static bool csg3_from_difference(
         for (cp_v_each(i, &s->child, sub_i)) {
             if (!csg3_from_scad(
                 no,
-                &cp_csg3_cast(_sub, cp_csg3(cp_v_nth(&f, 0)))->sub->add,
+                &cp_csg_cast(cp_csg_sub_t, cp_v_nth(&f, 0))->sub->add,
                 t, e, m, cp_v_nth(&s->child, i)))
             {
                 return false;
@@ -173,13 +173,13 @@ static bool csg3_from_difference(
         return true;
     }
 
-    cp_csg_sub_t *o = cp_csg3_new(*o, s->loc);
+    cp_csg_sub_t *o = cp_csg_new(*o, s->loc);
     cp_v_push(r, cp_obj(o));
 
-    o->add = cp_csg3_new(*o->add, s->loc);
+    o->add = cp_csg_new(*o->add, s->loc);
     o->add->add = f;
 
-    o->sub = cp_csg3_new(*o->add, s->loc);
+    o->sub = cp_csg_new(*o->add, s->loc);
     o->sub->add = g;
 
     return true;
@@ -190,7 +190,7 @@ static void csg3_cut_push_add(
     cp_v_obj_p_t *add)
 {
     if (add->size > 0) {
-        cp_csg_add_t *a = cp_csg3_new(*a, cp_v_nth(add,0)->loc);
+        cp_csg_add_t *a = cp_csg_new(*a, cp_v_nth(add,0)->loc);
 
         a->add = *add;
 
@@ -228,7 +228,7 @@ static bool csg3_from_intersection(
     csg3_cut_push_add(&cut, &add);
     assert(cut.size >= 2);
 
-    cp_csg_cut_t *o = cp_csg3_new(*o, s->loc);
+    cp_csg_cut_t *o = cp_csg_new(*o, s->loc);
     cp_v_push(r, cp_obj(o));
 
     o->cut = cut;
@@ -1452,7 +1452,7 @@ static void csg3_init_tree(
     cp_loc_t loc)
 {
     if (t->root == NULL) {
-        t->root = cp_csg3_new(*t->root, loc);
+        t->root = cp_csg_new(*t->root, loc);
     }
 }
 
@@ -1515,7 +1515,7 @@ static void get_bb_v_csg3(
     bool max)
 {
     for (cp_v_each(i, r)) {
-        get_bb_csg3(bb, cp_csg3(cp_v_nth(r, i)), max);
+        get_bb_csg3(bb, cp_csg3_cast(cp_csg3_t, cp_v_nth(r, i)), max);
     }
 }
 
@@ -1592,19 +1592,19 @@ static void get_bb_csg3(
 {
     switch (r->type) {
     case CP_CSG3_ADD:
-        get_bb_add(bb, cp_csg3_cast(_add, r), max);
+        get_bb_add(bb, cp_csg_cast(cp_csg_add_t, r), max);
         return;
 
     case CP_CSG3_SUB:
-        get_bb_sub(bb, cp_csg3_cast(_sub, r), max);
+        get_bb_sub(bb, cp_csg_cast(cp_csg_sub_t, r), max);
         return;
 
     case CP_CSG3_CUT:
-        get_bb_cut(bb, cp_csg3_cast(_cut, r), max);
+        get_bb_cut(bb, cp_csg_cast(cp_csg_cut_t, r), max);
         return;
 
     case CP_CSG3_SPHERE:
-        get_bb_sphere(bb, cp_csg3_cast(_sphere, r));
+        get_bb_sphere(bb, cp_csg3_cast(cp_csg3_sphere_t, r));
         return;
 
     case CP_CSG3_CYL:
@@ -1612,7 +1612,7 @@ static void get_bb_csg3(
         return;
 
     case CP_CSG3_POLY:
-        get_bb_poly(bb, cp_csg3_cast(_poly, r));
+        get_bb_poly(bb, cp_csg3_cast(cp_csg3_poly_t, r));
         return;
     }
     CP_NYI();

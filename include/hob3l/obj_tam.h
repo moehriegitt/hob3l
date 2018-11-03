@@ -6,6 +6,9 @@
 
 #include <hob3lbase/err_tam.h>
 
+/**
+ * The slots that need to be at the beginning of any cp_obj_t.
+ */
 #define _CP_OBJ \
     unsigned type; \
     cp_loc_t loc;

@@ -27,10 +27,7 @@
 #define cp_csg2_typeof(type) \
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
-        cp_csg_t:         CP_ABSTRACT, \
-        cp_csg_add_t:     CP_CSG_ADD, \
-        cp_csg_sub_t:     CP_CSG_SUB, \
-        cp_csg_cut_t:     CP_CSG_CUT, \
+        cp_csg2_t:        CP_ABSTRACT, \
         cp_csg2_circle_t: CP_CSG2_CIRCLE, \
         cp_csg2_poly_t:   CP_CSG2_POLY, \
         cp_csg2_stack_t:  CP_CSG2_STACK)
@@ -80,15 +77,15 @@ typedef enum {
 #define _CP_CSG2_SIMPLE \
     _CP_CSG2 \
     cp_mat2wi_t mat; \
+    cp_color_rgba_t color; \
     cp_f_t _fa, _fs; \
     size_t _fn;
 
-typedef struct {
+struct cp_csg2_circle {
     /**
      * type is CP_CSG2_CIRCLE */
     _CP_CSG2_SIMPLE
-    cp_color_rgba_t color;
-} cp_csg2_circle_t;
+};
 
 typedef struct {
     cp_csg_add_t *root;
@@ -98,7 +95,7 @@ typedef struct {
 typedef CP_VEC_T(cp_csg2_layer_t) cp_v_csg2_layer_t;
 typedef CP_ARR_T(cp_csg2_layer_t) cp_a_csg2_layer_t;
 
-typedef struct {
+struct cp_csg2_stack {
     /**
      * type is CP_CSG2_STACK */
     _CP_OBJ
@@ -114,7 +111,7 @@ typedef struct {
     /**
      * the 3D object represented by this stack */
     cp_csg3_t const *csg3;
-} cp_csg2_stack_t;
+};
 
 typedef struct {
     cp_v_size_t point_idx;
@@ -198,17 +195,12 @@ struct cp_csg2_poly {
     cp_csg2_poly_t *diff_above;
 };
 
-typedef union {
-    struct { _CP_OBJ };
-    cp_obj_t _obj;
-    cp_csg_t _csg;
-    cp_csg_add_t _add;
-    cp_csg_sub_t _sub;
-    cp_csg_cut_t _cut;
-    cp_csg2_circle_t _circle;
-    cp_csg2_poly_t _poly;
-    cp_csg2_stack_t _stack;
-} cp_csg2_t;
+/**
+ * CSG2 Version of an object.
+ *
+ * This indicates that (mainly) 2D objects are stored/processed.
+ */
+struct cp_csg2 { _CP_OBJ };
 
 /**
  * Empty polygon optimisation.
