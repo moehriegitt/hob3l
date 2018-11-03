@@ -169,17 +169,15 @@ Some additional items are parsed, but currently ignored:
 
 One irritating detail about SCAD syntax that I found was the
 interpretation of children elements of `difference()`: the first
-non-empty child is interpreted as positive, all others are negative.
+non-ignored child is interpreted as positive, all others are negative.
 
 However, neither the OpenSCAD syntax nor the syntax description make
-it immediately clear which thing is the ['first non-empty child'](#first-non-empty-child),
-because even an empty `group(){}` and empty 'linear_extrude(){}' are
-skipped, and even recursively so.  Essentially, you need semantics to
-identify the children correctly, which I find is an ugly mix of meta
-levels.
+it immediately clear which thing is an ['ignored
+child'](#ignored-children), because even an empty `group(){}` and
+empty 'linear_extrude(){}' are skipped, and even recursively so.
 
 The parser of `hob3l` spends quite some effort on determining which
-one is the first non-empty child of `difference`.  Whether it does
+one is the first non-ignored child of `difference`.  Whether it does
 that in the same way as OpenSCAD, I can only hope for.  I think this
 part of the SCAD syntax is broken.
 
@@ -344,25 +342,25 @@ recognised by name, not by position.
 For each parameter, also the possible types are listed after a `::`.
 Alternatives are possible, separated by `||`.
 
-## First Non-Empty Child
+## Ignored Children
 
 As mentioned, I think the OpenSCAD syntax is broken wrt. the
-definition of the 'first non-empty child', which makes `difference`
+definition of the 'first non-ignored child', which makes `difference`
 particularly hard to define formally, and confusing to use.  This
 extends to `intersection`, too, because that function also ignores any
-children that have no non-empty child themselves.
+children that have no non-ignored child themselves.
 
-In essence, the decision of what is the first non-empty child needs
-semantics.  In the case of `projection`, emptiness ('projection
-failed') is decided even [dynamically at
-runtime](#projection-is-empty).
+In essence, the decision of which child is ignored needs semantics.
+In the case of `projection`, ignoring ('projection failed') is decided
+even [dynamically at runtime](#projection-is-ignored).
 
-The following defines recursively a predicate `FNEC` to define the
-'first non-empty child' of a syntax tree.
+The following defines recursively a predicate `IGNORE` to define the
+whether a child is ignored.  The first non-ignored child is then the
+first child of a syntax tree that is not IGNOREd.
 
-Children of a functor are written `{ C1,C2,...,Cn }` and a group of
-children as `Cs`.  `;` matches the same as `{}`, e.g., `group();`
-matches `group() Cs` with `Cs = {}`.
+In the definition, children of a functor are written `{ C1; C2;
+... Cn; }` and a group of children as `Cs`.  `;` matches the same as
+`{}`, e.g., `group();` matches `group() Cs` with `Cs = {}`.
 
 Parameters of functors are matched by `...`.
 
@@ -372,27 +370,22 @@ context, that's why the definition is so complex inside
 irrelevant.
 
 Note that `for` and `intersection_for` never iterate zero times (even
-for ranges like `[1:0]`), so they just inherit the first non-empty
-child.
+for ranges like `[1:0]`), so they just pass through whether their children
+are all ignored.
 
 This also ignores `use`, `function`, `module` for now, because it is
 assumed that these only occur at toplevel, never as a child.
 
 `F` is a functor (like `group` or `cube`).
 
-`NIL` is used to denote the empty tree.
+  * IGNORE(`{}`) = true
 
-  * FNEC(`{}`) = NIL
+  * IGNORE(`X = Y`) = true
 
-  * FNEC(`X = Y`) = NIL
+  * IGNORE(`{ C1; C2; ... Cn; }`) =
+    IGNORE(`C1`) && IGNORE(`{ C2; ... Cn; }`)
 
-  * FNEC(`{ C1, C2, ... , Cn }`) =
-    if FNEC(`C1`) != NIL
-    then FNEC(`C1`)
-    else FNEC(`{ C2, ... Cn }`)
-
-  * FNEC(`F(...) Cs`) =
-    if FNEC(`Cs`) == NIL then NIL else `F(...) Cs`
+  * IGNORE(`F(...) Cs`) = IGNORE(`Cs`)
     where F in
         `group`, `union`, `intersection`, `difference`,
         `translate`, `scale`, `rotate`, `mirror`,
@@ -400,33 +393,30 @@ assumed that these only occur at toplevel, never as a child.
         `render`, `hull`, `minkowski`, `offset`,
         `for`, `intersection_for`
 
-  * FNEC(`F(...) Cs`) =
-    if FNEC2D(`Cs`) == NIL then NIL else `F(...) Cs`
+  * IGNORE(`F(...) Cs`) = IGNORE2D(`Cs`)
     where F in
         `linear_extrude`, `rotate_extrude`
 
-  * FNEC(`F(...);`) = `F(...);`
+  * IGNORE(`F(...);`) = false
     where F in
         `polygon`, `circle`, `square`, `text`,
         `polyhedron`, `sphere`, `cube`, `cylinder`,
         `import`, `surface`
 
-  * FNEC2D(`F(...);`) = NIL
+  * IGNORE2D(`F(...);`) = true
     where F in
         `polyhedron`, `sphere`, `cube`, `cylinder`,
         `import`, `surface`,
         `render`, `hull`, `minkowski`, `resize`
 
-  * FNEC2D(`projection(...) Cs`) =
-    if (FNEC(`Cs`) == NIL) || (`the resulting polygon is empty`)
-    then NIL
-    else `projection(...) Cs`
+  * IGNORE2D(`projection(...) Cs`) =
+    IGNORE(`Cs`) || (`the resulting polygon is empty`)
 
-  * FNEC2D(X) = FNEC(X) otherwise
+  * IGNORE2D(X) = IGNORE(X) otherwise
 
-### Projection Is Empty
+### Projection Is Ignored
 
-In the following, `linear_extrude` is the first non-empty child of
+In the following, `linear_extrude` is the first non-ignored child of
 `difference`.
 
 ```
@@ -438,7 +428,7 @@ difference() {
 }
 ```
 
-In the following, `sphere` is the first non-empty child of
+In the following, `sphere` is the first non-ignored child of
 `difference`.
 
 ```
@@ -449,6 +439,11 @@ difference() {
     sphere(5);
 }
 ```
+
+Note that the difference is in the value `-0.1` vs. `+0.1`, which may
+come from complex computation, but totally changing the outcome of the
+result, deciding whether `sphere(5)` is subtracted or taken as the
+main positive object.
 
 ## Functors
 
@@ -570,19 +565,19 @@ The cylinder becomes a cone if `r1` or `r2` are set to 0.
 
 ### difference
 
-Combine substructures by subtracting from the first non-empty
-child.  This is the CSG 'SUB' operation, also referred to as
-the Boolean 'AND NOT' operation.
+Combine substructures by subtracting from the first non-ignored child.
+This is the CSG 'SUB' operation, also referred to as the Boolean 'AND
+NOT' operation.
 
 ```
-difference() { ... }
+difference() { C1; C2; ... Cn; }
 ```
 
-The first non-empty child is the basic object from which all other
-substructures are subtracted.
+The first child `Ci` for which `IGNORED(Ci)` is false is the base
+object from which all subsequent children are subtracted.
 
-_Caution_: SCAD has a complex definition of 'first non-empty child':
-see [the definition](#first-non-empty-child).
+_Caution_: SCAD has a complex definition of 'ignored child':
+see [the definition](#ignored-children).
 
 ### group
 
@@ -599,19 +594,21 @@ Combine substructures by intersecting them.  This is the CSG 'CUT'
 operation, also referred to as the Boolean 'AND' operation.
 
 ```
-intersection() { ... }
+intersection() { C1; C2; ... Cn; }
 ```
 
-This intersects the first non-empty child of each of its children,
-ignoring children that have no first non-empty child.
+This intersects all children `Ci` for which `IGNORE(Ci)` is false.
+The ones where `IGNORE(Ci)` is true are ignored in the operation and
+do not cause the result to be empty.
 
 Note again: an intuitively empty child will not necessarily produce an
 empty result.  Only if the child is not ignored will the result be
-empty. E.g. `cube(0)` will make the result empty, but `group(){}` is
-ignored and has no influence on the result.
+empty. E.g. `cube(0)` is not ignored, so it will make the result
+empty, but `group(){}` is ignored and consequently has no influence on
+the result.
 
-_Caution_: SCAD has a complex definition of 'first non-empty child':
-see [the definition](#first-non-empty-child).
+_Caution_: SCAD has a complex definition of 'ignored child':
+see [the definition](#ignored-children).
 
 ### linear_extrude
 
