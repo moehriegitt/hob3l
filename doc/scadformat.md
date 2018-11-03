@@ -16,6 +16,7 @@
   * [Coordinate Matrix](#coordinate-matrix)
   * [Functor Calls](#functor-calls)
   * [First Non-Empty Child](#first-non-empty-child)
+      * [Projection Is Empty](#projection-is-empty)
   * [Functors](#functors)
       * [circle](#circle)
       * [color](#color)
@@ -70,6 +71,8 @@ Up to now, there are no extensions introduced by Hob3l in the syntax,
 so any file Hob3l reads should also be a valid input for OpenSCAD.
 However, the semantics occasionally has less restrictions than
 OpenSCAD, like mirroring objects using `scale` instead of `mirror`.
+
+This describes OpenSCAD 2015.3 syntax.
 
 ## OpenSCAD CSG Format
 
@@ -344,14 +347,15 @@ Alternatives are possible, separated by `||`.
 ## First Non-Empty Child
 
 As mentioned, I think the OpenSCAD syntax is broken wrt. the
-definition of the first empty child, which makes `difference`
+definition of the 'first non-empty child', which makes `difference`
 particularly hard to define formally, and confusing to use.  This
-extends to `intersection`, too, because that function also ignores
-any children that have no non-empty child themselves.
+extends to `intersection`, too, because that function also ignores any
+children that have no non-empty child themselves.
 
 In essence, the decision of what is the first non-empty child needs
-semantics.  In the case of `projection`, emptiness is decided even
-dynamically at runtime.
+semantics.  In the case of `projection`, emptiness ('projection
+failed') is decided even [dynamically at
+runtime](#projection-is-empty).
 
 The following defines recursively a predicate `FNEC` to define the
 'first non-empty child' of a syntax tree.
@@ -417,6 +421,32 @@ assumed that these only occur at toplevel, never as a child.
     else `projection(...) Cs`
 
   * FNEC2D(X) = FNEC(X) otherwise
+
+### Projection Is Empty
+
+In the following, `linear_extrude` is the first non-empty child of
+`difference`.
+
+```
+difference() {
+    linear_extrude(height=10) {
+        projection(cut = true) translate([0,0,-0.1]) cube(8);
+    }
+    sphere(5);
+}
+```
+
+In the following, `sphere` is the first non-empty child of
+`difference`.
+
+```
+difference() {
+    linear_extrude(height=10) {
+        projection(cut = true) translate([0,0,+0.1]) cube(8);
+    }
+    sphere(5);
+}
+```
 
 ## Functors
 
