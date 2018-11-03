@@ -550,8 +550,7 @@ The first non-empty child is the basic object from which all other
 substructures are subtracted.
 
 _Caution_: SCAD has a complex definition of 'first non-empty child':
-
-See [the definition](#first-non-empty-child).
+see [the definition](#first-non-empty-child).
 
 ### group
 
@@ -580,8 +579,7 @@ empty. E.g. `cube(0)` will make the result empty, but `group(){}` is
 ignored and has no influence on the result.
 
 _Caution_: SCAD has a complex definition of 'first non-empty child':
-
-See [the definition](#first-non-empty-child).
+see [the definition](#first-non-empty-child).
 
 ### linear_extrude
 
