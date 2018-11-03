@@ -1321,6 +1321,13 @@ static bool csg3_from_linext(
         m = m1;
     }
 
+#if 0
+    /* construct a separate tree for the children */
+    cp_v_obj_p_t rc = {0};
+    if (!csg3_from_v_scad(no, rc, t, e, mo, &s->child)) {
+    }
+#endif
+
     /* FIXME: continue */
     (void)r;
 

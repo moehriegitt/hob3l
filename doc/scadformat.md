@@ -169,9 +169,10 @@ non-empty child is interpreted as positive, all others are negative.
 
 However, neither the OpenSCAD syntax nor the syntax description make
 it immediately clear which thing is the 'first non-empty' child,
-because even an empty `group(){}` is skipped, and even recursively so.
-Essentially, you need semantics to identify the children correctly,
-which I find is an ugly mix of meta levels.
+because even an empty `group(){}` and empty 'linear_extrude(){}' are
+skipped, and even recursively so.  Essentially, you need semantics to
+identify the children correctly, which I find is an ugly mix of meta
+levels.
 
 The parser of `hob3l` spends quite some effort on determining which
 one is the first non-empty child of `difference`.  Whether it does
@@ -338,6 +339,60 @@ recognised by name, not by position.
 
 For each parameter, also the possible types are listed after a `::`.
 Alternatives are possible, separated by `||`.
+
+## First Non-empty Child
+
+As mentioned, I think the OpenSCAD syntax is broken wrt. the
+definition of the first empty child, which makes `difference`
+particularly hard to define formally, and confusing to use.  In
+essence, the decision of what is the first non-empty child needs
+semantics.  In the case of `projection`, emptiness is decided even
+dynamically at runtime.  I think this is really bad and should be
+defined and implemented more sensibly.
+
+The following defines recursively a predicate `FNEC` to define the
+'first non-empty child' of a syntax tree.
+
+Children of a functor are written `{ C1,C2,...,Cn }` and a group of
+children as `Cs`.  `;` matches the same as `{}`, e.g., `group();`
+matches `group() Cs` with `Cs = {}`.
+
+Parameters of functors are matched by `...`.
+
+Note that OpenSCAD ignores 3D objects with a warning inside 2D
+context, that's why the definition is so complex inside
+`linear_extrude` et.al.  Hob3l handles those as an error so this is
+irrelevant.
+
+This also ignores `use`, `import`, etc. for now.
+
+`F` is a functor (like `group` or `cube`).
+
+`NIL` is used to denote the empty tree.
+
+  * FNEC(`{}`) = NIL
+
+  * FNEC(`{ C1, C2, ... , Cn }`) =
+    if FNEC(`C1`) != NIL
+    then FNEC(`C1`)
+    else FNEC(`{ C2, ... Cn }`)
+
+  * FNEC(`F(...);`) = `F(...);`
+    where F in
+        `polygon`, `circle`, `square`, `text`,
+        `polyhedron`, `sphere`, `cube`, `cylinder`, `import`
+
+  * FNEC(`projection(...) Cs`) =
+    if `the projection is empty`
+    then NIL
+    else `projection(...) Cs`
+
+  * FNEC(`F() Cs`) = FNEC2D(Cs)
+    where F in
+        `linear_extrude`, `rotate_extrude`
+
+  ...FIXME: continue...
+```
 
 ## Functors
 
