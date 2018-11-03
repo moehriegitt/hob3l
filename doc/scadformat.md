@@ -347,11 +347,11 @@ As mentioned, I think the OpenSCAD syntax is broken wrt. the
 definition of the first empty child, which makes `difference`
 particularly hard to define formally, and confusing to use.  This
 extends to `intersection`, too, because that function also ignores
-any children that have no non-empty child themselves
+any children that have no non-empty child themselves.
 
 In essence, the decision of what is the first non-empty child needs
-semantics.  In the case of `projection` et.el., emptiness is decided
-even dynamically at runtime.
+semantics.  In the case of `projection`, emptiness is decided even
+dynamically at runtime.
 
 The following defines recursively a predicate `FNEC` to define the
 'first non-empty child' of a syntax tree.
