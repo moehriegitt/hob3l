@@ -15,28 +15,7 @@
   * [Dimensions](#dimensions)
   * [Coordinate Matrix](#coordinate-matrix)
   * [Functor Calls](#functor-calls)
-  * [Functors](#functors)
-      * [circle](#circle)
-      * [color](#color)
-      * [cube](#cube)
-      * [cylinder](#cylinder)
-      * [difference](#difference)
-      * [group](#group)
-      * [intersection](#intersection)
-      * [linear_extrude](#linear-extrude)
-      * [mirror](#mirror)
-      * [multmatrix](#multmatrix)
-      * [polygon](#polygon)
-      * [polyhedron](#polyhedron)
-      * [rotate](#rotate)
-          * [If `v` is not specified](#if-v-is-not-specified)
-          * [If `v` is specified](#if-v-is-specified)
-      * [scale](#scale)
-      * [sphere](#sphere)
-      * [square](#square)
-      * [text](#text)
-      * [translate](#translate)
-      * [union](#union)
+  * [First Non-empty Child](#first-non-empty-child)
 
 ## Introduction
 
@@ -168,7 +147,7 @@ interpretation of children elements of `difference()`: the first
 non-empty child is interpreted as positive, all others are negative.
 
 However, neither the OpenSCAD syntax nor the syntax description make
-it immediately clear which thing is the 'first non-empty' child,
+it immediately clear which thing is the ['first non-empty child'](#first-non-empty-child),
 because even an empty `group(){}` and empty 'linear_extrude(){}' are
 skipped, and even recursively so.  Essentially, you need semantics to
 identify the children correctly, which I find is an ugly mix of meta
@@ -346,9 +325,8 @@ As mentioned, I think the OpenSCAD syntax is broken wrt. the
 definition of the first empty child, which makes `difference`
 particularly hard to define formally, and confusing to use.  In
 essence, the decision of what is the first non-empty child needs
-semantics.  In the case of `projection`, emptiness is decided even
-dynamically at runtime.  I think this is really bad and should be
-defined and implemented more sensibly.
+semantics.  In the case of `projection` et.el., emptiness is decided
+even dynamically at runtime.
 
 The following defines recursively a predicate `FNEC` to define the
 'first non-empty child' of a syntax tree.
@@ -359,12 +337,20 @@ matches `group() Cs` with `Cs = {}`.
 
 Parameters of functors are matched by `...`.
 
+Some places use natural language inside `[...]` to describe a
+condition to avoid overly formal definitions.
+
 Note that OpenSCAD ignores 3D objects with a warning inside 2D
 context, that's why the definition is so complex inside
 `linear_extrude` et.al.  Hob3l handles those as an error so this is
 irrelevant.
 
-This also ignores `use`, `import`, etc. for now.
+Note that `for` and `intersection_for` never iterate zero times (even
+for ranges like `[1:0]`), so they just inherit the first non-empty
+child.
+
+This also ignores `use`, `function`, `module` for now, because it is
+assumed that these only occur at toplevel, never as a child.
 
 `F` is a functor (like `group` or `cube`).
 
@@ -372,26 +358,43 @@ This also ignores `use`, `import`, etc. for now.
 
   * FNEC(`{}`) = NIL
 
+  * FNEC(`X = Y`) = NIL
+
   * FNEC(`{ C1, C2, ... , Cn }`) =
     if FNEC(`C1`) != NIL
     then FNEC(`C1`)
     else FNEC(`{ C2, ... Cn }`)
 
-  * FNEC(`F(...);`) = `F(...);`
+  * FNEC(`F() Cs`) = FNEC(Cs)
     where F in
-        `polygon`, `circle`, `square`, `text`,
-        `polyhedron`, `sphere`, `cube`, `cylinder`, `import`
-
-  * FNEC(`projection(...) Cs`) =
-    if `the projection is empty`
-    then NIL
-    else `projection(...) Cs`
+        `group`, `union`, `intersection`, `difference`,
+        `translate`, `scale`, `rotate`, `mirror`,
+        `color`, `resize`, `multmatrix`,
+        `render`, `hull`, `minkowski`, `offset`,
+        `for`, `intersection_for`
 
   * FNEC(`F() Cs`) = FNEC2D(Cs)
     where F in
         `linear_extrude`, `rotate_extrude`
 
-  ...FIXME: continue...
+  * FNEC(`F(...);`) = `F(...);`
+    where F in
+        `polygon`, `circle`, `square`, `text`,
+        `polyhedron`, `sphere`, `cube`, `cylinder`,
+        `import`, `surface`
+
+  * FNEC2D(`F(...);`) = NIL
+    where F in
+        `polyhedron`, `sphere`, `cube`, `cylinder`,
+        `import`, `surface`,
+        `render`, `hull`, `minkowski`, `resize`
+
+  * FNEC2D(`projection(...) Cs`) =
+    if [the resulting polygon is empty]
+    then NIL
+    else `projection(...) Cs`
+
+  * FNEC2D(X) = FNEC(X) otherwise
 ```
 
 ## Functors
@@ -515,25 +518,19 @@ The cylinder becomes a cone if `r1` or `r2` are set to 0.
 ### difference
 
 Combine substructures by subtracting from the first non-empty
-substructure.  This is the CSG 'SUB' operation, also referred to as
+child.  This is the CSG 'SUB' operation, also referred to as
 the Boolean 'AND NOT' operation.
 
 ```
 difference() { ... }
 ```
 
-The first non-empty substructure is the basis from which all other
+The first non-empty child is the basic object from which all other
 substructures are subtracted.
 
 _Caution_: SCAD has a complex definition of 'non-empty substructure':
 
-The non-empty substructure is searched recursively starting at the
-first child of this functor, skipping any empty substructures like
-`group(){}` etc., and recursing into any recursive operation or module
-or modifier, until the first functor is found that represents a 2D or
-3D object.  Whether the object functor actually represents an empty
-object is irrelevant for the search: any object functor is a non-empty
-structure for this definition.
+See definition of [first non-empty child](#first-non-empty-child).
 
 ### group
 
