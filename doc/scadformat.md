@@ -347,16 +347,15 @@ Alternatives are possible, separated by `||`.
 As mentioned, I think the OpenSCAD syntax is broken wrt. the
 definition of the 'first non-ignored child', which makes `difference`
 particularly hard to define formally, and confusing to use.  This
-extends to `intersection`, too, because that function also ignores any
-children that have no non-ignored child themselves.
+extends to `intersection`, too, because that function also ignores some
+children.
 
 In essence, the decision of which child is ignored needs semantics.
 In the case of `projection`, ignoring ('projection failed') is decided
 even [dynamically at runtime](#projection-is-ignored).
 
 The following defines recursively a predicate `IGNORE` to define the
-whether a child is ignored.  The first non-ignored child is then the
-first child of a syntax tree that is not IGNOREd.
+whether a child is ignored.
 
 In the definition, children of a functor are written `{ C1; C2;
 ... Cn; }` and a group of children as `Cs`.  `;` matches the same as
@@ -373,8 +372,8 @@ Note that `for` and `intersection_for` never iterate zero times (even
 for ranges like `[1:0]`), so they just pass through whether their children
 are all ignored.
 
-This also ignores `use`, `function`, `module` for now, because it is
-assumed that these only occur at toplevel, never as a child.
+The definitoin ignores `use`, `function`, `module` for now, because it
+is assumed that these only occur at toplevel, never as a child.
 
 `F` is a functor (like `group` or `cube`).
 
