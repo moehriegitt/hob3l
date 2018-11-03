@@ -182,7 +182,7 @@ static void poly_put_js(
 {
     cp_dim_t z[2];
     z[0] = cp_v_nth(&t->z, zi);
-    z[1] = z[0] + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt.layer_gap));
+    z[1] = z[0] + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt->layer_gap));
 
     /* top (if needed) */
     if (!cp_eq(z[0], z[1])) {

@@ -49,7 +49,7 @@ static void poly_put_stl(
     cp_csg2_poly_t *r)
 {
     double z0 = cp_v_nth(&t->z, zi);
-    double z1 = z0 + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt.layer_gap));
+    double z1 = z0 + cp_monus(cp_csg2_layer_thickness(t, zi), layer_gap(t->opt->layer_gap));
 
     cp_v_vec2_loc_t const *point = &r->point;
 

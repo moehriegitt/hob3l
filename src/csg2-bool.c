@@ -1722,14 +1722,14 @@ static void csg2_op_poly(
 }
 
 static void csg2_op_csg2(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
     cp_csg2_t *a);
 
 static void csg2_op_v_csg2(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1752,7 +1752,7 @@ static void csg2_op_v_csg2(
 }
 
 static void csg2_op_add(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1764,7 +1764,7 @@ static void csg2_op_add(
 }
 
 static void csg2_op_cut(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1787,7 +1787,7 @@ static void csg2_op_cut(
 }
 
 static void csg2_op_layer(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_lazy_t *o,
     cp_csg2_layer_t *a)
@@ -1801,7 +1801,7 @@ static void csg2_op_layer(
 }
 
 static void csg2_op_sub(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1818,7 +1818,7 @@ static void csg2_op_sub(
 }
 
 static void csg2_op_stack(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1841,7 +1841,7 @@ static void csg2_op_stack(
 }
 
 static void csg2_op_csg2(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_lazy_t *o,
@@ -1941,7 +1941,7 @@ static void cp_csg2_op_poly(
 }
 
 static cp_csg2_poly_t *poly_sub(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_poly_t *a0,
     cp_csg2_poly_t *a1)
@@ -1971,7 +1971,7 @@ static cp_csg2_poly_t *poly_sub(
 }
 
 static void csg2_op_diff2_poly(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_poly_t *a0,
     cp_csg2_poly_t *a1)
@@ -1986,7 +1986,7 @@ static void csg2_op_diff2_poly(
 }
 
 static void csg2_op_diff2(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_t *a0,
     cp_csg2_t *a1)
@@ -2004,7 +2004,7 @@ static void csg2_op_diff2(
 }
 
 static void csg2_op_diff2_layer(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_layer_t *a0,
     cp_csg2_layer_t *a1)
@@ -2022,7 +2022,7 @@ static void csg2_op_diff2_layer(
 }
 
 static void csg2_op_diff_stack(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_stack_t *a)
@@ -2046,7 +2046,7 @@ static void csg2_op_diff_stack(
 }
 
 static void csg2_op_diff_csg2(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     size_t zi,
     cp_csg2_t *a)
@@ -2143,7 +2143,7 @@ extern void cp_csg2_op_reduce(
  * follows.  Best case runtime for delaying the operation is O(1).
  */
 extern void cp_csg2_op_lazy(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_lazy_t *r,
     cp_csg2_lazy_t *b,
@@ -2225,7 +2225,7 @@ extern void cp_csg2_op_lazy(
  *    j = number of polygons + number of bool operations in tree
  */
 extern void cp_csg2_op_add_layer(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
@@ -2270,7 +2270,7 @@ extern void cp_csg2_op_add_layer(
  * Runtime and space: see cp_csg2_op_add_layer.
  */
 extern void cp_csg2_op_diff_layer(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_pool_t *pool,
     cp_csg2_tree_t *a,
     size_t zi)

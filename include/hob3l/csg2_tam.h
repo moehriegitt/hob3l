@@ -202,59 +202,6 @@ struct cp_csg2_poly {
  */
 struct cp_csg2 { _CP_OBJ };
 
-/**
- * Empty polygon optimisation.
- */
-#define CP_CSG2_OPT_SKIP_EMPTY 0x01
-
-/**
- * Optimise base on bounding box.
- * FIXME: currently not implemented.
- */
-#define CP_CSG2_OPT_DISJOINT_BB 0x02
-
-/**
- * Bounding box x-coord check to terminate early
- * FIXME: currently not implemented.
- */
-#define CP_CSG2_OPT_SWEEP_END 0x04
-
-/**
- * Drop inner vertices of collinear lines
- */
-#define CP_CSG2_OPT_DROP_COLLINEAR 0x08
-
-/**
- * Default set of optimisations
- */
-#define CP_CSG2_OPT_DEFAULT (CP_CSG2_OPT_SKIP_EMPTY | CP_CSG2_OPT_DROP_COLLINEAR)
-
-
-typedef struct {
-    /**
-     * Gap between layers in STL or SCAD output.
-     *
-     * This is to make the STL a valid 2-manifold, because without
-     * the gaps, bottom and top faces of adjacent layers would be
-     * coplanar, which is not well-formed.
-     */
-    double layer_gap;
-
-    /**
-     * How many polygons to process at once, maximally.
-     * Must be at least 2.
-     */
-    size_t max_simultaneous;
-
-    /**
-     * Optimisation.  See CP_CSG2_OPT* constants. */
-    unsigned optimise;
-
-    /**
-     * How much to randomize colours during CSG2 algorithm.
-     */
-    unsigned char color_rand;
-} cp_csg2_tree_opt_t;
 
 
 /**
@@ -286,7 +233,7 @@ typedef struct {
     /**
      * Options for conversion or generation of output formats.
      */
-    cp_csg2_tree_opt_t opt;
+    cp_csg_opt_t const *opt;
 } cp_csg2_tree_t;
 
 /**

@@ -404,7 +404,7 @@ static void get_opt_js_color_rand(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_uint8(&opt->tree.color_rand, name, arg);
+    get_arg_uint8(&opt->csg.color_rand, name, arg);
 }
 
 static void get_opt_layer_gap(
@@ -412,7 +412,7 @@ static void get_opt_layer_gap(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_dim(&opt->tree.layer_gap, name, arg);
+    get_arg_dim(&opt->csg.layer_gap, name, arg);
 }
 
 static void get_opt_max(
@@ -429,7 +429,7 @@ static void get_opt_max_fn(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_size(&opt->csg3.max_fn, name, arg);
+    get_arg_size(&opt->csg.max_fn, name, arg);
 }
 
 static void get_opt_max_simultaneous(
@@ -437,11 +437,11 @@ static void get_opt_max_simultaneous(
     char const *name __unused,
     char const *arg __unused)
 {
-    get_arg_size(&opt->tree.max_simultaneous, name, arg);
+    get_arg_size(&opt->csg.max_simultaneous, name, arg);
 
-    if (opt->tree.max_simultaneous < 2) {
+    if (opt->csg.max_simultaneous < 2) {
         fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
-            opt->tree.max_simultaneous);
+            opt->csg.max_simultaneous);
         my_exit(1);
     }
 }
@@ -503,7 +503,7 @@ static void get_opt_opt_no_drop_collinear(
 {
     bool a;
     get_arg_neg_bool(&a, name, arg);
-    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
 }
 
 static void get_opt_opt_no_skip_empty(
@@ -513,7 +513,7 @@ static void get_opt_opt_no_skip_empty(
 {
     bool a;
     get_arg_neg_bool(&a, name, arg);
-    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
 }
 
 static void get_opt_opt_skip_empty(

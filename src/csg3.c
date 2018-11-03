@@ -653,7 +653,7 @@ static void csg3_sphere_minmax(
 }
 
 static size_t get_fn(
-    cp_csg3_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     size_t fn,
     bool have_circular)
 {
@@ -843,7 +843,7 @@ static bool csg3_from_sphere(
         m = m1;
     }
 
-    size_t fn = get_fn(&t->opt, s->_fn, true);
+    size_t fn = get_fn(t->opt, s->_fn, true);
     if (fn > 0) {
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
         cp_v_push(r, cp_obj(o));
@@ -863,7 +863,7 @@ static bool csg3_from_sphere(
     o->mat = m;
     o->_fa = s->_fa;
     o->_fs = s->_fs;
-    o->_fn = t->opt.max_fn;
+    o->_fn = t->opt->max_fn;
 
     return true;
 }
@@ -1281,7 +1281,7 @@ static bool csg3_from_cylinder(
     }
 
     /* possibly generate a polyhedron */
-    size_t fn = get_fn(&t->opt, s->_fn, CP_CSG3_CIRCULAR_CYLINDER);
+    size_t fn = get_fn(t->opt, s->_fn, CP_CSG3_CIRCULAR_CYLINDER);
     if (fn > 0) {
         return csg3_poly_cylinder(r, t, e, m, s, mo, r2, fn);
     }

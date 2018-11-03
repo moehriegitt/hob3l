@@ -432,7 +432,7 @@ static int rand_int(int max)
 }
 
 static unsigned char rand_color(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     unsigned char v)
 {
     int q = opt->color_rand;
@@ -449,7 +449,7 @@ static unsigned char rand_color(
 
 static void rand_color3(
     cp_color_rgba_t *o,
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     cp_color_rgba_t const *i)
 {
     o->r = rand_color(opt, i->r);
@@ -459,7 +459,7 @@ static void rand_color3(
 }
 
 static void csg2_add_layer_poly(
-    cp_csg2_tree_opt_t const*opt,
+    cp_csg_opt_t const*opt,
     cp_pool_t *pool,
     double z,
     cp_v_obj_p_t *c,
@@ -524,7 +524,7 @@ static void csg2_add_layer_poly(
 }
 
 static void csg2_add_layer_sphere(
-    cp_csg2_tree_opt_t const *opt,
+    cp_csg_opt_t const *opt,
     double z,
     cp_v_obj_p_t *c,
     cp_csg3_sphere_t const *d)
@@ -736,14 +736,14 @@ static bool csg2_add_layer_stack(
 
     switch (d->type) {
     case CP_CSG3_SPHERE:
-        csg2_add_layer_sphere(&r->opt, z, &l->root->add, cp_csg3_cast(cp_csg3_sphere_t, d));
+        csg2_add_layer_sphere(r->opt, z, &l->root->add, cp_csg3_cast(cp_csg3_sphere_t, d));
         break;
 
     case CP_CSG3_CYL:
         CP_NYI("cylinder");
 
     case CP_CSG3_POLY:
-        csg2_add_layer_poly(&r->opt, pool, z, &l->root->add,
+        csg2_add_layer_poly(r->opt, pool, z, &l->root->add,
             cp_csg3_cast(cp_csg3_poly_t, d));
         break;
 

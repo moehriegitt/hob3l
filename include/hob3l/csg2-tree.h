@@ -32,6 +32,6 @@ extern void cp_csg2_tree_from_csg3(
     cp_csg2_tree_t *r,
     cp_csg3_tree_t const *d,
     cp_range_t const *s,
-    cp_csg2_tree_opt_t const *o);
+    cp_csg_opt_t const *o);
 
 #endif /* __CP_CSG2_TREE_H */

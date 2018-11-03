@@ -199,13 +199,9 @@ typedef cp_csg2_poly_t cp_csg3_poly2_t;
 struct cp_csg3 { _CP_OBJ; };
 
 typedef struct {
-    size_t max_fn;
-} cp_csg3_opt_t;
-
-typedef struct {
-    cp_csg3_opt_t opt;
     cp_v_mat3wi_p_t mat;
     cp_csg_add_t *root;
+    cp_csg_opt_t const *opt;
 } cp_csg3_tree_t;
 
 #endif /* __CP_CSG3_TAM_H */

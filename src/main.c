@@ -38,8 +38,7 @@ typedef struct {
     cp_ps_opt_t ps;
     cp_scale_t ps_persp;
     char const *out_file_name;
-    cp_csg3_opt_t csg3;
-    cp_csg2_tree_opt_t tree;
+    cp_csg_opt_t csg;
 } cp_opt_t;
 
 static void format_source_line(
@@ -111,7 +110,7 @@ static bool process_stack_csg(
             return false;
         }
         if (!opt->no_csg) {
-            cp_csg2_op_add_layer(&opt->tree, pool, csg2b, csg2, i);
+            cp_csg2_op_add_layer(&opt->csg, pool, csg2b, csg2, i);
         }
         if (!opt->no_tri) {
             if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
@@ -139,7 +138,7 @@ static bool process_stack_diff(
     size_t i;
     while (next_i(&i, zi_p, zi_count)) {
         cp_pool_clear(pool);
-        cp_csg2_op_diff_layer(&opt->tree, pool, csg2_out, i);
+        cp_csg2_op_diff_layer(&opt->csg, pool, csg2_out, i);
         if (!opt->no_tri) {
             if (!cp_csg2_tri_layer_diff(pool, err, csg2_out, i)) {
                 return false;
@@ -177,7 +176,7 @@ static bool do_file(
 
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
-    csg3->opt = opt->csg3;
+    csg3->opt = &opt->csg;
     if (!cp_csg3_from_scad_tree(csg3, &r->err, scad)) {
         return false;
     }
@@ -236,7 +235,7 @@ static bool do_file(
 
     /* process layer by layer: extract layer, slice, triangulate */
     cp_csg2_tree_t *csg2 = CP_NEW(*csg2);
-    cp_csg2_tree_from_csg3(csg2, csg3, &range, &opt->tree);
+    cp_csg2_tree_from_csg3(csg2, csg3, &range, &opt->csg);
 
     cp_csg2_tree_t *csg2b = CP_NEW(*csg2b);
     cp_csg2_op_tree_init(csg2b, csg2);
@@ -519,8 +518,7 @@ static bool has_suffix(
 int main(int argc, char **argv)
 {
     /* init options */
-    cp_opt_t opt;
-    CP_ZERO(&opt);
+    cp_opt_t opt = {0};
     opt.z_step = 0.2;
     opt.z_max = -1;
     cp_mat4_unit(&opt.ps.xform2);
@@ -530,11 +528,11 @@ int main(int argc, char **argv)
     opt.ps.color_vertex = (cp_color_rgb_t){ .rgb = { 255,   0,   0 }};
     opt.ps.color_mark   = (cp_color_rgb_t){ .rgb = {   0,   0, 255 }};
     opt.ps.line_width = 0.4;
-    opt.csg3.max_fn = 100;
-    opt.tree.layer_gap = -1;
-    opt.tree.max_simultaneous = CP_CSG2_MAX_LAZY;
-    opt.tree.optimise = CP_CSG2_OPT_DEFAULT;
-    opt.tree.color_rand = 0;
+    opt.csg.max_fn = 100;
+    opt.csg.layer_gap = -1;
+    opt.csg.max_simultaneous = CP_CSG2_MAX_LAZY;
+    opt.csg.optimise = CP_CSG2_OPT_DEFAULT;
+    opt.csg.color_rand = 0;
     opt.verbose = 1;
 
     /* parse command line */

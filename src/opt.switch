@@ -29,7 +29,7 @@ case "o": fn {
     opt->out_file_name = fn;
 }
 
-case "layer-gap": dim &opt->tree.layer_gap {
+case "layer-gap": dim &opt->csg.layer_gap {
     "gap [mm] between layers in STL, SCAD, and JavaScript output.";
     "For STL, this ensures that the output is 2-manifold.";
     "-1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output";
@@ -61,7 +61,7 @@ case "z": dim &opt->z_min {
     opt->have_z_max = true;
 }
 
-case "max-fn": size &opt->csg3.max_fn {
+case "max-fn": size &opt->csg.max_fn {
     "maximum value of $fn for treating round objects as polyhedra (default: 50).";
     "At $fn values larger than this, spheres will be sliced into circles";
     "and not converted to polyhedra.";
@@ -71,24 +71,24 @@ case "max-fn": size &opt->csg3.max_fn {
 
 case "opt-no-skip-empty": bool neg_bool &a {
     "(do not) skip empty polygons (default: do)";
-    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
 }
 
 case "opt-no-drop-collinear": bool neg_bool &a {
     "(do not) drop connecting vertex of two adjacent collinear edges (default: do)";
-    opt->tree.optimise = CP_BIT_COPY(opt->tree.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
 }
 
 help_section "Advanced Options";
 
-case "max-simultaneous": size &opt->tree.max_simultaneous {
+case "max-simultaneous": size &opt->csg.max_simultaneous {
     "maximum number of polygons to process at once.";
     "Values larger than " CP_STRINGIFY(CP_CSG2_MAX_LAZY) " are ignored.";
     "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY) ")";
 
-    if (opt->tree.max_simultaneous < 2) {
+    if (opt->csg.max_simultaneous < 2) {
         fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
-            opt->tree.max_simultaneous);
+            opt->csg.max_simultaneous);
         my_exit(1);
     }
 }
@@ -152,7 +152,7 @@ case "no-diff": bool &opt->no_diff {
 
 help_section "JavaScript/WEBGL Output Options";
 
-case "js-color-rand": uint8 &opt->tree.color_rand{
+case "js-color-rand": uint8 &opt->csg.color_rand{
     "How much to randomise colors in CSG2 algorithm to make the result";
     "easier to grasp (default: 0, valid: 0..255, good start: 15). ";
 }
