@@ -395,7 +395,6 @@ assumed that these only occur at toplevel, never as a child.
     else `projection(...) Cs`
 
   * FNEC2D(X) = FNEC(X) otherwise
-```
 
 ## Functors
 
