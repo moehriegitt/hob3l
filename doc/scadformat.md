@@ -655,7 +655,7 @@ where `[x,y,z]` is the unit vector of `[X,Y,Z]`.
 
 _OpenSCAD compatibility_: `mirror([0,0,0]) X`:
   * OpenSCAD treats this like `X` (without warning),
-  * Hob3l rejects this with an error, since `[0,0,0]` is not a normal.
+  * Hob3l rejects this with an error (`[0,0,0]` cannot be normalised).
 
 ### multmatrix
 
