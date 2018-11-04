@@ -646,7 +646,9 @@ see [the definition](#ignored-children).
 ### linear_extrude
 
 ```
-linear_extrude({height, center, slices, twist, scale, convexity, $fn, $fa, $fs}) { ... }
+linear_extrude({height, center, slices, twist, scale,
+    convexity, $fn, $fa, $fs})
+{ ... }
 ```
 
   * `height` :: float != 0
