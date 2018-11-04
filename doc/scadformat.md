@@ -631,7 +631,82 @@ see [the definition](#ignored-children).
 
 ### linear_extrude
 
-Ignored. (Not yet implemented.)
+```
+linear_extrude({height, center, slices, twist, scale, convexity, $fn, $fa, $fs}) { ... }
+```
+
+  * `height` :: float != 0
+  * `center` :: boolean, default=false
+  * `slices` :: integer >= 1, default=1
+  * `twist` :: float, default=0
+  * `scale` :: (array[2] of (float >= 0)) || float, default=1
+  * `convexity` :: integer, default=1, ignored
+  * `$fn` :: integer, default=0, ignored
+  * `$fa` :: integer, default=12, ignored
+  * `$fs` :: integer, default=2, ignored
+
+This renders an extrusion into the Z axis of the 2D child shapes in
+the XY plane.
+
+The extrusion ranges on the Z axis from 0..`height` if `center` is
+false, and from `-height/2`..`+height/2` if `center` is true.
+
+The 2D children are first merged into a single polygon with possibly
+multiple paths, and each path is extruded into a separate polyhedron.
+
+Each polyhedron consists of `slices+1` layers of vertices stacked
+along the Z axis, where each layer is derived from the original 2D
+path.
+
+Each polyhedron's bottom face (at the lowest z coordinate) is equal to
+its original 2D path.  The polyhedron's top face is equal to the path
+after being fully rotated by `twist` degrees clockwise when viewed
+from the top, and then scaled by `scale` in X and Y directions.
+
+The intermediate `slice-1` layers use regularly interpolated twist and
+scale amounts for defining their vertices.
+
+This renders the sides as rectangles unless `twist` is non-0.  In this
+case, the rectangles would not be planar, so they need to be split
+into triangles to get two planar faces.  For each broken rectangular
+face, the two triangles are arranged in such a way that the connecting
+edge is inward, i.e., the broken side face becomes concave.
+
+If `scale` is `[0,0]`, the top layer of the polyhedron collapses into
+a single point on the Z axis.
+
+`scale` must not have only one component that is 0.  Either both must
+be non-0 or both must be 0.  The shape that would result otherwise is
+currently not supported in rendering by Hob3l.
+
+_OpenSCAD compatibility_:
+
+  * `slices`:
+      * OpenSCAD derives default for `slices` from `$fa`, `$fs`
+      * Hob3l assumes 1
+
+  * `scale`: negative components:
+      * OpenSCAD assumes 0
+      * Hob3l rejects the input ('scale is negative')
+
+  * `scale`: one component is 0, the other is non-0:
+      * OpenSCAD produces a non-manifold, but often visually correct output
+      * Hob3l rejects the input ('not implemented')
+
+  * `$fn, $fa, $fs` are ignored Hob3l for now, because scopes and
+    variables are not implemented yet.  E.g., `$fn` essentially resets the
+    value for all children of linear_extrude.  I.e., in OpenSCAD, the
+    following are equivalent, but Hob3l only accepts the last one at the
+    moment:
+
+    ```
+    linear_extrude(height=20, $fn=20) { circle(10); }
+    linear_extrude(height=20) { $fn = 20; circle(10); }
+    linear_extrude(height=20) { circle(10, $fn=20); }
+    ```
+
+    OpenSCAD's `.csg` output resolves this and sets `$fn` at the children,
+    so that the `.csg` output works fine with Hob3l.
 
 ### mirror
 
@@ -641,10 +716,13 @@ Mirror substructures.
 mirror(v) { ... }
 ```
 
-  * `v` :: (array[3] of float) != [0,0,0]
+  * `v` :: (array[2..3] of float) != [0,0,0]
 
 `v` is the direction vector of the plane at which to mirror the
 substructures.
+
+If an array with only 2 entries is given, the third one is assumed to
+be 0.
 
 `mirror([X,Y,Z])` causes the coordinate matrix to be multiplied by:
 
@@ -670,10 +748,14 @@ Modify coordinate matrix for substructures.
 multmatrix(m) { ... }
 ```
 
-  * `m` :: array[3..4] of array[3..4] of float
+  * `m` :: array[2..4] of array[2..4] of float
 
-This specifies a 4x4 matrix.  The fourth column and row are optional
-and both default to `0,0,0,1`.
+Each entry of `m` is one row of a 4x4 matrix.
+
+In total, `m` specifies a full 4x4 matrix.  Any entries that are
+missing from a 4x4 matrix are filled from a unit matrix, i.e., the
+third row and column default to `0,0,1,0` and the fourth row and
+column default to `0,0,0,1`.
 
 The fourth row must have the value `0,0,0,1`.
 
@@ -702,13 +784,25 @@ _OpenSCAD compatibility_:
 
 ### polygon
 
-2D object: polygon.
+2D object: one or multiple polygon paths.
 
 ```
 polygon(points[,paths]);
 ```
 
-Currently, 2D objects are not fully supported.
+  * `points` :: array[3..] of array[2] of float
+  * `paths` :: array[] of array[3..] of integer, default=`[[0,1,...points.size-1]]`
+
+`points` defines all vertices of the polygon as `[x,y]` 2D
+coordinates.  No entry in `points` must be duplicate.
+
+`paths` defines all paths of the polygon that each defines the outline
+of a path by a list of 0-based indices into the `points` array.  If
+`paths` is not given, it defaults to a singleton list of a list of all
+indices in `points`, i.e., `points` defines the outline of the polygon
+directly.
+
+The entries in `paths` are normalised so that they run clockwise.
 
 ### polyhedron
 
@@ -724,7 +818,7 @@ polyhedron(points[,faces]{,triangles,convexity});
   * `convexity` :: integer, ignored
 
 `points` defines all the vertices of the polyhedron as `[x,y,z]`
-coordinates.  No entry must be duplicate.
+3D coordinates.  No entry must be duplicate.
 
 `faces` defines all the faces of the polyhedron as a list of 0-based
 indices into the `points` array, which defines the path of each
@@ -797,10 +891,13 @@ Scale substructures.
 scale(v) { ... }
 ```
 
-  * `v` :: (array[3] of (float != 0)) || (float != 0)
+  * `v` :: (array[2..3] of (float != 0)) || (float != 0)
 
 `v` defines the scaling of the substructures on X, Y, and Z axes.  For
 equal scaling on all axes, a single value can be used.
+
+If an array with only 2 values is given, the third value is assumed to
+be 1.
 
 Negative scale values cause mirroring on the given axis/axes.  This is
 handled correctly as described [here](#coordinate-matrix).
@@ -866,7 +963,21 @@ when viewed from the side.
 square([size,center]);
 ```
 
-Currently, 2D objects are not fully supported.
+  * `size` :: (array[2] of (float != 0)) || float, default=1
+  * `center` :: boolean, default=false
+
+This defines a rectangle, i.e., an optionally scaled and translated
+unit square.
+
+`square()` is equivalent to
+`polygon(points=[[0,0],[1,0],[0,1],[1,1]],paths=[[0,2,3,1]])`.
+
+`square(center=true)` is equivalent to `translate([-.5,-.5,0]) square()`.
+
+`square(size=[a,b])` is equivalent to `scale([a,b,]) square()`.
+
+`square(size=[a,b],center=true)` is equivalent to `scale([a,b,])
+translate([-.5,-.5,0]) square()`.
 
 ### text
 
@@ -880,7 +991,9 @@ Translate substructures.
 translate(v) { ... }
 ```
 
-  * `v` :: array[3] of float
+  * `v` :: array[2..3] of float.
+
+If `v` has only 2 entries, the z component is assumed to be 0.
 
 `v` defines the translation of the substructures on X, Y, and Z axes.
 

@@ -217,9 +217,12 @@ typedef struct {
     cp_f_t height;
     cp_f_t twist;
     cp_vec2_t scale;
-    size_t slices;
+    unsigned slices;
     unsigned convexity;
     bool center;
+    double _fa;
+    double _fs;
+    unsigned _fn;
 } cp_scad_linext_t;
 
 struct cp_scad { _CP_SCAD };

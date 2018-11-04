@@ -560,7 +560,7 @@ static inline size_t __cp_v_bsearch(
         (((__vecB != NULL) && (__iB < __vecB->size)) ? &__vecB->data[__iB] : NULL); \
     })
 
-#define cp_v_nth_ptr(vec, i) \
+#define cp_v_nth_ptr_aux(__vecB, __iB, vec, i) \
     ({ \
         __typeof__(*(vec)) * __vecB = (vec); \
         size_t __iB = (i); \
@@ -570,6 +570,9 @@ static inline size_t __cp_v_bsearch(
                 __iB, __vecB->size),0)); \
         &__vecB->data[__iB]; \
     })
+
+#define cp_v_nth_ptr(vec, i) \
+    cp_v_nth_ptr_aux(CP_GENSYM(__vecB), CP_GENSYM(__iB), vec, i)
 
 #define cp_v_nth(vec, i) \
     (*cp_v_nth_ptr(vec, i))

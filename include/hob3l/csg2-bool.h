@@ -100,6 +100,28 @@ extern void cp_csg2_op_add_layer(
     size_t zi);
 
 /**
+ * Reduce a set of 2D CSG items into a single polygon.
+ *
+ * This does not triangulate, but only create the path.
+ *
+ * The result is filled from root.  In the process, the elements in root are
+ * cleared/reused, if necessary.
+ *
+ * If the result is empty. this either returns an empty
+ * polygon, or NULL.  Which one is returned depends on what
+ * causes the polygon to be empty.
+ *
+ * In case of an error, e.g. 3D objects that cannot be handled, this
+ * assert-fails, so be sure to not pass anything this is unhandled.
+ *
+ * Runtime and space: see cp_csg2_op_add_layer.
+ */
+extern cp_csg2_poly_t *cp_csg2_flatten(
+    cp_csg_opt_t const *opt,
+    cp_pool_t *pool,
+    cp_v_obj_p_t *root);
+
+/**
  * Diff a layer with the next and store the result in diff_above/diff_below.
  *
  * The tree must have been processed with cp_csg2_op_add_layer(),

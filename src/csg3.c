@@ -2,6 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/mat.h>
+#include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
 #include <hob3l/gc.h>
 #include <hob3l/obj.h>
@@ -15,12 +16,18 @@
 #define IN3D 0
 #define IN2D 1
 
+/* how to triangulate */
+#define TRI_NONE   0
+#define TRI_LEFT   1
+#define TRI_RIGHT  2
+
 typedef struct {
     cp_mat3wi_t const *mat;
     cp_gc_t gc;
 } mat_ctxt_t;
 
 typedef struct {
+    cp_pool_t *pool;
     cp_csg3_tree_t *tree;
     cp_csg_opt_t const *opt;
     cp_err_t *err;
@@ -719,7 +726,7 @@ static void faces_from_tower(
     size_t fn,
     size_t fnz,
     bool rev,
-    bool tri_side)
+    unsigned tri_side)
 {
     /* reverse based on determinant */
     if (m->d < 0) {
@@ -736,7 +743,12 @@ static void faces_from_tower(
 
     /* generate faces */
     size_t k = 0;
-    cp_v_init0(&o->face, 1U + has_top + ((fnz - 1) * fn * (1U + tri_side)));;
+    cp_v_init0(&o->face,
+        1U +                                    /* bottom */
+        !!has_top +                             /* top */
+        ((fnz - 2) * fn * (1U + !!tri_side)) +  /* rings */
+        (fn * (1U + !!(tri_side && has_top)))); /* roof */
+
 
     /* bottom */
     cp_csg3_face_t *f = &cp_v_nth(&o->face, k++);
@@ -767,16 +779,27 @@ static void faces_from_tower(
         for (cp_size_each(j0, fn)) {
             size_t j1 = cp_wrap_add1(j0, fn);
             f = &cp_v_nth(&o->face, k++);
-            if (tri_side) {
+            switch (tri_side) {
+            case TRI_LEFT:
+                face_init_from_point_ref(
+                    f, o, (size_t[4]){ k0+j0, k0+j1, k1+j0 }, 3, !rev, loc);
+                f = &cp_v_nth(&o->face, k++);
+                face_init_from_point_ref(
+                    f, o, (size_t[4]){ k1+j1, k1+j0, k0+j1 }, 3, !rev, loc);
+                break;
+            case TRI_RIGHT:
                 face_init_from_point_ref(
                     f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1 }, 3, !rev, loc);
                 f = &cp_v_nth(&o->face, k++);
                 face_init_from_point_ref(
                     f, o, (size_t[4]){ k1+j1, k1+j0, k0+j0 }, 3, !rev, loc);
-            }
-            else {
+                break;
+            case TRI_NONE:
                 face_init_from_point_ref(
                     f, o, (size_t[4]){ k0+j0, k0+j1, k1+j1, k1+j0 }, 4, !rev, loc);
+                break;
+            default:
+                assert(0);
             }
         }
     }
@@ -821,22 +844,22 @@ static void csg3_poly_make_sphere(
 
     /* generate the points */
     cp_v_init0(&o->point, fn * fnz);
-    double fnza = CP_PI / cp_f(fnz * 2);
-    double fna = CP_TAU / cp_f(fn);
+    double fnza = 180 / cp_angle(fnz * 2);
+    double fna =  360 / cp_angle(fn);
     cp_vec3_loc_t *p = o->point.data;
     for (cp_size_each(i, fnz)) {
-        double w = cp_f(1 + (2*i)) * fnza;
-        double z = cos(w);
-        double r = sin(w);
+        double w = cp_angle(1 + (2*i)) * fnza;
+        double z = cp_cos_deg(w);
+        double r = cp_sin_deg(w);
         for (cp_size_each(j, fn)) {
             assert(p < (o->point.data + o->point.size));
-            double t = cp_f(j) * fna;
-            set_vec3_loc(p++, r*cos(t), r*sin(t), z, s->loc);
+            double t = cp_angle(j) * fna;
+            set_vec3_loc(p++, r*cp_cos_deg(t), r*cp_sin_deg(t), z, s->loc);
         }
     }
 
     /* make faces */
-    faces_from_tower(o, m, s->loc, fn, fnz, true, false);
+    faces_from_tower(o, m, s->loc, fn, fnz, true, TRI_NONE);
 }
 
 static bool csg3_from_sphere(
@@ -872,7 +895,7 @@ static bool csg3_from_sphere(
         csg3_poly_make_sphere(o, m, s, fn);
         if (!poly_make_edges(o, c)) {
             return msg(c, CP_ERR_FAIL, NULL, NULL,
-                " Internal Error: Sphere polyhedron construction algorithm is broken.\n");
+                " Internal Error: 'sphere' polyhedron construction algorithm is broken.\n");
         }
         return true;
     }
@@ -887,56 +910,6 @@ static bool csg3_from_sphere(
 
     return true;
 }
-
-#if 0
-/* FIXME: continue */
-static bool csg3_from_circle(
-    bool *no,
-    cp_v_obj_p_t *r,
-    ctxt_t *c,
-    mat_ctxt_t const *mo,
-    cp_scad_circle_t const *s)
-{
-    *no = true;
-    if (c->context != IN2D) {
-        if (!msg(c, c->opt->err_2d_in_3d, s->loc, NULL, "Circle found outside 2D context.")) {
-            return false;
-        }
-    }
-
-    if (cp_leq(s->r, 0)) {
-        if (t->opt->err_empty) {
-            return true;
-        }
-        cp_vchar_printf(&e->msg, "Expected non-empty circle, found r="FF"\n", s->r);
-        e->loc = s->loc;
-        return false;
-    }
-    cp_mat3wi_t const *m = mo->mat;
-    if (!cp_equ(s->r, 1)) {
-        cp_mat3wi_t *m1 = mat_new(c->tree);
-        cp_mat3wi_scale1(m1, s->r);
-        cp_mat3wi_mul(m1, m, m1);
-        m = m1;
-    }
-
-    cp_csg3_2d_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-    cp_v_push(r, cp_obj());
-
-    o->csg3 = cp_csg2_new(*o->csg3, s->loc);
-
-    o->mat.n = CP_MAT2W(
-        m->n.b.m[0][0], m->n.b.m[0][1], m->n.w.v[0],
-        m->n.b.m[1][0], m->n.b.m[1][1], m->n.w.v[1]);
-    o->mat.i = CP_MAT2W(
-        m->i.b.m[0][0], m->i.b.m[0][1], m->i.w.v[0],
-        m->i.b.m[1][0], m->i.b.m[1][1], m->i.w.v[1]);
-    o->_fa = s->_fa;
-    o->_fs = s->_fs;
-    o->_fn = get_fn(&t->opt, s->_fn, true);
-    return true;
-}
-#endif
 
 static int cmp_vec2_loc(
     cp_vec2_loc_t const *a,
@@ -1025,6 +998,51 @@ static bool csg3_from_polyhedron(
     return poly_make_edges(o, c);
 }
 
+static void xform_2d(
+    mat_ctxt_t const *m,
+    cp_csg2_poly_t *o)
+{
+    for (cp_v_each(i, &o->point)) {
+        cp_vec3_t v = { .z = 0 };
+        cp_vec2_loc_t *w = &cp_v_nth(&o->point, i);
+        v.b = w->coord;
+        cp_vec3w_xform(&v, &m->mat->n, &v);
+        w->coord = v.b;
+        w->color = m->gc.color;
+    }
+}
+
+/**
+ * Ensure that all paths of the polygon run clockwise.
+ *
+ * If a path needs to be reversed, do it.
+ *
+ * Return whether any path needed reversal.
+ */
+static bool polygon_cw(
+    cp_csg2_poly_t *p)
+{
+    bool rev = false;
+    for (cp_v_each(i, &p->path)) {
+        cp_csg2_path_t *q = &cp_v_nth(&p->path, i);
+        double sum = 0;
+        for (cp_v_each(j0, &q->point_idx)) {
+            size_t j1 = cp_wrap_add1(j0, q->point_idx.size);
+            size_t j2 = cp_wrap_add1(j1, q->point_idx.size);
+            sum += cp_vec2_right_cross3_z(
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j0)).coord,
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j1)).coord,
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j2)).coord);
+        }
+        assert(!cp_eq(sum, 0));
+        if (sum < 0) {
+            rev = true;
+            cp_v_reverse(&q->point_idx, 0, -(size_t)1);
+        }
+    }
+    return rev;
+}
+
 static bool csg3_from_polygon(
     bool *no,
     cp_v_obj_p_t *r,
@@ -1065,14 +1083,7 @@ static bool csg3_from_polygon(
     cp_v_init_with(&o->point, s->points.data, s->points.size);
 
     /* in-place xform + color */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3_t v = { .z = 0 };
-        cp_vec2_loc_t *w = &cp_v_nth(&o->point, i);
-        v.b = w->coord;
-        cp_vec3w_xform(&v, &m->mat->n, &v);
-        w->coord = v.b;
-        w->color = m->gc.color;
-    }
+    xform_2d(m, o);
 
     /* copy faces */
     cp_v_init0(&o->path, s->paths.size);
@@ -1149,13 +1160,76 @@ static bool csg3_from_cube(
     }
 
     /* make faces */
-    faces_from_tower(o, m, s->loc, 4, 2, false, false);
+    faces_from_tower(o, m, s->loc, 4, 2, false, TRI_NONE);
 
     /* make edges */
     if (!poly_make_edges(o, c)) {
         return msg(c, CP_ERR_FAIL, NULL, NULL,
-            " Internal Error: Cube polyhedron construction algorithm is broken.\n");
+            " Internal Error: 'cube' polyhedron construction algorithm is broken.\n");
     }
+    return true;
+}
+
+static bool csg3_from_circle(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *mo,
+    cp_scad_circle_t const *s)
+{
+    if (c->context != IN2D) {
+        return msg(c, c->opt->err_outside_2d, s->loc, NULL, "'circle' found outside 2D context.");
+    }
+    *no = true;
+
+    /* size 0 in any direction is an error */
+    if (cp_eq(s->r, 0)) {
+        return msg(c, c->opt->err_empty, s->loc, NULL,
+            "Expected non-empty circle, but r="FF".\n",
+            s->r);
+    }
+
+    cp_mat3wi_t const *m = mo->mat;
+
+    /* possibly scale */
+    if (!cp_eq(s->r, 1)) {
+        cp_mat3wi_t *m1 = mat_new(c->tree);
+        cp_mat3wi_scale(m1, s->r, s->r, 1);
+        cp_mat3wi_mul(m1, m, m1);
+        m = m1;
+    }
+
+    /* approximate circular shape */
+    cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
+    cp_v_push(r, cp_obj(o));
+
+    cp_v_init0(&o->path, 1);
+    cp_csg2_path_t *q = &cp_v_nth(&o->path, 0);
+
+    size_t fn = get_fn(c->opt, s->_fn, false);
+    cp_v_init0(&o->point, fn);
+    cp_v_init0(&q->point_idx, fn);
+
+    cp_angle_t a = 360.0 / cp_angle(fn);
+    for (cp_size_each(i, fn)) {
+        cp_vec2_t cs = *CP_SINCOS_DEG(cp_angle(i) * a);;
+        cp_vec2_loc_t *p = &cp_v_nth(&o->point, i);
+        p->coord.x = cs.v[1];
+        p->coord.y = -cs.v[0];
+        p->loc = s->loc;
+        p->color = mo->gc.color;
+
+        cp_v_nth(&q->point_idx, i) = i;
+    }
+
+    /* in-place xform + color */
+    mat_ctxt_t mn = *mo;
+    mn.mat = m;
+    xform_2d(&mn, o);
+
+    bool rev __unused = polygon_cw(o);
+    assert(!rev);
+
     return true;
 }
 
@@ -1205,16 +1279,24 @@ static bool csg3_from_square(
     cp_csg2_path_t *path = cp_v_push0(&o->path);
     for (cp_size_each(i, 4)) {
         cp_vec2_loc_t *p = cp_v_push0(&o->point);
-        p->coord.x = cp_dim(i & 1);
-        p->coord.y = cp_dim(i & 2);
+        p->coord.x = cp_dim(!!(i & 1));
+        p->coord.y = cp_dim(!!(i & 2));
         p->loc = s->loc;
         p->color = mo->gc.color;
     }
 
+    /* in-place xform + color */
+    mat_ctxt_t mn = *mo;
+    mn.mat = m;
+    xform_2d(&mn, o);
+
     cp_v_push(&path->point_idx, 0);
-    cp_v_push(&path->point_idx, 1);
-    cp_v_push(&path->point_idx, 3);
     cp_v_push(&path->point_idx, 2);
+    cp_v_push(&path->point_idx, 3);
+    cp_v_push(&path->point_idx, 1);
+
+    bool rev __unused = polygon_cw(o);
+    assert(!rev);
 
     return true;
 }
@@ -1232,12 +1314,13 @@ static bool csg3_poly_cylinder(
     cp_v_push(r, cp_obj(o));
 
     /* make points */
+    double aa = 360 / cp_angle(fn);
     if (cp_eq(r2, 0)) {
         /* cone */
         cp_v_init0(&o->point, fn + 1);
         for (cp_size_each(i, fn)) {
-            cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
-            set_vec3_loc(&cp_v_nth(&o->point, i), sin(a), cos(a), -.5, s->loc);
+            cp_angle_t a = cp_angle(i) * aa;
+            set_vec3_loc(&cp_v_nth(&o->point, i), cp_sin_deg(a), cp_cos_deg(a), -.5, s->loc);
         }
         set_vec3_loc(&cp_v_nth(&o->point, fn), 0, 0, +.5, s->loc);
     }
@@ -1245,21 +1328,21 @@ static bool csg3_poly_cylinder(
         /* cylinder */
         cp_v_init0(&o->point, 2*fn);
         for (cp_size_each(i, fn)) {
-            cp_angle_t a = cp_angle(i) * (CP_TAU / cp_angle(fn));
-            cp_scale_t ss = sin(a);
-            cp_scale_t cc = cos(a);
+            cp_angle_t a = cp_angle(i) * aa;
+            cp_scale_t ss = cp_sin_deg(a);
+            cp_scale_t cc = cp_cos_deg(a);
             set_vec3_loc(&cp_v_nth(&o->point, i),    cc,    ss,    -.5, s->loc);
             set_vec3_loc(&cp_v_nth(&o->point, i+fn), cc*r2, ss*r2, +.5, s->loc);
         }
     }
 
     /* make faces */
-    faces_from_tower(o, m, s->loc, fn, 2, false, false);
+    faces_from_tower(o, m, s->loc, fn, 2, false, TRI_NONE);
 
     /* make edges */
     if (!poly_make_edges(o, c)) {
         return msg(c, CP_ERR_FAIL, NULL, NULL,
-            " Internal Error: Cylinder polyhedron construction algorithm is broken.\n");
+            " Internal Error: 'cylinder' polyhedron construction algorithm is broken.\n");
     }
     return true;
 }
@@ -1338,7 +1421,6 @@ static bool csg3_from_linext(
     mat_ctxt_t const *mo,
     cp_scad_linext_t const *s)
 {
-    return true; /* FIXME: continue */
     if (c->context != IN3D) {
         return msg(c, c->opt->err_outside_3d, s->loc, NULL,
             "'linear_extrude' found outside 3D context.");
@@ -1352,10 +1434,34 @@ static bool csg3_from_linext(
     }
     if (s->slices < 1) {
         return msg(c, c->opt->err_empty, s->loc, NULL,
-            "Expected non-empty linear_extrude, but slices=%"_Pz"u.\n",
+            "Expected non-empty linear_extrude, but slices=%u.\n",
             s->slices);
     }
 
+    /* scale behaves interestingly */
+    cp_vec2_t scale = s->scale;
+    if (cp_lt(scale.x, 0) || cp_lt(scale.y, 0)) {
+        if (!msg(c, c->opt->err_empty, s->loc, NULL, "Scale is negative: scale=["FF2"].\n",
+            CP_V01(scale)))
+        {
+            return false;
+        }
+    }
+    if (cp_lt(scale.x, 0)) { scale.x = 0; }
+    if (cp_lt(scale.y, 0)) { scale.y = 0; }
+
+    /* FIXME: Implement instead of rejecting:
+     * Reject the ugly case when s.x or s.y is 0, but not both: This
+     * can be done, but it is not easy to get right (side faces may need to
+     * be split).  OpenSCAD messes this up, too, and the resulting STL
+     * is not always 2-manifold. */
+    if (cp_eq(scale.x, 0) != cp_eq(scale.y, 0)) {
+        return msg(c, CP_ERR_FAIL, s->loc, NULL,
+            "Not implemented: only one scale coordinate is 0: scale=["FF2"].\n",
+            CP_V01(scale));
+    }
+
+    /* m is to map the resulting linear_extrude structure */
     cp_mat3wi_t const *m = mo->mat;
 
     /* normalise height */
@@ -1366,10 +1472,10 @@ static bool csg3_from_linext(
         m = m1;
     }
 
-    /* normalise center */
-    if (!s->center) {
+    /* normalise center (we'll construct in z=[0..1]) */
+    if (s->center) {
         cp_mat3wi_t *m1 = mat_new(c->tree);
-        cp_mat3wi_xlat(m1, 0, 0, +.5);
+        cp_mat3wi_xlat(m1, 0, 0, -.5);
         cp_mat3wi_mul(m1, m, m1);
         m = m1;
     }
@@ -1378,20 +1484,85 @@ static bool csg3_from_linext(
     ctxt_t c2 = *c;
     c2.context = IN2D;
     cp_v_obj_p_t rc = {0};
-    if (!csg3_from_v_scad(no, &rc, &c2, mo, &s->child)) {
+
+    /* start with fresh matrix in 2D space */
+    mat_ctxt_t mn = *mo;
+    mn.mat = the_unit(c->tree);
+    if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
         return false;
+    }
+
+    /* get polygon */
+    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->pool, &rc);
+    cp_pool_clear(c->pool);
+
+    /* empty? */
+    if ((p == NULL) || (p->path.size == 0)) {
+        return true;
+    }
+
+    bool is_cone = cp_eq(scale.x, 0);
+    assert(cp_eq(scale.y, 0) == is_cone);
+
+    size_t zcnt = is_cone ? s->slices : s->slices+1;
+    unsigned tri = TRI_NONE;
+    double twist = s->twist;
+    if (cp_eq(twist, 0)) {
+        twist = 0;
+    }
+    else if (twist > 0) {
+        tri = TRI_RIGHT;
+    }
+    else {
+        tri = TRI_LEFT;
+    }
+
+    for (cp_v_each(i, &p->path)) {
+        cp_csg2_path_t const *q = &cp_v_nth(&p->path, i);
+
+        size_t pcnt = q->point_idx.size;
+        size_t tcnt = (zcnt * pcnt) + is_cone;
+
+        cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
+        cp_v_push(r, cp_obj(o));
+
+        cp_v_init0(&o->point, tcnt);
+        for (cp_size_each(k, zcnt)) {
+            double z = cp_dim(k) / cp_dim(s->slices);
+            cp_mat2w_t mk = {0};
+            cp_mat2w_rot(&mk, CP_SINCOS_DEG(z * -twist));
+            cp_mat2w_t mks = {0};
+            cp_mat2w_scale(&mks, cp_lerp(1, s->scale.x, z), cp_lerp(1, s->scale.y, z));
+            cp_mat2w_mul(&mk, &mks, &mk);
+            for (cp_v_each(j, &q->point_idx)) {
+                 cp_vec2_loc_t *v = &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j));
+                 cp_vec3_loc_t *w = &cp_v_nth(&o->point, (k * pcnt) + j);
+                 w->coord.z = z;
+                 cp_vec2w_xform(&w->coord.b, &mk, &v->coord);
+                 w->loc = v->loc;
+            }
+        }
+
+        if (is_cone) {
+            cp_vec3_loc_t *w = &cp_v_last(&o->point);
+            w->coord.z = 1;
+            w->coord.x = 0;
+            w->coord.y = 0;
+            w->loc = s->loc;
+        }
+
+        faces_from_tower(o, m, s->loc, pcnt, s->slices + 1, true, tri);
+
+        if (!poly_make_edges(o, c)) {
+            return msg(c, CP_ERR_FAIL, NULL, NULL,
+                " Internal Error: 'linear_extrude' polyhedron construction algorithm is broken.\n");
+        }
     }
 
     /* FIXME: continue */
     (void)r;
 
     return true;
-}
-
-static void object(
-    bool *no)
-{
-    *no = true;
 }
 
 static bool csg3_from_scad(
@@ -1463,22 +1634,14 @@ static bool csg3_from_scad(
         return csg3_from_cube(no, r, c, m, cp_scad_cast(cp_scad_cube_t, s));
 
     case CP_SCAD_CYLINDER:
-        object(no);
         return csg3_from_cylinder(no, r, c, m, cp_scad_cast(cp_scad_cylinder_t, s));
 
     case CP_SCAD_POLYHEDRON:
-        object(no);
         return csg3_from_polyhedron(no, r, c, m, cp_scad_cast(cp_scad_polyhedron_t, s));
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
-        CP_NYI("circle");
-        *no = true;
-        return true;
-#if 0
-        /* FIXME: continue */
-        return csg3_from_circle(r, c, m, cp_scad_cast(cp_scad_circle_t, s));
-#endif
+        return csg3_from_circle(no, r, c, m, cp_scad_cast(cp_scad_circle_t, s));
 
     case CP_SCAD_SQUARE:
         return csg3_from_square(no, r, c, m, cp_scad_cast(cp_scad_square_t, s));
@@ -1691,6 +1854,7 @@ extern void cp_csg3_tree_bb(
  * Convert a SCAD AST into a CSG3 tree.
  */
 extern bool cp_csg3_from_scad_tree(
+    cp_pool_t *pool,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad)
@@ -1700,6 +1864,7 @@ extern bool cp_csg3_from_scad_tree(
     assert(t != NULL);
     assert(r->opt != NULL);
     ctxt_t c = {
+        .pool = pool,
         .tree = r,
         .opt = r->opt,
         .err = t,

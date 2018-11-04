@@ -66,9 +66,11 @@ static void linext_put_scad(
     cp_scad_linext_t const *r)
 {
     cp_printf(s, "linear_extrude("
-        "height="FF", scale=["FF","FF"], twist="FF", slices=%"_Pz"u, convexity=%u, center=%s){\n",
+        "height="FF", scale=["FF","FF"], twist="FF", slices=%u, convexity=%u, center=%s"
+        ", $fa="FF", $fs="FF", $fn=%u){\n",
         r->height, r->scale.x, r->scale.y, r->twist,
-        r->slices, r->convexity, r->center ? "true" : "false");
+        r->slices, r->convexity, r->center ? "true" : "false",
+        r->_fa, r->_fs, r->_fn);
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s,"%*s}\n", d, "");
 }
@@ -99,7 +101,7 @@ static void rotate_put_scad(
     cp_scad_rotate_t const *r)
 {
     if (r->around_n) {
-        cp_printf(s, "rotate(a="FF",v=["FF","FF","FF"]){\n",
+        cp_printf(s, "rotate(a="FF", v=["FF","FF","FF"]){\n",
             r->a, r->n.x, r->n.y, r->n.z);
     }
     else {
@@ -133,7 +135,7 @@ static void sphere_put_scad(
     cp_stream_t *s,
     cp_scad_sphere_t const *r)
 {
-    cp_printf(s, "sphere(r="FF",$fa="FF",$fs="FF",$fn=%u);\n",
+    cp_printf(s, "sphere(r="FF", $fa="FF", $fs="FF", $fn=%u);\n",
         r->r, r->_fa, r->_fs, r->_fn);
 }
 
@@ -141,7 +143,7 @@ static void circle_put_scad(
     cp_stream_t *s,
     cp_scad_circle_t const *r)
 {
-    cp_printf(s, "circle(r="FF",$fa="FF",$fs="FF",$fn=%u);\n",
+    cp_printf(s, "circle(r="FF", $fa="FF", $fs="FF", $fn=%u);\n",
         r->r, r->_fa, r->_fs, r->_fn);
 }
 
@@ -149,7 +151,7 @@ static void cylinder_put_scad(
     cp_stream_t *s,
     cp_scad_cylinder_t const *r)
 {
-    cp_printf(s, "cylinder(h="FF",r1="FF",r2="FF",center=%s,$fa="FF",$fs="FF",$fn=%u);\n",
+    cp_printf(s, "cylinder(h="FF", r1="FF", r2="FF", center=%s, $fa="FF", $fs="FF", $fn=%u);\n",
         r->h, r->r1, r->r2,
         r->center ? "true" : "false",
         r->_fa, r->_fs, r->_fn);
@@ -159,7 +161,7 @@ static void cube_put_scad(
     cp_stream_t *s,
     cp_scad_cube_t const *r)
 {
-    cp_printf(s, "cube(size=["FF","FF","FF"],center=%s);\n",
+    cp_printf(s, "cube(size=["FF","FF","FF"], center=%s);\n",
         r->size.x, r->size.y, r->size.z, r->center ? "true" : "false");
 }
 
@@ -167,7 +169,7 @@ static void square_put_scad(
     cp_stream_t *s,
     cp_scad_square_t const *r)
 {
-    cp_printf(s, "square(size=["FF","FF"],center=%s);\n",
+    cp_printf(s, "square(size=["FF","FF"], center=%s);\n",
         r->size.x, r->size.y, r->center ? "true" : "false");
 }
 

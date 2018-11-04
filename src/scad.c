@@ -484,6 +484,26 @@ static bool _get_vec3(
     return get_vec3(r, t, v);
 }
 
+static bool get_vec2_3(
+    cp_vec3_t *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    cp_syn_value_array_t const *a = cp_syn_try_cast(*a, v);
+    if (a && (a->value.size == 2)) {
+        return get_vec2(&r->b, t, v);
+    }
+    return get_vec3(r, t, v);
+}
+
+static bool _get_vec2_3(
+    void *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    return get_vec2_3(r, t, v);
+}
+
 static bool get_vec3_or_float(
     cp_vec3_t *r,
     ctxt_t *t,
@@ -505,6 +525,26 @@ static bool _get_vec3_or_float(
     cp_syn_value_t const *v)
 {
     return get_vec3_or_float(r, t, v);
+}
+
+static bool get_vec2_3_float(
+    cp_vec3_t *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    cp_syn_value_array_t const *a = cp_syn_try_cast(*a, v);
+    if (a && (a->value.size == 2)) {
+        return get_vec2(&r->b, t, v);
+    }
+    return get_vec3_or_float(r, t, v);
+}
+
+static bool _get_vec2_3_float(
+    void *r,
+    ctxt_t *t,
+    cp_syn_value_t const *v)
+{
+    return get_vec2_3_float(r, t, v);
 }
 
 static bool get_vec4(
@@ -547,11 +587,12 @@ static bool get_mat4(
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if ((v->type != CP_SYN_VALUE_ARRAY) ||
         (
+            (a->value.size != 2) &&
             (a->value.size != 3) &&
             (a->value.size != 4)
         ))
     {
-        cp_vchar_printf(&t->err->msg, "Expected a 3x3, 4x4, or 3x3+T matrix array.\n");
+        cp_vchar_printf(&t->err->msg, "Expected a 2x2, 3x3, 4x4, or 3x3+T matrix array.\n");
         t->err->loc = v->loc;
         return false;
     }
@@ -634,7 +675,9 @@ typedef struct {
 #define PARAM_VEC2(n,x,m)          PARAM(n, x, _get_vec2,   cp_vec2_t,        m)
 #define PARAM_VEC2_OR_FLOAT(n,x,m) PARAM(n, x, _get_vec2_or_float, cp_vec2_t, m)
 #define PARAM_VEC3(n,x,m)          PARAM(n, x, _get_vec3,   cp_vec3_t,        m)
+#define PARAM_VEC2_3(n,x,m)        PARAM(n, x, _get_vec2_3, cp_vec3_t,        m)
 #define PARAM_VEC3_OR_FLOAT(n,x,m) PARAM(n, x, _get_vec3_or_float, cp_vec3_t, m)
+#define PARAM_VEC2_3_FLOAT(n,x,m)  PARAM(n, x, _get_vec2_3_float,  cp_vec3_t, m)
 #define PARAM_MAT3W(n,x,m)         PARAM(n, x, _get_mat3w,  cp_mat3w_t,       m)
 #define PARAM_RAW(n,x,m)           PARAM(n, x, _get_raw,    cp_syn_value_t const *, m)
 
@@ -1066,7 +1109,7 @@ static bool mirror_from_item(
     cp_scad_mirror_t *r = cp_scad_cast(*r, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
-            PARAM_VEC3("v", &r->v, NULL),
+            PARAM_VEC2_3("v", &r->v, NULL),
         ),
         ()))
     {
@@ -1083,7 +1126,7 @@ static bool translate_from_item(
     cp_scad_translate_t *r = cp_scad_cast(*r, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
-            PARAM_VEC3("v", &r->v, NULL),
+            PARAM_VEC2_3("v", &r->v, NULL),
         ),
         ()))
     {
@@ -1174,9 +1217,10 @@ static bool scale_from_item(
     cp_scad_t *_r)
 {
     cp_scad_scale_t *r = cp_scad_cast(*r, _r);
+    r->v.z = 1;
     if (!GET_ARG(t, f->loc, &f->arg,
         (
-            PARAM_VEC3_OR_FLOAT("v", &r->v, NULL),
+            PARAM_VEC2_3_FLOAT("v", &r->v, NULL),
         ),
         ()))
     {
@@ -1238,10 +1282,32 @@ static bool linext_from_item(
     cp_scad_t *_r)
 {
     cp_scad_linext_t *r = cp_scad_cast(*r, _r);
-    (void)r;
-    (void)t;
-    (void)f;
-    return true;
+
+    r->slices = 1;
+    r->scale.x = 1;
+    r->scale.y = 1;
+    r->convexity = 1;
+    r->_fa = 12;
+    r->_fs = 2;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (),
+        (
+            PARAM_FLOAT ("height",       &r->height,    NULL),
+            PARAM_BOOL  ("center",       &r->center,    ((bool[]){false})),
+            PARAM_UINT32("slices",       &r->slices,    ((bool[]){false})),
+            PARAM_FLOAT ("twist",        &r->twist,     ((bool[]){false})),
+            PARAM_VEC2_OR_FLOAT("scale", &r->scale,     ((bool[]){false})),
+            PARAM_UINT32("convexity",    &r->convexity, ((bool[]){false})),
+            PARAM_FLOAT ("$fa",          &r->_fa,       ((bool[]){false})),
+            PARAM_FLOAT ("$fs",          &r->_fs,       ((bool[]){false})),
+            PARAM_UINT32("$fn",          &r->_fn,       ((bool[]){false})),
+        )))
+    {
+        return false;
+    }
+
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
 static bool cylinder_from_item(

@@ -174,10 +174,14 @@ static bool do_file(
         return true;
     }
 
+    /* pool for tmp objects */
+    cp_pool_t pool;
+    cp_pool_init(&pool, 0);
+
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
     csg3->opt = &opt->csg;
-    if (!cp_csg3_from_scad_tree(csg3, &r->err, scad)) {
+    if (!cp_csg3_from_scad_tree(&pool, csg3, &r->err, scad)) {
         return false;
     }
 
@@ -228,9 +232,9 @@ static bool do_file(
     }
 
     if (opt->verbose >= 1) {
-       fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"_Pz"u, max=%g\n",
-           range.min, range.step, range.cnt,
-           range.min + (range.step * cp_f(range.cnt - 1)));
+        fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"_Pz"u, max=%g\n",
+            range.min, range.step, range.cnt,
+            range.min + (range.step * cp_f(range.cnt - 1)));
     }
 
     /* process layer by layer: extract layer, slice, triangulate */
@@ -239,9 +243,6 @@ static bool do_file(
 
     cp_csg2_tree_t *csg2b = CP_NEW(*csg2b);
     cp_csg2_op_tree_init(csg2b, csg2);
-
-    cp_pool_t pool;
-    cp_pool_init(&pool, 0);
 
     cp_csg2_tree_t *csg2_out = opt->no_csg ? csg2 : csg2b;
     size_t zi = 0;

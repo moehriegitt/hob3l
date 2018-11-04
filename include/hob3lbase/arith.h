@@ -264,11 +264,21 @@ static inline void cp_range_init(
     double step)
 {
     r->step = step;
-    r->min = min;
-    r->cnt = 0;
-    long cnt_i = lrint(ceil(((max - min) / step) - cp_eq_epsilon));
-    if (cnt_i > 0) {
-        r->cnt = cnt_i & CP_MAX_OF(cnt_i);
+    if (cp_eq(min, max)) {
+        r->min = min;
+        r->cnt = 1;
+    }
+    else if (min > max) {
+        r->min = 0;
+        r->cnt = 0;
+    }
+    else {
+        r->min = min;
+        r->cnt = 0;
+        long cnt_i = lrint(ceil(((max - min) / step) - cp_eq_epsilon));
+        if (cnt_i > 0) {
+            r->cnt = cnt_i & CP_MAX_OF(cnt_i);
+        }
     }
 }
 
