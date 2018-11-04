@@ -30,9 +30,9 @@
     ({ \
         __typeof__(x) __x = (x); \
         assert(__x != NULL); \
-        unsigned __t = get_typeof(*((__typeof__(t)*)0)); \
+        unsigned __t __unused = get_typeof(*((__typeof__(t)*)0)); \
         assert((__t == CP_ABSTRACT) || (__x->type == __t)); \
-        void *__n = NULL; \
+        void *__n __unused = NULL; \
         (__typeof__(_Generic(0 ? __x : __n, \
             void*:        (__typeof__(t)*)0, \
             void const *: (__typeof__(t) const *)0)))__x; \
