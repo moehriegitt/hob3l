@@ -10,6 +10,7 @@
 #include <hob3lbase/err_tam.h>
 #include <hob3l/gc_tam.h>
 #include <hob3l/syn_fwd.h>
+#include <hob3l/obj_tam.h>
 
 typedef CP_VEC_T(cp_syn_stmt_t*) cp_v_syn_stmt_p_t;
 
@@ -23,12 +24,15 @@ typedef CP_VEC_T(cp_syn_value_t*) cp_v_syn_value_p_t;
  * Map type to type ID */
 #define cp_syn_typeof(type) \
     _Generic(type, \
+        cp_obj_t:              CP_ABSTRACT, \
+        cp_syn_value_t:        CP_SYN_VALUE_TYPE, \
         cp_syn_value_id_t:     CP_SYN_VALUE_ID, \
         cp_syn_value_int_t:    CP_SYN_VALUE_INT, \
         cp_syn_value_float_t:  CP_SYN_VALUE_FLOAT, \
         cp_syn_value_string_t: CP_SYN_VALUE_STRING, \
         cp_syn_value_range_t:  CP_SYN_VALUE_RANGE, \
         cp_syn_value_array_t:  CP_SYN_VALUE_ARRAY, \
+        cp_syn_stmt_t:         CP_SYN_STMT_TYPE, \
         cp_syn_stmt_item_t:    CP_SYN_STMT_ITEM, \
         cp_syn_stmt_use_t:     CP_SYN_STMT_USE)
 
@@ -57,12 +61,10 @@ typedef enum {
 } cp_syn_stmt_type_t;
 
 #define CP_SYN_VALUE_BASE \
-    unsigned type; \
-    cp_loc_t loc;
+    _CP_OBJ
 
 #define CP_SYN_STMT_BASE \
-    unsigned type; \
-    cp_loc_t loc;
+    _CP_OBJ
 
 /**
  * SCAD parser item statement.
@@ -176,28 +178,12 @@ typedef struct {
 /**
  * SCAD parser generic value
  */
-union cp_syn_value {
-    struct {
-        CP_SYN_VALUE_BASE
-    };
-    cp_syn_value_id_t     _id;
-    cp_syn_value_int_t    _int;
-    cp_syn_value_float_t  _float;
-    cp_syn_value_string_t _string;
-    cp_syn_value_range_t  _range;
-    cp_syn_value_array_t  _array;
-};
+struct cp_syn_value { CP_SYN_VALUE_BASE };
 
 /**
  * SCAD parser generic statement
  */
-union cp_syn_stmt {
-    struct {
-        CP_SYN_STMT_BASE
-    };
-    cp_syn_stmt_item_t _item;
-    cp_syn_stmt_use_t  _use;
-};
+struct cp_syn_stmt { CP_SYN_STMT_BASE };
 
 typedef CP_VEC_T(char const *) cp_v_cstr_t;
 

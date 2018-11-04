@@ -34,43 +34,45 @@ static void cp_syn_value_put_scad(
 {
     switch (f->type) {
     case CP_SYN_VALUE_ID:
-        cp_printf(s, "%s", f->_id.value);
+        cp_printf(s, "%s", cp_syn_cast(cp_syn_value_id_t, f)->value);
         return;
 
     case CP_SYN_VALUE_INT:
-        cp_printf(s, "%"_Pll"d", f->_int.value);
+        cp_printf(s, "%"_Pll"d", cp_syn_cast(cp_syn_value_int_t, f)->value);
         return;
 
     case CP_SYN_VALUE_FLOAT:
-        cp_printf(s, FF, f->_float.value);
+        cp_printf(s, FF, cp_syn_cast(cp_syn_value_float_t, f)->value);
         return;
 
     case CP_SYN_VALUE_STRING:
-        cp_printf(s, "\"%s\"", f->_id.value);
+        cp_printf(s, "\"%s\"", cp_syn_cast(cp_syn_value_string_t, f)->value);
         return;
 
-    case CP_SYN_VALUE_RANGE:
+    case CP_SYN_VALUE_RANGE:{
+        cp_syn_value_range_t *g = cp_syn_cast(*g, f);
         cp_printf(s, "[");
-        cp_syn_value_put_scad(s, d, f->_range.start);
+        cp_syn_value_put_scad(s, d, g->start);
         cp_printf(s, ":");
-        if (f->_range.inc) {
-            cp_syn_value_put_scad(s, d, f->_range.inc);
+        if (g->inc) {
+            cp_syn_value_put_scad(s, d, g->inc);
             cp_printf(s, ":");
         }
-        cp_syn_value_put_scad(s, d, f->_range.end);
+        cp_syn_value_put_scad(s, d, g->end);
         cp_printf(s, "]");
-        return;
+        return;}
 
-    case CP_SYN_VALUE_ARRAY:
+    case CP_SYN_VALUE_ARRAY: {
+        cp_syn_value_array_t *g = cp_syn_cast(*g, f);
         cp_printf(s, "[");
-        for (cp_v_each(i, &f->_array.value)) {
+        for (cp_v_each(i, &g->value)) {
             if (i != 0) {
                 cp_printf(s, ",");
             }
-            cp_syn_value_put_scad(s, d, f->_array.value.data[i]);
+            cp_syn_value_put_scad(s, d, cp_v_nth(&g->value,i));
         }
         cp_printf(s, "]");
-        return;
+        return;}
     }
 
     assert(0 && "Unrecognised syntax tree object type");
@@ -122,10 +124,10 @@ static void cp_syn_stmt_put_scad(
 {
     switch (f->type) {
     case CP_SYN_STMT_ITEM:
-        cp_syn_stmt_item_put_scad(s, d, cp_syn_cast(_item, f));
+        cp_syn_stmt_item_put_scad(s, d, cp_syn_cast(cp_syn_stmt_item_t, f));
         return;
     case CP_SYN_STMT_USE:
-        cp_syn_stmt_use_put_scad(s, d, cp_syn_cast(_use, f));
+        cp_syn_stmt_use_put_scad(s, d, cp_syn_cast(cp_syn_stmt_use_t, f));
         return;
     default:
         CP_NYI("type=0x%x", f->type);

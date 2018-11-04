@@ -115,7 +115,7 @@ static val_t evaluate(
     if (x->type != CP_SYN_VALUE_ID) {
         return false;
     }
-    char const *id = cp_syn_cast(_id, x)->value;
+    char const *id = cp_syn_cast(cp_syn_value_id_t, x)->value;
     switch (id[0]) {
     case 'P':
         if (strequ(id, "PI")) {
@@ -145,8 +145,9 @@ static bool try_get_longlong(
     long long *r,
     cp_syn_value_t const *v)
 {
-    if (v->type == CP_SYN_VALUE_INT) {
-        *r = cp_syn_cast(_int, v)->value;
+    cp_syn_value_int_t const *a = cp_syn_try_cast(*a, v);
+    if (a != NULL) {
+        *r = a->value;
         return true;
     }
 
@@ -239,8 +240,9 @@ static bool try_get_float(
     cp_f_t *r,
     cp_syn_value_t const *v)
 {
-    if (v->type == CP_SYN_VALUE_FLOAT) {
-        *r = v->_float.value;
+    cp_syn_value_float_t const *a = cp_syn_try_cast(*a, v);
+    if (a != NULL) {
+        *r = a->value;
         return true;
     }
     long long ll;
@@ -318,8 +320,9 @@ static bool try_get_str(
     char const **r,
     cp_syn_value_t const *v)
 {
-    if (v->type == CP_SYN_VALUE_STRING) {
-        *r = v->_string.value;
+    cp_syn_value_string_t *a = cp_syn_try_cast(*a, v);
+    if (a != NULL) {
+        *r = a->value;
         return true;
     }
     return false;
@@ -356,7 +359,7 @@ static bool try_get_size(
         if (ll < 0) {
             return false;
         }
-        if (sizeof(v->_int.value) != sizeof(*r)) {
+        if (sizeof(cp_syn_cast(cp_syn_value_int_t, v)->value) != sizeof(*r)) {
              if (ll >= (long long)CP_MAX_OF(*r)) {
                  return false;
              }
@@ -399,7 +402,7 @@ static bool get_vec2(
         return false;
     }
 
-    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
         t->err->loc = v->loc;
@@ -457,7 +460,7 @@ static bool get_vec3(
         return false;
     }
 
-    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
         t->err->loc = v->loc;
@@ -515,7 +518,7 @@ static bool get_vec4(
         return false;
     }
 
-    cp_syn_value_array_t const *a = cp_syn_cast(_array, v);
+    cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         cp_vchar_printf(&t->err->msg, "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
         t->err->loc = v->loc;
@@ -541,10 +544,11 @@ static bool get_mat4(
     /* This also accepts 3x3 matrices and 4x3 matrixes and will
      * add missing columns and rows from the unit matrix */
 
+    cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if ((v->type != CP_SYN_VALUE_ARRAY) ||
         (
-            (v->_array.value.size != 3) &&
-            (v->_array.value.size != 4)
+            (a->value.size != 3) &&
+            (a->value.size != 4)
         ))
     {
         cp_vchar_printf(&t->err->msg, "Expected a 3x3, 4x4, or 3x3+T matrix array.\n");
@@ -552,11 +556,10 @@ static bool get_mat4(
         return false;
     }
 
-    for (cp_size_each(y, v->_array.value.size)) {
-        cp_syn_value_t const *l = cp_v_nth(&v->_array.value, y);
-        if ((l->type == CP_SYN_VALUE_ARRAY) &&
-            (l->_array.value.size == 3))
-        {
+    for (cp_size_each(y, a->value.size)) {
+        cp_syn_value_t const *l = cp_v_nth(&a->value, y);
+        cp_syn_value_array_t const *la = cp_syn_try_cast(*a, l);
+        if ((la != NULL) && (la->value.size == 3)) {
             if (!get_vec3(&r->row[y].b, t, l)) {
                 return false;
             }
@@ -582,7 +585,7 @@ static bool get_mat3w(
 
     if (!cp_mat3w_from_mat4(r, &q)) {
         cp_vchar_printf(&t->err->msg, "Not a valid 3x3+T matrix: last row must be [0,0,0,1].\n");
-        t->err->loc = cp_v_nth(&cp_syn_cast(_array, v)->value, 3)->loc;
+        t->err->loc = cp_v_nth(&cp_syn_cast(cp_syn_value_array_t, v)->value, 3)->loc;
         return false;
     }
 
@@ -905,7 +908,7 @@ static bool polyhedron_from_item(
         t->err->loc = _points->loc;
         return false;
     }
-    cp_syn_value_array_t const *points = cp_syn_cast(_array, _points);
+    cp_syn_value_array_t const *points = cp_syn_cast(*points, _points);
     cp_v_init0(&r->points, points->value.size);
     for (cp_v_each(i, &points->value)) {
         if (!get_vec3(&cp_v_nth(&r->points, i).coord, t, cp_v_nth(&points->value, i))) {
@@ -919,7 +922,7 @@ static bool polyhedron_from_item(
         t->err->loc = _faces->loc;
         return false;
     }
-    cp_syn_value_array_t const *faces = cp_syn_cast(_array, _faces);
+    cp_syn_value_array_t const *faces = cp_syn_cast(*faces, _faces);
     cp_v_init0(&r->faces, faces->value.size);
     for (cp_v_each(i, &faces->value)) {
         cp_syn_value_t const *_face = cp_v_nth(&faces->value, i);
@@ -928,7 +931,7 @@ static bool polyhedron_from_item(
             t->err->loc = _face->loc;
             return false;
         }
-        cp_syn_value_array_t const *face = cp_syn_cast(_array, _face);
+        cp_syn_value_array_t const *face = cp_syn_cast(*face, _face);
         if (face->value.size < 3) {
             cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
                 face->value.size);
@@ -987,7 +990,7 @@ static bool polygon_from_item(
         t->err->loc = _points->loc;
         return false;
     }
-    cp_syn_value_array_t const *points = cp_syn_cast(_array, _points);
+    cp_syn_value_array_t const *points = cp_syn_cast(*points, _points);
     cp_v_init0(&r->points, points->value.size);
     for (cp_v_each(i, &points->value)) {
         if (!get_vec2(&cp_v_nth(&r->points, i).coord, t, cp_v_nth(&points->value, i))) {
@@ -1011,7 +1014,7 @@ static bool polygon_from_item(
             t->err->loc = _paths->loc;
             return false;
         }
-        cp_syn_value_array_t const *paths = cp_syn_cast(_array, _paths);
+        cp_syn_value_array_t const *paths = cp_syn_cast(*paths, _paths);
         cp_v_init0(&r->paths, paths->value.size);
         for (cp_v_each(i, &paths->value)) {
             cp_syn_value_t const *_path = cp_v_nth(&paths->value, i);
@@ -1020,7 +1023,7 @@ static bool polygon_from_item(
                 t->err->loc = _path->loc;
                 return false;
             }
-            cp_syn_value_array_t const *path = cp_syn_cast(_array, _path);
+            cp_syn_value_array_t const *path = cp_syn_cast(*path, _path);
             if (path->value.size < 3) {
                 cp_vchar_printf(&t->err->msg, "Expected at least 3 point indices, but found only %"_Pz"u.\n",
                     path->value.size);
@@ -1120,7 +1123,7 @@ static bool color_from_item(
     }
     else
     if (_c->type == CP_SYN_VALUE_ARRAY) {
-        cp_syn_value_array_t const *c = cp_syn_cast(_array,_c);
+        cp_syn_value_array_t const *c = cp_syn_cast(*c,_c);
         if (c->value.size < 3) {
             cp_vchar_printf(&t->err->msg,
                 "Expected at least 3 colour components, but found %"_Pz"u.\n",
@@ -1145,7 +1148,7 @@ static bool color_from_item(
     }
     else
     if (_c->type == CP_SYN_VALUE_STRING) {
-        cp_syn_value_string_t const *c = cp_syn_cast(_string, _c);
+        cp_syn_value_string_t const *c = cp_syn_cast(*c, _c);
         if (!cp_color_by_name(&r->rgba.rgb, c->value)) {
             cp_vchar_printf(&t->err->msg, "Unknown colour '%s'.\n", c->value);
             t->err->loc = c->loc;
@@ -1502,9 +1505,9 @@ static bool v_scad_from_syn_stmt(
 {
     switch (f->type) {
     case CP_SYN_STMT_ITEM:
-       return v_scad_from_syn_stmt_item(t, result, cp_syn_cast(_item, f));
+       return v_scad_from_syn_stmt_item(t, result, cp_syn_cast(cp_syn_stmt_item_t, f));
     case CP_SYN_STMT_USE:
-       return v_scad_from_syn_stmt_use(t, result, cp_syn_cast(_use, f));
+       return v_scad_from_syn_stmt_use(t, result, cp_syn_cast(cp_syn_stmt_use_t, f));
     default:
        CP_NYI("type=0x%x", f->type);
     }

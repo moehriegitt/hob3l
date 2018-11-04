@@ -12,38 +12,18 @@
 #include <stdio.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/stream_tam.h>
+#include <hob3l/obj.h>
 #include <hob3l/syn_tam.h>
 #include <hob3l/syn-2scad.h>
 
-/** Create a SYN instance */
-#define cp_syn_new(r, _loc) \
-    ({ \
-        __typeof__(r) * __r = CP_NEW(*__r); \
-        __r->type = cp_syn_typeof(*__r); \
-        __r->loc = (_loc); \
-        __r; \
-    })
+/** Create an instance */
+#define cp_syn_new(r, l) _cp_new(cp_syn_typeof, r, l)
 
-/** Specialising cast w/ dynamic check */
-#define cp_syn_cast(_t,s) \
-    ({ \
-        assert((s)->type == cp_syn_typeof((s)->_t)); \
-        &(s)->_t; \
-    })
+/** Cast w/ dynamic check */
+#define cp_syn_cast(t, s) _cp_cast(cp_syn_typeof, t, s)
 
-/**  Generalising cast w/ static check */
-#define cp_syn_value(t) \
-    ({ \
-        cp_static_assert((cp_syn_typeof(*(t)) & CP_TYPE_MASK) == CP_SYN_VALUE_TYPE); \
-        (cp_syn_value_t*)(t); \
-    })
-
-/**  Generalising cast w/ static check */
-#define cp_syn_stmt(t) \
-    ({ \
-        cp_static_assert((cp_syn_typeof(*(t)) & CP_TYPE_MASK) == CP_SYN_STMT_TYPE); \
-        (cp_syn_stmt_t*)(t); \
-    })
+/** Cast w/ dynamic check */
+#define cp_syn_try_cast(t, s) _cp_try_cast(cp_syn_typeof, t, s)
 
 /**
  * Parse a file into a SCAD syntax tree.

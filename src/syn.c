@@ -480,7 +480,7 @@ static cp_syn_value_t *value_id_new(cp_loc_t loc)
 {
     cp_syn_value_id_t *x = cp_syn_new(*x, loc);
     x->value = loc;
-    return cp_syn_value(x);
+    return cp_syn_cast(cp_syn_value_t,x);
 }
 
 static bool parse_new_id(
@@ -496,7 +496,7 @@ static bool parse_new_int(
     cp_syn_value_t **rp)
 {
     cp_syn_value_int_t *v = cp_syn_new(*v, p->tok_loc);
-    *rp = cp_syn_value(v);
+    *rp = cp_syn_cast(**rp, v);
     return parse_int(p, v);
 }
 
@@ -505,7 +505,7 @@ static bool parse_new_float(
     cp_syn_value_t **rp)
 {
     cp_syn_value_float_t *v = cp_syn_new(*v, p->tok_loc);
-    *rp = cp_syn_value(v);
+    *rp = cp_syn_cast(**rp, v);
     return parse_float(p, v);
 }
 
@@ -514,7 +514,7 @@ static bool parse_new_string(
     cp_syn_value_t **rp)
 {
     cp_syn_value_string_t *v = cp_syn_new(*v, p->tok_loc);
-    *rp = cp_syn_value(v);
+    *rp = cp_syn_cast(**rp, v);
     return parse_string(p, v);
 }
 
@@ -535,7 +535,7 @@ static bool parse_new_range_or_array(
     if (expect(p, ']')) {
         /* empty array */
         cp_syn_value_array_t *v = cp_syn_new(*v, loc);
-        *rp = cp_syn_value(v);
+        *rp = cp_syn_cast(**rp, v);
         return true;
     }
 
@@ -547,7 +547,7 @@ static bool parse_new_range_or_array(
     if (expect(p, ':')) {
         /* range! */
         cp_syn_value_range_t *v = cp_syn_new(*v, loc);
-        *rp = cp_syn_value(v);
+        *rp = cp_syn_cast(**rp, v);
         v->start = start;
 
         if (!parse_value(p, &v->end)) {
@@ -564,7 +564,7 @@ static bool parse_new_range_or_array(
     else {
         /* array! */
         cp_syn_value_array_t *v = cp_syn_new(*v, loc);
-        *rp = cp_syn_value(v);
+        *rp = cp_syn_cast(**rp, v);
         cp_v_syn_value_p_t *a = &v->value;
         cp_v_push(a, start);
 
@@ -793,7 +793,7 @@ static bool parse_item_push_stmt(
         return true;
     }
     cp_syn_stmt_item_t *f = cp_syn_new(*f, p->tok_string);
-    cp_v_push(r, cp_syn_stmt(f));
+    cp_v_push(r, cp_syn_cast(cp_syn_stmt_t, f));
     return parse_stmt_item(p, f);
 }
 
@@ -834,7 +834,7 @@ static bool parse_stmt_list(
         switch (p->tok_type) {
         case K_USE:{
             cp_syn_stmt_use_t *f = cp_syn_new(*f, p->tok_string);
-            cp_v_push(r, cp_syn_stmt(f));
+            cp_v_push(r, cp_syn_cast(cp_syn_stmt_t, f));
             if (!parse_stmt_use(p, f)) {
                 return false;
             }

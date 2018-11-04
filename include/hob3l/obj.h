@@ -55,7 +55,7 @@
 #define _cp_try_cast_aux(__x, __t, __n, get_typeof, t, x) \
     ({ \
         __typeof__(x) __x = (x); \
-        static_assert(get_typeof(*((__typeof__(t)*)0)) != CP_ABSTRACT); \
+        cp_static_assert(get_typeof(*((__typeof__(t)*)0)) != CP_ABSTRACT); \
         unsigned __t = get_typeof(*((__typeof__(t)*)0)); \
         void *__n = NULL; \
         (__x == NULL) || (__x->type != __t) ? NULL \
@@ -79,7 +79,7 @@
  * typeid to use.
  */
 #define _cp_try_cast(g, t, x) \
-    _cp_cast_aux(CP_GENSYM(__x), CP_GENSYM(__t), CP_GENSYM(__n), g, t, x)
+    _cp_try_cast_aux(CP_GENSYM(__x), CP_GENSYM(__t), CP_GENSYM(__n), g, t, x)
 
 /** Cast to abstract type cast w/ static check */
 #define cp_obj(t) \
