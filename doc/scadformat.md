@@ -443,8 +443,7 @@ difference() {
 ```
 
 In the following, `sphere` is the first non-ignored child of
-`difference` in OpenSCAD.  Hob3l, in contrast, it is still
-`linear_extrude`.
+`difference` in OpenSCAD.  With Hob3l, it is still `linear_extrude`.
 
 
 ```
