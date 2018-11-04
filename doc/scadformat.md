@@ -415,7 +415,7 @@ is assumed that these only occur at toplevel, never as a child.
 
   * *Hob3l*:
 
-    IGNORE2D(`projection(...) Cs`) = false
+    IGNORE2D(`projection(...) Cs`) = IGNORE(`Cs`)
 
   * IGNORE2D(X) = IGNORE(X) otherwise
 
