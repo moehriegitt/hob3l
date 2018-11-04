@@ -16,7 +16,7 @@
   * [Coordinate Matrix](#coordinate-matrix)
   * [Functor Calls](#functor-calls)
   * [Ignored Children](#ignored-children)
-      * [Projection Is Ignored](#projection-is-ignored)
+      * [Ignored Projection](#ignored-projection)
   * [Functors](#functors)
       * [circle](#circle)
       * [color](#color)
@@ -352,9 +352,9 @@ children.
 
 In essence, the decision of which child is ignored needs semantics.
 In the case of `projection`, ignoring ('projection failed') is decided
-even [dynamically at runtime](#projection-is-ignored).
+even [dynamically at runtime](#ignored-projection).
 
-The following defines recursively a predicate `IGNORE` to define the
+The following defines recursively a function `IGNORE` to decide
 whether a child is ignored.
 
 In the definition, children of a functor are written `{ C1; C2;
@@ -372,7 +372,7 @@ Note that `for` and `intersection_for` never iterate zero times (even
 for ranges like `[1:0]`), so they just pass through whether their children
 are all ignored.
 
-The definitoin ignores `use`, `function`, `module` for now, because it
+The definition ignores `use`, `function`, `module` for now, because it
 is assumed that these only occur at toplevel, never as a child.
 
 `F` is a functor (like `group` or `cube`).
@@ -408,15 +408,30 @@ is assumed that these only occur at toplevel, never as a child.
         `import`, `surface`,
         `render`, `hull`, `minkowski`, `resize`
 
-  * IGNORE2D(`projection(...) Cs`) =
+  * *OpenSCAD*:
+
+    IGNORE2D(`projection(...) Cs`) =
     IGNORE(`Cs`) || (`the resulting polygon is empty`)
+
+  * *Hob3l*:
+
+    IGNORE2D(`projection(...) Cs`) = false
 
   * IGNORE2D(X) = IGNORE(X) otherwise
 
-### Projection Is Ignored
+### Ignored Projection
+
+This is a difference in behavior between Hob3l and OpenSCAD.
+OpenSCAD, ignores `projection` when the result of the projection
+becomes empty.  Because I think it should be decidable from the input
+file without evaluating it, whether it computes 'A-B-C' or rather
+'B-C', Hob3l behaves differently.  Hob3l never ignores `projection`
+even if it is empty, but handles it like a 2D object.
+
+This section is an example of OpenSCAD behaviour.
 
 In the following, `linear_extrude` is the first non-ignored child of
-`difference`.
+`difference` (both OpenSCAD and Hob3l):
 
 ```
 difference() {
@@ -428,7 +443,9 @@ difference() {
 ```
 
 In the following, `sphere` is the first non-ignored child of
-`difference`.
+`difference` in OpenSCAD.  Hob3l, in contrast, it is still
+`linear_extrude`.
+
 
 ```
 difference() {
@@ -748,7 +765,7 @@ by `v`.
 ```
 
 where `[x,y,z]` is the unit vector of `[X,Y,Z]`, `c = cos(a)`, `s =
-sin(a)`, `d = 1 -c`.
+sin(a)`, `d = 1-c`.
 
 Rotation angles are in degrees.  If for a given angle representable in
 int32, there is an exact solution to `sin` and/or `cos`, then this
