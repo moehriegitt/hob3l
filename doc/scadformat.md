@@ -137,8 +137,14 @@ OpenSCAD may still accept it and assume '1'.
 
     sphere(r, d, $fa, $fs, $fn)
     cube(size, center)
-    cylinder(h, r, r1, r2, d, d1, d2, center, $fa, $fs, $fn)
+    cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
+
+    polygon(points, paths)
+    circle(r, d, $fa, $fs, $fn)
+    square(size, center)
+
+    linear_extrude(height, center, slices, twist, scale, $fa, $fs, $fn)
 
     multmatrix(m)
     translate(v)

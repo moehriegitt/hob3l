@@ -1019,7 +1019,7 @@ static void xform_2d(
  *
  * Return whether any path needed reversal.
  */
-static bool polygon_cw(
+static bool polygon_clockwise(
     cp_csg2_poly_t *p)
 {
     bool rev = false;
@@ -1085,7 +1085,7 @@ static bool csg3_from_polygon(
     /* in-place xform + color */
     xform_2d(m, o);
 
-    /* copy faces */
+    /* copy paths */
     cp_v_init0(&o->path, s->paths.size);
     for (cp_v_each(i, &s->paths)) {
         cp_scad_path_t *sf = &cp_v_nth(&s->paths, i);
@@ -1098,6 +1098,9 @@ static bool csg3_from_polygon(
             cp_v_nth(&cf->point_idx, j) = idx;
         }
     }
+
+    /* normalise to paths to be clockwise */
+    (void)polygon_clockwise(o);
 
     return true;
 }
@@ -1227,7 +1230,7 @@ static bool csg3_from_circle(
     mn.mat = m;
     xform_2d(&mn, o);
 
-    bool rev __unused = polygon_cw(o);
+    bool rev __unused = polygon_clockwise(o);
     assert(!rev);
 
     return true;
@@ -1295,7 +1298,7 @@ static bool csg3_from_square(
     cp_v_push(&path->point_idx, 3);
     cp_v_push(&path->point_idx, 1);
 
-    bool rev __unused = polygon_cw(o);
+    bool rev __unused = polygon_clockwise(o);
     assert(!rev);
 
     return true;

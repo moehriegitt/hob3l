@@ -151,5 +151,7 @@ TEST_STL.scad := \
     scad-test/test31c.scad \
     scad-test/linext1.scad \
     scad-test/linext1b.scad \
+    scad-test/linext1c.scad \
+    scad-test/linext1d.scad \
     scad-test/linext2.scad \
     scad-test/test31d.scad
