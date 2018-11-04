@@ -485,7 +485,7 @@ will be determined if `d` is specified and `r` is not:
 
   * If `d` is specified, `r` will be set to `d`/2.
 
-This specifies a circle centered at [0,0,0] with the radius `r`.
+This specifies a circle centered at [0,0] with the radius `r`.
 
 The circle is approximated by a polygon with `$fn` vertices.  One
 vertex is at y=0 in the positive x axis.
