@@ -480,7 +480,25 @@ main positive object.
 circle([r]{,d,$fa,$fs,$fn});
 ```
 
-Currently, 2D objects are not fully supported.
+  * `r` :: float > 0, default=1
+  * `d` :: float
+  * `$fn` :: integer, default=0
+  * `$fa` :: integer, default=12, ignored
+  * `$fs` :: integer, default=2, ignored
+
+Some parameters are mutually exclusive:
+
+  * `d` and `r` must not both be specified.
+
+`d`, `r` define diameter or radius of the sphere.  The radius `r`
+will be determined if `d` is specified and `r` is not:
+
+  * If `d` is specified, `r` will be set to `d`/2.
+
+This specifies a circle centered at [0,0,0] with the radius `r`.
+
+The circle is approximated by a polygon with `$fn` vertices.  One
+vertex is at y=0 in the positive x axis.
 
 ### color
 
