@@ -402,20 +402,20 @@ is assumed that these only occur at toplevel, never as a child.
         `polyhedron`, `sphere`, `cube`, `cylinder`,
         `import`, `surface`
 
+  * *OpenSCAD*:
+
+    IGNORE(`projection(...) Cs`) =
+    IGNORE(`Cs`) || (`the resulting polygon is empty`)
+
+  * *Hob3l*:
+
+    IGNORE(`projection(...) Cs`) = IGNORE(`Cs`)
+
   * IGNORE2D(`F(...);`) = true
     where F in
         `polyhedron`, `sphere`, `cube`, `cylinder`,
         `import`, `surface`,
         `render`, `hull`, `minkowski`, `resize`
-
-  * *OpenSCAD*:
-
-    IGNORE2D(`projection(...) Cs`) =
-    IGNORE(`Cs`) || (`the resulting polygon is empty`)
-
-  * *Hob3l*:
-
-    IGNORE2D(`projection(...) Cs`) = IGNORE(`Cs`)
 
   * IGNORE2D(X) = IGNORE(X) otherwise
 
@@ -652,6 +652,10 @@ substructures.
 ```
 
 where `[x,y,z]` is the unit vector of `[X,Y,Z]`.
+
+_OpenSCAD compatibility_: `mirror([0,0,0])`:
+  * OpenSCAD treats this like `X` (without warning),
+  * Hob3l rejects this with an error, since `[0,0,0]` is not a normal.
 
 ### multmatrix
 
