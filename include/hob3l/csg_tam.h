@@ -12,7 +12,7 @@
 #define cp_csg_typeof(type) \
     _Generic(type, \
         cp_obj_t:     CP_ABSTRACT, \
-        cp_csg_t:     CP_ABSTRACT, \
+        cp_csg_t:     CP_CSG_TYPE, \
         cp_csg_add_t: CP_CSG_ADD, \
         cp_csg_sub_t: CP_CSG_SUB, \
         cp_csg_cut_t: CP_CSG_CUT)

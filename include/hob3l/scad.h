@@ -20,20 +20,13 @@
 #include <hob3l/scad_tam.h>
 #include <hob3l/syn_tam.h>
 #include <hob3l/scad-2scad.h>
+#include <hob3l/obj.h>
 
-/** Specialising cast w/ dynamic check */
-#define cp_scad_cast(_t,s) \
-    ({ \
-        assert((s)->type == cp_scad_typeof((s)->_t)); \
-        &(s)->_t; \
-    })
+/** Cast w/ dynamic check */
+#define cp_scad_cast(t, s) _cp_cast(cp_scad_typeof, t, s)
 
-/**  Generalising cast w/ static check */
-#define cp_scad(t) \
-    ({ \
-        cp_static_assert(cp_scad_typeof(*(t)) != 0); \
-        (cp_scad_t*)(t); \
-    })
+/** Cast w/ dynamic check */
+#define cp_scad_try_cast(t, s) _cp_try_cast(cp_scad_typeof, t, s)
 
 /**
  * Same as cp_scad_from_syn_stmt_item, applied to each element

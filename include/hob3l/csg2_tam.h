@@ -21,7 +21,7 @@
 #define cp_csg2_typeof(type) \
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
-        cp_csg2_t:        CP_ABSTRACT, \
+        cp_csg2_t:        CP_CSG_TYPE, \
         cp_csg2_poly_t:   CP_CSG2_POLY, \
         cp_csg2_stack_t:  CP_CSG2_STACK)
 

@@ -236,71 +236,71 @@ static void scad_put_scad(
     cp_gc_modifier_put_scad(s, r->modifier);
     switch (r->type) {
     case CP_SCAD_UNION:
-        combine_put_scad(s, d, &cp_scad_cast(_union, r)->child, "union");
+        combine_put_scad(s, d, &cp_scad_cast(cp_scad_union_t, r)->child, "union");
         return;
 
     case CP_SCAD_DIFFERENCE:
-        combine_put_scad(s, d, &cp_scad_cast(_difference, r)->child, "difference");
+        combine_put_scad(s, d, &cp_scad_cast(cp_scad_difference_t, r)->child, "difference");
         return;
 
     case CP_SCAD_INTERSECTION:
-        combine_put_scad(s, d, &cp_scad_cast(_intersection, r)->child, "intersection");
+        combine_put_scad(s, d, &cp_scad_cast(cp_scad_intersection_t, r)->child, "intersection");
         return;
 
     case CP_SCAD_TRANSLATE:
-        translate_put_scad(s, d, cp_scad_cast(_translate, r));
+        translate_put_scad(s, d, cp_scad_cast(cp_scad_translate_t, r));
         return;
 
     case CP_SCAD_MIRROR:
-        mirror_put_scad(s, d, cp_scad_cast(_mirror, r));
+        mirror_put_scad(s, d, cp_scad_cast(cp_scad_mirror_t, r));
         return;
 
     case CP_SCAD_SCALE:
-        scale_put_scad(s, d, cp_scad_cast(_scale, r));
+        scale_put_scad(s, d, cp_scad_cast(cp_scad_scale_t, r));
         return;
 
     case CP_SCAD_ROTATE:
-        rotate_put_scad(s, d, cp_scad_cast(_rotate, r));
+        rotate_put_scad(s, d, cp_scad_cast(cp_scad_rotate_t, r));
         return;
 
     case CP_SCAD_MULTMATRIX:
-        multmatrix_put_scad(s, d, cp_scad_cast(_multmatrix, r));
+        multmatrix_put_scad(s, d, cp_scad_cast(cp_scad_multmatrix_t, r));
         return;
 
     case CP_SCAD_SPHERE:
-        sphere_put_scad(s, cp_scad_cast(_sphere, r));
+        sphere_put_scad(s, cp_scad_cast(cp_scad_sphere_t, r));
         return;
 
     case CP_SCAD_CUBE:
-        cube_put_scad(s, cp_scad_cast(_cube, r));
+        cube_put_scad(s, cp_scad_cast(cp_scad_cube_t, r));
         return;
 
     case CP_SCAD_CYLINDER:
-        cylinder_put_scad(s, cp_scad_cast(_cylinder, r));
+        cylinder_put_scad(s, cp_scad_cast(cp_scad_cylinder_t, r));
         return;
 
     case CP_SCAD_POLYHEDRON:
-        polyhedron_put_scad(s, d, cp_scad_cast(_polyhedron, r));
+        polyhedron_put_scad(s, d, cp_scad_cast(cp_scad_polyhedron_t, r));
         return;
 
     case CP_SCAD_CIRCLE:
-        circle_put_scad(s, cp_scad_cast(_circle, r));
+        circle_put_scad(s, cp_scad_cast(cp_scad_circle_t, r));
         return;
 
     case CP_SCAD_SQUARE:
-        square_put_scad(s, cp_scad_cast(_square, r));
+        square_put_scad(s, cp_scad_cast(cp_scad_square_t, r));
         return;
 
     case CP_SCAD_POLYGON:
-        polygon_put_scad(s, d, cp_scad_cast(_polygon, r));
+        polygon_put_scad(s, d, cp_scad_cast(cp_scad_polygon_t, r));
         return;
 
     case CP_SCAD_LINEXT:
-        linext_put_scad(s, d, cp_scad_cast(_linext, r));
+        linext_put_scad(s, d, cp_scad_cast(cp_scad_linext_t, r));
         return;
 
     case CP_SCAD_COLOR:
-        color_put_scad(s, d, cp_scad_cast(_color, r));
+        color_put_scad(s, d, cp_scad_cast(cp_scad_color_t, r));
         return;
     }
     CP_NYI("type=0x%x", r->type);

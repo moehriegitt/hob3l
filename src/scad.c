@@ -61,6 +61,7 @@ static bool __func_new(
         [CP_SCAD_SQUARE]       = sizeof(cp_scad_square_t),
         [CP_SCAD_POLYGON]      = sizeof(cp_scad_polygon_t),
         [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
+        [CP_SCAD_LINEXT]       = sizeof(cp_scad_linext_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -86,7 +87,7 @@ static bool union_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_union_t *r = cp_scad_cast(_union, _r);
+    cp_scad_union_t *r = cp_scad_cast(*r, _r);
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
@@ -95,7 +96,7 @@ static bool intersection_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_intersection_t *r = cp_scad_cast(_intersection, _r);
+    cp_scad_intersection_t *r = cp_scad_cast(*r, _r);
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
@@ -104,7 +105,7 @@ static bool difference_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_difference_t *r = cp_scad_cast(_difference, _r);
+    cp_scad_difference_t *r = cp_scad_cast(*r, _r);
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
@@ -728,7 +729,7 @@ static bool multmatrix_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_multmatrix_t *r = cp_scad_cast(_multmatrix, _r);
+    cp_scad_multmatrix_t *r = cp_scad_cast(*r, _r);
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
@@ -747,7 +748,7 @@ static bool cube_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_cube_t *r = cp_scad_cast(_cube, _r);
+    cp_scad_cube_t *r = cp_scad_cast(*r, _r);
 
     r->size.x = r->size.y = r->size.z = 1;
     r->center = false;
@@ -765,7 +766,7 @@ static bool square_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_square_t *r = cp_scad_cast(_square, _r);
+    cp_scad_square_t *r = cp_scad_cast(*r, _r);
 
     r->size.x = r->size.y = 1;
     r->center = false;
@@ -783,7 +784,7 @@ static bool sphere_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_sphere_t *r = cp_scad_cast(_sphere, _r);
+    cp_scad_sphere_t *r = cp_scad_cast(*r, _r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -824,7 +825,7 @@ static bool circle_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_circle_t *r = cp_scad_cast(_circle, _r);
+    cp_scad_circle_t *r = cp_scad_cast(*r, _r);
 
     r->_fn = 0;
     r->_fa = 12;
@@ -865,7 +866,7 @@ static bool polyhedron_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polyhedron_t *r = cp_scad_cast(_polyhedron, _r);
+    cp_scad_polyhedron_t *r = cp_scad_cast(*r, _r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_triangles = NULL;
@@ -966,7 +967,7 @@ static bool polygon_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_polygon_t *r = cp_scad_cast(_polygon, _r);
+    cp_scad_polygon_t *r = cp_scad_cast(*r, _r);
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_paths = NULL;
@@ -1059,7 +1060,7 @@ static bool mirror_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_mirror_t *r = &_r->_mirror;
+    cp_scad_mirror_t *r = cp_scad_cast(*r, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3("v", &r->v, NULL),
@@ -1076,7 +1077,7 @@ static bool translate_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_translate_t *r = &_r->_translate;
+    cp_scad_translate_t *r = cp_scad_cast(*r, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3("v", &r->v, NULL),
@@ -1093,7 +1094,7 @@ static bool color_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_color_t *r = cp_scad_cast(_color, _r);
+    cp_scad_color_t *r = cp_scad_cast(*r, _r);
     r->rgba.a = 255;
 
     cp_syn_value_t const *_c = NULL;
@@ -1169,7 +1170,7 @@ static bool scale_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_scale_t *r = cp_scad_cast(_scale, _r);
+    cp_scad_scale_t *r = cp_scad_cast(*r, _r);
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_VEC3_OR_FLOAT("v", &r->v, NULL),
@@ -1186,7 +1187,7 @@ static bool rotate_from_item(
     cp_syn_stmt_item_t *f,
     cp_scad_t *_r)
 {
-    cp_scad_rotate_t *r = cp_scad_cast(_rotate, _r);
+    cp_scad_rotate_t *r = cp_scad_cast(*r, _r);
 
     r->a = 0;
     CP_ZERO(&r->n);
@@ -1228,12 +1229,24 @@ static bool rotate_from_item(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
+static bool linext_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_linext_t *r = cp_scad_cast(*r, _r);
+    (void)r;
+    (void)t;
+    (void)f;
+    return true;
+}
+
 static bool cylinder_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
     cp_scad_t *_q)
 {
-    cp_scad_cylinder_t *q = cp_scad_cast(_cylinder, _q);
+    cp_scad_cylinder_t *q = cp_scad_cast(*q, _q);
 
     q->_fn = 0;
     q->_fa = 12;
@@ -1380,8 +1393,8 @@ static bool v_scad_from_syn_stmt_item(
         },
         {
            .id = "linear_extrude",
-           .type = 0,
-           .from = NULL,
+           .type = CP_SCAD_LINEXT,
+           .from = linext_from_item,
         },
         {
            .id = "mirror",

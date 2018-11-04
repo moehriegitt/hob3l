@@ -17,7 +17,7 @@
 #define cp_csg3_typeof(type) \
     _Generic(type, \
         cp_obj_t:         CP_ABSTRACT, \
-        cp_csg3_t:        CP_ABSTRACT, \
+        cp_csg3_t:        CP_CSG_TYPE, \
         cp_csg3_sphere_t: CP_CSG3_SPHERE, \
         cp_csg3_poly_t:   CP_CSG3_POLY)
 

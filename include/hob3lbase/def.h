@@ -236,12 +236,17 @@ typedef enum {
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */
 #define CP_TYPE_MASK      0xff00
-#define CP_SYN_VALUE_TYPE 0x1000
-#define CP_SYN_STMT_TYPE  0x1100
-#define CP_SCAD_TYPE      0x2000
-#define CP_CSG_TYPE       0x3100
-#define CP_CSG2_TYPE      0x3200
-#define CP_CSG3_TYPE      0x3300
+#define CP_TYPE2_MASK     0xf000
+
+#define CP_SYN_VALUE_TYPE 0x1100
+
+#define CP_SYN_STMT_TYPE  0x2100
+
+#define CP_SCAD_TYPE      0x3100
+
+#define CP_CSG_TYPE       0x4000
+#define CP_CSG2_TYPE      0x4100
+#define CP_CSG3_TYPE      0x4200
 
 /** Type ID that is never given to any object */
 #define CP_ABSTRACT       0xffff

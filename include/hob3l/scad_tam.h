@@ -7,6 +7,7 @@
 #include <hob3lbase/def.h>
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/err_tam.h>
+#include <hob3l/obj_tam.h>
 #include <hob3l/scad_fwd.h>
 #include <hob3l/gc_tam.h>
 
@@ -14,6 +15,8 @@
  * Map type to type ID */
 #define cp_scad_typeof(type) \
     _Generic(type, \
+        cp_obj_t:               CP_ABSTRACT, \
+        cp_scad_t:              CP_SCAD_TYPE, \
         cp_scad_union_t:        CP_SCAD_UNION, \
         cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
         cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
@@ -60,8 +63,7 @@ typedef enum {
 } cp_scad_type_t;
 
 #define _CP_SCAD \
-    unsigned type; \
-    char const *loc; \
+    struct { _CP_OBJ }; \
     unsigned modifier;
 
 typedef struct {
@@ -220,35 +222,7 @@ typedef struct {
     bool center;
 } cp_scad_linext_t;
 
-union cp_scad {
-    struct {
-        _CP_SCAD;
-    };
-
-    cp_scad_sphere_t _sphere;
-    cp_scad_cylinder_t _cylinder;
-    cp_scad_cube_t _cube;
-    cp_scad_polyhedron_t _polyhedron;
-
-    cp_scad_union_t _union;
-    cp_scad_difference_t _difference;
-    cp_scad_intersection_t _intersection;
-
-    cp_scad_translate_t _translate;
-    cp_scad_mirror_t _mirror;
-    cp_scad_scale_t _scale;
-
-    cp_scad_rotate_t _rotate;
-    cp_scad_multmatrix_t _multmatrix;
-
-    cp_scad_circle_t _circle;
-    cp_scad_square_t _square;
-    cp_scad_polygon_t _polygon;
-
-    cp_scad_linext_t _linext;
-
-    cp_scad_color_t _color;
-};
+struct cp_scad { _CP_SCAD };
 
 typedef struct {
     /**

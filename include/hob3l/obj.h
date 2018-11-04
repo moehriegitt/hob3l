@@ -31,7 +31,7 @@
         __typeof__(x) __x = (x); \
         assert(__x != NULL); \
         unsigned __t __unused = get_typeof(*((__typeof__(t)*)0)); \
-        assert((__t == CP_ABSTRACT) || (__x->type == __t)); \
+        assert(_cp_is_compatible(__t, __x->type)); \
         void *__n __unused = NULL; \
         (__typeof__(_Generic(0 ? __x : __n, \
             void*:        (__typeof__(t)*)0, \
@@ -87,5 +87,15 @@
         assert((t)->type != 0); \
         (cp_obj_t*)(t); \
     })
+
+static inline bool _cp_is_compatible(
+    unsigned pattern,
+    unsigned type)
+{
+    return (pattern == CP_ABSTRACT) ||
+           (pattern == type) ||
+           (pattern == (type & CP_TYPE_MASK)) ||
+           (pattern == (type & CP_TYPE2_MASK));
+}
 
 #endif /* __CP_OBJ_H */

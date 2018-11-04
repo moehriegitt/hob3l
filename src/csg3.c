@@ -1338,6 +1338,7 @@ static bool csg3_from_linext(
     mat_ctxt_t const *mo,
     cp_scad_linext_t const *s)
 {
+    return true; /* FIXME: continue */
     if (c->context != IN3D) {
         return msg(c, c->opt->err_outside_3d, s->loc, NULL,
             "'linear_extrude' found outside 3D context.");
@@ -1422,52 +1423,52 @@ static bool csg3_from_scad(
     switch (s->type) {
     /* operators */
     case CP_SCAD_UNION:
-        return csg3_from_union(no, r, c, m, cp_scad_cast(_union, s));
+        return csg3_from_union(no, r, c, m, cp_scad_cast(cp_scad_union_t, s));
 
     case CP_SCAD_DIFFERENCE:
-        return csg3_from_difference(no, r, c, m, cp_scad_cast(_difference, s));
+        return csg3_from_difference(no, r, c, m, cp_scad_cast(cp_scad_difference_t, s));
 
     case CP_SCAD_INTERSECTION:
-        return csg3_from_intersection(no, r, c, m, cp_scad_cast(_intersection, s));
+        return csg3_from_intersection(no, r, c, m, cp_scad_cast(cp_scad_intersection_t, s));
 
     /* transformations */
     case CP_SCAD_TRANSLATE:
-        return csg3_from_translate(no, r, c, m, cp_scad_cast(_translate, s));
+        return csg3_from_translate(no, r, c, m, cp_scad_cast(cp_scad_translate_t, s));
 
     case CP_SCAD_MIRROR:
-        return csg3_from_mirror(no, r, c, m, cp_scad_cast(_mirror, s));
+        return csg3_from_mirror(no, r, c, m, cp_scad_cast(cp_scad_mirror_t, s));
 
     case CP_SCAD_SCALE:
-        return csg3_from_scale(no, r, c, m, cp_scad_cast(_scale, s));
+        return csg3_from_scale(no, r, c, m, cp_scad_cast(cp_scad_scale_t, s));
 
     case CP_SCAD_ROTATE:
-        return csg3_from_rotate(no, r, c, m, cp_scad_cast(_rotate, s));
+        return csg3_from_rotate(no, r, c, m, cp_scad_cast(cp_scad_rotate_t, s));
 
     case CP_SCAD_MULTMATRIX:
-        return csg3_from_multmatrix(no, r, c, m, cp_scad_cast(_multmatrix, s));
+        return csg3_from_multmatrix(no, r, c, m, cp_scad_cast(cp_scad_multmatrix_t, s));
 
     /* graphics context manipulations */
     case CP_SCAD_COLOR:
-        return csg3_from_color(no, r, c, m, cp_scad_cast(_color, s));
+        return csg3_from_color(no, r, c, m, cp_scad_cast(cp_scad_color_t, s));
 
     /* 2D->3D extruding */
     case CP_SCAD_LINEXT:
-        return csg3_from_linext(no, r, c, m, cp_scad_cast(_linext, s));
+        return csg3_from_linext(no, r, c, m, cp_scad_cast(cp_scad_linext_t, s));
 
     /* 3D objects */
     case CP_SCAD_SPHERE:
-        return csg3_from_sphere(no, r, c, m, cp_scad_cast(_sphere, s));
+        return csg3_from_sphere(no, r, c, m, cp_scad_cast(cp_scad_sphere_t, s));
 
     case CP_SCAD_CUBE:
-        return csg3_from_cube(no, r, c, m, cp_scad_cast(_cube, s));
+        return csg3_from_cube(no, r, c, m, cp_scad_cast(cp_scad_cube_t, s));
 
     case CP_SCAD_CYLINDER:
         object(no);
-        return csg3_from_cylinder(no, r, c, m, cp_scad_cast(_cylinder, s));
+        return csg3_from_cylinder(no, r, c, m, cp_scad_cast(cp_scad_cylinder_t, s));
 
     case CP_SCAD_POLYHEDRON:
         object(no);
-        return csg3_from_polyhedron(no, r, c, m, cp_scad_cast(_polyhedron, s));
+        return csg3_from_polyhedron(no, r, c, m, cp_scad_cast(cp_scad_polyhedron_t, s));
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
@@ -1476,14 +1477,14 @@ static bool csg3_from_scad(
         return true;
 #if 0
         /* FIXME: continue */
-        return csg3_from_circle(r, c, m, cp_scad_cast(_circle, s));
+        return csg3_from_circle(r, c, m, cp_scad_cast(cp_scad_circle_t, s));
 #endif
 
     case CP_SCAD_SQUARE:
-        return csg3_from_square(no, r, c, m, cp_scad_cast(_square, s));
+        return csg3_from_square(no, r, c, m, cp_scad_cast(cp_scad_square_t, s));
 
     case CP_SCAD_POLYGON:
-        return csg3_from_polygon(no, r, c, m, cp_scad_cast(_polygon, s));
+        return csg3_from_polygon(no, r, c, m, cp_scad_cast(cp_scad_polygon_t, s));
     }
 
     CP_DIE("SCAD object type");
