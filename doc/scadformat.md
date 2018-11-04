@@ -155,19 +155,9 @@ OpenSCAD may still accept it and assume '1'.
     color(c, alpha)
 ```
 
-The 2D objects are parsed, but poorly supported (since `linear_extrude` is not
-supported yet, there is little point to have 2D objects):
-
-```
-    circle(r, d, $fa, $fs, $fn);
-    square(size, center);
-    polygon(points, paths);
-```
-
 Some additional items are parsed, but currently ignored:
 
 ```
-    linear_extrude(...)
     text(...)
 ```
 
