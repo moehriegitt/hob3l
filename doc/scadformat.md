@@ -424,9 +424,9 @@ is assumed that these only occur at toplevel, never as a child.
 This is a difference in behavior between Hob3l and OpenSCAD.
 OpenSCAD, ignores `projection` when the result of the projection
 becomes empty.  Because I think it should be decidable from the input
-file without evaluating it, whether it computes 'A-B-C' or rather
-'B-C', Hob3l behaves differently.  Hob3l never ignores `projection`
-even if it is empty, but handles it like a 2D object.
+file without evaluating it whether it computes 'A-B-C' or 'B-C', Hob3l
+behaves differently.  Hob3l does not ignore `projection` when the
+projection polygon becomes empty, but handles it like a 2D object.
 
 This section is an example of OpenSCAD behaviour.
 
