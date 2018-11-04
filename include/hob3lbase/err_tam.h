@@ -6,6 +6,14 @@
 
 #include <hob3lbase/vchar.h>
 
+/**
+ * Option: on error, fail */
+#define CP_ERR_FAIL 0
+
+/**
+ * Option: ignore the error */
+#define CP_ERR_IGNORE  2
+
 typedef char const *cp_loc_t;
 
 /**

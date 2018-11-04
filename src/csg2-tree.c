@@ -155,7 +155,8 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg_opt_t const *o)
 {
-    cp_csg_add_t *root = cp_csg_new(*root, d->root->loc);
+    assert(d != NULL);
+    cp_csg_add_t *root = cp_csg_new(*root, d->root ? d->root->loc : NULL);
     r->root = cp_csg2_cast(*r->root, root);
     r->thick = s->step;
     r->opt = o;

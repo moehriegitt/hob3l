@@ -362,6 +362,30 @@ static void get_arg_bool(
     my_exit(1);
 }
 
+static void get_arg_err(
+    unsigned *v,
+    char const *arg,
+    char const *str)
+{
+    if ((str == NULL) ||
+        strequ(str, "fail") ||
+        strequ(str, "error") ||
+        strequ(str, "err"))
+    {
+        *v = CP_ERR_FAIL;
+        return;
+    }
+    if (strequ(str, "ign") ||
+        strequ(str, "ignore"))
+    {
+        *v = CP_ERR_IGNORE;
+        return;
+    }
+    fprintf(stderr, "Error: %s: invalid problem handling: '%s', expected 'error' or 'ignore'\n",
+        arg, str);
+    my_exit(1);
+}
+
 static void get_arg_neg_bool(
     bool *v,
     char const *arg,

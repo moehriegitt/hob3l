@@ -19,6 +19,10 @@
 #define FD3  FD" "FD" "FD
 #define FD4  FD" "FD" "FD" "FD
 
+#define FF2  FF" "FF
+#define FF3  FF" "FF" "FF
+#define FF4  FF" "FF" "FF" "FF
+
 typedef struct {
     char const *func;
     char const *file;

@@ -130,6 +130,26 @@ typedef struct {
      * For larger values, use round shapes, if available.
      */
     size_t max_fn;
+
+    /**
+     * Treatment of empty objects
+     */
+    unsigned err_empty;
+
+    /**
+     * Treatment of collapsed objects
+     */
+    unsigned err_collapse;
+
+    /**
+     * Treatment of 3D object in outside 3D context. (CP_ERR_*)
+     */
+    unsigned err_outside_3d;
+
+    /**
+     * Treatment of 2D object outside 2D context. (CP_ERR_*)
+     */
+    unsigned err_outside_2d;
 } cp_csg_opt_t;
 
 

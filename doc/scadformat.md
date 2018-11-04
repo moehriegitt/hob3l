@@ -419,6 +419,10 @@ is assumed that these only occur at toplevel, never as a child.
 
   * IGNORE2D(X) = IGNORE(X) otherwise
 
+Note the inconsistency: 2D objects in 3D context are not ignored (in
+OpenSCAD, they are extruded to 1mm in F5 view and treated as empty in
+F6 view), but 3D objects in 2D context are ignored.
+
 ### Ignored Projection
 
 This is a difference in behavior between Hob3l and OpenSCAD.
@@ -653,9 +657,10 @@ substructures.
 
 where `[x,y,z]` is the unit vector of `[X,Y,Z]`.
 
-_OpenSCAD compatibility_: `mirror([0,0,0]) X`:
-  * OpenSCAD treats this like `X` (without warning),
-  * Hob3l rejects this with an error (`[0,0,0]` cannot be normalised).
+_OpenSCAD compatibility_:
+  * `mirror([0,0,0]) X`:
+      * OpenSCAD treats this like `X` (without warning),
+      * Hob3l rejects this with an error (`[0,0,0]` cannot be normalised).
 
 ### multmatrix
 
@@ -686,6 +691,14 @@ coordinate matrix to be multipled by:
 | i  j  k  l |
 | 0  0  0  1 |
 ```
+
+_OpenSCAD compatibility_:
+  * `multmatrix(m) X`: where `m` is not a two dimensional array:
+      * OpenSCAD treats this like `X` (without warning),
+      * Hob3l rejects this with an error.
+  * `multmatrix(m) X`: where `m` is not invertible:
+      * OpenSCAD applies the matrix and collapses `X` into 2D,
+      * Hob3l rejects this with an error (determinant is 0)
 
 ### polygon
 

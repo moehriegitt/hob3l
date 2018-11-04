@@ -23,6 +23,19 @@ static char const *opt_help =
     "        -1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output\n"
     "        (default: -1)\n"
     "        If this is greater or equal to the step size, the output will degenerate.\n"
+    "Compatibility Options\n"
+    "    --empty=ARG\n"
+    "        'error', 'ignore': Treatment of empty objects (default: 'error')\n"
+    "        when they are empty by a parameter to an object primitive, e.g. 'cube(0)'\n"
+    "    --collapse=ARG\n"
+    "        'error', 'ignore': Treatment of empty objects (default: 'error')\n"
+    "        when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'\n"
+    "    --outside-3d=ARG\n"
+    "        'error', 'ignore': Treatment of 3D objects outside 3D context (default: 'error')\n"
+    "    --outside-2d=ARG\n"
+    "        'error', 'ignore': Treatment of 2D objects outside 2D context (default: 'error')\n"
+    "        Note that Hob3l does not implement 2D objects in 3D context, so there is no\n"
+    "        option to treat them normally or extrude them to 1mm.\n"
     "Slicing Options\n"
     "    --min=ARG\n"
     "        min slice z coord [mm] (by default, use bounding box of model,\n"
@@ -179,6 +192,14 @@ static void get_opt_help(
     char const *arg __unused)
 {
     help();
+}
+
+static void get_opt_collapse(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->csg.err_collapse, name, arg);
 }
 
 static void get_opt_csg(
@@ -375,6 +396,14 @@ static void get_opt_dump_syn(
     opt->have_dump = true;
 }
 
+static void get_opt_empty(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->csg.err_empty, name, arg);
+}
+
 static void get_opt_eps(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -523,6 +552,22 @@ static void get_opt_opt_skip_empty(
 {
     bool a;
     get_arg_bool(&a, name, arg);
+}
+
+static void get_opt_outside_2d(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->csg.err_outside_2d, name, arg);
+}
+
+static void get_opt_outside_3d(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->csg.err_outside_3d, name, arg);
 }
 
 static void get_opt_ps_color_fill(
@@ -769,6 +814,11 @@ cp_get_opt_t opt_list[] = {
         0,
     },
     {
+        "collapse",
+        get_opt_collapse,
+        2,
+    },
+    {
         "csg",
         get_opt_csg,
         1,
@@ -864,6 +914,11 @@ cp_get_opt_t opt_list[] = {
         1,
     },
     {
+        "empty",
+        get_opt_empty,
+        2,
+    },
+    {
         "eps",
         get_opt_eps,
         2,
@@ -957,6 +1012,16 @@ cp_get_opt_t opt_list[] = {
         "opt-skip-empty",
         get_opt_opt_skip_empty,
         1,
+    },
+    {
+        "outside-2d",
+        get_opt_outside_2d,
+        2,
+    },
+    {
+        "outside-3d",
+        get_opt_outside_3d,
+        2,
     },
     {
         "ps-color-fill",
