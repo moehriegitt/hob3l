@@ -25,7 +25,7 @@
       * [difference](#difference)
       * [group](#group)
       * [intersection](#intersection)
-      * [linear_extrude](#linear-extrude)
+      * [linear_extrude](#linear_extrude)
       * [mirror](#mirror)
       * [multmatrix](#multmatrix)
       * [polygon](#polygon)

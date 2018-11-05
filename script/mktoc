@@ -15,7 +15,7 @@ sub anchor($)
 {
     my ($k) = @_;
     $k =~ s(/)()g;
-    $k =~ s/[^0-9a-z]+/-/gi;
+    $k =~ s/[^0-9a-z_]+/-/gi;
     $k =~ s/^-//;
     $k =~ s/-$//;
     return lc($k);
