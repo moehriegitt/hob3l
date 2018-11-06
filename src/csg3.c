@@ -1323,7 +1323,7 @@ static bool csg3_poly_cylinder(
         cp_v_init0(&o->point, fn + 1);
         for (cp_size_each(i, fn)) {
             cp_angle_t a = cp_angle(i) * aa;
-            set_vec3_loc(&cp_v_nth(&o->point, i), cp_sin_deg(a), cp_cos_deg(a), -.5, s->loc);
+            set_vec3_loc(&cp_v_nth(&o->point, i), cp_cos_deg(a), cp_sin_deg(a), -.5, s->loc);
         }
         set_vec3_loc(&cp_v_nth(&o->point, fn), 0, 0, +.5, s->loc);
     }

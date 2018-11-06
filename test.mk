@@ -134,6 +134,7 @@ TEST_TRIANGLE.scad := \
     scad-test/test29a.scad \
     scad-test/test29b.scad \
     scad-test/test30a.scad \
+    scad-test/test30a2.scad \
     scad-test/test30b.scad \
     scad-test/test30c.scad \
     scad-test/test30e.scad \
@@ -161,8 +162,12 @@ TEST_STL.scad := \
     scad-test/test25a.scad \
     scad-test/test13.scad \
     scad-test/test14.scad \
-    scad-test/test31d.scad
+    scad-test/test31d.scad \
+    scad-test/test30a.scad
 
+# Note: test30a.scad does not fail, but the blue dash points outward, which
+# indicates wrong vertex orientation.
 FAIL_STL.scad := \
+    scad-test/chain1.scad \
     scad-test/linext5.scad \
     scad-test/test13b.scad
