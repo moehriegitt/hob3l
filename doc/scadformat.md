@@ -869,7 +869,7 @@ The polyhedron must be 2-manifold, i.e.:
     walls.
   * Each edge must have exactly two adjacent faces.
 
-BUG: At the moment, this only works correctly of all face polygons are convex.
+BUG: At the moment, this only works correctly if all face polygons are convex.
 
 ### rotate
 
