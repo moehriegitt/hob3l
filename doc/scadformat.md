@@ -701,6 +701,10 @@ is not usually helpful in 3D space).  This means that the
 `--dump-csg3` output cannot be read back as input file.  The XOR node
 is represented by a `hob3l_xor` functor.
 
+BUG: Currently, this has the same restriction as the `polyhedron`: it
+cannot correctly handle non-convex polygons.  (Actually, it works
+surprisingly well most of the time, but it is really still broken.)
+
 _OpenSCAD compatibility_:
 
   * `slices`:
@@ -864,6 +868,8 @@ The polyhedron must be 2-manifold, i.e.:
     polyhedron must not touch itself in a face, nor must there be zero-thickness
     walls.
   * Each edge must have exactly two adjacent faces.
+
+BUG: At the moment, this only works correctly of all face polygons are convex.
 
 ### rotate
 
