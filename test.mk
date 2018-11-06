@@ -165,8 +165,6 @@ TEST_STL.scad := \
     scad-test/test31d.scad \
     scad-test/test30a.scad
 
-# Note: test30a.scad does not fail, but the blue dash points outward, which
-# indicates wrong vertex orientation.
 FAIL_STL.scad := \
     scad-test/chain1.scad \
     scad-test/linext5.scad \
