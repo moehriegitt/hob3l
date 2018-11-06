@@ -160,6 +160,9 @@ TEST_STL.scad := \
     scad-test/paper1.scad \
     scad-test/test25a.scad \
     scad-test/test13.scad \
-    scad-test/test13b.scad \
     scad-test/test14.scad \
     scad-test/test31d.scad
+
+FAIL_STL.scad := \
+    scad-test/linext5.scad \
+    scad-test/test13b.scad

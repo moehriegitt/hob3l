@@ -1,4 +1,4 @@
-rotate([0,20,+25]) linear_extrude(height=6,center=true){
+rotate([0,-90,0]) linear_extrude(height=6,center=true){
     translate([-30, +25])
     polygon(
         points=[

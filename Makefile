@@ -170,6 +170,12 @@ TEST_STL.stl := \
 TEST_STL.jsgz := \
     $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js.gz)))
 
+FAIL_STL.stl := \
+    $(addprefix test-out/,$(notdir $(FAIL_STL.scad:.scad=.stl)))
+
+FAIL_STL.jsgz := \
+    $(addprefix test-out/,$(notdir $(FAIL_STL.scad:.scad=.js.gz)))
+
 ######################################################################
 # header files
 
@@ -372,6 +378,9 @@ test: unit-test no-unit-test
 .PHONY: no-unit-test
 no-unit-test: test-triangle test-triangle-prepare test-stl test-js
 
+.PHONY: fail
+fail: fail-stl fail-js
+
 .PHONY: unit-test
 unit-test: cptest.exe
 	./cptest.exe
@@ -384,6 +393,12 @@ test-stl: $(TEST_STL.stl)
 
 .PHONY: test-js
 test-js: $(TEST_STL.jsgz)
+
+.PHONY: fail-stl
+fail-stl: $(FAIL_STL.stl)
+
+.PHONY: fail-js
+fail-js: $(FAIL_STL.jsgz)
 
 .PHONY: test-jsgz
 test-jsgz: test-js
