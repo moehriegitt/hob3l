@@ -1146,6 +1146,20 @@ static bool csg2_tri_cut(
     return true;
 }
 
+static bool csg2_tri_xor(
+    cp_pool_t *pool,
+    cp_err_t *t,
+    cp_csg_xor_t *r,
+    size_t zi)
+{
+    for (cp_v_each(i, &r->xor)) {
+        if (!csg2_tri_v_csg2(pool, t, &r->xor.data[i]->add, zi)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool csg2_tri_csg2(
     cp_pool_t *pool,
     cp_err_t *t,
@@ -1159,13 +1173,16 @@ static bool csg2_tri_csg2(
     case CP_CSG2_STACK:
         return csg2_tri_stack(pool, t, cp_csg2_cast(cp_csg2_stack_t, r), zi);
 
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         return csg2_tri_add(pool, t, cp_csg_cast(cp_csg_add_t, r), zi);
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        return csg2_tri_xor(pool, t, cp_csg_cast(cp_csg_xor_t, r), zi);
+
+    case CP_CSG_SUB:
         return csg2_tri_sub(pool, t, cp_csg_cast(cp_csg_sub_t, r), zi);
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         return csg2_tri_cut(pool, t, cp_csg_cast(cp_csg_cut_t, r), zi);
     }
 

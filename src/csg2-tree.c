@@ -70,10 +70,22 @@ static cp_csg_cut_t *csg2_tree_from_csg3_cut(
     cp_csg_cut_t const *d)
 {
     cp_csg_cut_t *c = cp_csg_new(*c, d->loc);
-
     cp_v_init0(&c->cut, d->cut.size);
     for (cp_v_each(i, &c->cut)) {
         cp_v_nth(&c->cut, i) = csg2_tree_from_csg3_add(r, s, cp_v_nth(&d->cut, i));
+    }
+    return c;
+}
+
+static cp_csg_xor_t *csg2_tree_from_csg3_xor(
+    cp_csg2_tree_t *r,
+    cp_range_t const *s,
+    cp_csg_xor_t const *d)
+{
+    cp_csg_xor_t *c = cp_csg_new(*c, d->loc);
+    cp_v_init0(&c->xor, d->xor.size);
+    for (cp_v_each(i, &c->xor)) {
+        cp_v_nth(&c->xor, i) = csg2_tree_from_csg3_add(r, s, cp_v_nth(&d->xor, i));
     }
     return c;
 }
@@ -104,15 +116,19 @@ static cp_csg2_t *csg2_tree_from_csg3(
     case CP_CSG2_POLY:
         return csg2_tree_from_csg3_obj(s, d);
 
-    case CP_CSG3_ADD:
+    case CP_CSG_ADD:
         return cp_csg2_cast(cp_csg2_t,
             csg2_tree_from_csg3_add(r, s, cp_csg_cast(cp_csg_add_t, d)));
 
-    case CP_CSG3_SUB:
+    case CP_CSG_XOR:
+        return cp_csg2_cast(cp_csg2_t,
+            csg2_tree_from_csg3_xor(r, s, cp_csg_cast(cp_csg_xor_t, d)));
+
+    case CP_CSG_SUB:
         return cp_csg2_cast(cp_csg2_t,
             csg2_tree_from_csg3_sub(r, s, cp_csg_cast(cp_csg_sub_t, d)));
 
-    case CP_CSG3_CUT:
+    case CP_CSG_CUT:
         return cp_csg2_cast(cp_csg2_t,
             csg2_tree_from_csg3_cut(r, s, cp_csg_cast(cp_csg_cut_t, d)));
     }
@@ -136,7 +152,7 @@ extern void cp_csg_add_init_perhaps(
     cp_loc_t loc)
 {
     if (*r != NULL) {
-        assert((*r)->type == CP_CSG2_ADD);
+        assert((*r)->type == CP_CSG_ADD);
         return;
     }
     *r = cp_csg_new(**r, loc);

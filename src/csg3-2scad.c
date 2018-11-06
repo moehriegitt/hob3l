@@ -83,6 +83,18 @@ static void sub_put_scad(
     cp_printf(s, "%*s}\n", d, "");
 }
 
+static void xor_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_csg_xor_t *r)
+{
+    cp_printf(s, "%*shob3l_xor(){\n", d, "");
+    for (cp_v_each(i, &r->xor)) {
+        union_put_scad(s, d + IND, &r->xor.data[i]->add);
+    }
+    cp_printf(s, "%*s}\n", d, "");
+}
+
 static void cut_put_scad(
     cp_stream_t *s,
     int d,
@@ -160,15 +172,19 @@ static void csg3_put_scad(
     cp_csg3_t *r)
 {
     switch (r->type) {
-    case CP_CSG3_ADD:
+    case CP_CSG_ADD:
         assert(0); /* add is passed via the 'add' vector, never as an object */
         break;
 
-    case CP_CSG3_SUB:
+    case CP_CSG_XOR:
+        xor_put_scad(s, d, cp_csg_cast(cp_csg_xor_t, r));
+        break;
+
+    case CP_CSG_SUB:
         sub_put_scad(s, d, cp_csg_cast(cp_csg_sub_t, r));
         break;
 
-    case CP_CSG3_CUT:
+    case CP_CSG_CUT:
         cut_put_scad(s, d, cp_csg_cast(cp_csg_cut_t, r));
         break;
 

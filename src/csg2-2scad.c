@@ -124,6 +124,20 @@ static void cut_put_scad(
     cp_printf(s, "%*s}\n", d, "");
 }
 
+static void xor_put_scad(
+    cp_stream_t *s,
+    cp_csg2_tree_t *t,
+    int d,
+    size_t zi,
+    cp_csg_xor_t *r)
+{
+    cp_printf(s, "%*shob3l_xor(){\n", d, "");
+    for (cp_v_each(i, &r->xor)) {
+        union_put_scad(s, t, d + IND, zi, &cp_v_nth(&r->xor, i)->add);
+    }
+    cp_printf(s, "%*s}\n", d, "");
+}
+
 static void layer_put_scad(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
@@ -172,15 +186,19 @@ static void csg2_put_scad(
     cp_csg2_t *r)
 {
     switch (r->type) {
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         add_put_scad(s, t, d, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        xor_put_scad(s, t, d, zi, cp_csg_cast(cp_csg_xor_t, r));
+        return;
+
+    case CP_CSG_SUB:
         sub_put_scad(s, t, d, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         cut_put_scad(s, t, d, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 

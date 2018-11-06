@@ -14,6 +14,7 @@
         cp_obj_t:     CP_ABSTRACT, \
         cp_csg_t:     CP_CSG_TYPE, \
         cp_csg_add_t: CP_CSG_ADD, \
+        cp_csg_xor_t: CP_CSG_XOR, \
         cp_csg_sub_t: CP_CSG_SUB, \
         cp_csg_cut_t: CP_CSG_CUT)
 
@@ -32,6 +33,10 @@ typedef enum {
     /**
      * Bool op: cut (boolean '&') */
     CP_CSG_CUT,
+
+    /**
+     * Bool op: xor.  This is used only internally, but not exported. */
+    CP_CSG_XOR,
 } cp_csg_type_t;
 
 typedef struct {
@@ -57,6 +62,13 @@ typedef struct {
     _CP_OBJ
     cp_v_csg_add_p_t cut;
 } cp_csg_cut_t;
+
+typedef struct {
+    /**
+     * type is CP_CSG_XOR */
+    _CP_OBJ
+    cp_v_csg_add_p_t xor;
+} cp_csg_xor_t;
 
 /**
  * cp_csg_t is basically a cp_obj_t indicating CSG handling.

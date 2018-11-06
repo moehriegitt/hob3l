@@ -309,6 +309,20 @@ static void cut_put_js(
     }
 }
 
+static void xor_put_js(
+    ctxt_t *c,
+    cp_stream_t *s,
+    cp_csg2_tree_t *t,
+    size_t zi,
+    cp_csg_xor_t *r)
+{
+    /* This output format cannot do CUT, only UNION, so just print
+     * the first part.  It is wrong, but you asked for it. */
+    if (r->xor.size > 0) {
+        union_put_js(c, s, t, zi, &cp_v_nth(&r->xor, 0)->add);
+    }
+}
+
 static void layer_put_js(
     ctxt_t *c,
     cp_stream_t *s,
@@ -342,15 +356,19 @@ static void csg2_put_js(
     cp_csg2_t *r)
 {
     switch (r->type) {
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         add_put_js(c, s, t, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        xor_put_js(c, s, t, zi, cp_csg_cast(cp_csg_xor_t, r));
+        return;
+
+    case CP_CSG_SUB:
         sub_put_js(c, s, t, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         cut_put_js(c, s, t, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 
@@ -423,6 +441,16 @@ static size_t cut_max_point_cnt(
     return union_max_point_cnt(&cp_v_nth(&r->cut, 0)->add);
 }
 
+static size_t xor_max_point_cnt(
+    cp_csg_xor_t *r)
+{
+    /* first element only */
+    if (r->xor.size == 0) {
+        return 0;
+    }
+    return union_max_point_cnt(&cp_v_nth(&r->xor, 0)->add);
+}
+
 static size_t layer_max_point_cnt(
     cp_csg2_layer_t *r)
 {
@@ -449,13 +477,16 @@ static size_t csg2_max_point_cnt(
     cp_csg2_t *r)
 {
     switch (r->type) {
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         return add_max_point_cnt(cp_csg_cast(cp_csg_add_t, r));
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        return xor_max_point_cnt(cp_csg_cast(cp_csg_xor_t, r));
+
+    case CP_CSG_SUB:
         return sub_max_point_cnt(cp_csg_cast(cp_csg_sub_t, r));
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         return cut_max_point_cnt(cp_csg_cast(cp_csg_cut_t, r));
 
     case CP_CSG2_POLY:

@@ -43,11 +43,6 @@
  * avoid as long as possible.
  */
 typedef enum {
-    /* Have add, sub, cut in this enum for switch() */
-    CP_CSG2_ADD = CP_CSG_ADD,
-    CP_CSG2_SUB = CP_CSG_SUB,
-    CP_CSG2_CUT = CP_CSG_CUT,
-
     /**
      * Polygon */
     CP_CSG2_POLY = CP_CSG2_TYPE + 1,

@@ -186,7 +186,7 @@ static bool csg3_from_difference(
         return true;
     }
 
-    if ((f.size == 1) && (cp_v_nth(&f, 0)->type == CP_CSG3_SUB)) {
+    if ((f.size == 1) && (cp_v_nth(&f, 0)->type == CP_CSG_SUB)) {
         cp_v_push(r, cp_v_nth(&f, 0));
 
         /* all others children are also negative */
@@ -1499,6 +1499,11 @@ static bool csg3_from_linext(
     cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->pool, &rc);
     cp_pool_clear(c->pool);
 
+#if 0 /* DEBUG: */
+    cp_v_push(r, cp_obj(p));
+    return true;
+#endif
+
     /* empty? */
     if ((p == NULL) || (p->path.size == 0)) {
         return true;
@@ -1520,6 +1525,19 @@ static bool csg3_from_linext(
         tri = TRI_LEFT;
     }
 
+
+    cp_v_csg_add_p_t *xo = NULL;
+    if (p->path.size >= 2) {
+        cp_csg_xor_t *xor = cp_csg_new(*xor, s->loc);
+        cp_v_push(r, cp_obj(xor));
+        xo = &xor->xor;
+    }
+
+    /* FIXME:
+     * Some paths are negative and cannot simply be generated as a separate
+     * linext, but must be considered as a single one.
+     * Identify which ones are negative (or use XOR on linear extrusions).
+     */
     for (cp_v_each(i, &p->path)) {
         cp_csg2_path_t const *q = &cp_v_nth(&p->path, i);
 
@@ -1527,7 +1545,14 @@ static bool csg3_from_linext(
         size_t tcnt = (zcnt * pcnt) + is_cone;
 
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-        cp_v_push(r, cp_obj(o));
+        if (xo != NULL) {
+            cp_csg_add_t *o2 = cp_csg_new(*o2, s->loc);
+            cp_v_push(&o2->add, cp_obj(o));
+            cp_v_push(xo, o2);
+        }
+        else {
+            cp_v_push(r, cp_obj(o));
+        }
 
         cp_v_init0(&o->point, tcnt);
         for (cp_size_each(k, zcnt)) {
@@ -1736,6 +1761,16 @@ static void get_bb_add(
     get_bb_v_csg3(bb, &r->add, max);
 }
 
+static void get_bb_xor(
+    cp_vec3_minmax_t *bb,
+    cp_csg_xor_t const *r,
+    bool max)
+{
+    for (cp_v_each(i, &r->xor)) {
+        get_bb_add(bb, cp_v_nth(&r->xor, i), max);
+    }
+}
+
 static void get_bb_sub(
     cp_vec3_minmax_t *bb,
     cp_csg_sub_t const *r,
@@ -1787,6 +1822,19 @@ static void get_bb_poly(
     }
 }
 
+static void get_bb_poly2(
+    cp_vec3_minmax_t *bb,
+    cp_csg2_poly_t const *r)
+{
+    if ((r->point.size == 0) || (r->path.size < 1)) {
+        return;
+    }
+    for (cp_v_each(i, &r->point)) {
+        cp_vec2_min(&bb->min.b, &bb->min.b, &cp_v_nth(&r->point, i).coord);
+        cp_vec2_max(&bb->max.b, &bb->max.b, &cp_v_nth(&r->point, i).coord);
+    }
+}
+
 static void get_bb_sphere(
     cp_vec3_minmax_t *bb,
     cp_csg3_sphere_t const *r)
@@ -1800,15 +1848,19 @@ static void get_bb_csg3(
     bool max)
 {
     switch (r->type) {
-    case CP_CSG3_ADD:
+    case CP_CSG_ADD:
         get_bb_add(bb, cp_csg_cast(cp_csg_add_t, r), max);
         return;
 
-    case CP_CSG3_SUB:
+    case CP_CSG_XOR:
+        get_bb_xor(bb, cp_csg_cast(cp_csg_xor_t, r), max);
+        return;
+
+    case CP_CSG_SUB:
         get_bb_sub(bb, cp_csg_cast(cp_csg_sub_t, r), max);
         return;
 
-    case CP_CSG3_CUT:
+    case CP_CSG_CUT:
         get_bb_cut(bb, cp_csg_cast(cp_csg_cut_t, r), max);
         return;
 
@@ -1822,6 +1874,10 @@ static void get_bb_csg3(
 
     case CP_CSG3_POLY:
         get_bb_poly(bb, cp_csg3_cast(cp_csg3_poly_t, r));
+        return;
+
+    case CP_CSG2_POLY:
+        get_bb_poly2(bb, cp_csg2_cast(cp_csg2_poly_t, r));
         return;
     }
     CP_NYI();

@@ -34,11 +34,6 @@
  * must have children of type 'add'.
  */
 typedef enum {
-    /* Have add, sub, cut in this enum for switch() */
-    CP_CSG3_ADD = CP_CSG_ADD,
-    CP_CSG3_SUB = CP_CSG_SUB,
-    CP_CSG3_CUT = CP_CSG_CUT,
-
     /**
      * Sphere with radius 1, centered a [0,0,0] */
     CP_CSG3_SPHERE = CP_CSG3_TYPE + 1,

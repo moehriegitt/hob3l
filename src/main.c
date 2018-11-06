@@ -202,7 +202,6 @@ static bool do_file(
         cp_debug_ps_xform.add_y += CP_PS_PAPER_Y/2;
         cp_debug_ps_xform.add_x += (cp_debug_ps_xlat_x * cp_debug_ps_xform.mul_x);
         cp_debug_ps_xform.add_y += (cp_debug_ps_xlat_y * cp_debug_ps_xform.mul_y);
-        cp_debug_ps_opt = &opt->ps;
 #endif
     }
 
@@ -590,6 +589,20 @@ int main(int argc, char **argv)
         m.m[3][2] = opt.ps_persp / -1000.0;
         cp_mat4_mul(&opt.ps.xform2, &m, &opt.ps.xform2);
     }
+#ifdef PSTRACE
+    cp_debug_ps_opt = &opt.ps;
+    cp_ps_xform_from_bb(&cp_debug_ps_xform, -100, -100, +100, +100);
+    cp_debug_ps_xform.add_x -= CP_PS_PAPER_X/2;
+    cp_debug_ps_xform.add_y -= CP_PS_PAPER_Y/2;
+    cp_debug_ps_xform.add_x *= cp_debug_ps_scale_x;
+    cp_debug_ps_xform.add_y *= cp_debug_ps_scale_y;
+    cp_debug_ps_xform.mul_x *= cp_debug_ps_scale_x;
+    cp_debug_ps_xform.mul_y *= cp_debug_ps_scale_y;
+    cp_debug_ps_xform.add_x += CP_PS_PAPER_X/2;
+    cp_debug_ps_xform.add_y += CP_PS_PAPER_Y/2;
+    cp_debug_ps_xform.add_x += (cp_debug_ps_xlat_x * cp_debug_ps_xform.mul_x);
+    cp_debug_ps_xform.add_y += (cp_debug_ps_xlat_y * cp_debug_ps_xform.mul_y);
+#endif
 
     /* output file: */
     cp_stream_t *sout = CP_STREAM_FROM_FILE(stdout);

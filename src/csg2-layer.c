@@ -703,6 +703,22 @@ static bool csg2_add_layer_cut(
     return true;
 }
 
+static bool csg2_add_layer_xor(
+    bool *no,
+    cp_pool_t *pool,
+    cp_csg2_tree_t *r,
+    cp_err_t *t,
+    size_t zi,
+    cp_csg_xor_t *c)
+{
+    for (cp_v_each(i, &c->xor)) {
+        if (!csg2_add_layer_add(no, pool, r, t, zi, cp_v_nth(&c->xor, i))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool csg2_add_layer_stack(
     bool *no,
     cp_pool_t *pool,
@@ -761,13 +777,16 @@ static bool csg2_add_layer(
     case CP_CSG2_STACK:
         return csg2_add_layer_stack(no, pool, r, zi, cp_csg2_cast(cp_csg2_stack_t, c));
 
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         return csg2_add_layer_add(no, pool, r, t, zi, cp_csg_cast(cp_csg_add_t, c));
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        return csg2_add_layer_xor(no, pool, r, t, zi, cp_csg_cast(cp_csg_xor_t, c));
+
+    case CP_CSG_SUB:
         return csg2_add_layer_sub(no, pool, r, t, zi, cp_csg_cast(cp_csg_sub_t, c));
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         return csg2_add_layer_cut(no, pool, r, t, zi, cp_csg_cast(cp_csg_cut_t, c));
 
     case CP_CSG2_POLY:
@@ -817,7 +836,7 @@ extern bool cp_csg2_tree_add_layer(
     size_t zi)
 {
     assert(r->root != NULL);
-    assert(r->root->type == CP_CSG2_ADD);
+    assert(r->root->type == CP_CSG_ADD);
     assert(zi < r->z.size);
     bool no = false;
     return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg_cast(cp_csg_add_t, r->root));

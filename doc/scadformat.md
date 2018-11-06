@@ -695,6 +695,12 @@ a single point on the Z axis.
 be non-0 or both must be 0.  The shape that would result otherwise is
 currently not supported in rendering by Hob3l.
 
+Note: Internally, Hob3l uses a XOR operation to implement this with
+intersecting 2D paths, which are not representable in SCAD format (XOR
+is not usually helpful in 3D space).  This means that the
+`--dump-csg3` output cannot be read back as input file.  The XOR node
+is represented by a `hob3l_xor` functor.
+
 _OpenSCAD compatibility_:
 
   * `slices`:

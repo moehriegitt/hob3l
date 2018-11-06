@@ -161,6 +161,19 @@ static void cut_put_stl(
     }
 }
 
+static void xor_put_stl(
+    cp_stream_t *s,
+    cp_csg2_tree_t *t,
+    size_t zi,
+    cp_csg_xor_t *r)
+{
+    /* This output format cannot do CUT, only UNION, so just print
+     * the first part.  It is wrong, but you asked for it. */
+    if (r->xor.size > 0) {
+        union_put_stl(s, t, zi, &cp_v_nth(&r->xor, 0)->add);
+    }
+}
+
 static void layer_put_stl(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
@@ -191,15 +204,19 @@ static void csg2_put_stl(
     cp_csg2_t *r)
 {
     switch (r->type) {
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         add_put_stl(s, t, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        xor_put_stl(s, t, zi, cp_csg_cast(cp_csg_xor_t, r));
+        return;
+
+    case CP_CSG_SUB:
         sub_put_stl(s, t, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         cut_put_stl(s, t, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 

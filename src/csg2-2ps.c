@@ -194,6 +194,17 @@ static void cut_put_ps(
     }
 }
 
+static void xor_put_ps(
+    ctxt_t *k,
+    cp_csg2_tree_t *t,
+    size_t zi,
+    cp_csg_xor_t *r)
+{
+    for (cp_v_each(i, &r->xor)) {
+        v_csg2_put_ps(k, t, zi, &cp_v_nth(&r->xor, i)->add);
+    }
+}
+
 static void layer_put_ps(
     ctxt_t *k,
     cp_csg2_tree_t *t,
@@ -224,15 +235,19 @@ static void csg2_put_ps(
     cp_csg2_t *r)
 {
     switch (r->type) {
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         add_put_ps(k, t, zi, cp_csg_cast(cp_csg_add_t, r));
         return;
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        xor_put_ps(k, t, zi, cp_csg_cast(cp_csg_xor_t, r));
+        return;
+
+    case CP_CSG_SUB:
         sub_put_ps(k, t, zi, cp_csg_cast(cp_csg_sub_t, r));
         return;
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         cut_put_ps(k, t, zi, cp_csg_cast(cp_csg_cut_t, r));
         return;
 

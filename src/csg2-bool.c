@@ -1801,6 +1801,33 @@ static bool csg2_op_cut(
     return true;
 }
 
+static bool csg2_op_xor(
+    op_ctxt_t *c,
+    size_t zi,
+    cp_csg2_lazy_t *o,
+    cp_csg_xor_t *a)
+{
+    TRACE();
+    assert(cp_mem_is0(o, sizeof(*o)));
+    for (cp_v_each(i, &a->xor)) {
+        cp_csg_add_t *b = cp_v_nth(&a->xor, i);
+        if (i == 0) {
+            if (!csg2_op_add(c, zi, o, b)) {
+                return false;
+            }
+        }
+        else {
+            cp_csg2_lazy_t oc = {0};
+            if (!csg2_op_add(c, zi, &oc, b)) {
+                return false;
+            }
+            LOG("XOR\n");
+            cp_csg2_op_lazy(c->opt, c->pool, o, &oc, CP_OP_XOR);
+        }
+    }
+    return true;
+}
+
 static bool csg2_op_layer(
     op_ctxt_t *c,
     cp_csg2_lazy_t *o,
@@ -1873,13 +1900,16 @@ static bool csg2_op_csg2(
     case CP_CSG2_STACK:
         return csg2_op_stack(c, zi, o, cp_csg2_cast(cp_csg2_stack_t, a));
 
-    case CP_CSG2_ADD:
+    case CP_CSG_ADD:
         return csg2_op_add(c, zi, o, cp_csg_cast(cp_csg_add_t, a));
 
-    case CP_CSG2_SUB:
+    case CP_CSG_XOR:
+        return csg2_op_xor(c, zi, o, cp_csg_cast(cp_csg_xor_t, a));
+
+    case CP_CSG_SUB:
         return csg2_op_sub(c, zi, o, cp_csg_cast(cp_csg_sub_t, a));
 
-    case CP_CSG2_CUT:
+    case CP_CSG_CUT:
         return csg2_op_cut(c, zi, o, cp_csg_cast(cp_csg_cut_t, a));
     }
 
