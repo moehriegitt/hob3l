@@ -1499,11 +1499,6 @@ static bool csg3_from_linext(
     cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->pool, &rc);
     cp_pool_clear(c->pool);
 
-#if 0 /* DEBUG: */
-    cp_v_push(r, cp_obj(p));
-    return true;
-#endif
-
     /* empty? */
     if ((p == NULL) || (p->path.size == 0)) {
         return true;
