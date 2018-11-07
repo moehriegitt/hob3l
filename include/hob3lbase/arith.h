@@ -7,6 +7,21 @@
 #include <hob3lbase/def.h>
 #include <hob3lbase/arith_tam.h>
 
+#define CP_CIRCLE_ITER_INIT(n) \
+    { \
+        .cos = 1, \
+        .sin = 0, \
+        .idx = 0, \
+        ._i = 0, \
+        ._n = n, \
+        ._a = 360 / cp_angle(n), \
+    }
+
+#define cp_circle_each(iter, n) \
+    cp_circle_iter_t iter = CP_CIRCLE_ITER_INIT(n); \
+    iter._i < iter._n; \
+    cp_circle_iter_step(&iter)
+
 /**
  * Epsilon for identifying point coordinates, i.e., granularity of coordinates
  * of points. */
@@ -75,6 +90,12 @@ extern cp_f_t cp_sin_deg(cp_f_t a);
  * to 1, but 1.
  */
 extern cp_f_t cp_cos_deg(cp_f_t a);
+
+/**
+ * Take a step on the circle iterator
+ */
+extern void cp_circle_iter_step(
+    cp_circle_iter_t *iter);
 
 /* min */
 static inline cp_f_t __cp_min_f(cp_f_t a, cp_f_t b)

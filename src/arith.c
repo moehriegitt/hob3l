@@ -219,3 +219,29 @@ extern cp_f_t cp_cos_deg(cp_f_t a)
     }
     return cos(cp_deg(a));
 }
+
+/**
+ * Take a step on the circle iterator
+ */
+extern void cp_circle_iter_step(
+    cp_circle_iter_t *iter)
+{
+    size_t i = ++iter->_i;
+    if (i & 1) {
+        size_t i1 = i + 1;
+        iter->idx = i1 / 2;
+        cp_angle_t a = iter->_a * cp_angle(iter->idx);
+        if (i1 == iter->_n) {
+            iter->cos = -1;
+            iter->sin = 0;
+        }
+        else {
+            iter->cos = cp_cos_deg(a);
+            iter->sin = cp_sin_deg(a);
+        }
+    }
+    else {
+        iter->sin = -iter->sin;
+        iter->idx = iter->_n - iter->idx;
+    }
+}

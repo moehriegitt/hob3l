@@ -845,17 +845,15 @@ static void csg3_poly_make_sphere(
     /* generate the points */
     cp_v_init0(&o->point, fn * fnz);
     double fnza = 180 / cp_angle(fnz * 2);
-    double fna =  360 / cp_angle(fn);
     cp_vec3_loc_t *p = o->point.data;
     for (cp_size_each(i, fnz)) {
         double w = cp_angle(1 + (2*i)) * fnza;
         double z = cp_cos_deg(w);
         double r = cp_sin_deg(w);
-        for (cp_size_each(j, fn)) {
-            assert(p < (o->point.data + o->point.size));
-            double t = cp_angle(j) * fna;
-            set_vec3_loc(p++, r*cp_cos_deg(t), r*cp_sin_deg(t), z, s->loc);
+        for (cp_circle_each(j, fn)) {
+            set_vec3_loc(p + j.idx, r * j.cos, r * j.sin, z, s->loc);
         }
+        p += fn;
     }
 
     /* make faces */
@@ -1317,25 +1315,20 @@ static bool csg3_poly_cylinder(
     cp_v_push(r, cp_obj(o));
 
     /* make points */
-    double aa = 360 / cp_angle(fn);
     if (cp_eq(r2, 0)) {
         /* cone */
         cp_v_init0(&o->point, fn + 1);
-        for (cp_size_each(i, fn)) {
-            cp_angle_t a = cp_angle(i) * aa;
-            set_vec3_loc(&cp_v_nth(&o->point, i), cp_cos_deg(a), cp_sin_deg(a), -.5, s->loc);
+        for (cp_circle_each(i, fn)) {
+            set_vec3_loc(&cp_v_nth(&o->point, i.idx), i.cos, i.sin, -.5, s->loc);
         }
         set_vec3_loc(&cp_v_nth(&o->point, fn), 0, 0, +.5, s->loc);
     }
     else {
         /* cylinder */
         cp_v_init0(&o->point, 2*fn);
-        for (cp_size_each(i, fn)) {
-            cp_angle_t a = cp_angle(i) * aa;
-            cp_scale_t ss = cp_sin_deg(a);
-            cp_scale_t cc = cp_cos_deg(a);
-            set_vec3_loc(&cp_v_nth(&o->point, i),    cc,    ss,    -.5, s->loc);
-            set_vec3_loc(&cp_v_nth(&o->point, i+fn), cc*r2, ss*r2, +.5, s->loc);
+        for (cp_circle_each(i, fn)) {
+            set_vec3_loc(&cp_v_nth(&o->point, i.idx),    i.cos,    i.sin,    -.5, s->loc);
+            set_vec3_loc(&cp_v_nth(&o->point, i.idx+fn), i.cos*r2, i.sin*r2, +.5, s->loc);
         }
     }
 

@@ -613,18 +613,17 @@ static void csg2_add_layer_sphere(
     cp_csg2_path_t *o = &cp_v_nth(&r->path, 0);
     size_t fn = d->_fn;
     assert(fn >= 3);
-    double a = 360 / cp_f(fn);
     cp_v_init0(&r->point, fn);
     cp_v_init0(&o->point_idx, fn);
-    for (cp_size_each(i, fn)) {
-        cp_vec2_loc_t *p = &cp_v_nth(&r->point, i);
-        p->coord.x = cp_cos_deg(a * cp_f(i));
-        p->coord.y = cp_sin_deg(a * cp_f(i));
+    for (cp_circle_each(i, fn)) {
+        cp_vec2_loc_t *p = &cp_v_nth(&r->point, i.idx);
+        p->coord.x = i.cos;
+        p->coord.y = i.sin;
         p->loc = d->loc;
         p->color = d->gc.color;
         rand_color3(&p->color, opt, &d->gc.color);
         cp_vec2w_xform(&p->coord, &mt2.n, &p->coord);
-        cp_v_nth(&o->point_idx, i) = i;
+        cp_v_nth(&o->point_idx, i.idx) = i.idx;
     }
     if (mt2.d > 0) {
         cp_v_reverse(&o->point_idx, 0, -(size_t)1);
