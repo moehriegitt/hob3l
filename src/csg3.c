@@ -10,6 +10,7 @@
 #include <hob3l/csg2.h>
 #include <hob3l/csg3.h>
 #include <hob3l/scad.h>
+#include <hob3l/syn.h>
 #include "internal.h"
 
 /* contexts for ctxt_t->context */
@@ -29,6 +30,7 @@ typedef struct {
 
 typedef struct {
     cp_pool_t *tmp;
+    cp_syn_tree_t *syn;
     cp_csg3_tree_t *tree;
     cp_csg_opt_t const *opt;
     cp_err_t *err;
@@ -43,17 +45,31 @@ static bool vmsg(
     cp_loc_t loc2,
     char const *msg, va_list va)
 {
-    if (ign) {
+    switch (ign) {
+    case CP_ERR_WARN:{
+        cp_vchar_t pre, post;
+        cp_syn_format_loc(&pre, &post, c->syn, loc, loc2);
+        fprintf(stderr, "%sWarning: ", pre.data);
+        vfprintf(stderr, msg, va);
+        fprintf(stderr, " Ignoring.\n%s", post.data);
+        cp_vchar_init(&pre);
+        cp_vchar_init(&post);
+        return true;}
+
+    case CP_ERR_IGNORE:
         return true;
+
+    default:
+    case CP_ERR_FAIL:
+        cp_vchar_vprintf(&c->err->msg, msg, va);
+        if (loc != NULL) {
+            c->err->loc = loc;
+        }
+        if (loc2 != NULL) {
+            c->err->loc2 = loc2;
+        }
+        return false;
     }
-    cp_vchar_vprintf(&c->err->msg, msg, va);
-    if (loc != NULL) {
-        c->err->loc = loc;
-    }
-    if (loc2 != NULL) {
-        c->err->loc2 = loc2;
-    }
-    return false;
 }
 
 __attribute__((format(printf,5,6)))
@@ -2068,6 +2084,7 @@ extern void cp_csg3_tree_bb(
  */
 extern bool cp_csg3_from_scad_tree(
     cp_pool_t *tmp,
+    cp_syn_tree_t *syn,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad)
@@ -2079,6 +2096,7 @@ extern bool cp_csg3_from_scad_tree(
     ctxt_t c = {
         .tmp = tmp,
         .tree = r,
+        .syn = syn,
         .opt = r->opt,
         .err = t,
         .context = IN3D,

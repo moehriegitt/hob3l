@@ -57,6 +57,16 @@ extern bool cp_syn_parse(
 extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
     cp_syn_tree_t *tree,
-    char const *token);
+    cp_loc_t token);
+
+/**
+ * Additional to cp_syn_get_loc, also get the source line citation
+ */
+extern void cp_syn_format_loc(
+    cp_vchar_t *pre,
+    cp_vchar_t *post,
+    cp_syn_tree_t *tree,
+    cp_loc_t token,
+    cp_loc_t token2);
 
 #endif /* __CP_SCAD_H */

@@ -7,6 +7,7 @@
 #include <hob3lbase/stream.h>
 #include <hob3l/csg3_tam.h>
 #include <hob3l/scad_tam.h>
+#include <hob3l/syn_tam.h>
 #include <hob3l/obj.h>
 #include <hob3l/csg3-2scad.h>
 
@@ -49,6 +50,7 @@ extern void cp_csg3_tree_bb(
  */
 extern bool cp_csg3_from_scad_tree(
     cp_pool_t *tmp,
+    cp_syn_tree_t *syn,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad);

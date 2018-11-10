@@ -1538,11 +1538,12 @@ static bool v_scad_from_syn_stmt_item(
 
     cmd_t const *c = &cmds[idx];
     if (c->type == 0) {
-        cp_syn_loc_t loc;
-        if (cp_syn_get_loc(&loc, t->syn, f->loc)) {
-            fprintf(stderr, "%s:%"_Pz"u: ", loc.file->filename.data, loc.line+1);
-        }
-        fprintf(stderr, "Warning: Ignoring unsupported '%s'.\n", f->functor);
+        cp_vchar_t pre, post;
+        cp_syn_format_loc(&pre, &post, t->syn, f->loc, NULL);
+        fprintf(stderr, "%sWarning: Ignoring unsupported '%s'.\n%s",
+            pre.data, f->functor, post.data);
+        cp_vchar_fini(&pre);
+        cp_vchar_fini(&post);
         return true;
     }
 

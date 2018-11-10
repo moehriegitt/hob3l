@@ -920,6 +920,80 @@ static int cmp_line(
     return 0;
 }
 
+static bool format_source_line(
+    cp_vchar_t *out,
+    size_t *pos,
+    char const *loc,
+    char const *src,
+    size_t len)
+{
+    cp_vchar_push(out, ' ');
+    size_t old = out->size;
+    bool need_cr = true;
+    size_t x = 0;
+    for (char const *i = src, *e = i + len; i != e; i++) {
+        if (i == loc) {
+            *pos = x;
+        }
+        if (*i == '\t') {
+            size_t new_x = (x + 4) & -4U;
+            while (x < new_x) {
+                cp_vchar_push(out, ' ');
+                x++;
+            }
+        }
+        else {
+            cp_vchar_push(out, *i);
+            x++;
+        }
+        if (*i == '\n') {
+            need_cr = false;
+        }
+    }
+
+    if (old == out->size) {
+        out->size = old;
+        return false;
+    }
+
+    if (need_cr) {
+        cp_vchar_push(out, '\n');
+    }
+    return true;
+}
+
+static void cp_syn_get_loc_src_aux(
+    cp_vchar_t *pre,
+    cp_vchar_t *post,
+    cp_syn_tree_t *tree,
+    cp_loc_t token,
+    char const *msg)
+{
+    cp_syn_loc_t loc;
+    if (!cp_syn_get_loc(&loc, tree, token)) {
+        return;
+    }
+
+    /* format source text */
+    size_t pos = CP_SIZE_MAX;
+    bool ok = format_source_line(
+        post,
+        &pos,
+        loc.orig + CP_PTRDIFF(token, loc.copy),
+        loc.orig,
+        CP_PTRDIFF(loc.orig_end, loc.orig));
+
+    cp_vchar_printf(pre, "%s:%"_Pz"u:", loc.file->filename.data, loc.line+1);
+    if (pos != CP_SIZE_MAX) {
+        cp_vchar_printf(pre, "%"_Pz"u:", pos+1);
+    }
+    cp_vchar_printf(pre, " %s", msg);
+
+    /* format pointer */
+    if ((pos != CP_SIZE_MAX) && ok) {
+        cp_vchar_printf(post, " %*s^\n", (int)pos, "");
+    }
+}
 /* ********************************************************************** */
 
 /**
@@ -991,7 +1065,7 @@ extern bool cp_syn_parse(
 extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
     cp_syn_tree_t *tree,
-    char const *token)
+    cp_loc_t token)
 {
     CP_ZERO(loc);
     loc->loc = token;
@@ -1030,4 +1104,26 @@ extern bool cp_syn_get_loc(
         }
     }
     return false;
+}
+
+/**
+ * Additional to cp_syn_get_loc, also get the source line citation
+ */
+extern void cp_syn_format_loc(
+    cp_vchar_t *pre,
+    cp_vchar_t *post,
+    cp_syn_tree_t *tree,
+    cp_loc_t token,
+    cp_loc_t token2)
+{
+    cp_vchar_init(pre);
+    cp_vchar_init(post);
+    cp_syn_get_loc_src_aux(pre, post, tree, token, "");
+    if (token2 != NULL) {
+        cp_vchar_t post2;
+        cp_vchar_init(&post2);
+        cp_syn_get_loc_src_aux(post, &post2, tree, token2, "Info: See also here.\n");
+        cp_vchar_append(post, &post2);
+        cp_vchar_fini(&post2);
+    }
 }

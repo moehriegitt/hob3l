@@ -11,6 +11,10 @@
 #define CP_ERR_FAIL 0
 
 /**
+ * Option: on error, warn, but continue */
+#define CP_ERR_WARN 1
+
+/**
  * Option: ignore the error */
 #define CP_ERR_IGNORE  2
 

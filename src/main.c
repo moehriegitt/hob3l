@@ -41,39 +41,6 @@ typedef struct {
     cp_csg_opt_t csg;
 } cp_opt_t;
 
-static void format_source_line(
-    cp_vchar_t *out,
-    size_t *pos,
-    char const *loc,
-    char const *src,
-    size_t len)
-{
-    bool need_cr = true;
-    size_t x = 0;
-    for (char const *i = src, *e = i + len; i != e; i++) {
-        if (i == loc) {
-            *pos = x;
-        }
-        if (*i == '\t') {
-            size_t new_x = (x + 4) & -4U;
-            while (x < new_x) {
-                cp_vchar_push(out, ' ');
-                x++;
-            }
-        }
-        else {
-            cp_vchar_push(out, *i);
-            x++;
-        }
-        if (*i == '\n') {
-            need_cr = false;
-        }
-    }
-    if (need_cr) {
-        cp_vchar_push(out, '\n');
-    }
-}
-
 static bool next_i(
     size_t *ip,
     size_t *i_alloc,
@@ -181,7 +148,7 @@ static bool do_file(
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
     csg3->opt = &opt->csg;
-    if (!cp_csg3_from_scad_tree(&pool, csg3, &r->err, scad)) {
+    if (!cp_csg3_from_scad_tree(&pool, r, csg3, &r->err, scad)) {
         return false;
     }
 
@@ -367,20 +334,28 @@ static void get_arg_err(
     char const *arg,
     char const *str)
 {
-    if ((str == NULL) ||
-        strequ(str, "fail") ||
+    if (strequ(str, "fail") ||
         strequ(str, "error") ||
         strequ(str, "err"))
     {
         *v = CP_ERR_FAIL;
         return;
     }
+
     if (strequ(str, "ign") ||
         strequ(str, "ignore"))
     {
         *v = CP_ERR_IGNORE;
         return;
     }
+
+    if (strequ(str, "warn") ||
+        strequ(str, "warning"))
+    {
+        *v = CP_ERR_WARN;
+        return;
+    }
+
     fprintf(stderr, "Error: %s: invalid problem handling: '%s', expected 'error' or 'ignore'\n",
         arg, str);
     my_exit(1);
@@ -658,66 +633,16 @@ int main(int argc, char **argv)
 
     /* print error (FIXME: make this readable) */
     if (!ok) {
-        cp_syn_loc_t loc;
-        bool have_loc = cp_syn_get_loc(&loc, r, r->err.loc);
+        cp_vchar_t pre, post;
+        cp_syn_format_loc(&pre, &post, r, r->err.loc, r->err.loc2);
 
-        cp_vchar_t src_line;
-        cp_vchar_init(&src_line);
-        size_t pos = CP_SIZE_MAX;
-
-        if (have_loc) {
-            format_source_line(
-                &src_line,
-                &pos,
-                loc.orig + CP_PTRDIFF(r->err.loc, loc.copy),
-                loc.orig,
-                CP_PTRDIFF(loc.orig_end, loc.orig));
-            if (pos != CP_SIZE_MAX) {
-                fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: ",
-                    loc.file->filename.data, loc.line+1, pos+1);
-            }
-            else {
-                fprintf(stderr, "%s:%"_Pz"u: ", loc.file->filename.data, loc.line+1);
-            }
+        if (r->err.msg.size == 0) {
+            cp_vchar_printf(&r->err.msg, "Unknown failure.\n");
         }
-
-        if (r->err.msg.size > 0) {
-            if (r->err.msg.data[r->err.msg.size-1] != '\n') {
-                cp_vchar_push(&r->err.msg, '\n');
-            }
-
-            fprintf(stderr, "Error: %s", r->err.msg.data);
+        if (r->err.msg.data[r->err.msg.size-1] != '\n') {
+            cp_vchar_push(&r->err.msg, '\n');
         }
-        else {
-            fprintf(stderr, "Error: Unknown failure.\n");
-        }
-        if (have_loc) {
-            fprintf(stderr, " %s", src_line.data);
-            if (pos != CP_SIZE_MAX) {
-                fprintf(stderr, " %*s^\n", (int)pos, "");
-            }
-        }
-
-        cp_syn_loc_t loc2;
-        bool have_loc2 = cp_syn_get_loc(&loc2, r, r->err.loc2);
-        if (have_loc2 && (r->err.loc2 != r->err.loc)) {
-            cp_vchar_t src_line2;
-            cp_vchar_init(&src_line2);
-            size_t pos2 = CP_SIZE_MAX;
-            format_source_line(
-                &src_line2,
-                &pos2,
-                loc2.orig + CP_PTRDIFF(r->err.loc2, loc2.copy),
-                loc2.orig,
-                CP_PTRDIFF(loc2.orig_end, loc2.orig));
-            if (pos2 != CP_SIZE_MAX) {
-                fprintf(stderr, "%s:%"_Pz"u:%"_Pz"u: Info: See also here:\n",
-                    loc2.file->filename.data, loc2.line+1, pos2+1);
-                fprintf(stderr, " %s", src_line2.data);
-                fprintf(stderr, " %*s^\n", (int)pos2, "");
-            }
-        }
-
+        fprintf(stderr, "%sError: %s%s", pre.data, r->err.msg.data, post.data);
         my_exit(1);
     }
 
