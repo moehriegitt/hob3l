@@ -701,10 +701,6 @@ is not usually helpful in 3D space).  This means that the
 `--dump-csg3` output cannot be read back as input file.  The XOR node
 is represented by a `hob3l_xor` functor.
 
-BUG: Currently, this has the same restriction as the `polyhedron`: it
-cannot correctly handle non-convex polygons.  (Actually, it works
-surprisingly well most of the time, but it is really still broken.)
-
 _OpenSCAD compatibility_:
 
   * `slices`:

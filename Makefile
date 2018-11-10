@@ -170,11 +170,11 @@ TEST_STL.stl := \
 TEST_STL.jsgz := \
     $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js.gz)))
 
-FAIL_STL.stl := \
-    $(addprefix test-out/,$(notdir $(FAIL_STL.scad:.scad=.stl)))
+FAIL_STL := \
+    $(addprefix test-out/fail-,$(notdir $(FAIL_STL.scad:.scad=.stl)))
 
-FAIL_STL.jsgz := \
-    $(addprefix test-out/,$(notdir $(FAIL_STL.scad:.scad=.js.gz)))
+FAIL_JS := \
+    $(addprefix test-out/fail-,$(notdir $(FAIL_JS.scad:.scad=.js)))
 
 ######################################################################
 # header files
@@ -395,10 +395,10 @@ test-stl: $(TEST_STL.stl)
 test-js: $(TEST_STL.jsgz)
 
 .PHONY: fail-stl
-fail-stl: $(FAIL_STL.stl)
+fail-stl: $(FAIL_STL)
 
 .PHONY: fail-js
-fail-js: $(FAIL_STL.jsgz)
+fail-js: $(FAIL_JS)
 
 .PHONY: test-jsgz
 test-jsgz: test-js
@@ -418,6 +418,10 @@ test-out/%.stl: scad-test/%.scad hob3l.exe
 	$(HOB3L) $< -o $@.new.stl
 	mv $@.new.stl $@
 
+test-out/fail-%.stl: scad-test/%.scad hob3l.exe
+	! $(HOB3L) $< -o $@.new.stl
+	echo >| $@
+
 test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.exe
 	openscad $< -o $@.new.csg
 	$(HOB3L) $@.new.csg -o $@.new.stl
@@ -429,6 +433,10 @@ test-out/%.js: scad-test/%.scad hob3l.exe
 	cat $(wildcard $<.js) $@.new.js > $@.new2.js
 	mv $@.new2.js $@
 	rm $@.new.js
+
+test-out/fail-%.js: scad-test/%.scad hob3l.exe
+	! $(HOB3L) $< -o $@.new.js
+	echo >| $@
 
 test-out/%.js: $(SCAD_DIR)/%.scad hob3l.exe
 	openscad $< -o $@.new.csg

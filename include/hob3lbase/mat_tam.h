@@ -86,51 +86,11 @@ typedef CP_ARR_T(cp_vec3_loc_ref_t) cp_a_vec3_loc_ref_t;
  * Pointer to base of array of entries with vec2 slot plus info to access array.
  */
 typedef struct {
-    void  *base;
+    void  *base_vec2;
+    void  *base_loc;
     size_t size;
     size_t count;
 } cp_vec2_arr_ref_t;
-
-static inline cp_vec2_t *cp_vec2_arr_ref(
-    cp_vec2_arr_ref_t *a,
-    size_t i)
-{
-    assert(i < a->count);
-    assert(((i * a->size) / a->size) == i);
-    void *r = ((char*)a->base) + (a->size * i);
-    return r;
-}
-
-static inline size_t cp_vec2_arr_idx(
-    cp_vec2_arr_ref_t *a,
-    cp_vec2_t *p)
-{
-    size_t o = CP_PTRDIFF((char*)p, (char*)a->base);
-    assert((o % a->size) == 0);
-    return o / a->size;
-}
-
-static inline cp_vec2_arr_ref_t *__cp_vec2_arr_ref_set(
-    cp_vec2_arr_ref_t *a,
-    cp_vec2_arr_ref_t x)
-{
-    *a = x;
-    return a;
-}
-
-#define CP_VEC2_ARR_REF(arr, slot) \
-    (*__cp_vec2_arr_ref_set( \
-        &(cp_vec2_arr_ref_t){ .base=0 }, \
-        ({ \
-            __typeof__(*(arr)) *__arr = (arr); \
-            void *__base = __arr->data; \
-            cp_vec2_arr_ref_t __r = { \
-                .base = (char*)__base + cp_offsetof(__typeof__(__arr->data[0]), slot), \
-                .size = sizeof(__arr->data[0]), \
-                .count = __arr->size \
-            }; \
-            __r; \
-        })))
 
 #define CP_V01(p)   (p).v[0], (p).v[1]
 #define CP_V012(p)  (p).v[0], (p).v[1], (p).v[2]

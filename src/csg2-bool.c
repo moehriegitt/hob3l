@@ -184,7 +184,7 @@ typedef CP_VEC_T(event_t*) v_event_p_t;
  */
 typedef struct {
     /** Memory pool to use */
-    cp_pool_t *pool;
+    cp_pool_t *tmp;
 
     /** Error output */
     cp_err_t *err;
@@ -221,7 +221,7 @@ typedef struct {
  */
 typedef struct {
     cp_csg_opt_t const *opt;
-    cp_pool_t *pool;
+    cp_pool_t *tmp;
 } op_ctxt_t;
 
 
@@ -483,7 +483,7 @@ static point_t *pt_new(
         return CP_BOX_OF(pt, point_t, node_pt);
     }
 
-    point_t *p = CP_POOL_NEW(c->pool, *p);
+    point_t *p = CP_POOL_NEW(c->tmp, *p);
     p->v.coord = coord;
     p->v.loc = loc;
     p->v.color = *color;
@@ -505,7 +505,7 @@ static event_t *ev_new(
     bool left,
     event_t *other)
 {
-    event_t *r = CP_POOL_NEW(c->pool, *r);
+    event_t *r = CP_POOL_NEW(c->tmp, *r);
     r->loc = loc;
     r->p = p;
     r->left = left;
@@ -1757,7 +1757,7 @@ static bool csg2_op_v_csg2(
                 return false;
             }
             LOG("ADD\n");
-            cp_csg2_op_lazy(c->opt, c->pool, o, &oi, CP_OP_ADD);
+            cp_csg2_op_lazy(c->opt, c->tmp, o, &oi, CP_OP_ADD);
         }
     }
     return true;
@@ -1795,7 +1795,7 @@ static bool csg2_op_cut(
                 return false;
             }
             LOG("CUT\n");
-            cp_csg2_op_lazy(c->opt, c->pool, o, &oc, CP_OP_CUT);
+            cp_csg2_op_lazy(c->opt, c->tmp, o, &oc, CP_OP_CUT);
         }
     }
     return true;
@@ -1822,7 +1822,7 @@ static bool csg2_op_xor(
                 return false;
             }
             LOG("XOR\n");
-            cp_csg2_op_lazy(c->opt, c->pool, o, &oc, CP_OP_XOR);
+            cp_csg2_op_lazy(c->opt, c->tmp, o, &oc, CP_OP_XOR);
         }
     }
     return true;
@@ -1858,7 +1858,7 @@ static bool csg2_op_sub(
         return false;
     }
     LOG("SUB\n");
-    cp_csg2_op_lazy(c->opt, c->pool, o, &os, CP_OP_SUB);
+    cp_csg2_op_lazy(c->opt, c->tmp, o, &os, CP_OP_SUB);
     return true;
 }
 
@@ -1924,14 +1924,14 @@ static bool csg2_op_csg2(
  * them.  Any poly but r->data[0] will be left completely untouched.
  */
 static void cp_csg2_op_poly(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_poly_t *o,
     cp_csg2_lazy_t const *r)
 {
     TRACE();
     /* make context */
     ctxt_t c = {
-        .pool = pool,
+        .tmp = tmp,
         .comb = &r->comb,
         .comb_size = (1U << r->size),
     };
@@ -1980,7 +1980,7 @@ static void cp_csg2_op_poly(
 
 static cp_csg2_poly_t *poly_sub(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_poly_t *a0,
     cp_csg2_poly_t *a1)
 {
@@ -1995,11 +1995,11 @@ static cp_csg2_poly_t *poly_sub(
     CP_ZERO(&o1);
     csg2_op_poly(&o1, a1);
 
-    cp_csg2_op_lazy(opt, pool, &o0, &o1, CP_OP_SUB);
+    cp_csg2_op_lazy(opt, tmp, &o0, &o1, CP_OP_SUB);
     assert(o0.size == 2);
 
     cp_csg2_poly_t *o = CP_CLONE(a1);
-    cp_csg2_op_poly(pool, o, &o0);
+    cp_csg2_op_poly(tmp, o, &o0);
 
     /* check that the originals really haven't changed */
     assert(a0->point.size == a0_point_sz);
@@ -2010,7 +2010,7 @@ static cp_csg2_poly_t *poly_sub(
 
 static void csg2_op_diff2_poly(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_poly_t *a0,
     cp_csg2_poly_t *a1)
 {
@@ -2019,13 +2019,13 @@ static void csg2_op_diff2_poly(
         return;
     }
 
-    a0->diff_above = poly_sub(opt, pool, a0, a1);
-    a1->diff_below = poly_sub(opt, pool, a1, a0);
+    a0->diff_above = poly_sub(opt, tmp, a0, a1);
+    a1->diff_below = poly_sub(opt, tmp, a1, a0);
 }
 
 static void csg2_op_diff2(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_t *a0,
     cp_csg2_t *a1)
 {
@@ -2038,12 +2038,12 @@ static void csg2_op_diff2(
     if (p1 == NULL) {
         return;
     }
-    csg2_op_diff2_poly(opt, pool, p0, p1);
+    csg2_op_diff2_poly(opt, tmp, p0, p1);
 }
 
 static void csg2_op_diff2_layer(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_layer_t *a0,
     cp_csg2_layer_t *a1)
 {
@@ -2054,14 +2054,14 @@ static void csg2_op_diff2_layer(
     if (cp_csg_add_size(a1->root) != 1) {
         return;
     }
-    csg2_op_diff2(opt, pool,
+    csg2_op_diff2(opt, tmp,
         cp_csg2_cast(cp_csg2_t, cp_v_nth(&a0->root->add,0)),
         cp_csg2_cast(cp_csg2_t, cp_v_nth(&a1->root->add,0)));
 }
 
 static void csg2_op_diff_stack(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     size_t zi,
     cp_csg2_stack_t *a)
 {
@@ -2080,12 +2080,12 @@ static void csg2_op_diff_stack(
         return;
     }
 
-    csg2_op_diff2_layer(opt, pool, l0, l1);
+    csg2_op_diff2_layer(opt, tmp, l0, l1);
 }
 
 static void csg2_op_diff_csg2(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     size_t zi,
     cp_csg2_t *a)
 {
@@ -2093,7 +2093,7 @@ static void csg2_op_diff_csg2(
     /* only work on stacks, ignore anything else */
     switch (a->type) {
     case CP_CSG2_STACK:
-        csg2_op_diff_stack(opt, pool, zi, cp_csg2_cast(cp_csg2_stack_t, a));
+        csg2_op_diff_stack(opt, tmp, zi, cp_csg2_cast(cp_csg2_stack_t, a));
         return;
     default:
         return;
@@ -2116,14 +2116,14 @@ static void csg2_op_diff_csg2(
  * space from the polygons for storing the result.
  */
 extern void cp_csg2_op_reduce(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_lazy_t *r)
 {
     TRACE();
     if (r->size <= 1) {
         return;
     }
-    cp_csg2_op_poly(pool, r->data[0], r);
+    cp_csg2_op_poly(tmp, r->data[0], r);
     if (r->data[0]->point.size == 0) {
         CP_ZERO(r);
         return;
@@ -2142,7 +2142,7 @@ extern void cp_csg2_op_reduce(
  * \p r and/or \p b are reused and cleared to construct r.  This may happen
  * immediately or later in cp_csg2_op_reduce().
  *
- * Uses \p pool for all temporary allocations (but not for constructing r).
+ * Uses \p tmp for all temporary allocations (but not for constructing r).
  *
  * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
  * Bentley-Ottmann plain sweep.  The algorithm is modified:
@@ -2182,7 +2182,7 @@ extern void cp_csg2_op_reduce(
  */
 extern void cp_csg2_op_lazy(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_lazy_t *r,
     cp_csg2_lazy_t *b,
     cp_bool_op_t op)
@@ -2217,11 +2217,11 @@ extern void cp_csg2_op_lazy(
 
         /* otherwise reduce the larger one */
         if (r->size > b->size) {
-            cp_csg2_op_reduce(pool, r);
+            cp_csg2_op_reduce(tmp, r);
             assert(r->size <= 1);
         }
         else {
-            cp_csg2_op_reduce(pool, b);
+            cp_csg2_op_reduce(tmp, b);
             assert(b->size <= 1);
         }
     }
@@ -2264,7 +2264,7 @@ extern void cp_csg2_op_lazy(
  */
 extern void cp_csg2_op_add_layer(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
     size_t zi)
@@ -2275,14 +2275,14 @@ extern void cp_csg2_op_add_layer(
 
     op_ctxt_t c = {
         .opt = opt,
-        .pool = pool,
+        .tmp = tmp,
     };
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
     bool ok __unused = csg2_op_csg2(&c, zi, &ol, a->root);
     assert(ok && "Unexpected object in tree.");
-    cp_csg2_op_reduce(pool, &ol);
+    cp_csg2_op_reduce(tmp, &ol);
 
     cp_csg2_poly_t *o = ol.data[0];
     if (o != NULL) {
@@ -2321,20 +2321,20 @@ extern void cp_csg2_op_add_layer(
  */
 extern cp_csg2_poly_t *cp_csg2_flatten(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_v_obj_p_t *root)
 {
     TRACE();
     op_ctxt_t c = {
         .opt = opt,
-        .pool = pool,
+        .tmp = tmp,
     };
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
     bool ok __unused = csg2_op_v_csg2(&c, 0, &ol, root);
     assert(ok && "Unexpected object in tree.");
-    cp_csg2_op_reduce(pool, &ol);
+    cp_csg2_op_reduce(tmp, &ol);
 
     return ol.data[0];
 }
@@ -2352,7 +2352,7 @@ extern cp_csg2_poly_t *cp_csg2_flatten(
  */
 extern void cp_csg2_op_diff_layer(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_tree_t *a,
     size_t zi)
 {
@@ -2360,7 +2360,7 @@ extern void cp_csg2_op_diff_layer(
     cp_csg2_stack_t *s __unused = cp_csg2_cast(*s, a->root);
     assert(zi < s->layer.size);
 
-    csg2_op_diff_csg2(opt, pool, zi, a->root);
+    csg2_op_diff_csg2(opt, tmp, zi, a->root);
 }
 
 /**

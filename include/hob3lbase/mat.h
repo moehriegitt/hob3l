@@ -571,4 +571,65 @@ static inline bool cp_vec3_left_normal3(
     return cp_vec3_right_normal3(r,b,o,a);
 }
 
+static inline cp_vec2_t *cp_vec2_arr_ref(
+    cp_vec2_arr_ref_t *a,
+    size_t i)
+{
+    assert(i < a->count);
+    assert(((i * a->size) / a->size) == i);
+    void *r = ((char*)a->base_vec2) + (a->size * i);
+    return r;
+}
+
+static inline cp_loc_t cp_vec2_arr_loc(
+    cp_vec2_arr_ref_t *a,
+    size_t i)
+{
+    assert(i < a->count);
+    assert(((i * a->size) / a->size) == i);
+    cp_loc_t *r = (void*)(((char*)a->base_loc) + (a->size * i));
+    return *r;
+}
+
+static inline size_t cp_vec2_arr_idx(
+    cp_vec2_arr_ref_t *a,
+    cp_vec2_t *p)
+{
+    size_t o = CP_PTRDIFF((char*)p, (char*)a->base_vec2);
+    assert((o % a->size) == 0);
+    return o / a->size;
+}
+
+/**
+ * Convert to vec2 array.
+ */
+static inline void cp_vec2_arr_ref_from_v_vec2_loc(
+    cp_vec2_arr_ref_t *a,
+    cp_v_vec2_loc_t *v)
+{
+    a->base_vec2 = (char*)v->data + cp_offsetof(*v->data, coord);
+    a->base_loc  = (char*)v->data + cp_offsetof(*v->data, loc);
+    a->size = sizeof(*v->data);
+    a->count = v->size;
+}
+
+/**
+ * Convert to vec2 array.
+ */
+static inline void cp_vec2_arr_ref_from_a_vec3_loc(
+    cp_vec2_arr_ref_t *a,
+    cp_a_vec3_loc_t *v,
+    bool yz_plane)
+{
+    a->base_vec2 =
+        (char*)v->data +
+        (yz_plane ?
+            cp_offsetof(*v->data, coord.be)
+        :   cp_offsetof(*v->data, coord.b));
+
+    a->base_loc = (char*)v->data + cp_offsetof(*v->data, loc);
+    a->size = sizeof(*v->data);
+    a->count = v->size;
+}
+
 #endif /* __CP_MAT_H */

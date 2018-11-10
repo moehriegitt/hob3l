@@ -56,7 +56,7 @@
  *     Additionally, the improper start case has a special case if vertices
  *     coincide.
  *
- * Uses \p pool for all temporary allocations (but not for constructing
+ * Uses \p tmp for all temporary allocations (but not for constructing
  * point_arr or tri).
  *
  * Runtime: O(n log n)
@@ -64,7 +64,7 @@
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_set(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,
@@ -79,14 +79,14 @@ extern bool cp_csg2_tri_set(
  * This uses cp_csg2_tri_set() internally, so the path is contrained
  * in the way described for that function.
  *
- * Uses \p pool for all temporary allocations (but not for constructing g).
+ * Uses \p tmp for all temporary allocations (but not for constructing g).
  *
  * Runtime: O(n log n)
  * Space: O(n)
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_path(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_err_t *t,
     cp_csg2_poly_t *g,
     cp_csg2_path_t *s);
@@ -100,16 +100,25 @@ extern bool cp_csg2_tri_path(
  * the paths in one data structure, so the set of paths of the given
  * polygon is contrained in the way described for that function.
  *
- * Uses \p pool for all temporary allocations (but not for constructing r).
+ * Uses \p tmp for all temporary allocations (but not for constructing r).
  *
  * Runtime: O(n log n)
  * Space: O(n)
  * Where n = number of points.
  */
 extern bool cp_csg2_tri_poly(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_err_t *t,
     cp_csg2_poly_t *g);
+
+/**
+ * Same as cp_csg2_tri_poly, but triangulates a reference array of vec2.
+ */
+extern bool cp_csg2_tri_vec2_arr_ref(
+    cp_v_size3_t *tri,
+    cp_pool_t *tmp,
+    cp_err_t *t,
+    cp_vec2_arr_ref_t *a2);
 
 /**
  * Triangulate a given layer
@@ -125,7 +134,7 @@ extern bool cp_csg2_tri_poly(
  * tree, so the set of paths of each polygon in the tree is contrained
  * in the way described for that function.
  *
- * Uses \p pool for all temporary allocations (but not for constructing r).
+ * Uses \p tmp for all temporary allocations (but not for constructing r).
  *
  * Runtime: O(m * n log n)
  * Space: O(max(n))
@@ -135,7 +144,7 @@ extern bool cp_csg2_tri_poly(
  *     max(n) = the maximum n among the polygons.
  */
 extern bool cp_csg2_tri_layer(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi);
@@ -149,7 +158,7 @@ extern bool cp_csg2_tri_layer(
  * Runtime and space: see cp_csg2_tri_layer.
  */
 extern bool cp_csg2_tri_layer_diff(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_err_t *t,
     cp_csg2_tree_t *r,
     size_t zi);

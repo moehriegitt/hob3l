@@ -35,6 +35,10 @@ typedef union {
         cp_vec2_t b;
         cp_dim_t w;
     };
+    struct {
+        cp_dim_t we;
+        cp_vec2_t be;
+    };
 } cp_vec3_t;
 
 typedef struct {
@@ -56,6 +60,10 @@ typedef union {
     };
     struct {
         cp_vec3_t b;
+    };
+    struct {
+        cp_dim_t we;
+        cp_vec3_t be;
     };
 } cp_vec4_t;
 

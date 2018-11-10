@@ -238,6 +238,10 @@ sub gen_type_vec($$$)
             $s.= "        X_dim_t w;\n";
         }
         $s.= "    };\n";
+        $s.= "    struct {\n";
+        $s.= "        X_dim_t we;\n";
+        $s.= "        X_$ts->{name}_t be;\n";
+        $s.= "    };\n";
     }
     $s.= "} X_$t->{name}_t;\n";
     publish($oc, 'tam_h', $s);

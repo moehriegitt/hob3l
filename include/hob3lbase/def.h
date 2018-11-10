@@ -81,7 +81,7 @@ typedef enum {
         ((__x != 0) && ((__x & (__x - 1)) == 0)); \
     })
 
-#define cp_offsetof(T,F) (__builtin_offsetof(T,F))
+#define cp_offsetof(T,F) (__builtin_offsetof(__typeof__(T),F))
 
 #define cp_alignof(X) (__alignof__(X))
 

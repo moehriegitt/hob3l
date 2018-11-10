@@ -48,7 +48,7 @@ extern void cp_csg3_tree_bb(
  * Convert a SCAD AST into a CSG3 tree.
  */
 extern bool cp_csg3_from_scad_tree(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad);

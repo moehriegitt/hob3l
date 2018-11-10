@@ -22,12 +22,13 @@
 #define TRI_RIGHT  2
 
 typedef struct {
+    cp_pool_t *tmp;
     cp_mat3wi_t const *mat;
     cp_gc_t gc;
 } mat_ctxt_t;
 
 typedef struct {
-    cp_pool_t *pool;
+    cp_pool_t *tmp;
     cp_csg3_tree_t *tree;
     cp_csg_opt_t const *opt;
     cp_err_t *err;
@@ -694,6 +695,99 @@ static size_t get_fn(
 }
 
 /**
+ * Ensure that all paths of the polygon run clockwise.
+ *
+ * If a path needs to be reversed, do it.
+ *
+ * Return whether any path needed reversal.
+ */
+static bool polygon_make_clockwise(
+    cp_csg2_poly_t *p)
+{
+    bool rev = false;
+    for (cp_v_each(i, &p->path)) {
+        cp_csg2_path_t *q = &cp_v_nth(&p->path, i);
+        double sum = 0;
+        for (cp_v_each(j0, &q->point_idx)) {
+            size_t j1 = cp_wrap_add1(j0, q->point_idx.size);
+            size_t j2 = cp_wrap_add1(j1, q->point_idx.size);
+            sum += cp_vec2_right_cross3_z(
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j0)).coord,
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j1)).coord,
+                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j2)).coord);
+        }
+        assert(!cp_eq(sum, 0));
+        if (sum < 0) {
+            rev = true;
+            cp_v_reverse(&q->point_idx, 0, -(size_t)1);
+        }
+    }
+    return rev;
+}
+
+#if 0
+/**
+ * Whether a sequence of 3 points is convex.
+ *
+ * Returns a bitmask:
+ *     bit 0: XY is concave
+ *     bit 1: XY is collinear
+ *     bit 2: XY is convex
+ *     bit 3: YZ is concave
+ *     bit 4: YZ is collinear
+ *     bit 5: YZ is convex
+ */
+static int vec3_face_normal3_z(
+    cp_vec3_t const *a,
+    cp_vec3_t const *o,
+    cp_vec3_t const *b)
+{
+    return
+        (1 << (1 + cp_vec2_right_normal3_z(&a->b,  &o->b,  &b->b))) |
+        (1 << (4 + cp_vec2_right_normal3_z(&a->be, &o->be, &b->be)));
+}
+#endif
+
+static void face_from_tri_or_poly(
+    size_t *k,
+    cp_csg3_poly_t *o,
+    cp_v_size3_t *tri,
+    cp_loc_t loc,
+    size_t fn,
+    bool rev,
+    bool top)
+{
+    size_t j_offset = top ? o->point.size - fn : 0;
+
+    cp_csg3_face_t *f;
+    if (tri->size > 0) {
+        /* from triangulation */
+        for (cp_v_each(i, tri)) {
+            f = &cp_v_nth(&o->face, (*k)++);
+            cp_v_init0(&f->point, 3);
+            for (cp_size_each(j, 3)) {
+                cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+                v->ref = &cp_v_nth(&o->point, cp_v_nth(tri, i).p[j] + j_offset);
+                v->loc = loc;
+            }
+            face_basics(f, rev ^ top, loc);
+        }
+    }
+    else {
+        /* from convex path */
+        f = &cp_v_nth(&o->face, (*k)++);
+        cp_v_init0(&f->point, fn);
+        for (cp_size_each(j, fn)) {
+            cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
+            v->ref = &cp_v_nth(&o->point, j + j_offset);
+            v->loc = loc;
+        }
+        face_basics(f, rev ^ top, loc);
+    }
+}
+
+
+/**
  * From an array of points in the rough shape of a tower,
  * make a polyhedron.  'Tower' means the shape consists
  * of layers of polygon points stack on each other.
@@ -719,15 +813,62 @@ static size_t get_fn(
  *
  * This also runs xform and minmax, but not make_edges.
  */
-static void faces_from_tower(
+static bool faces_n_edges_from_tower(
     cp_csg3_poly_t *o,
+    ctxt_t *c,
     cp_mat3wi_t const *m,
     cp_loc_t loc,
     size_t fn,
     size_t fnz,
     bool rev,
-    unsigned tri_side)
+    unsigned tri_side,
+    bool may_need_tri)
 {
+    /* FIXME:
+     * To cope with non-convex bottom and top:
+     *
+     *   * Check here whether top/bottom will be non-convex.
+     *
+     *   * Assume the face will be broken into triangles, so face
+     *     count is known.
+     *
+     *   * Instead of '1', use computed face count in init0.
+     *
+     *   * Instead of normal face construction, use a callback
+     *     based call into csg2-triangle module.  That module
+     *     needs to be changed so that 'add_triangle' can be
+     *     a callback.
+     */
+    unsigned orient = 0;
+    bool need_tri = false;
+    if (may_need_tri) {
+        for (cp_size_each(i, fn)) {
+            size_t j = cp_wrap_add1(i, fn);
+            size_t k = cp_wrap_add1(j, fn);
+            orient |= 1U << (1 + cp_vec2_right_normal3_z(
+                &cp_v_nth(&o->point, i).coord.b,
+                &cp_v_nth(&o->point, j).coord.b,
+                &cp_v_nth(&o->point, k).coord.b));
+            if ((orient & 5) == 5) { /* both directions in path */
+                need_tri = true;
+                break;
+            }
+        }
+    }
+
+    /* check whether rev was passed correctly */
+    cp_v_size3_t tri = {0};
+    if (need_tri) {
+        cp_vec2_arr_ref_t a2;
+        cp_vec2_arr_ref_from_a_vec3_loc(&a2, &o->point, false);
+        assert(a2.count >= fn);
+        a2.count = fn;
+
+        if (!cp_csg2_tri_vec2_arr_ref(&tri, c->tmp, c->err, &a2)) {
+            return false;
+        }
+    }
+
     /* reverse based on determinant */
     if (m->d < 0) {
         rev = !rev;
@@ -743,36 +884,24 @@ static void faces_from_tower(
 
     /* generate faces */
     size_t k = 0;
+    size_t bt_cnt = tri.size ? tri.size : 1U;   /* faces in bottom (and top) */
     cp_v_init0(&o->face,
-        1U +                                    /* bottom */
-        !!has_top +                             /* top */
+        (bt_cnt * (
+            1U +                                /* bottom */
+            !!has_top)) +                       /* top */
         ((fnz - 2) * fn * (1U + !!tri_side)) +  /* rings */
         (fn * (1U + !!(tri_side && has_top)))); /* roof */
 
-
     /* bottom */
-    cp_csg3_face_t *f = &cp_v_nth(&o->face, k++);
-    cp_v_init0(&f->point, fn);
-    for (cp_size_each(j, fn)) {
-        cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
-        v->ref = &cp_v_nth(&o->point, j);
-        v->loc = loc;
-    }
-    face_basics(f, rev, loc);
+    face_from_tri_or_poly(&k, o, &tri, loc, fn, rev, false);
 
+    /* top */
     if (has_top) {
-        /* top */
-        f = &cp_v_nth(&o->face, k++);
-        cp_v_init0(&f->point, fn);
-        for (cp_size_each(j, fn)) {
-            cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
-            v->ref = &cp_v_nth(&o->point, o->point.size - j - 1);
-            v->loc = loc;
-        }
-        face_basics(f, rev, loc);
+        face_from_tri_or_poly(&k, o, &tri, loc, fn, rev, true);
     }
 
     /* sides */
+    cp_csg3_face_t *f;
     for (cp_size_each(i, fnz, 1, !has_top)) {
         size_t k1 = i * fn;
         size_t k0 = k1 - fn;
@@ -817,6 +946,7 @@ static void faces_from_tower(
     }
 
     assert(o->face.size == k);
+    return poly_make_edges(o, c);
 }
 
 static void set_vec3_loc(
@@ -830,8 +960,9 @@ static void set_vec3_loc(
     p->loc = loc;
 }
 
-static void csg3_poly_make_sphere(
+static bool csg3_poly_make_sphere(
     cp_csg3_poly_t *o,
+    ctxt_t *c,
     cp_mat3wi_t const *m,
     cp_scad_sphere_t const *s,
     size_t fn)
@@ -856,8 +987,8 @@ static void csg3_poly_make_sphere(
         p += fn;
     }
 
-    /* make faces */
-    faces_from_tower(o, m, s->loc, fn, fnz, true, TRI_NONE);
+    /* make faces and edges */
+    return faces_n_edges_from_tower(o, c, m, s->loc, fn, fnz, true, TRI_NONE, false);
 }
 
 static bool csg3_from_sphere(
@@ -887,11 +1018,11 @@ static bool csg3_from_sphere(
 
     size_t fn = get_fn(c->opt, s->_fn, true);
     if (fn > 0) {
+        /* all faces are convex */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
         cp_v_push(r, cp_obj(o));
 
-        csg3_poly_make_sphere(o, m, s, fn);
-        if (!poly_make_edges(o, c)) {
+        if (!csg3_poly_make_sphere(o, c, m, s, fn)) {
             return msg(c, CP_ERR_FAIL, NULL, NULL,
                 " Internal Error: 'sphere' polyhedron construction algorithm is broken.\n");
         }
@@ -949,6 +1080,7 @@ static bool csg3_from_polyhedron(
             s->faces.size);
     }
 
+    /* FIXME: possibly concave faces */
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, m->gc);
     cp_v_push(r, cp_obj(o));
 
@@ -1010,37 +1142,6 @@ static void xform_2d(
     }
 }
 
-/**
- * Ensure that all paths of the polygon run clockwise.
- *
- * If a path needs to be reversed, do it.
- *
- * Return whether any path needed reversal.
- */
-static bool polygon_clockwise(
-    cp_csg2_poly_t *p)
-{
-    bool rev = false;
-    for (cp_v_each(i, &p->path)) {
-        cp_csg2_path_t *q = &cp_v_nth(&p->path, i);
-        double sum = 0;
-        for (cp_v_each(j0, &q->point_idx)) {
-            size_t j1 = cp_wrap_add1(j0, q->point_idx.size);
-            size_t j2 = cp_wrap_add1(j1, q->point_idx.size);
-            sum += cp_vec2_right_cross3_z(
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j0)).coord,
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j1)).coord,
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j2)).coord);
-        }
-        assert(!cp_eq(sum, 0));
-        if (sum < 0) {
-            rev = true;
-            cp_v_reverse(&q->point_idx, 0, -(size_t)1);
-        }
-    }
-    return rev;
-}
-
 static bool csg3_from_polygon(
     bool *no,
     cp_v_obj_p_t *r,
@@ -1098,7 +1199,7 @@ static bool csg3_from_polygon(
     }
 
     /* normalise to paths to be clockwise */
-    (void)polygon_clockwise(o);
+    (void)polygon_make_clockwise(o);
 
     return true;
 }
@@ -1144,6 +1245,7 @@ static bool csg3_from_cube(
     }
 
     /* make points */
+    /* all faces are convex */
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
     cp_v_push(r, cp_obj(o));
 
@@ -1160,11 +1262,8 @@ static bool csg3_from_cube(
         set_vec3_loc(&cp_v_nth(&o->point, i), !(i&1)^!(i&2), !(i&2), !(i&4), s->loc);
     }
 
-    /* make faces */
-    faces_from_tower(o, m, s->loc, 4, 2, false, TRI_NONE);
-
-    /* make edges */
-    if (!poly_make_edges(o, c)) {
+    /* make faces & edges */
+    if (!faces_n_edges_from_tower(o, c, m, s->loc, 4, 2, false, TRI_NONE, false)) {
         return msg(c, CP_ERR_FAIL, NULL, NULL,
             " Internal Error: 'cube' polyhedron construction algorithm is broken.\n");
     }
@@ -1228,7 +1327,7 @@ static bool csg3_from_circle(
     mn.mat = m;
     xform_2d(&mn, o);
 
-    bool rev __unused = polygon_clockwise(o);
+    bool rev __unused = polygon_make_clockwise(o);
     assert(!rev);
 
     return true;
@@ -1277,9 +1376,11 @@ static bool csg3_from_square(
     cp_csg2_poly_t *o = cp_csg2_new(*o, s->loc);
     cp_v_push(r, cp_obj(o));
 
-    cp_csg2_path_t *path = cp_v_push0(&o->path);
+    cp_v_init0(&o->path, 1);
+    cp_csg2_path_t *path = &cp_v_nth(&o->path, 0);
+    cp_v_init0(&o->point, 4);
     for (cp_size_each(i, 4)) {
-        cp_vec2_loc_t *p = cp_v_push0(&o->point);
+        cp_vec2_loc_t *p = &cp_v_nth(&o->point, i);
         p->coord.x = cp_dim(!!(i & 1));
         p->coord.y = cp_dim(!!(i & 2));
         p->loc = s->loc;
@@ -1296,7 +1397,7 @@ static bool csg3_from_square(
     cp_v_push(&path->point_idx, 3);
     cp_v_push(&path->point_idx, 1);
 
-    bool rev __unused = polygon_clockwise(o);
+    bool rev __unused = polygon_make_clockwise(o);
     assert(!rev);
 
     return true;
@@ -1311,6 +1412,7 @@ static bool csg3_poly_cylinder(
     cp_scale_t r2,
     size_t fn)
 {
+    /* all faces are convex */
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
     cp_v_push(r, cp_obj(o));
 
@@ -1332,11 +1434,8 @@ static bool csg3_poly_cylinder(
         }
     }
 
-    /* make faces */
-    faces_from_tower(o, m, s->loc, fn, 2, false, TRI_NONE);
-
-    /* make edges */
-    if (!poly_make_edges(o, c)) {
+    /* make faces & edges */
+    if (!faces_n_edges_from_tower(o, c, m, s->loc, fn, 2, false, TRI_NONE, false)) {
         return msg(c, CP_ERR_FAIL, NULL, NULL,
             " Internal Error: 'cylinder' polyhedron construction algorithm is broken.\n");
     }
@@ -1489,8 +1588,8 @@ static bool csg3_from_linext(
     }
 
     /* get polygon */
-    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->pool, &rc);
-    cp_pool_clear(c->pool);
+    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
+    cp_pool_clear(c->tmp);
 
     /* empty? */
     if ((p == NULL) || (p->path.size == 0)) {
@@ -1513,7 +1612,7 @@ static bool csg3_from_linext(
         tri = TRI_LEFT;
     }
 
-
+    /* Use 3D XOR to handle 2D XOR semantics of polygon paths */
     cp_v_csg_add_p_t *xo = NULL;
     if (p->path.size >= 2) {
         cp_csg_xor_t *xor = cp_csg_new(*xor, s->loc);
@@ -1521,17 +1620,13 @@ static bool csg3_from_linext(
         xo = &xor->xor;
     }
 
-    /* FIXME:
-     * Some paths are negative and cannot simply be generated as a separate
-     * linext, but must be considered as a single one.
-     * Identify which ones are negative (or use XOR on linear extrusions).
-     */
     for (cp_v_each(i, &p->path)) {
         cp_csg2_path_t const *q = &cp_v_nth(&p->path, i);
 
         size_t pcnt = q->point_idx.size;
         size_t tcnt = (zcnt * pcnt) + is_cone;
 
+        /* possibly concave faces: handled by faces_n_edge_from_tower. */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
         if (xo != NULL) {
             cp_csg_add_t *o2 = cp_csg_new(*o2, s->loc);
@@ -1567,16 +1662,11 @@ static bool csg3_from_linext(
             w->loc = s->loc;
         }
 
-        faces_from_tower(o, m, s->loc, pcnt, s->slices + 1, true, tri);
-
-        if (!poly_make_edges(o, c)) {
+        if (!faces_n_edges_from_tower(o, c, m, s->loc, pcnt, s->slices + 1, true, tri, true)) {
             return msg(c, CP_ERR_FAIL, NULL, NULL,
                 " Internal Error: 'linear_extrude' polyhedron construction algorithm is broken.\n");
         }
     }
-
-    /* FIXME: continue */
-    (void)r;
 
     return true;
 }
@@ -1901,7 +1991,7 @@ extern void cp_csg3_tree_bb(
  * Convert a SCAD AST into a CSG3 tree.
  */
 extern bool cp_csg3_from_scad_tree(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad)
@@ -1911,7 +2001,7 @@ extern bool cp_csg3_from_scad_tree(
     assert(t != NULL);
     assert(r->opt != NULL);
     ctxt_t c = {
-        .pool = pool,
+        .tmp = tmp,
         .tree = r,
         .opt = r->opt,
         .err = t,

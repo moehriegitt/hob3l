@@ -21,7 +21,7 @@
  * space from the polygons for storing the result.
  */
 extern void cp_csg2_op_reduce(
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_lazy_t *r);
 
 /**
@@ -34,7 +34,7 @@ extern void cp_csg2_op_reduce(
  * \p r and/or \p b are reused and cleared to construct r.  This may happen
  * immediately or later in cp_csg2_op_reduce().
  *
- * Uses \p pool for all temporary allocations (but not for constructing r).
+ * Uses \p tmp for all temporary allocations (but not for constructing r).
  *
  * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
  * Bentley-Ottmann plain sweep.  The algorithm is modified:
@@ -74,7 +74,7 @@ extern void cp_csg2_op_reduce(
  */
 extern void cp_csg2_op_lazy(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_lazy_t *r,
     cp_csg2_lazy_t *b,
     cp_bool_op_t op);
@@ -94,7 +94,7 @@ extern void cp_csg2_op_lazy(
  */
 extern void cp_csg2_op_add_layer(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_tree_t *r,
     cp_csg2_tree_t *a,
     size_t zi);
@@ -118,7 +118,7 @@ extern void cp_csg2_op_add_layer(
  */
 extern cp_csg2_poly_t *cp_csg2_flatten(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_v_obj_p_t *root);
 
 /**
@@ -134,7 +134,7 @@ extern cp_csg2_poly_t *cp_csg2_flatten(
  */
 extern void cp_csg2_op_diff_layer(
     cp_csg_opt_t const *opt,
-    cp_pool_t *pool,
+    cp_pool_t *tmp,
     cp_csg2_tree_t *a,
     size_t zi);
 
