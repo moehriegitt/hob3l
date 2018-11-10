@@ -128,7 +128,7 @@ struct cp_csg3_face {
     cp_loc_t loc;
 };
 
-typedef CP_ARR_T(cp_csg3_face_t) cp_a_csg3_face_t;
+typedef CP_VEC_T(cp_csg3_face_t) cp_v_csg3_face_t;
 
 typedef struct {
     /**
@@ -158,7 +158,7 @@ typedef struct {
 
     /**
      * The faces of the polyhedron. */
-    cp_a_csg3_face_t face;
+    cp_v_csg3_face_t face;
 
     /**
      * This is a full cube, i.e., the bounding box is exactly the

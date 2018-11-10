@@ -865,8 +865,6 @@ The polyhedron must be 2-manifold, i.e.:
     walls.
   * Each edge must have exactly two adjacent faces.
 
-BUG: At the moment, this only works correctly if all face polygons are convex.
-
 ### rotate
 
 Rotate substructures.

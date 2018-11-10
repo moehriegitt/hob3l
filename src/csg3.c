@@ -860,11 +860,8 @@ static bool faces_n_edges_from_tower(
     cp_v_size3_t tri = {0};
     if (need_tri) {
         cp_vec2_arr_ref_t a2;
-        cp_vec2_arr_ref_from_a_vec3_loc(&a2, &o->point, false);
-        assert(a2.count >= fn);
-        a2.count = fn;
-
-        if (!cp_csg2_tri_vec2_arr_ref(&tri, c->tmp, c->err, &a2)) {
+        cp_vec2_arr_ref_from_a_vec3_loc_xy(&a2, &o->point);
+        if (!cp_csg2_tri_vec2_arr_ref(&tri, c->tmp, c->err, loc, &a2, fn)) {
             return false;
         }
     }
@@ -1056,6 +1053,95 @@ static int cmp_vec3_loc(
     return cp_vec3_lex_cmp(&a->coord, &b->coord);
 }
 
+static bool csg3_make_polyhedron_face(
+    ctxt_t *c,
+    cp_csg3_poly_t *o,
+    cp_scad_polyhedron_t const *s,
+    cp_scad_face_t const *sf,
+    bool rev)
+{
+    /* 0 = no trangulation
+     * 1 = use XY plane
+     * 2 = use YZ plane */
+    unsigned need_tri = 0;
+
+    /* check whether the face is convex */
+    unsigned orient = 0;
+    for (cp_v_each(i, &sf->points)) {
+        size_t j = cp_wrap_add1(i, sf->points.size);
+        size_t k = cp_wrap_add1(j, sf->points.size);
+        cp_vec3_loc_t const *pi = cp_v_nth(&sf->points, i).ref;
+        cp_vec3_loc_t const *pj = cp_v_nth(&sf->points, j).ref;
+        cp_vec3_loc_t const *pk = cp_v_nth(&sf->points, k).ref;
+        orient |= 0x01U << (1 + cp_vec2_right_normal3_z(
+            &pi->coord.b, &pj->coord.b, &pk->coord.b));
+        orient |= 0x10U << (1 + cp_vec2_right_normal3_z(
+            &pi->coord.be, &pj->coord.be, &pk->coord.be));
+        if (((orient & 0x05) == 0x05) ||
+            ((orient & 0x50) == 0x50))
+        {
+            /* have both concave and convex edges: decide whether to use XY or YZ plane */
+            cp_vec3_t dir;
+            cp_vec3_right_cross3(&dir, &pi->coord, &pj->coord,&pk->coord);
+            need_tri = fabs(dir.z) > fabs(dir.x) ? 1 : 2;
+            break;
+        }
+    }
+
+    if (need_tri != 0) {
+        /* construct from triangles */
+        cp_v_size3_t tri = {0};
+        cp_vec2_arr_ref_t a2;
+        cp_vec2_arr_ref_from_a_vec3_loc_ref(&a2, &s->points, &sf->points, (need_tri == 2));
+        if (!cp_csg2_tri_vec2_arr_ref(&tri, c->tmp, c->err, s->loc, &a2, sf->points.size)) {
+            return false;
+        }
+
+        /* get orientation in the processed plane to flip triangles accordingly later */
+        double sum = 0;
+        for (cp_size_each(j0, sf->points.size)) {
+            size_t j1 = cp_wrap_add1(j0, sf->points.size);
+            size_t j2 = cp_wrap_add1(j1, sf->points.size);
+            sum += cp_vec2_right_cross3_z(
+                cp_vec2_arr_ref(&a2, j0),
+                cp_vec2_arr_ref(&a2, j1),
+                cp_vec2_arr_ref(&a2, j2));
+        }
+        bool rev2 = (sum < 0);
+
+        /* add triangles */
+        for (cp_v_each(i, &tri)) {
+            cp_csg3_face_t *cf = cp_v_push0(&o->face);
+            cf->loc = sf->loc;
+            cp_v_init0(&cf->point, 3);
+            for (cp_size_each(j, 3)) {
+                cp_vec3_loc_ref_t *v = &cp_v_nth(&cf->point, j);
+                size_t k = cp_v_nth(&tri, i).p[j];
+                v->ref = &cp_v_nth(&o->point, k);
+                v->loc = cp_v_nth(&s->points, k).loc;
+            }
+            face_basics(cf, rev ^ rev2, sf->loc);
+        }
+    }
+    else {
+        /* construct from convex face */
+        cp_csg3_face_t *cf = cp_v_push0(&o->face);
+
+        /* copy the point indices (same data type, but references into different array) */
+        cp_v_init0(&cf->point, sf->points.size);
+        for (cp_v_each(j, &sf->points)) {
+            size_t idx = cp_v_idx(&s->points, cp_v_nth(&sf->points, j).ref);
+            cp_v_nth(&cf->point, j).ref = o->point.data + idx;
+            cp_v_nth(&cf->point, j).loc = cp_v_nth(&sf->points, j).loc;
+        }
+
+        /* init edge to same size as point */
+        face_basics(cf, rev, sf->loc);
+    }
+
+    return true;
+}
+
 static bool csg3_from_polyhedron(
     bool *no,
     cp_v_obj_p_t *r,
@@ -1101,28 +1187,18 @@ static bool csg3_from_polyhedron(
     /* copy points (same data type, just copy the array) */
     cp_v_init_with(&o->point, s->points.data, s->points.size);
 
-    /* in-place xform */
-    for (cp_v_each(i, &o->point)) {
-        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->mat->n, &cp_v_nth(&o->point, i).coord);
+    /* copy faces */
+    bool rev = (m->mat->d < 0);
+    for (cp_v_each(i, &s->faces)) {
+        if (!csg3_make_polyhedron_face(c, o, s, &cp_v_nth(&s->faces, i), rev)) {
+            return false;
+        }
     }
 
-    /* copy faces */
-    cp_v_init0(&o->face, s->faces.size);
-    for (cp_v_each(i, &s->faces)) {
-        cp_scad_face_t *sf = &cp_v_nth(&s->faces, i);
-        cp_csg3_face_t *cf = &cp_v_nth(&o->face, i);
-        cf->loc = sf->loc;
-
-        /* copy the point indices (same data type, but references into different array) */
-        cp_v_init0(&cf->point, sf->points.size);
-        for (cp_v_each(j, &sf->points)) {
-            size_t idx = cp_v_idx(&s->points, cp_v_nth(&sf->points, j).ref);
-            cp_v_nth(&cf->point, j).ref = o->point.data + idx;
-            cp_v_nth(&cf->point, j).loc = cp_v_nth(&sf->points, j).loc;
-        }
-
-        /* init edge to same size as point */
-        cp_v_init0(&cf->edge,  cf->point.size);
+    /* in-place xform */
+    for (cp_v_each(i, &o->point)) {
+        cp_vec3_t *co = &cp_v_nth(&o->point, i).coord;
+        cp_vec3w_xform(co, &m->mat->n, co);
     }
 
     return poly_make_edges(o, c);

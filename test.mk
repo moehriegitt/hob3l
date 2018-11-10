@@ -164,6 +164,8 @@ TEST_STL.scad := \
     scad-test/test14.scad \
     scad-test/test31d.scad \
     scad-test/test30a.scad \
+    scad-test/test13c.scad \
+    scad-test/test13c2.scad \
     scad-test/test13b.scad
 
 FAIL_STL.scad := \

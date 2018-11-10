@@ -436,6 +436,62 @@ extern bool cp_vec3_in_line(
     cp_vec3_t const *p3);
 
 /**
+ * cp_v_vec2_loc_t nth function for cp_vec2_arr_ref_t
+ */
+extern cp_vec2_t *_cp_v_vec2_loc_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i);
+
+/**
+ * cp_v_vec2_loc_t idx function for cp_vec2_arr_ref_t
+ */
+extern size_t _cp_v_vec2_loc_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a);
+
+/**
+ * cp_v_vec3_loc_t nth function for cp_vec2_arr_ref_t, XY plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_xy_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i);
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
+ */
+extern size_t _cp_v_vec3_loc_xy_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a);
+
+/**
+ * cp_v_vec3_loc_ref_t nth function for cp_vec2_arr_ref_t, XY plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_ref_xy_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i);
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
+ */
+extern size_t _cp_v_vec3_loc_ref_xy_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a);
+
+/**
+ * cp_v_vec3_loc_ref_t nth function for cp_vec2_arr_ref_t, YZ plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_ref_yz_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i);
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, YZ plane
+ */
+extern size_t _cp_v_vec3_loc_ref_yz_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a);
+
+/**
  * Port side direction of the vector a-->b (i.e., the non-normalised 'normal')
  */
 static inline void cp_vec2_port(
@@ -572,32 +628,17 @@ static inline bool cp_vec3_left_normal3(
 }
 
 static inline cp_vec2_t *cp_vec2_arr_ref(
-    cp_vec2_arr_ref_t *a,
+    cp_vec2_arr_ref_t const *a,
     size_t i)
 {
-    assert(i < a->count);
-    assert(((i * a->size) / a->size) == i);
-    void *r = ((char*)a->base_vec2) + (a->size * i);
-    return r;
-}
-
-static inline cp_loc_t cp_vec2_arr_loc(
-    cp_vec2_arr_ref_t *a,
-    size_t i)
-{
-    assert(i < a->count);
-    assert(((i * a->size) / a->size) == i);
-    cp_loc_t *r = (void*)(((char*)a->base_loc) + (a->size * i));
-    return *r;
+    return a->nth(a, i);
 }
 
 static inline size_t cp_vec2_arr_idx(
-    cp_vec2_arr_ref_t *a,
-    cp_vec2_t *p)
+    cp_vec2_arr_ref_t const *a,
+    cp_vec2_t const *p)
 {
-    size_t o = CP_PTRDIFF((char*)p, (char*)a->base_vec2);
-    assert((o % a->size) == 0);
-    return o / a->size;
+    return a->idx(a, p);
 }
 
 /**
@@ -605,31 +646,40 @@ static inline size_t cp_vec2_arr_idx(
  */
 static inline void cp_vec2_arr_ref_from_v_vec2_loc(
     cp_vec2_arr_ref_t *a,
-    cp_v_vec2_loc_t *v)
+    cp_v_vec2_loc_t const *v)
 {
-    a->base_vec2 = (char*)v->data + cp_offsetof(*v->data, coord);
-    a->base_loc  = (char*)v->data + cp_offsetof(*v->data, loc);
-    a->size = sizeof(*v->data);
-    a->count = v->size;
+    a->nth = _cp_v_vec2_loc_nth;
+    a->idx = _cp_v_vec2_loc_idx;
+    a->user1 = v;
+    a->user2 = NULL;
 }
 
 /**
  * Convert to vec2 array.
  */
-static inline void cp_vec2_arr_ref_from_a_vec3_loc(
+static inline void cp_vec2_arr_ref_from_a_vec3_loc_xy(
     cp_vec2_arr_ref_t *a,
-    cp_a_vec3_loc_t *v,
+    cp_a_vec3_loc_t const *v)
+{
+    a->nth = _cp_v_vec3_loc_xy_nth;
+    a->idx = _cp_v_vec3_loc_xy_idx;
+    a->user1 = v;
+    a->user2 = NULL;
+}
+
+/**
+ * Convert to vec2 array.
+ */
+static inline void cp_vec2_arr_ref_from_a_vec3_loc_ref(
+    cp_vec2_arr_ref_t *a,
+    cp_a_vec3_loc_t const *v,
+    cp_a_vec3_loc_ref_t const *w,
     bool yz_plane)
 {
-    a->base_vec2 =
-        (char*)v->data +
-        (yz_plane ?
-            cp_offsetof(*v->data, coord.be)
-        :   cp_offsetof(*v->data, coord.b));
-
-    a->base_loc = (char*)v->data + cp_offsetof(*v->data, loc);
-    a->size = sizeof(*v->data);
-    a->count = v->size;
+    a->nth = yz_plane ? _cp_v_vec3_loc_ref_yz_nth : _cp_v_vec3_loc_ref_xy_nth;
+    a->idx = yz_plane ? _cp_v_vec3_loc_ref_yz_idx : _cp_v_vec3_loc_ref_xy_idx;
+    a->user1 = v;
+    a->user2 = w;
 }
 
 #endif /* __CP_MAT_H */

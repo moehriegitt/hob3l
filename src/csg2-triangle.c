@@ -1541,10 +1541,11 @@ extern bool cp_csg2_tri_vec2_arr_ref(
     cp_v_size3_t *tri,
     cp_pool_t *tmp,
     cp_err_t *t,
-    cp_vec2_arr_ref_t *a2)
+    cp_loc_t loc,
+    cp_vec2_arr_ref_t *a2,
+    size_t n)
 {
     /* count edges */
-    size_t n = a2->count;
     if (n < 2) {
         return true;
     }
@@ -1556,7 +1557,7 @@ extern bool cp_csg2_tri_vec2_arr_ref(
     /* make edges */
     for (cp_size_each(j, n)) {
         node_t *p = &node[j];
-        p->loc =   cp_vec2_arr_loc(a2, j);
+        p->loc = loc;
         p->coord = cp_vec2_arr_ref(a2, j);
         p->out = &edge[j];
         p->in = &edge[cp_wrap_sub1(j,n)];

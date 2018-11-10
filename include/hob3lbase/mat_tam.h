@@ -82,15 +82,14 @@ typedef struct {
 
 typedef CP_ARR_T(cp_vec3_loc_ref_t) cp_a_vec3_loc_ref_t;
 
-/**
- * Pointer to base of array of entries with vec2 slot plus info to access array.
- */
-typedef struct {
-    void  *base_vec2;
-    void  *base_loc;
-    size_t size;
-    size_t count;
-} cp_vec2_arr_ref_t;
+typedef struct cp_vec2_arr_ref cp_vec2_arr_ref_t;
+
+struct cp_vec2_arr_ref {
+    cp_vec2_t *(*nth)(cp_vec2_arr_ref_t const *, size_t);
+    size_t (*idx)(cp_vec2_arr_ref_t const *, cp_vec2_t const *);
+    void const *user1;
+    void const *user2;
+};
 
 #define CP_V01(p)   (p).v[0], (p).v[1]
 #define CP_V012(p)  (p).v[0], (p).v[1], (p).v[2]

@@ -87,9 +87,6 @@ from the start.  Corner case handling took up most of the development
 time and takes up a large portion of the code, because doing floating
 point computations in a stable way is really tricky.
 
-The input polyhedra must consist of only convex faces.  This will be
-fixed in the future.
-
 The input polyhedra must be 2-manifold.  This is because the slicing
 algorithm is edge driven and uses a notion of 'left and right face' at
 an edge, so an edge must have a unique face on each of its sides.

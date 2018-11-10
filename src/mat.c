@@ -852,3 +852,91 @@ extern bool cp_vec3_in_line(
         cp_sqr_eq((p2->y - p1->y) * (p3->x - p2->x), (p3->y - p2->y) * (p2->x - p1->x)) &&
         cp_sqr_eq((p2->z - p1->z) * (p3->x - p2->x), (p3->z - p2->z) * (p2->x - p1->x));
 }
+
+/**
+ * cp_v_vec2_loc_t nth function for cp_vec2_arr_ref_t
+ */
+extern cp_vec2_t *_cp_v_vec2_loc_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i)
+{
+    cp_v_vec2_loc_t const *v = u->user1;
+    return &cp_v_nth(v, i).coord;
+}
+
+/**
+ * cp_v_vec2_loc_t idx function for cp_vec2_arr_ref_t
+ */
+extern size_t _cp_v_vec2_loc_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a)
+{
+    cp_v_vec2_loc_t const *v = u->user1;
+    return cp_v_idx(v, CP_BOX_OF(a, cp_vec2_loc_t const, coord));
+}
+
+/**
+ * cp_v_vec3_loc_t nth function for cp_vec2_arr_ref_t, XY plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_xy_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i)
+{
+    cp_v_vec3_loc_t const *v = u->user1;
+    return &cp_v_nth(v, i).coord.b;
+}
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
+ */
+extern size_t _cp_v_vec3_loc_xy_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a)
+{
+    cp_v_vec3_loc_t const *v = u->user1;
+    return cp_v_idx(v, CP_BOX_OF(a, cp_vec3_loc_t const, coord.b));
+}
+
+/**
+ * cp_v_vec3_loc_ref_t nth function for cp_vec2_arr_ref_t, XY plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_ref_xy_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i)
+{
+    cp_a_vec3_loc_ref_t const *v = u->user2;
+    return &cp_v_nth(v, i).ref->coord.b;
+}
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
+ */
+extern size_t _cp_v_vec3_loc_ref_xy_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a)
+{
+    cp_a_vec3_loc_t const *v = u->user1;
+    return cp_v_idx(v, CP_BOX_OF(a, cp_vec3_loc_t const, coord.b));
+}
+
+/**
+ * cp_v_vec3_loc_ref_t nth function for cp_vec2_arr_ref_t, YZ plane
+ */
+extern cp_vec2_t *_cp_v_vec3_loc_ref_yz_nth(
+    cp_vec2_arr_ref_t const *u,
+    size_t i)
+{
+    cp_a_vec3_loc_ref_t const *v = u->user2;
+    return &cp_v_nth(v, i).ref->coord.be;
+}
+
+/**
+ * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, YZ plane
+ */
+extern size_t _cp_v_vec3_loc_ref_yz_idx(
+    cp_vec2_arr_ref_t const *u,
+    cp_vec2_t const *a)
+{
+    cp_a_vec3_loc_t const *v = u->user1;
+    return cp_v_idx(v, CP_BOX_OF(a, cp_vec3_loc_t const, coord.be));
+}

@@ -118,7 +118,9 @@ extern bool cp_csg2_tri_vec2_arr_ref(
     cp_v_size3_t *tri,
     cp_pool_t *tmp,
     cp_err_t *t,
-    cp_vec2_arr_ref_t *a2);
+    cp_loc_t loc,
+    cp_vec2_arr_ref_t *a2,
+    size_t n);
 
 /**
  * Triangulate a given layer
