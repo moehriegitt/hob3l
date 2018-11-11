@@ -161,9 +161,8 @@ typedef enum {
     i + __skipZ < __n; \
     i++
 
-
 /**
- * Helper macro to allos cp_range_each to have optional arguments.
+ * Helper macro to allow cp_range_each to have optional arguments.
  */
 #define __cp_size_each(i,n,skipA,skipZ,...) \
     __cp_size_each_aux( \
