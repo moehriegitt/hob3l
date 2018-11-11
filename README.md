@@ -362,6 +362,15 @@ let `eps2` be about the square of `eps`.
     --eps2=X
 ```
 
+Computing the difference between adjacent layer (e.g. for JS/WebGL
+output) often has to deal with very close points, so switching this
+off often helps to move forward, too.  Of course, this may produce
+output that is less nice.
+
+```
+    --no-diff
+```
+
 ## Algorithmic Improvements
 
 The triangulation algorithm of Hertel & Mehlhorn (1983) was

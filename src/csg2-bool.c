@@ -214,7 +214,9 @@ typedef struct {
     bool all_points;
 
     /**
-     * Temporary array for processing vertices when connecting polygon chains */
+     * Temporary array for processing vertices when connecting polygon chains
+     * FIXME: temporary should be in pool.
+     */
     v_event_p_t vert;
 } ctxt_t;
 
@@ -948,12 +950,40 @@ static cp_angle_t ev_atan2(
     return a;
 }
 
-static int cmp_by_atan2(
+static int cmp_atan2(event_t *a, event_t *b)
+{
+    assert(a->p == b->p);
+    return cp_cmp(ev_atan2(a), ev_atan2(b));
+}
+
+static int cmp_atan2_p(
     event_t * const *a,
     event_t * const *b,
     void *u __unused)
 {
-    return cp_cmp(ev_atan2(*a), ev_atan2(*b));
+    return cmp_atan2(*a, *b);
+}
+
+static bool same_dir(event_t *e1, event_t *e2)
+{
+    /* atan2 is the same option, but it's measurably slow (~5%: 0.88s vs. 0.84s) */
+#if 1
+    return
+        cp_vec2_in_line(
+           &e1->other->p->v.coord,
+           &e1->p->v.coord,
+           &e2->other->p->v.coord) &&
+        (
+            cp_cmp(0, e1->other->p->v.coord.x - e1->p->v.coord.x) ==
+            cp_cmp(0, e2->other->p->v.coord.x - e2->p->v.coord.x)
+        ) &&
+        (
+            cp_cmp(0, e1->other->p->v.coord.y - e1->p->v.coord.y) ==
+            cp_cmp(0, e2->other->p->v.coord.y - e2->p->v.coord.y)
+        );
+#else
+    return cmp_atan2(e1, e2) == 0;
+#endif
 }
 
 /**
@@ -967,7 +997,8 @@ static void chain_flush_vertex(
 
     /* sort by atan2() if we have more than 2 vertices */
     if (c->vert.size > 2) {
-        cp_v_qsort(&c->vert, 0, ~(size_t)0, cmp_by_atan2, NULL);
+        /* avoid atan2 unless really needed, because it's slow */
+        cp_v_qsort(&c->vert, 0, ~(size_t)0, cmp_atan2_p, NULL);
     }
 
     /* remove adjacent equal angles (both of the entries) */
@@ -975,15 +1006,11 @@ static void chain_flush_vertex(
     for (cp_v_each(i, &c->vert)) {
         event_t *e = cp_v_nth(&c->vert, i);
         /* equal to predecessor? => skip */
-        if ((i > 0) &&
-            (e->other->p == cp_v_nth(&c->vert, i-1)->other->p))
-        {
+        if ((i > 0) && same_dir(e, cp_v_nth(&c->vert, i-1))) {
             continue;
         }
         /* equal to successor? => skip */
-        if ((i < (c->vert.size - 1)) &&
-            (e->other->p == cp_v_nth(&c->vert, i+1)->other->p))
-        {
+        if ((i < (c->vert.size - 1)) && same_dir(e, cp_v_nth(&c->vert, i+1))) {
             continue;
         }
 
@@ -1001,6 +1028,22 @@ static void chain_flush_vertex(
         chain_merge(c, e1, e2);
     }
     LOG("END: flush_vertex\n");
+
+    /*
+     * In situations where there is a deadend path, the deadend is kept separated
+     * by the above loops:
+     *
+     *    A
+     *    |
+     *    B===C===D
+     *    |
+     *    E
+     *
+     * This will connect A-B-E, but will not connect B-C or B-D.  So the above
+     * sub-chain C--D will remain.  It may be connected into longer chains if
+     * there are edge B--C, C--D, B--D.  The path_add_point3 will filter it out
+     * by the collinear rule.  It may end up with short polies, however.
+     */
 
     /* sweep */
     cp_v_clear(&c->vert, 8);
@@ -1115,8 +1158,7 @@ static void path_make(
     assert(chain_other(ea)->other == eb);
     assert(chain_other(eb)->other == ec);
     if (ea == ec) {
-        /* 2 nodes only.  There cannot be longer chains that collapse
-         * into a line, because these are filtered out by chain_combine(). */
+        /* Too short. Longer chains of collinears are handled below. */
         return;
     }
 
@@ -1131,13 +1173,16 @@ static void path_make(
         eb = ec;
         ec = chain_other(eb)->other;
     } while (ec != e0);
-    LOG("iter ends\n");
     if (path_add_point3(c, r, p, ea, eb, e0)) {
         ea = eb;
     }
     path_add_point3(c, r, p, ea, e0, e1);
 
-    assert((p->point_idx.size >= 3) && "Polygon chain is too short");
+    if (p->point_idx.size < 3) {
+        /*  completely collinear path: discard path again */
+        cp_v_fini(&p->point_idx);
+        cp_v_pop(&r->path);
+    }
 }
 
 /**
@@ -1995,6 +2040,9 @@ static void cp_csg2_op_poly(
 
     chain_combine(&c);
     poly_make(o, &c, r->data[0]);
+
+    /* sweep */
+    cp_v_fini(&c.vert);
 }
 
 static cp_csg2_poly_t *poly_sub(
