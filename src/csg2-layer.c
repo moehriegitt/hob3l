@@ -742,9 +742,6 @@ static bool csg2_add_layer_stack(
         csg2_add_layer_sphere(r->opt, z, &l->root->add, cp_csg3_cast(cp_csg3_sphere_t, d));
         break;
 
-    case CP_CSG3_CYL:
-        CP_NYI("cylinder");
-
     case CP_CSG3_POLY:
         csg2_add_layer_poly(r->opt, pool, z, &l->root->add,
             cp_csg3_cast(cp_csg3_poly_t, d));

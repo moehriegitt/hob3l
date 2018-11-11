@@ -166,11 +166,10 @@ TEST_STL.scad := \
     scad-test/test30a.scad \
     scad-test/test13c.scad \
     scad-test/test13c2.scad \
-    scad-test/test13b.scad
+    scad-test/test13b.scad \
+    scad-test/chain1.scad
 
 FAIL_STL.scad := \
-    scad-test/chain1.scad \
 
 FAIL_JS.scad := \
-    scad-test/chain1.scad \
     scad-test/linext5.scad

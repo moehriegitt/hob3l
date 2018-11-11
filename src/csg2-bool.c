@@ -104,8 +104,6 @@ struct event {
         cp_dict_t node_q;
         /** Node for storing in ctxt::end */
         cp_dict_t node_end;
-        /** Node for storing in ctxt::poly */
-        cp_list_t node_poly;
     };
 
     cp_loc_t loc;
@@ -214,6 +212,10 @@ typedef struct {
     /** Whether to output all points or to drop those of adjacent collinear
      * lines. */
     bool all_points;
+
+    /**
+     * Temporary array for processing vertices when connecting polygon chains */
+    v_event_p_t vert;
 } ctxt_t;
 
 /**
@@ -396,24 +398,13 @@ static void debug_print_s(
         }
 
         /* chain */
-        cp_printf(cp_debug_ps, "4 setlinewidth\n");
+        cp_printf(cp_debug_ps, "2 setlinewidth\n");
         i = 0;
         for (cp_dict_each(_e, c->end)) {
-            cp_printf(cp_debug_ps, "1 %g 0 setrgbcolor\n", three_steps(i) * 0.6);
+            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", three_steps(i));
             event_t *e0 = CP_BOX_OF(_e, event_t, node_end);
             cp_debug_ps_dot(CP_PS_XY(e0->p->v.coord), 4);
             debug_print_chain(e0, cp_debug_ps_page_cnt);
-            i++;
-        }
-
-        /* poly */
-        cp_printf(cp_debug_ps, "2 setlinewidth\n");
-        i = 0;
-        for (cp_list_each(_e, &c->poly)) {
-            cp_printf(cp_debug_ps, "0 %g 0.8 setrgbcolor\n", three_steps(i));
-            event_t *e0 = CP_BOX_OF(_e, event_t, node_poly);
-            cp_debug_ps_dot(CP_PS_XY(e0->p->v.coord), 4);
-            debug_print_chain(e0, ~cp_debug_ps_page_cnt);
             i++;
         }
 
@@ -837,47 +828,206 @@ static int pt_cmp_end_d(
 }
 
 /**
- * Try to insert a node into a the polygon chain end store.
- * If a duplicate is found, extract and return it instead of inserting e.
+ * Insert a vertex into the node_end structure.  Duplicates are OK
+ * and will be handled later.
  */
-static event_t *chain_insert_or_extract(
+static void end_insert(
     ctxt_t *c,
     event_t *e)
 {
     LOG("insert %s\n", ev_str(e));
-    cp_dict_t *_r = cp_dict_insert(&e->node_end, &c->end, pt_cmp_end_d, NULL, 0);
-    if (_r == NULL) {
-        return NULL;
-    }
-    cp_dict_remove(_r, &c->end);
-    return CP_BOX_OF(_r, event_t, node_end);
+    (void)cp_dict_insert(&e->node_end, &c->end, pt_cmp_end_d, NULL, +1);
 }
 
 /**
- * Connect an edge e to a polygon point o1 that may already be
- * connected to more points.
+ * Add an edge to the output edge.  Only right events are added.
  */
-static void chain_join(
-    event_t *o1,
-    event_t *e)
-{
-    LOG("join   %s with %s\n", ev_str(o1), ev_str(e));
-    assert(cp_ring_is_end(&o1->node_chain));
-    assert(cp_ring_is_end(&e->node_chain));
-    cp_ring_join(&o1->node_chain, &e->node_chain);
-}
-
-/**
- * Insert into polygon output list */
-static void poly_add(
+static void chain_add(
     ctxt_t *c,
     event_t *e)
 {
-    LOG("poly   %s\n", ev_str(e));
+    LOG("out:   %s (%p)\n", ev_str(e), e);
+
+    event_t *o= e->other;
+
+    /* the event should left and neither point should be s or q */
+    assert(!e->left);
+    assert(pt_cmp(e->p, o->p) >= 0);
+    assert(!cp_dict_is_member(&e->node_s));
     assert(!cp_dict_is_member(&e->node_q));
-    assert(!cp_dict_is_member(&e->node_end));
-    cp_list_init(&e->node_poly);
-    cp_list_insert(&c->poly, &e->node_poly);
+    assert(!cp_dict_is_member(&o->node_s));
+    assert(!cp_dict_is_member(&o->node_q));
+
+    /*
+     * This algorithm combines output edges into a polygon ring.  Because
+     * we can have multiple edges meeting in a single point, we cannot
+     * directly connect points as they come it; in some case, this would
+     * create crossing paths, which we cannot have.
+     *
+     * Instead, we first add all points (both ends of each edge) to a
+     * set ordered by point coordinates (c->end using node_end).  Left
+     * and right vertices of each inserted edge are left singletons
+     * (wrt. node_chain), i.e., the edges are defined by ->other,
+     * and the next edge is found via a pair in (node_chain).
+     * Identical points are in no particular order (we could sort them
+     * now already, but we do not need the order for most of the point
+     * pair, so comparing would be a waste at this point.  The data
+     * structure will, in the end, have an even number of vertices at
+     * each point coordinate.  Usually, it will have 2 unless vertices
+     * coincide.
+     *
+     * When everything is inserted, we iterate the c->end data
+     * structure and take out groups of equal points.  If there are 2,
+     * they are connected into a chain.  For more than 2, the points
+     * are sorted by absolute angle so that there is no edge between
+     * adjacent vertices. Sorted this way, they can be connected
+     * again.
+     *
+     * This second step will notice collapses of edges in the form
+     * a-b-a, because the angle of the two a-b edges is equal.  Both
+     * vertices of these edges are removed from the data structures.
+     * (It may be that the countervertex is the same edge, as in a-b-c,
+     * but there may also be two distinct vertices stemming from longer
+     * collapsed chains, e.g. in  a-b-c-b-a.)
+     *
+     * In the last step, polygons are reconstructed from the chains
+     * (in node_chain), each polygon is found by iterating
+     * c->end (in node_end) again, marking what was already extracted.
+     *
+     * In total, this takes O(n log n) time with n edges found by the
+     * algorithm.
+     */
+
+    /* make a singleton of the two end points */
+    cp_ring_init(&e->node_chain);
+    cp_ring_init(&o->node_chain);
+
+    /* insert into c->end */
+    end_insert(c, e);
+    end_insert(c, o);
+}
+
+static void chain_merge(
+    ctxt_t *c,
+    event_t *e1,
+    event_t *e2)
+{
+    assert(e1->p == e2->p);
+    e1->p->path_cnt++;
+    LOG("chain_merge: %s -- %s -- %s\n",
+       pt_str(e1->other->p),
+       pt_str(e1->p),
+       pt_str(e2->other->p));
+
+    cp_ring_pair(&e1->node_chain, &e2->node_chain);
+
+    debug_print_s(c, "join", e2, e1, NULL);
+}
+
+static cp_angle_t ev_atan2(
+    event_t *e)
+{
+    /* We swap x and y in atan2 so that the touching end between -pi and +pi is
+     * in the vertical, not horizontal.  This will produce more start/ends,
+     * heuristically, compared to bends, which seems good for the triangulation
+     * algorithm. */
+    cp_angle_t a = atan2(
+        e->p->v.coord.x - e->other->p->v.coord.x,
+        e->p->v.coord.y - e->other->p->v.coord.y);
+
+    /* identify -pi with +pi so that the angles are ordered equally.
+     * Map -PI and -PI to -PI (not +PI), because in vertical lines, the
+     * lower node compares smaller than the upper one, and so vertical+to_the_right
+     * is not a start, but a bend, which is more brittle in triangulation.  Try to
+     * avoid those kinds of edges in conflicting situations.
+     */
+    if (cp_eq(a, +CP_PI) || cp_eq(a, -CP_PI)) {
+        a = -CP_PI;
+    }
+
+    return a;
+}
+
+static int cmp_by_atan2(
+    event_t * const *a,
+    event_t * const *b,
+    void *u __unused)
+{
+    return cp_cmp(ev_atan2(*a), ev_atan2(*b));
+}
+
+/**
+ * Handle same point vertices */
+static void chain_flush_vertex(
+    ctxt_t *c)
+{
+    LOG("BEGIN: flush_vertex: %"_Pz"u points\n", c->vert.size);
+    assert(c->vert.size > 0);
+    assert(((c->vert.size & 1) == 0) && "Odd number of edges meet in one point");
+
+    /* sort by atan2() if we have more than 2 vertices */
+    if (c->vert.size > 2) {
+        cp_v_qsort(&c->vert, 0, ~(size_t)0, cmp_by_atan2, NULL);
+    }
+
+    /* remove adjacent equal angles (both of the entries) */
+    size_t o = 0;
+    for (cp_v_each(i, &c->vert)) {
+        event_t *e = cp_v_nth(&c->vert, i);
+        /* equal to predecessor? => skip */
+        if ((i > 0) &&
+            (e->other->p == cp_v_nth(&c->vert, i-1)->other->p))
+        {
+            continue;
+        }
+        /* equal to successor? => skip */
+        if ((i < (c->vert.size - 1)) &&
+            (e->other->p == cp_v_nth(&c->vert, i+1)->other->p))
+        {
+            continue;
+        }
+
+        /* not equal: keep */
+        cp_v_nth(&c->vert, o) = e;
+        o++;
+    }
+    c->vert.size = o;
+
+    /* join remaining edges in pairs */
+    assert(((c->vert.size & 1) == 0) && "Odd number of edges meet in one point");
+    for (size_t i = 0; i < c->vert.size; i += 2) {
+        event_t *e1 = cp_v_nth(&c->vert, i);
+        event_t *e2 = cp_v_nth(&c->vert, i+1);
+        chain_merge(c, e1, e2);
+    }
+    LOG("END: flush_vertex\n");
+
+    /* sweep */
+    cp_v_clear(&c->vert, 8);
+}
+
+/**
+ * Combine longer chains from c->end structure
+ */
+static void chain_combine(
+    ctxt_t *c)
+{
+    LOG("BEGIN: chain_combine\n");
+    /* init */
+    cp_v_clear(&c->vert, 8); /* FIXME: temporary: should be in pool */
+
+    /* iterate c->end for same points */
+    for (cp_dict_each(_e, c->end)) {
+        event_t *e = CP_BOX_OF(_e, event_t, node_end);
+        if ((c->vert.size > 0) && (cp_v_last(&c->vert)->p != e->p)) {
+            chain_flush_vertex(c);
+        }
+        cp_v_push(&c->vert, e);
+    }
+    if (c->vert.size > 0) {
+        chain_flush_vertex(c);
+    }
+    LOG("END: chain_combine\n");
 }
 
 /**
@@ -886,20 +1036,14 @@ static void poly_add(
 static void path_add_point(
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
-    event_t *e)
+    point_t *q)
 {
-    assert(!cp_ring_is_end(&e->node_chain) && "Polygon chain is too short or misformed");
-
-    /* mark event used in polygon */
-    assert(!e->used);
-    e->used = true;
-
     /* possibly allocate a point */
-    size_t idx = e->p->idx;
+    size_t idx = q->idx;
     if (idx == CP_SIZE_MAX) {
         cp_vec2_loc_t *v = cp_v_push0(&r->point);
-        e->p->idx = idx = cp_v_idx(&r->point, v);
-        *v = e->p->v;
+        q->idx = idx = cp_v_idx(&r->point, v);
+        *v = q->v;
     }
     assert(idx < r->point.size);
 
@@ -915,48 +1059,31 @@ static bool path_add_point3(
     event_t *cur,
     event_t *next)
 {
+    LOG("point3: %p: (%s) -- %s -- (%s)\n",
+        cur, pt_str(prev->p), pt_str(cur->p), pt_str(next->p));
+    /* mark event used in polygon */
+    assert(!cur->used);
+    cur->used = true;
+
     if (c->all_points ||
         (cur->p->path_cnt > 1) ||
         !cp_vec2_in_line(&prev->p->v.coord, &cur->p->v.coord, &next->p->v.coord))
     {
         assert(!cp_vec2_eq(&prev->p->v.coord, &cur->p->v.coord));
         assert(!cp_vec2_eq(&next->p->v.coord, &cur->p->v.coord));
-        path_add_point(r, p, cur);
+        path_add_point(r, p, cur->p);
         return true;
     }
 
     return false;
 }
 
-/**
- * Cut a path like a-b-a-c to just a-c.
- * This may happen at small scales.
- */
-static bool chain_cut_backforth(
-    event_t *a,
-    event_t **_b)
+static event_t *chain_other(event_t *e)
 {
-    event_t *b = *_b;
-    if (cp_ring_is_pair(&a->node_chain, &b->node_chain)) {
-        return false;
-    }
-    event_t *x = CP_BOX0_OF(cp_ring_next(&a->node_chain, &b->node_chain), event_t, node_chain);
-    if (a->p != x->p) {
-        return false;
-    }
-    assert(!cp_ring_is_end(&b->node_chain));
-    assert(!cp_ring_is_end(&x->node_chain));
-    assert(b->p->path_cnt > 0);
-    b->p->path_cnt--;
-    assert(x->p->path_cnt > 0);
-    x->p->path_cnt--;
-
-    *_b = CP_BOX0_OF(cp_ring_next(&b->node_chain, &x->node_chain), event_t, node_chain);
-
-    cp_ring_remove(&b->node_chain);
-    cp_ring_remove(&x->node_chain);
-
-    return true;
+    assert(cp_ring_is_moiety(&e->node_chain));
+    event_t *o = CP_BOX_OF(cp_ring_step(&e->node_chain, 0), event_t, node_chain);
+    assert(e->p == o->p);
+    return o;
 }
 
 /**
@@ -964,49 +1091,47 @@ static bool chain_cut_backforth(
 static void path_make(
     ctxt_t *c,
     cp_csg2_poly_t *r,
-    cp_csg2_path_t *p,
     event_t *e0)
 {
-    assert(p->point_idx.size == 0);
-    event_t *ex = CP_BOX_OF(cp_ring_step(&e0->node_chain, 0), event_t, node_chain);
-    event_t *e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 1), event_t, node_chain);
-
-    /* make it so that e1 equals e0->other, and ex is the other end */
-    assert((e1->p == e0->other->p) || (ex->p == e0->other->p));
-    if (ex->p == e0->other->p) {
-        /* for some reason, none of my tests triggers this, but I cannot see
-         * why it couldn't happen */
-        CP_SWAP(&e1, &ex);
+    /* start at unused left points */
+    if (!e0->left || e0->used || chain_other(e0)->used) {
+        return;
     }
-    assert(e1->p == e0->other->p);
 
-    /* Four cases that collapse to two (no need to check whether e1 or ex is above):
-     * If e0-e1 is below e0-ex, and e0->in.below==0, then move along e0->e1.
-     * If e0-e1 is above e0-ex, and e0->in.below==1, then move along e1->e0.
-     * If e0-e1 is below e0-ex, and e0->in.below==1, then move along e1->e0.
-     * If e0-e1 is above e0-ex, and e0->in.below==0, then move along e0->e1.
-     */
-    if (e0->in.below) {
+    event_t *e1 = e0->other;
+    assert(!e1->left);
+    /* e0 is a left edge, i.e., we have an orientation like this: e0--e1 */
+
+    /* Make it so that in e0--e1, 'inside' is below. */
+    if (!e1->in.below) {
         CP_SWAP(&e0, &e1);
     }
 
-    /* eliminate back-and-forth points, which can happen at small dimensions */
-    while(chain_cut_backforth(e0, &e1)) {}
-    while(chain_cut_backforth(e1, &e0)) {}
-
-    /* handle triples in order to add points that are not collinear */
+    /* Keep chain_other(ex)->other == ey by moving to other edge at e0->p. */
+    e0 = chain_other(e0);
     event_t *ea = e0;
     event_t *eb = e1;
-    for (cp_ring_each(_ec, &e0->node_chain, &e1->node_chain)) {
-        event_t *ec = CP_BOX_OF(_ec, event_t, node_chain);
-        while (chain_cut_backforth(eb, &ec)) {
-            _ec = &ec->node_chain;
-        }
+    event_t *ec = chain_other(e1)->other;
+    assert(chain_other(ea)->other == eb);
+    assert(chain_other(eb)->other == ec);
+    if (ea == ec) {
+        /* 2 nodes only.  There cannot be longer chains that collapse
+         * into a line, because these are filtered out by chain_combine(). */
+        return;
+    }
+
+    /* make a new path */
+    cp_csg2_path_t *p = cp_v_push0(&r->path);
+
+    /* add points, removing collinear ones (if requested) */
+    do {
         if (path_add_point3(c, r, p, ea, eb, ec)) {
             ea = eb;
         }
         eb = ec;
-    }
+        ec = chain_other(eb)->other;
+    } while (ec != e0);
+    LOG("iter ends\n");
     if (path_add_point3(c, r, p, ea, eb, e0)) {
         ea = eb;
     }
@@ -1024,123 +1149,16 @@ static void poly_make(
 {
     CP_COPY_N_ZERO(r, obj, t->obj);
 
-    assert((c->end == NULL) && "Some poly chains are still open");
-
-    for (cp_list_each(_e, &c->poly)) {
-        event_t *e = CP_BOX_OF(_e, event_t, node_poly);
-        if (!e->used && !cp_ring_is_singleton(&e->node_chain)) {
-            cp_csg2_path_t *p = cp_v_push0(&r->path);
-            path_make(c, r, p, e);
+    /* iterate all points again */
+    for (cp_dict_each(_e, c->end)) {
+        event_t *e = CP_BOX_OF(_e, event_t, node_end);
+        /* only start a poly at left nodes to get the orientation right (e->in.below). */
+        /* only start at unused points */
+        if (e->left && !e->used) {
+            LOG("BEGIN: poly: %s\n", pt_str(e->p));
+            path_make(c, r, e);
+            LOG("END: poly\n");
         }
-    }
-}
-
-
-/**
- * Add an edge to the output edge.  Only right events are added.
- */
-static void chain_add(
-    ctxt_t *c,
-    event_t *e)
-{
-    LOG("out:   %s (%p)\n", ev_str(e), e);
-
-    /* the event should left and neither point should be s or q */
-    assert(!e->left);
-    assert(pt_cmp(e->p, e->other->p) >= 0);
-    assert(!cp_dict_is_member(&e->node_s));
-    assert(!cp_dict_is_member(&e->node_q));
-    assert(!cp_dict_is_member(&e->other->node_s));
-    assert(!cp_dict_is_member(&e->other->node_q));
-
-    cp_ring_init(&e->node_chain);
-    cp_ring_init(&e->other->node_chain);
-
-    /*
-     * This algorithm combines output edges into a polygon ring.  We
-     * know that the events come in from left (bottom) to right (top),
-     * i.e., we have a definitive direction.  Only right points are
-     * added.
-     *
-     * Edges are inserted by their next connection point that will
-     * come in into the c->end using node_end.  Partial polygon chains
-     * consisting of more than one point will have both ends in that
-     * set.
-     *
-     * The first edge of a new polygon is added by its left point,
-     * because we know that the next connection will be to that
-     * point.  Once an edge is connected, its right point will be
-     * inserted because its left point is already connected, so it cannot
-     * be connected again.
-     *
-     * A new edge first searches c->end by its left point to find a place to
-     * attach.  If found, that point is extracted from c->end, connected to
-     * the new edge using (using node_chain), and the new edge is inserted
-     * by its right point, waiting for another edge to connect.
-     *
-     * If another point with the same coordinates is found when trying
-     * to insert an edge, that node is extracted from c->end, the two
-     * ends are connected and the new edge is not inserted because
-     * both ends are connected.  This may or may not close a polygon
-     * complete.
-     *
-     * To gather polygons, once an edge connects two ends, it is inserted
-     * into the list c->poly using the node node_poly.  Polygons may have
-     * multiple nodes in this list, but an O(n) search is necessary to
-     * output them anyway, so this does not hurt.
-     *
-     * For connecting nodes, the ring data structure is used so that
-     * the order by which chains are linked does not matter -- we
-     * might otherwise end up trying to connect chains of opposing
-     * direction.  Rings handle this, plus our implementation supports
-     * 'end' nodes, which our list implementation does not.
-     *
-     * In total, this takes no extra space except for c->end and c->poly,
-     * and takes O(n log n) time with n edges found by the algorithm.
-     */
-
-    /* Find the left point in the end array.  Note: we search by
-     * 'e->other->p', while we will insert by 'e->p'. */
-    assert(e->other->left);
-    event_t *o1 = chain_insert_or_extract(c, e->other);
-    event_t *o2 = chain_insert_or_extract(c, e);
-
-    switch ((o1 != NULL) | ((o2 != NULL) << 1)) {
-    case 0: /* none found: new chain */
-        /* connect left and right point to make initial pair */
-        e->p->path_cnt++;
-        e->other->p->path_cnt++;
-        chain_join(e, e->other);
-        assert(cp_ring_is_pair(&e->node_chain, &e->other->node_chain));
-        break;
-
-    case 3: /* both found: closed */
-        /* close chain */
-        chain_join(o1, o2);
-        /* On small scales, points may collapse in unfortunate ways, creating
-         * degenerate polygons.  This filters out a-b* rings. */
-        if (!cp_ring_is_pair(&o1->node_chain, &o2->node_chain)) {
-            assert(!cp_ring_is_end(&o1->node_chain));
-            assert(!cp_ring_is_end(&o2->node_chain));
-            /* put in poly list */
-            poly_add(c, o2);
-            assert(o1 != o2->other);
-        }
-        break;
-
-    case 1: /* o1 found, o2 not found: connect */
-        e->p->path_cnt++;
-        chain_join(o1, e);
-        assert(!cp_ring_is_end(&o1->node_chain));
-        assert( cp_ring_is_end(&e->node_chain));
-        break;
-
-    case 2: /* o2 found, o1 not found: connect */
-        e->other->p->path_cnt++;
-        chain_join(o2, e->other);
-        assert(!cp_ring_is_end(&o2->node_chain));
-        assert( cp_ring_is_end(&e->other->node_chain));
-        break;
     }
 }
 
@@ -1975,6 +1993,7 @@ static void cp_csg2_op_poly(
         }
     }
 
+    chain_combine(&c);
     poly_make(o, &c, r->data[0]);
 }
 

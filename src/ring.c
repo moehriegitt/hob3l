@@ -158,7 +158,7 @@ extern void cp_ring_rewire(
          *     u-v
          */
 
-         if (cp_ring_is_mirr(b)) {
+         if (cp_ring_is_end(b)) {
              CP_SWAP(&a, &b);
              CP_SWAP(&u, &v);
          }

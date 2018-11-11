@@ -840,7 +840,7 @@ static bool faces_n_edges_from_tower(
     unsigned tri_side,
     bool may_need_tri)
 {
-    /* FIXME:
+    /* 
      * To cope with non-convex bottom and top:
      *
      *   * Check here whether top/bottom will be non-convex.
@@ -873,7 +873,7 @@ static bool faces_n_edges_from_tower(
     }
 
     /* check whether rev was passed correctly */
-    cp_v_size3_t tri = {0};
+    cp_v_size3_t tri = {0}; /* FIXME: temporary should be in pool */
     if (need_tri) {
         cp_vec2_arr_ref_t a2;
         cp_vec2_arr_ref_from_a_vec3_loc_xy(&a2, &o->point);
@@ -912,6 +912,9 @@ static bool faces_n_edges_from_tower(
     if (has_top) {
         face_from_tri_or_poly(&k, o, &tri, loc, fn, rev, true);
     }
+
+    /* sweep */
+    cp_v_fini(&tri);
 
     /* sides */
     cp_csg3_face_t *f;
@@ -1106,7 +1109,7 @@ static bool csg3_make_polyhedron_face(
 
     if (need_tri != 0) {
         /* construct from triangles */
-        cp_v_size3_t tri = {0};
+        cp_v_size3_t tri = {0}; /* FIXME: temporary should be in pool */
         cp_vec2_arr_ref_t a2;
         cp_vec2_arr_ref_from_a_vec3_loc_ref(&a2, &s->points, &sf->points, (need_tri == 2));
         if (!cp_csg2_tri_vec2_arr_ref(&tri, c->tmp, c->err, s->loc, &a2, sf->points.size)) {
@@ -1138,6 +1141,9 @@ static bool csg3_make_polyhedron_face(
             }
             face_basics(cf, rev ^ rev2, sf->loc);
         }
+
+        /* sweep */
+        cp_v_fini(&tri);
     }
     else {
         /* construct from convex face */
@@ -1182,7 +1188,6 @@ static bool csg3_from_polyhedron(
             s->faces.size);
     }
 
-    /* FIXME: possibly concave faces */
     cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, m->gc);
     cp_v_push(r, cp_obj(o));
 
@@ -1670,7 +1675,7 @@ static bool csg3_from_linext(
     /* construct a separate tree for the children */
     ctxt_t c2 = *c;
     c2.context = IN2D;
-    cp_v_obj_p_t rc = {0};
+    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
 
     /* start with fresh matrix in 2D space */
     mat_ctxt_t mn = *mo;
@@ -1681,7 +1686,10 @@ static bool csg3_from_linext(
 
     /* get polygon */
     cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
+
+    /* sweep */
     cp_pool_clear(c->tmp);
+    cp_v_fini(&rc);
 
     /* empty? */
     if ((p == NULL) || (p->path.size == 0)) {
@@ -2036,10 +2044,6 @@ static void get_bb_csg3(
 
     case CP_CSG3_SPHERE:
         get_bb_sphere(bb, cp_csg3_cast(cp_csg3_sphere_t, r));
-        return;
-
-    case CP_CSG3_CYL:
-        /* return get_bb_cyl(bb, &r->cyl); FIXME: continue */
         return;
 
     case CP_CSG3_POLY:

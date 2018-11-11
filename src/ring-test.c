@@ -91,7 +91,7 @@ static void show(cp_ring_t *base, cp_ring_t *a, cp_ring_t *b)
         fprintf(stderr, "%"_Pz"u--", CP_PTRDIFF(b, base));
         for (cp_ring_each(n,a,b)) {
             fprintf(stderr, "%"_Pz"u--", CP_PTRDIFF(n, base));
-            if (cp_ring_is_mirr(n)) {
+            if (cp_ring_is_end(n)) {
                 fprintf(stderr, "|");
             }
         }
@@ -214,11 +214,11 @@ extern void cp_ring_test(void)
     TEST_VOID(cp_ring_join(&n[2], &n[4]));
     show(&n[0], &n[0], &n[1]);
     TEST_ORDER5_MIRR(&n[0], &n[1], &n[2], &n[4], &n[3]);
-    TEST_EQ(cp_ring_is_mirr(&n[0]), true);
-    TEST_EQ(cp_ring_is_mirr(&n[1]), false);
-    TEST_EQ(cp_ring_is_mirr(&n[2]), false);
-    TEST_EQ(cp_ring_is_mirr(&n[4]), false);
-    TEST_EQ(cp_ring_is_mirr(&n[3]), true);
+    TEST_EQ(cp_ring_is_end(&n[0]), true);
+    TEST_EQ(cp_ring_is_end(&n[1]), false);
+    TEST_EQ(cp_ring_is_end(&n[2]), false);
+    TEST_EQ(cp_ring_is_end(&n[4]), false);
+    TEST_EQ(cp_ring_is_end(&n[3]), true);
 
     TEST_VOID(cp_ring_cut(&n[4], &n[3]));
     show(&n[0], &n[0], &n[1]);

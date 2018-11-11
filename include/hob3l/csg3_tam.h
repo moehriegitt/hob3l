@@ -39,11 +39,6 @@ typedef enum {
     CP_CSG3_SPHERE = CP_CSG3_TYPE + 1,
 
     /**
-     * Cylinder with length 1, radius 1, centered at [0,0,0], along z-axis.
-     * The top radius can be set (so this also implements cone and frustrum). */
-    CP_CSG3_CYL,
-
-    /**
      * Polyhedron */
     CP_CSG3_POLY,
 } cp_csg3_type_t;

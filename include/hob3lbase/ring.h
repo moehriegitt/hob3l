@@ -286,21 +286,6 @@ static inline cp_ring_t *cp_ring_next(
 }
 
 /**
- * Whether a node is a mirror.
- *
- * Note that all singleton and pair nodes are ends.  Only
- * in rings of length 3 or more mirrors and non-mirrors can
- * be distinguished.
- *
- * Runtime: O(1).
- */
-static inline bool cp_ring_is_mirr(
-    cp_ring_t const *a)
-{
-    return a->n[0] == a->n[1];
-}
-
-/**
  * Get the next node after the edge a-b.
  *
  * I.e., for a sequence a-b-c, when paramters b,c are
@@ -489,12 +474,27 @@ static inline bool cp_ring_is_pair(
 }
 
 /**
- * Whether a ring is an end (including singletons).
+ * Whether a node is part of a pair.
+ *
+ * Runtime: O(1)
+ */
+static inline bool cp_ring_is_moiety(
+    cp_ring_t *a)
+{
+    return cp_ring_is_pair(a, a->n[0]);
+}
+
+/**
+ * Whether a ring is an end or mirror (including singletons).
+ *
+ * Note that all singleton and pair nodes are ends.  Only
+ * in rings of length 3 or more mirrors and non-mirrors can
+ * be distinguished.
  *
  * Runtime: O(1)
  */
 static inline bool cp_ring_is_end(
-    cp_ring_t *a)
+    cp_ring_t const *a)
 {
     return (a->n[0] == a->n[1]);
 }
