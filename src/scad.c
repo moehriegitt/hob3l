@@ -1017,11 +1017,13 @@ static bool polygon_from_item(
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_paths = NULL;
+    cp_f_t _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_RAW ("points", &_points, NULL),
             PARAM_RAW ("paths",  &_paths,  ((bool[]){false})),
+            PARAM_FLOAT ("convexity", &_convexity, NULL),
         ),
         ()))
     {
