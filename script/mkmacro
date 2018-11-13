@@ -1,0 +1,235 @@
+#! /usr/bin/perl
+# Generates macros that do not pollute the namespace from a notation
+# a bit more readable.
+
+use strict;
+use warnings;
+
+my $ID  = '(?:\b[_a-zA-Z](?:[_a-zA-Z0-9]*)\b)';
+my $ID_ = '(?:\b[a-zA-Z](?:[_a-zA-Z0-9]*)\b)';
+my $TYPE = '(?:'.$ID.'(?:\s*[*]+)?)';
+
+my $func_order = 0;
+sub end_func($)
+{
+    my ($func) = @_;
+
+    $func->{order} = $func_order++;
+    $func->{_name} = "_$func->{name}";
+    $func->{_name} =~ s/^__+/_/;
+
+    # arg
+    my $argstr = $func->{argstr};
+    die "Error: Illegal argument spec: $argstr\n"
+        unless $argstr =~ /^\s*\(\s*(?:$TYPE\s*$ID_\s*(?:,\s*$TYPE\s*$ID_\s*)*)\)\s*$/;
+    $argstr =~ s/^\s*\((.*)\)\s*$/$1/;
+    $func->{arg} = [
+        map {
+            my $a = $_;
+            $a =~ /($TYPE)\s*($ID)/;
+            { name => $2, type => $1 };
+        }
+        split /,/, $argstr
+    ];
+
+    # body
+    $func->{body} =~ s/^\s*{//;
+    $func->{body} =~ s/^\s+//;
+    $func->{body} =~ s/}\s*$//;
+    $func->{body} =~ s/\s+$//;
+    while ($func->{body} =~ /($TYPE)[^\S\n]*($ID)[^\S\n]*[=;]/g) {
+        my ($type, $name) = ($1, $2);
+        die "Error: Duplicate variable: $name\n" if $func->{var}{$name};
+        $func->{var}{$name} = {
+            name => $name,
+            type => $type,
+        };
+    }
+}
+
+sub declare_var($$$)
+{
+    my ($type, $name, $value) = @_;
+    die "Error: Cannot declare void type variable '$name'.\n" if $type eq 'void';
+    if ($type eq 'type') {
+        die "Error: Type '$name' needs initialisation value.\n" unless defined $value;
+        return "typedef __typeof__($value) $name;";
+    }
+    elsif ($type eq 'val') {
+        die "Error: Val '$name' needs initialisation value.\n" unless defined $value;
+        return "__typeof__($value) $name = ($value);";
+    }
+    elsif ($type =~ /^val\s*[*]+$/) {
+        die "Error: Val '$name' needs initialisation value.\n" unless defined $value;
+        return "__typeof__(*($value)) *$name = ($value);";
+    }
+    elsif (defined $value) {
+        return "$type $name = $value;";
+    }
+    else {
+        return "$type $name";
+    }
+}
+
+sub format_mac($)
+{
+    my ($func) = @_;
+
+    $func->{need_stmt} = 0;
+    $func->{need_aux} = scalar(keys %{ $func->{var} }) > 0;
+
+    # add declarations for parameters:
+    for my $a (@{ $func->{arg} }) {
+        my $need_decl = ($a->{type} eq 'type');
+        unless ($need_decl) {
+            my $cnt = ($func->{body} =~ s/\b$a->{name}\b/$a->{name}/g);
+            $need_decl = ($cnt >= 2);
+        }
+        if ($need_decl) {
+            $func->{declvar}{$a->{name}} = 1;
+            $a->{decl} = declare_var($a->{type}, $a->{name}, "_$a->{name}");
+            $func->{need_stmt} = 1;
+            $func->{need_aux} = 1;
+        }
+    }
+
+    unless ($func->{need_aux}) {
+        if ($func->{body} =~ /[\"\']/) {
+            $func->{need_aux} = 1;
+        }
+    }
+
+    my $body = $func->{body};
+    unless ($func->{need_stmt}) {
+        my $b = $body;
+        $b =~ s/;\s*$//;
+        if ($b =~ /;/) {
+            $func->{need_stmt} = 1;
+        }
+        else {
+            $body = $b;
+        }
+    }
+
+    # replace x by (x) in body unless we need an aux anyway
+    unless ($func->{need_aux}) {
+        for my $a (@{ $func->{arg} }) {
+            $body =~ s/(\b$a->{name}\b)/($1)/g;
+        }
+    }
+
+    # replace decls in body:
+    for my $a (values %{ $func->{var} }) {
+        my $name = $a->{name};
+        $body =~ s($TYPE[^\S\n]*$name[^\S\n]*(?:=\s*([^;]+))?;)
+                  (declare_var($a->{type}, $name, $1))gex
+    }
+    $func->{mbody} = $body;
+
+}
+
+sub make_mac($)
+{
+    my ($func) = @_;
+    format_mac($func);
+
+    my $start = '({';
+    my $end = '})';
+    if ($func->{ret} eq 'void') {
+        $start = 'do{';
+        $end = '}while(0)';
+    }
+    elsif (!$func->{need_stmt}) {
+        $start = '(';
+        $end = ')';
+    }
+
+    my @decl = sort (keys %{ $func->{var} }, keys %{ $func->{declvar} });
+
+    my $arg1 = join(',',
+            @decl,
+            (map { ($_->{decl} ? "_" : "")."$_->{name}" } @{ $func->{arg} })
+        );
+
+    my $body1 =
+        "    $start \\\n".
+        join('',
+            map { "        $_->{decl} \\\n" } grep { $_->{decl} } @{ $func->{arg} }
+        ).
+        "    ".join("\n",
+            map { "    $_ \\" } split /\n/, $func->{mbody}
+        )."\n".
+        "    $end\n";
+
+    unless ($func->{need_aux}) {
+        return
+            "#define $func->{name}($arg1) \\\n".
+            "$body1";
+    }
+
+    return
+        "#define $func->{_name}_aux($arg1) \\\n".
+        "$body1".
+        "\n".
+        "#define $func->{name}(".
+        join(',',
+            (map { "$_->{name}" } @{ $func->{arg} })
+        ).
+        ") \\\n".
+        "    $func->{_name}_aux(".
+        join(',',
+            (map { "CP_GENSYM(_$_)" } @decl),
+            (map { $_->{type} eq 'type' ? $_->{name} : "($_->{name})" } @{ $func->{arg} })
+        ).")\n";
+
+}
+
+my %func = ();
+
+my $m = 0; # 1=args, 2=body
+my $func = undef;
+while (my $s = <>) {
+    if (($m == 0) && ($s =~ /^macro\b/)) {
+        die "Error: Unable to parse macro: $s"
+            unless $s =~ /^macro\s+($TYPE)\s*($ID)\s*(\(.*)$/;
+        $m = 1;
+        my ($ret, $name, $rest) = ($1, $2, $3);
+        my $arg = $rest;
+        my $body = "";
+        if ($rest =~ /^(.*)(\{.*)$/) {
+            $arg = $1;
+            $body = $2;
+            $m = 2;
+        }
+        if ($arg =~ /\)$/) {
+            $m = 2;
+        }
+        if ($body =~ /}$/) {
+            $m = 0;
+            end_func($func);
+        }
+        $func = $func{$name} = {
+            ret => $ret,
+            name => $name,
+            argstr => $rest,
+            body => $body,
+        };
+    }
+    elsif ($m == 1) {
+        $func->{argstr}.= $s;
+        if ($s =~ /\)$/) {
+            $m = 2;
+        }
+    }
+    elsif ($m == 2) {
+        $func->{body}.= $s;
+        if ($s =~ /^}$/) {
+            $m = 0;
+            end_func($func);
+        }
+    }
+}
+
+for my $f (sort { $a->{order} <=> $b->{order} } values %func) {
+    print make_mac($f)."\n";
+}

@@ -113,7 +113,7 @@ static val_t evaluate(
     cp_syn_value_t const *x)
 {
     if (x->type != CP_SYN_VALUE_ID) {
-        return false;
+        return NULL;
     }
     char const *id = cp_syn_cast(cp_syn_value_id_t, x)->value;
     switch (id[0]) {
@@ -1023,7 +1023,7 @@ static bool polygon_from_item(
         (
             PARAM_RAW ("points", &_points, NULL),
             PARAM_RAW ("paths",  &_paths,  ((bool[]){false})),
-            PARAM_FLOAT ("convexity", &_convexity, NULL),
+            PARAM_FLOAT ("convexity", &_convexity, ((bool[]){false})),
         ),
         ()))
     {

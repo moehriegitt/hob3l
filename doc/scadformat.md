@@ -140,7 +140,7 @@ OpenSCAD may still accept it and assume '1'.
     cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
 
-    polygon(points, paths)
+    polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
     square(size, center)
 
@@ -814,15 +814,17 @@ polygon(points[,paths]);
 
   * `points` :: array[3..] of array[2] of float
   * `paths` :: array[] of array[3..] of integer, default=`[[0,1,...points.size-1]]`
+     || undef
+  * `convexity` :: integer, default=1, ignored
 
 `points` defines all vertices of the polygon as `[x,y]` 2D
 coordinates.  No entry in `points` must be duplicate.
 
 `paths` defines all paths of the polygon that each defines the outline
 of a path by a list of 0-based indices into the `points` array.  If
-`paths` is not given, it defaults to a singleton list of a list of all
-indices in `points`, i.e., `points` defines the outline of the polygon
-directly.
+`paths` is not given or is `undef`, it defaults to a singleton list of
+a list of all indices in `points`, i.e., `points` defines the outline
+of the polygon directly.
 
 The entries in `paths` are normalised so that they run clockwise.
 

@@ -13,6 +13,7 @@ linear_extrude(height=4) {
             [ -5,  0 ],
             [  0,  0 ],
             [ 10, +5 ],
-        ]
+        ],
+        paths = undef
     );
 }
