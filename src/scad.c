@@ -1017,11 +1017,13 @@ static bool polygon_from_item(
 
     cp_syn_value_t const *_points = NULL;
     cp_syn_value_t const *_paths = NULL;
+    cp_f_t _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_RAW ("points", &_points, NULL),
             PARAM_RAW ("paths",  &_paths,  ((bool[]){false})),
+            PARAM_FLOAT ("convexity", &_convexity, NULL),
         ),
         ()))
     {
@@ -1042,7 +1044,7 @@ static bool polygon_from_item(
         cp_v_nth(&r->points, i).loc = cp_v_nth(&points->value, i)->loc;
     }
 
-    if (_paths == NULL) {
+    if (_paths == NULL || (evaluate(_paths) == value_undef)) {
         cp_v_init0(&r->paths, 1);
         cp_v_init0(&cp_v_nth(&r->paths, 0).points, r->points.size);
         for (cp_v_each(j, &r->points)) {
