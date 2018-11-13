@@ -1,6 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
+#define DEBUG 0
+
 #include <hob3lbase/arith.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat.h>
@@ -37,6 +39,7 @@ static void csg2_tree_from_v_csg3(
     cp_v_obj_p_t *c,
     cp_v_obj_p_t const *d)
 {
+    TRACE();
     cp_v_ensure_size(c, d->size);
     for (cp_v_each(i, d)) {
         cp_v_nth(c,i) = cp_obj(csg2_tree_from_csg3(r, s, cp_csg3_cast(cp_csg3_t, cp_v_nth(d,i))));
@@ -48,6 +51,7 @@ static cp_csg_add_t *csg2_tree_from_csg3_add(
     cp_range_t const *s,
     cp_csg_add_t const *d)
 {
+    TRACE();
     cp_csg_add_t *c = cp_csg_new(*c, d->loc);
     csg2_tree_from_v_csg3(r, s, &c->add, &d->add);
     return c;
@@ -58,6 +62,7 @@ static cp_csg_sub_t *csg2_tree_from_csg3_sub(
     cp_range_t const *s,
     cp_csg_sub_t const *d)
 {
+    TRACE();
     cp_csg_sub_t *c = cp_csg_new(*c, d->loc);
     c->add = csg2_tree_from_csg3_add(r, s, d->add);
     c->sub = csg2_tree_from_csg3_add(r, s, d->sub);
@@ -69,6 +74,7 @@ static cp_csg_cut_t *csg2_tree_from_csg3_cut(
     cp_range_t const *s,
     cp_csg_cut_t const *d)
 {
+    TRACE();
     cp_csg_cut_t *c = cp_csg_new(*c, d->loc);
     cp_v_init0(&c->cut, d->cut.size);
     for (cp_v_each(i, &c->cut)) {
@@ -82,6 +88,7 @@ static cp_csg_xor_t *csg2_tree_from_csg3_xor(
     cp_range_t const *s,
     cp_csg_xor_t const *d)
 {
+    TRACE();
     cp_csg_xor_t *c = cp_csg_new(*c, d->loc);
     cp_v_init0(&c->xor, d->xor.size);
     for (cp_v_each(i, &c->xor)) {
@@ -94,6 +101,7 @@ static cp_csg2_t *csg2_tree_from_csg3_obj(
     cp_range_t const *s,
     cp_csg3_t const *d)
 {
+    TRACE();
     cp_csg2_stack_t *c = cp_csg2_new(*c, d->loc);
 
     c->csg3 = d;
@@ -109,6 +117,7 @@ static cp_csg2_t *csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg3_t const *d)
 {
+    TRACE("obj=%s", d->loc);
     switch (d->type) {
     case CP_CSG3_SPHERE:
     case CP_CSG3_POLY:
@@ -170,6 +179,7 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg_opt_t const *o)
 {
+    TRACE();
     assert(d != NULL);
     cp_csg_add_t *root = cp_csg_new(*root, d->root ? d->root->loc : NULL);
     r->root = cp_csg2_cast(*r->root, root);

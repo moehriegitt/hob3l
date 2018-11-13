@@ -2,7 +2,6 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/def.h>
-#include <hob3lbase/list.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/alloc.h>
 #include <hob3lbase/pool.h>
@@ -19,12 +18,7 @@
 
 struct cp_pool_block {
     /**
-     * The allocator blocks are in a ring.  This is the next one.
-     */
-    cp_pool_block_t *prev;
-
-    /**
-     *The allocator blocks are in a ring.  This is the prev one.
+     * Next allocator block in the lists we maintain.
      */
     cp_pool_block_t *next;
 
@@ -47,6 +41,26 @@ struct cp_pool_block {
      */
     char heap[];
 };
+
+static void block_push(
+    cp_pool_block_list_t *list,
+    cp_pool_block_t *b)
+{
+    assert(b->next == NULL);
+    b->next = list->head;
+    list->head = b;
+}
+
+static cp_pool_block_t *block_pop(
+    cp_pool_block_list_t *list)
+{
+    cp_pool_block_t *b = list->head;
+    if (b != NULL) {
+        list->head = b->next;
+        b->next = NULL;
+    }
+    return b;
+}
 
 static void block_clear(
     cp_pool_block_t *b)
@@ -71,11 +85,25 @@ static void block_clear(
 extern void cp_pool_clear(
     cp_pool_t *a)
 {
-    if (a->cur != NULL) {
-        block_clear(a->cur);
-        for (cp_list_each(i, a->cur)) {
-            block_clear(i);
+    for(;;) {
+        cp_pool_block_t *b = block_pop(&a->used);
+        if (b == NULL) {
+            break;
         }
+        block_clear(b);
+        block_push(&a->free, b);
+    }
+}
+
+static void block_list_fini(
+    cp_pool_block_list_t *list)
+{
+    for(;;) {
+        cp_pool_block_t *b = block_pop(list);
+        if (b == NULL) {
+            break;
+        }
+        CP_FREE(b);
     }
 }
 
@@ -85,36 +113,42 @@ extern void cp_pool_clear(
 extern void cp_pool_fini(
     cp_pool_t *a)
 {
-    if (a->cur != NULL) {
-        cp_pool_block_t *p = NULL;
-        for (cp_list_each(i, a->cur)) {
-            CP_FREE(p);
-            p = i;
-        }
-        CP_FREE(p);
-        CP_FREE(a->cur);
-    }
+    block_list_fini(&a->used);
+    block_list_fini(&a->free);
 }
 
-static cp_pool_block_t *block_alloc(
+static cp_pool_block_t *block_next(
     char const *file,
     int line,
+    cp_pool_t *pool,
     size_t block_size)
 {
-    block_size = cp_align_up(block_size, BLOCK_ALIGN);
+    cp_pool_block_t *b = pool->free.head;
+    if ((b != NULL) &&
+        (b->heap_size < (block_size - sizeof(*b))))
+    {
+        /* discard free blocks: they have become too small */
+        block_list_fini(&pool->free);
+    }
 
-    cp_pool_block_t *r = cp_calloc(file, line, block_size, 1);
-    assert(block_size > sizeof(*r));
+    /* try to get free block */
+    b = block_pop(&pool->free);
+    if (b != NULL) {
+        assert(b->next == NULL);
+        return b;
+    }
 
-    r->heap_size = block_size - sizeof(*r);
-    r->brk = r->heap + r->heap_size;
-    cp_list_init(r);
-    return r;
+    /* allocate new block */
+    b = cp_calloc(file, line, block_size, 1);
+    assert(block_size > sizeof(*b));
+
+    b->heap_size = block_size - sizeof(*b);
+    b->brk = b->heap + b->heap_size;
+    assert(b->next == NULL);
+    return b;
 }
 
 static void *try_block_calloc(
-    char const *file,
-    int line,
     cp_pool_block_t *a,
     size_t nmemb,
     size_t size1,
@@ -123,9 +157,11 @@ static void *try_block_calloc(
     assert((size1 > 0) && "Objects of size 0 are not supported");
     assert(nmemb > 0);
 
+    if (a == NULL) {
+        return NULL;
+    }
     if (nmemb > (a->heap_size / size1)) {
-        cp_panic(file, line, "Out of memory: large allocation: %"_Pz"u * %"_Pz"u > %"_Pz"u",
-            nmemb, size1, a->heap_size);
+        return NULL;
     }
 
     size_t size = nmemb * size1;
@@ -169,33 +205,43 @@ extern void *cp_pool_calloc(
     int line,
     cp_pool_t *pool,
     size_t nmemb,
-    size_t size,
+    size_t size1,
     size_t align)
 {
+    assert(pool != NULL);
+    assert(size1 != 0);
+
     if (nmemb == 0) {
         return NULL;
     }
 
-    if (pool->cur != NULL) {
-        void *r = try_block_calloc(file, line, pool->cur, nmemb, size, align);
+    for (size_t try = 0; try < 3; try++) {
+        void *r = try_block_calloc(pool->used.head, nmemb, size1, align);
         if (r != NULL) {
             return r;
         }
+
+        if (pool->block_size == 0) {
+            pool->block_size = BLOCK_SIZE_DEFAULT;
+        }
+
+        /* possibly increase block size for next block */
+        while ((10 * nmemb) > (pool->block_size / size1)) {
+            size_t n = pool->block_size * 2;
+            if (n < pool->block_size) {
+                break;
+            }
+            pool->block_size = n;
+        }
+
+        assert(pool->block_size > 0);
+        pool->block_size = cp_align_up(pool->block_size, BLOCK_ALIGN);
+
+        /* get new block */
+        cp_pool_block_t *b = block_next(file, line, pool, pool->block_size);
+        block_push(&pool->used, b);
+
+        assert(pool->used.head != NULL);
     }
-
-    if (pool->block_size == 0) {
-        pool->block_size = BLOCK_SIZE_DEFAULT;
-    }
-
-    cp_pool_block_t *b = block_alloc(file, line, pool->block_size);
-    if (pool->cur != NULL) {
-        assert(b->heap_size == pool->cur->heap_size);
-        cp_list_insert(b, pool->cur);
-    }
-    pool->cur = b;
-
-    void *r = try_block_calloc(file, line, pool->cur, nmemb, size, align);
-    assert(r != NULL);
-
-    return r;
+    CP_DIE("allocator is broken");
 }

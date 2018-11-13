@@ -81,12 +81,16 @@
 #define _cp_try_cast(g, t, x) \
     _cp_try_cast_aux(CP_GENSYM(__x), CP_GENSYM(__t), CP_GENSYM(__n), g, t, x)
 
-/** Cast to abstract type cast w/ static check */
-#define cp_obj(t) \
+/** Helper for cp_obj */
+#define cp_obj_aux(__t, t) \
     ({ \
-        assert((t)->type != 0); \
-        (cp_obj_t*)(t); \
+        __typeof__(*(t)) *__t = (t); \
+        assert((__t)->type != 0); \
+        (cp_obj_t*)(__t); \
     })
+
+/** Cast to abstract type cast w/ static check */
+#define cp_obj(t) cp_obj_aux(CP_GENSYM(__t), t)
 
 static inline bool _cp_is_compatible(
     unsigned pattern,

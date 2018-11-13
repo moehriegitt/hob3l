@@ -74,20 +74,9 @@ static inline void cp_pool_init(
     /**
      * Pointer to a pool for initialisation.
      */
-    cp_pool_t *pool,
-
-    /**
-     * Block size of each block to allocate.  By making this large,
-     * less overhead occurs if a large object does not fit anymore.
-     * If this is small, there is less waste if a block is not used
-     * completely.
-     *
-     * Just pass 0 for a sensible default.
-     */
-    size_t block_size)
+    cp_pool_t *pool)
 {
     CP_ZERO(pool);
-    pool->block_size = block_size;
 }
 
 #endif /*__CP_POOL_H */

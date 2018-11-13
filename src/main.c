@@ -143,7 +143,7 @@ static bool do_file(
 
     /* pool for tmp objects */
     cp_pool_t pool;
-    cp_pool_init(&pool, 0);
+    cp_pool_init(&pool);
 
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);

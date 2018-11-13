@@ -910,7 +910,7 @@ static void chain_add(
 }
 
 static void chain_merge(
-    ctxt_t *c,
+    ctxt_t *c __unused,
     event_t *e1,
     event_t *e2)
 {
