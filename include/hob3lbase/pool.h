@@ -63,7 +63,7 @@ extern void *cp_pool_calloc(
     int line,
     cp_pool_t *pool,
     size_t nmemb,
-    size_t size,
+    size_t size1,
     size_t align);
 
 /**

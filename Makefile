@@ -220,6 +220,7 @@ MOD_D.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.d))
 MOD_C.libhob3l.a := \
     syn.c \
     syn-2scad.c \
+    syn-msg.c \
     scad.c \
     scad-2scad.c \
     csg3.c \

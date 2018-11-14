@@ -66,11 +66,11 @@ static void linext_put_scad(
     cp_scad_linext_t const *r)
 {
     cp_printf(s, "linear_extrude("
-        "height="FF", scale=["FF","FF"], twist="FF", slices=%u, convexity=%u, center=%s"
-        ", $fa="FF", $fs="FF", $fn=%u){\n",
+        "height="FF", scale=["FF","FF"], twist="FF", slices=%u, center=%s"
+        ", $fn=%u){\n",
         r->height, r->scale.x, r->scale.y, r->twist,
-        r->slices, r->convexity, r->center ? "true" : "false",
-        r->_fa, r->_fs, r->_fn);
+        r->slices, r->center ? "true" : "false",
+        r->_fn);
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s,"%*s}\n", d, "");
 }
@@ -135,26 +135,26 @@ static void sphere_put_scad(
     cp_stream_t *s,
     cp_scad_sphere_t const *r)
 {
-    cp_printf(s, "sphere(r="FF", $fa="FF", $fs="FF", $fn=%u);\n",
-        r->r, r->_fa, r->_fs, r->_fn);
+    cp_printf(s, "sphere(r="FF", $fn=%u);\n",
+        r->r, r->_fn);
 }
 
 static void circle_put_scad(
     cp_stream_t *s,
     cp_scad_circle_t const *r)
 {
-    cp_printf(s, "circle(r="FF", $fa="FF", $fs="FF", $fn=%u);\n",
-        r->r, r->_fa, r->_fs, r->_fn);
+    cp_printf(s, "circle(r="FF", $fn=%u);\n",
+        r->r, r->_fn);
 }
 
 static void cylinder_put_scad(
     cp_stream_t *s,
     cp_scad_cylinder_t const *r)
 {
-    cp_printf(s, "cylinder(h="FF", r1="FF", r2="FF", center=%s, $fa="FF", $fs="FF", $fn=%u);\n",
+    cp_printf(s, "cylinder(h="FF", r1="FF", r2="FF", center=%s, $fn=%u);\n",
         r->h, r->r1, r->r2,
         r->center ? "true" : "false",
-        r->_fa, r->_fs, r->_fn);
+        r->_fn);
 }
 
 static void cube_put_scad(

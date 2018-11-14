@@ -11,6 +11,7 @@
 #include <hob3l/csg3.h>
 #include <hob3l/scad.h>
 #include <hob3l/syn.h>
+#include <hob3l/syn-msg.h>
 #include "internal.h"
 
 /* contexts for ctxt_t->context */
@@ -21,6 +22,15 @@
 #define TRI_NONE   0
 #define TRI_LEFT   1
 #define TRI_RIGHT  2
+
+#define msg(c, ...) \
+        _msg_aux(CP_GENSYM(_c), (c), __VA_ARGS__)
+
+#define _msg_aux(c, _c, ...) \
+    ({ \
+        ctxt_t *c = _c; \
+        cp_syn_msg(c->syn, c->err, __VA_ARGS__); \
+    })
 
 typedef struct {
     cp_pool_t *tmp;
@@ -36,56 +46,6 @@ typedef struct {
     cp_err_t *err;
     unsigned context;
 } ctxt_t;
-
-__attribute__((format(printf,5,0)))
-static bool vmsg(
-    ctxt_t *c,
-    unsigned ign,
-    cp_loc_t loc,
-    cp_loc_t loc2,
-    char const *msg, va_list va)
-{
-    switch (ign) {
-    case CP_ERR_WARN:{
-        cp_vchar_t pre, post;
-        cp_syn_format_loc(&pre, &post, c->syn, loc, loc2);
-        fprintf(stderr, "%sWarning: ", pre.data);
-        vfprintf(stderr, msg, va);
-        fprintf(stderr, " Ignoring.\n%s", post.data);
-        cp_vchar_init(&pre);
-        cp_vchar_init(&post);
-        return true;}
-
-    case CP_ERR_IGNORE:
-        return true;
-
-    default:
-    case CP_ERR_FAIL:
-        cp_vchar_vprintf(&c->err->msg, msg, va);
-        if (loc != NULL) {
-            c->err->loc = loc;
-        }
-        if (loc2 != NULL) {
-            c->err->loc2 = loc2;
-        }
-        return false;
-    }
-}
-
-__attribute__((format(printf,5,6)))
-static bool msg(
-    ctxt_t *c,
-    unsigned ign,
-    cp_loc_t loc,
-    cp_loc_t loc2,
-    char const *msg, ...)
-{
-    va_list va;
-    va_start(va, msg);
-    bool r = vmsg(c, ign, loc, loc2, msg, va);
-    va_end(va);
-    return r;
-}
 
 /**
  * Returns a new unit matrix.
@@ -1049,8 +1009,6 @@ static bool csg3_from_sphere(
     cp_v_push(r, cp_obj(o));
 
     o->mat = m;
-    o->_fa = s->_fa;
-    o->_fs = s->_fs;
     o->_fn = c->opt->max_fn;
 
     return true;

@@ -6,6 +6,7 @@
 #include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
 #include <hob3l/syn.h>
+#include <hob3l/syn-msg.h>
 #include <hob3l/scad.h>
 #include <hob3l/csg3.h>
 #include <hob3l/csg2.h>
@@ -39,6 +40,7 @@ typedef struct {
     cp_scale_t ps_persp;
     char const *out_file_name;
     cp_csg_opt_t csg;
+    cp_scad_opt_t scad;
 } cp_opt_t;
 
 static bool next_i(
@@ -133,6 +135,7 @@ static bool do_file(
 
     /* stage 2: SCAD */
     cp_scad_tree_t *scad = CP_NEW(*scad);
+    scad->opt = &opt->scad;
     if (!cp_scad_from_syn_tree(scad, r)) {
         return false;
     }
@@ -533,6 +536,9 @@ int main(int argc, char **argv)
     opt.csg.optimise = CP_CSG2_OPT_DEFAULT;
     opt.csg.color_rand = 0;
     opt.verbose = 1;
+    opt.scad.err_unsupported_functor = CP_ERR_WARN;
+    opt.scad.err_unknown_functor = CP_ERR_FAIL;
+    opt.scad.err_unknown_param = CP_ERR_WARN;
 
     /* parse command line */
     char const *in_file_name = NULL;

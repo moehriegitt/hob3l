@@ -473,8 +473,8 @@ circle([r]{,d,$fa,$fs,$fn});
   * `r` :: float > 0, default=1
   * `d` :: float
   * `$fn` :: integer, default=0
-  * `$fa` :: integer, default=12, ignored
-  * `$fs` :: integer, default=2, ignored
+  * `$fa` :: float, ignored
+  * `$fs` :: float, ignored
 
 Some parameters are mutually exclusive:
 
@@ -554,8 +554,8 @@ cylinder([h,r1,r2,center]{,d,d1,d2,r,$fa,$fs,$fn})
   * `d2` :: float
   * `d` :: float
   * `$fn` :: integer, default=0
-  * `$fa` :: integer, default=12, ignored
-  * `$fs` :: integer, default=2, ignored
+  * `$fa` :: float, ignored
+  * `$fs` :: float, ignored
 
 `h` is the height of the cylinder, i.e., the extension on the Z axis.
 
@@ -656,10 +656,10 @@ linear_extrude({height, center, slices, twist, scale,
   * `slices` :: integer >= 1, default=1
   * `twist` :: float, default=0
   * `scale` :: (array[2] of (float >= 0)) || float, default=1
-  * `convexity` :: integer, default=1, ignored
+  * `convexity` :: integer, ignored
   * `$fn` :: integer, default=0, ignored
-  * `$fa` :: integer, default=12, ignored
-  * `$fs` :: integer, default=2, ignored
+  * `$fa` :: float, ignored
+  * `$fs` :: float, ignored
 
 This renders an extrusion into the Z axis of the 2D child shapes in
 the XY plane.
@@ -813,9 +813,9 @@ polygon(points[,paths]);
 ```
 
   * `points` :: array[3..] of array[2] of float
-  * `paths` :: array[] of array[3..] of integer, default=`[[0,1,...points.size-1]]`
-     || undef
-  * `convexity` :: integer, default=1, ignored
+  * `paths` :: array[] of array[3..] of integer || undef,
+     default=`[[0,1,...points.size-1]]`
+  * `convexity` :: integer, ignored
 
 `points` defines all vertices of the polygon as `[x,y]` 2D
 coordinates.  No entry in `points` must be duplicate.
@@ -946,8 +946,8 @@ sphere([r]{,d,$fa,$fs,$fn});
   * `r` :: float != 0
   * `d` :: float
   * `$fn` :: integer, default=0
-  * `$fa` :: integer, default=12, ignored
-  * `$fs` :: integer, default=2, ignored
+  * `$fa` :: float, ignored
+  * `$fs` :: float, ignored
 
 Some parameters are mutually exclusive:
 

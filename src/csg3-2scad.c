@@ -38,23 +38,9 @@ static void sphere_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_gc_modifier_put_scad(s, r->gc.modifier);
     mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " sphere(r=1,center=true,$fa="FF",$fs="FF",$fn=%"_Pz"u);\n",
-        r->_fa, r->_fs, r->_fn);
+    cp_printf(s, " sphere(r=1,center=true,$fn=%"_Pz"u);\n",
+        r->_fn);
 }
-
-#if 0
-/* FIXME: continue */
-static void circle_put_scad(
-    cp_stream_t *s,
-    int d,
-    cp_csg2_circle_t *r)
-{
-    cp_printf(s, "%*s", d,"");
-    mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " circle(r=1,center=true,$fa="FF",$fs="FF",$fn=%u);\n",
-        r->_fa, r->_fs, r->_fn);
-}
-#endif
 
 static void union_put_scad(
     cp_stream_t *s,

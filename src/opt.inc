@@ -25,17 +25,26 @@ static char const *opt_help =
     "        If this is greater or equal to the step size, the output will degenerate.\n"
     "Compatibility Options\n"
     "    --empty=ARG\n"
-    "        'error', 'ignore': Treatment of empty objects (default: 'error')\n"
+    "        'error', 'warn', 'ignore': Treatment of empty objects (default: error)\n"
     "        when they are empty by a parameter to an object primitive, e.g. 'cube(0)'\n"
     "    --collapse=ARG\n"
-    "        'error', 'ignore': Treatment of empty objects (default: 'error')\n"
+    "        'error', 'warn', 'ignore': Treatment of empty objects (default: error)\n"
     "        when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'\n"
     "    --outside-3d=ARG\n"
-    "        'error', 'ignore': Treatment of 3D objects outside 3D context (default: 'error')\n"
+    "        'error', 'warn', 'ignore': Treatment of 3D objects outside 3D context (default: error)\n"
     "    --outside-2d=ARG\n"
-    "        'error', 'ignore': Treatment of 2D objects outside 2D context (default: 'error')\n"
+    "        'error', 'warn', 'ignore': Treatment of 2D objects outside 2D context (default: error)\n"
     "        Note that Hob3l does not implement 2D objects in 3D context, so there is no\n"
     "        option to treat them normally or extrude them to 1mm.\n"
+    "    --unsupported-functor=ARG\n"
+    "        'error', 'warn', 'ignore': Treatment of a SCAD functor that is not yet supported.\n"
+    "        (Default: warn)\n"
+    "    --unknown-functor=ARG\n"
+    "        'error', 'warn', 'ignore': Treatment of an unknown SCAD functor.\n"
+    "        (Default: error)\n"
+    "    --unknown-param=ARG\n"
+    "        'error', 'warn', 'ignore': Treatment of an unknown parameter to a SCAD functor.\n"
+    "        (Default: warn)\n"
     "Slicing Options\n"
     "    --min=ARG\n"
     "        min slice z coord [mm] (by default, use bounding box of model,\n"
@@ -788,6 +797,30 @@ static void get_opt_tri(
     get_arg_neg_bool(&opt->no_tri, name, arg);
 }
 
+static void get_opt_unknown_functor(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->scad.err_unknown_functor, name, arg);
+}
+
+static void get_opt_unknown_param(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->scad.err_unknown_param, name, arg);
+}
+
+static void get_opt_unsupported_functor(
+    cp_opt_t *opt __unused,
+    char const *name __unused,
+    char const *arg __unused)
+{
+    get_arg_err(&opt->scad.err_unsupported_functor, name, arg);
+}
+
 static void get_opt_verbose(
     cp_opt_t *opt __unused,
     char const *name __unused,
@@ -1152,6 +1185,21 @@ cp_get_opt_t opt_list[] = {
         "tri",
         get_opt_tri,
         1,
+    },
+    {
+        "unknown-functor",
+        get_opt_unknown_functor,
+        2,
+    },
+    {
+        "unknown-param",
+        get_opt_unknown_param,
+        2,
+    },
+    {
+        "unsupported-functor",
+        get_opt_unsupported_functor,
+        2,
     },
     {
         "v",

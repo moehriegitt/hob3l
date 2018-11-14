@@ -40,23 +40,38 @@ case "layer-gap": dim &opt->csg.layer_gap {
 help_section "Compatibility Options";
 
 case "empty": err &opt->csg.err_empty {
-    "'error', 'ignore': Treatment of empty objects (default: 'error')";
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
     "when they are empty by a parameter to an object primitive, e.g. 'cube(0)'";
 }
 
 case "collapse": err &opt->csg.err_collapse {
-    "'error', 'ignore': Treatment of empty objects (default: 'error')";
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
     "when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'";
 }
 
 case "outside-3d": err &opt->csg.err_outside_3d {
-    "'error', 'ignore': Treatment of 3D objects outside 3D context (default: 'error')";
+    "'error', 'warn', 'ignore': Treatment of 3D objects outside 3D context (default: error)";
 }
 
 case "outside-2d": err &opt->csg.err_outside_2d {
-    "'error', 'ignore': Treatment of 2D objects outside 2D context (default: 'error')";
+    "'error', 'warn', 'ignore': Treatment of 2D objects outside 2D context (default: error)";
     "Note that Hob3l does not implement 2D objects in 3D context, so there is no";
     "option to treat them normally or extrude them to 1mm.";
+}
+
+case "unsupported-functor": err &opt->scad.err_unsupported_functor {
+    "'error', 'warn', 'ignore': Treatment of a SCAD functor that is not yet supported.";
+    "(Default: warn)";
+}
+
+case "unknown-functor": err &opt->scad.err_unknown_functor {
+    "'error', 'warn', 'ignore': Treatment of an unknown SCAD functor.";
+    "(Default: error)";
+}
+
+case "unknown-param": err &opt->scad.err_unknown_param {
+    "'error', 'warn', 'ignore': Treatment of an unknown parameter to a SCAD functor.";
+    "(Default: warn)";
 }
 
 help_section "Slicing Options";

@@ -53,7 +53,6 @@ typedef enum {
 #define _CP_CSG3_SIMPLE \
     _CP_CSG3 \
     cp_mat3wi_t const *mat; \
-    cp_f_t _fa, _fs; \
     size_t _fn;
 
 typedef struct {

@@ -69,16 +69,12 @@ typedef enum {
 typedef struct {
     _CP_SCAD
     double r;
-    double _fa;
-    double _fs;
     unsigned _fn;
 } cp_scad_sphere_t;
 
 typedef struct {
     _CP_SCAD
     double r;
-    double _fa;
-    double _fs;
     unsigned _fn;
 } cp_scad_circle_t;
 
@@ -88,8 +84,6 @@ typedef struct {
     double r1;
     double r2;
     bool center;
-    double _fa;
-    double _fs;
     unsigned _fn;
 } cp_scad_cylinder_t;
 
@@ -129,7 +123,6 @@ typedef struct {
     _CP_SCAD
     cp_a_vec2_loc_t points;
     cp_a_scad_path_t paths;
-    unsigned convexity;
 } cp_scad_polygon_t;
 
 typedef CP_VEC_T(cp_scad_t*) cp_v_scad_p_t;
@@ -218,16 +211,31 @@ typedef struct {
     cp_f_t twist;
     cp_vec2_t scale;
     unsigned slices;
-    unsigned convexity;
     bool center;
-    double _fa;
-    double _fs;
     unsigned _fn;
 } cp_scad_linext_t;
 
 struct cp_scad { _CP_SCAD };
 
 typedef struct {
+    /**
+     * What to do with a recognised, but yet not implemented functor. */
+    unsigned err_unsupported_functor;
+
+    /**
+     * What to do with an unknown functor */
+    unsigned err_unknown_functor;
+
+    /**
+     * What to do with an unknown parameter. */
+    unsigned err_unknown_param;
+} cp_scad_opt_t;
+
+typedef struct {
+    /**
+     * Options for processing */
+    cp_scad_opt_t const *opt;
+
     /**
      * The top-level of the file.
      */
