@@ -95,6 +95,14 @@ static void color_put_scad(
     cp_printf(s,"%*s}\n", d, "");
 }
 
+static void import_put_scad(
+    cp_stream_t *s,
+    cp_scad_import_t const *r)
+{
+    cp_printf(s, "import(s=\"%s\");\n", r->file_tok);
+
+}
+
 static void rotate_put_scad(
     cp_stream_t *s,
     int d,
@@ -283,6 +291,10 @@ static void scad_put_scad(
 
     case CP_SCAD_POLYHEDRON:
         polyhedron_put_scad(s, d, cp_scad_cast(cp_scad_polyhedron_t, r));
+        return;
+
+    case CP_SCAD_IMPORT:
+        import_put_scad(s, cp_scad_cast(cp_scad_import_t, r));
         return;
 
     case CP_SCAD_CIRCLE:

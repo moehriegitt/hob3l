@@ -37,6 +37,8 @@
  */
 extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
+    cp_syn_input_t *input,
+    cp_err_t *err,
     cp_syn_tree_t *syn);
 
 #endif /* __CP_SCAD_H */

@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <hob3l/syn.h>
+#include <hob3l/syn-msg.h>
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/alloc.h>
 #include "internal.h"
@@ -33,6 +34,8 @@
 
 typedef struct {
     cp_syn_tree_t *tree;
+    cp_err_t *err;
+    cp_syn_input_t *input;
 
     char lex_cur;
     char *lex_string;
@@ -45,7 +48,7 @@ typedef struct {
 
 static bool have_err_msg(parse_t *p)
 {
-    return p->tree->err.msg.size > 0;
+    return p->err->msg.size > 0;
 }
 
 static void lex_next(parse_t *p)
@@ -110,7 +113,7 @@ static void tok_next_aux2(parse_t *p)
              * really cannot parse those.
              */
             if (!have_err_msg(p)) {
-                cp_vchar_printf(&p->tree->err.msg, "Expected no number here.\n");
+                cp_vchar_printf(&p->err->msg, "Expected no number here.\n");
             }
             p->tok_type = T_ERROR;
             return;
@@ -153,7 +156,7 @@ static void tok_next_aux2(parse_t *p)
     if ((p->lex_cur == '$') || (p->lex_cur == '_') || is_alpha(p->lex_cur)) {
         if (*p->lex_string == '\0') {
             if (!have_err_msg(p)) {
-                cp_vchar_printf(&p->tree->err.msg, "Expected no identifier here.\n");
+                cp_vchar_printf(&p->err->msg, "Expected no identifier here.\n");
             }
             p->tok_type = T_ERROR;
             return;
@@ -185,7 +188,7 @@ static void tok_next_aux2(parse_t *p)
                 lex_next(p);
                 if (*p->lex_string & ~0x7f) {
                     if (!have_err_msg(p)) {
-                        cp_vchar_printf(&p->tree->err.msg,
+                        cp_vchar_printf(&p->err->msg,
                             "8-bit characters are not supported after '\\'.\n");
                     }
                     p->tok_loc = p->lex_string;
@@ -195,7 +198,7 @@ static void tok_next_aux2(parse_t *p)
             }
             if (*p->lex_string == '\0') {
                 if (!have_err_msg(p)) {
-                    cp_vchar_printf(&p->tree->err.msg, "End of file inside string.\n");
+                    cp_vchar_printf(&p->err->msg, "End of file inside string.\n");
                 }
                 p->tok_type = T_ERROR;
                 return;
@@ -231,7 +234,7 @@ static void tok_next_aux2(parse_t *p)
         while ((prev != '*') || (p->lex_cur != '/')) {
             if (p->lex_cur == '\0') {
                 if (!have_err_msg(p)) {
-                    cp_vchar_printf(&p->tree->err.msg, "File ends inside comment.\n");
+                    cp_vchar_printf(&p->err->msg, "File ends inside comment.\n");
                 }
                 p->tok_type = T_ERROR;
                 break;
@@ -247,7 +250,7 @@ static void tok_next_aux2(parse_t *p)
     /* by default, read a single character */
     if (!(p->lex_cur == (p->lex_cur & 127))) {
         if (!have_err_msg(p)) {
-            cp_vchar_printf(&p->tree->err.msg,
+            cp_vchar_printf(&p->err->msg,
                 "8-bit characters are not supported as symbols.\n");
         }
         p->tok_type = T_ERROR;
@@ -283,7 +286,7 @@ static void tok_path(parse_t *p)
     while (*p->lex_string != '>') {
         if (*p->lex_string == '\0') {
             if (!have_err_msg(p)) {
-                cp_vchar_printf(&p->tree->err.msg, "End of file inside path.\n");
+                cp_vchar_printf(&p->err->msg, "End of file inside path.\n");
             }
             p->tok_type = T_ERROR;
             return;
@@ -376,20 +379,20 @@ static void err_found(
     parse_t *p)
 {
     if ((p->tok_type >= 32) && (p->tok_type <= 127)) {
-        cp_vchar_printf(&p->tree->err.msg, ", found '%c'", p->tok_type);
+        cp_vchar_printf(&p->err->msg, ", found '%c'", p->tok_type);
     }
 
     char const *str = get_tok_string(p);
     if (str != NULL) {
-        cp_vchar_printf(&p->tree->err.msg, ", found '%s'", str);
+        cp_vchar_printf(&p->err->msg, ", found '%s'", str);
     }
 
     str = get_tok_description(p->tok_type);
     if (str != NULL) {
-        cp_vchar_printf(&p->tree->err.msg, ", found %s", str);
+        cp_vchar_printf(&p->err->msg, ", found %s", str);
     }
 
-    cp_vchar_printf(&p->tree->err.msg, ".\n");
+    cp_vchar_printf(&p->err->msg, ".\n");
 }
 
 static bool expect_err(
@@ -405,16 +408,18 @@ static bool expect_err(
     }
 
     if ((type >= 32) && (type <= 127)) {
-        cp_vchar_printf(&p->tree->err.msg, "Expected '%c'", type);
+        cp_vchar_printf(&p->err->msg, "Expected '%c'", type);
         err_found(p);
     }
 
     char const *str = get_tok_description(type);
     if (str != NULL) {
-        cp_vchar_printf(&p->tree->err.msg, "Expected %s", str);
+        cp_vchar_printf(&p->err->msg, "Expected %s", str);
         err_found(p);
     }
 
+    cp_vchar_printf(&p->err->msg, "Unexpected token");
+    err_found(p);
     return false;
 }
 
@@ -620,7 +625,7 @@ static bool parse_value(
 
     default:
         if (!have_err_msg(p)) {
-            cp_vchar_printf(&p->tree->err.msg, "Expected int, float, or identifier");
+            cp_vchar_printf(&p->err->msg, "Expected int, float, or identifier");
             err_found(p);
         }
         return false;
@@ -851,15 +856,77 @@ static bool parse_stmt_list(
     }
 }
 
-static bool cp_scad_read_file(
-    parse_t *p,
-    cp_syn_tree_t *r,
+static bool is_path_sep(
+    char c)
+{
+#if defined(__WIN32) || defined(__WIN64)
+    if (c == '\\') {
+        return true;
+    }
+#endif
+    if (c == '/') {
+        return true;
+    }
+    return false;
+}
+
+static bool is_absolute(
+    char const *fn)
+{
+#if defined(__WIN32) || defined(__WIN64)
+    if (is_alpha(*fn) && (fn[1] == ':')) {
+        return true;
+    }
+#endif
+    if (is_path_sep(*fn)) {
+        return true;
+    }
+    return false;
+}
+
+static bool read_file(
+    cp_err_t *err,
+    cp_syn_input_t *input,
     cp_syn_file_t *f,
+    cp_loc_t include_loc,
     char const *filename,
     FILE *file)
 {
-    cp_vchar_printf(&f->filename, "%s", filename);
+    cp_vchar_t dir = {0};
+
+    if ((include_loc != NULL) && !is_absolute(filename)) {
+        cp_syn_loc_t loc;
+        if (!cp_syn_get_loc(&loc, input, include_loc)) {
+            cp_vchar_printf(&err->msg,
+                "Internal error: unable to retrieve location of file input location if '%s'.",
+                filename);
+            err->loc = include_loc;
+            return false;
+        }
+
+        cp_vchar_append(&dir, &loc.file->filename);
+        while ((dir.size > 0) && !is_path_sep(cp_v_last(&dir))) {
+            dir.size--;
+        }
+        dir.data[dir.size] = 0; /* terminate again */
+    }
+
+    cp_vchar_printf(&f->filename, "%s%s", cp_vchar_cstr(&dir), filename);
+    if (file == NULL) {
+        (void)cp_vchar_cstr(&f->filename);
+        file = fopen(f->filename.data, "rb");
+        if (file == NULL) {
+            cp_vchar_printf(&err->msg,
+                "Unable to open '%s' for reading: %s\n",
+                f->filename.data, strerror(errno));
+            err->loc = include_loc;
+            return false;
+        }
+    }
     f->file = file;
+    f->include_loc = include_loc;
+
+    cp_vchar_fini(&dir);
 
     /* read file */
     for(;;) {
@@ -870,8 +937,9 @@ static bool cp_scad_read_file(
             if (feof(f->file)) {
                 break;
             }
-            cp_vchar_printf(&r->err.msg, "File read error: %s.\n",
+            cp_vchar_printf(&err->msg, "File read error: %s.\n",
                 strerror(ferror(f->file)));
+            err->loc = include_loc;
             return false;
         }
         cp_vchar_append_arr(&f->content, buff, cnt);
@@ -883,48 +951,79 @@ static bool cp_scad_read_file(
     cp_vchar_append(&f->content_orig, &f->content);
 
     /* init scanner */
-    p->lex_string = f->content.data;
-    p->lex_cur = *p->lex_string;
-    p->lex_end = f->content.data + z;
+    char const *start = f->content.data;
+    char const *end = f->content.data + z;
 
     /* cut into lines for lookup */
-    cp_v_push(&f->line, p->lex_string);
-    for (char const *i = p->lex_string; i < p->lex_end; i++) {
+    cp_v_push(&f->line, start);
+    for (char const *i = start; i < end; i++) {
         if (*i == '\n') {
             cp_v_push(&f->line, i+1);
         }
     }
-    if (cp_v_last(&f->line) != p->lex_end) {
-        cp_v_push(&f->line, p->lex_end);
+    if (cp_v_last(&f->line) != end) {
+        cp_v_push(&f->line, end);
     }
 
     return true;
 }
 
+static void scad_start_file(
+    parse_t *p,
+    cp_syn_file_t *f)
+{
+    assert(f->content.size >= 1);
+    p->lex_string = f->content.data;
+    p->lex_cur = *p->lex_string;
+    p->lex_end = f->content.data + f->content.size - 1;
+}
+
 /* ********************************************************************** */
+
+/**
+ * Read a file into memory and store it in the input file table.
+ *
+ * include_loc is the location of the file name in a parent file.  This
+ * is stored in f, and used to resolve relative file names.
+ *
+ * If file is NULL, this function tries to open the file in binary mode
+ * (all parsers work with binary mode), otherwise, the file is taken as is.
+ */
+extern bool cp_syn_read(
+    cp_syn_file_t *f,
+    cp_err_t *err,
+    cp_syn_input_t *input,
+    cp_loc_t include_loc,
+    char const *filename,
+    FILE *file)
+{
+    if (!read_file(err, input, f, include_loc, filename, file)) {
+        return false;
+    }
+    cp_v_push(&input->file, f);
+    return true;
+}
 
 /**
  * Parse a file into a SCAD syntax tree.
  */
 extern bool cp_syn_parse(
+    cp_err_t *err,
+    cp_syn_input_t *input,
     cp_syn_tree_t *r,
-    char const *filename,
-    FILE *file)
+    cp_syn_file_t *file)
 {
     assert(r != NULL);
     assert(file != NULL);
-    CP_ZERO(r);
 
     /* basic init */
     parse_t p[1];
     CP_ZERO(p);
     p->tree = r;
+    p->err = err;
+    p->input = input;
 
-    cp_syn_file_t *f = CP_NEW(*f);
-    cp_v_push(&r->file, f);
-    if (!cp_scad_read_file(p, r, f, filename, file)) {
-        return false;
-    }
+    scad_start_file(p, file);
 
     /* scan first token */
     tok_next(p);
@@ -932,17 +1031,17 @@ extern bool cp_syn_parse(
     bool ok = parse_stmt_list(p, &r->toplevel);
     if (!ok) {
         /* generic error message */
-        if (r->err.loc == NULL) {
-            r->err.loc = p->tok_loc;
+        if (err->loc == NULL) {
+            err->loc = p->tok_loc;
         }
         if (!have_err_msg(p)) {
-            cp_vchar_printf(&r->err.msg, "Parse error.\n");
+            cp_vchar_printf(&err->msg, "SCAD parse error.\n");
         }
         return false;
     }
     if (p->tok_type != T_EOF) {
-        r->err.loc = p->tok_loc;
-        cp_vchar_printf(&r->err.msg, "Operator or object functor expected.\n");
+        err->loc = p->tok_loc;
+        cp_vchar_printf(&err->msg, "Operator or object functor expected.\n");
         return false;
     }
     return true;

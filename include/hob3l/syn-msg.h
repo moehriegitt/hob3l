@@ -30,16 +30,18 @@
  */
 extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
-    cp_syn_tree_t *tree,
+    cp_syn_input_t *tree,
     cp_loc_t token);
 
 /**
  * Additional to cp_syn_get_loc, also get the source line citation
+ *
+ * This ensures that pre and post can be dereferenced as a C string.
  */
 extern void cp_syn_format_loc(
     cp_vchar_t *pre,
     cp_vchar_t *post,
-    cp_syn_tree_t *tree,
+    cp_syn_input_t *tree,
     cp_loc_t token,
     cp_loc_t token2);
 
@@ -54,7 +56,7 @@ extern void cp_syn_format_loc(
  */
 __attribute__((format(printf,6,0)))
 extern bool cp_syn_vmsg(
-    cp_syn_tree_t *syn,
+    cp_syn_input_t *syn,
     cp_err_t *e,
     unsigned ign,
     cp_loc_t loc,
@@ -72,7 +74,7 @@ extern bool cp_syn_vmsg(
  */
 __attribute__((format(printf,6,7)))
 extern bool cp_syn_msg(
-    cp_syn_tree_t *syn,
+    cp_syn_input_t *syn,
     cp_err_t *e,
     unsigned ign,
     cp_loc_t loc,

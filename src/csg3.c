@@ -12,6 +12,7 @@
 #include <hob3l/scad.h>
 #include <hob3l/syn.h>
 #include <hob3l/syn-msg.h>
+#include <hob3l/stl-parse.h>
 #include "internal.h"
 
 /* contexts for ctxt_t->context */
@@ -40,7 +41,7 @@ typedef struct {
 
 typedef struct {
     cp_pool_t *tmp;
-    cp_syn_tree_t *syn;
+    cp_syn_input_t *syn;
     cp_csg3_tree_t *tree;
     cp_csg_opt_t const *opt;
     cp_err_t *err;
@@ -1183,6 +1184,47 @@ static bool csg3_from_polyhedron(
     return poly_make_edges(o, c);
 }
 
+static bool csg3_from_import(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *m,
+    cp_scad_import_t const *s)
+{
+    if (c->context != IN3D) {
+        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
+            "'import' found outside 3D context.");
+    }
+    *no = true;
+
+    /* read file */
+    cp_syn_file_t *file = CP_NEW(*file);
+    if (!cp_syn_read(file, c->err, c->syn, s->file_tok, s->file.data, NULL)) {
+        return false;
+    }
+
+    /* parse file into poly */
+    cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, m->gc);
+    cp_v_push(r, cp_obj(o));
+    if (!cp_stl_parse(c->tmp, c->err, c->syn, o, file)) {
+        return false;
+    }
+
+    /* xform all points */
+    for (cp_v_each(i, &o->point)) {
+        cp_vec3w_xform(&cp_v_nth(&o->point, i).coord, &m->mat->n, &cp_v_nth(&o->point, i).coord);
+    }
+
+    /* initialise faces */
+    bool rev = m->mat->d < 0;
+    for (cp_v_each(i, &o->face)) {
+        cp_csg3_face_t *f = &cp_v_nth(&o->face, i);
+        face_basics(f, rev, f->loc);
+    }
+
+    return poly_make_edges(o, c);
+}
+
 static void xform_2d(
     mat_ctxt_t const *m,
     cp_csg2_poly_t *o)
@@ -1803,6 +1845,9 @@ static bool csg3_from_scad(
     case CP_SCAD_POLYHEDRON:
         return csg3_from_polyhedron(no, r, c, m, cp_scad_cast(cp_scad_polyhedron_t, s));
 
+    case CP_SCAD_IMPORT:
+        return csg3_from_import(no, r, c, m, cp_scad_cast(cp_scad_import_t, s));
+
     /* 2D objects */
     case CP_SCAD_CIRCLE:
         return csg3_from_circle(no, r, c, m, cp_scad_cast(cp_scad_circle_t, s));
@@ -2046,7 +2091,7 @@ extern void cp_csg3_tree_bb(
  */
 extern bool cp_csg3_from_scad_tree(
     cp_pool_t *tmp,
-    cp_syn_tree_t *syn,
+    cp_syn_input_t *syn,
     cp_csg3_tree_t *r,
     cp_err_t *t,
     cp_scad_tree_t const *scad)

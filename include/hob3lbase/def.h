@@ -220,7 +220,7 @@ typedef enum {
     ({ \
         __typeof__(*(P)) *__p = (P); \
         assert(__p != NULL); \
-        ((T*)(((size_t)__p) - cp_offsetof(T,F))); \
+        ((__typeof__(T)*)(((size_t)__p) - cp_offsetof(__typeof(T),F))); \
     })
 
 /**

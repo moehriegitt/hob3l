@@ -68,7 +68,7 @@ static bool format_source_line(
 static void cp_syn_get_loc_src_aux(
     cp_vchar_t *pre,
     cp_vchar_t *post,
-    cp_syn_tree_t *tree,
+    cp_syn_input_t *tree,
     cp_loc_t token,
     char const *msg)
 {
@@ -86,7 +86,7 @@ static void cp_syn_get_loc_src_aux(
         loc.orig,
         CP_PTRDIFF(loc.orig_end, loc.orig));
 
-    cp_vchar_printf(pre, "%s:%"_Pz"u:", loc.file->filename.data, loc.line+1);
+    cp_vchar_printf(pre, "%s:%"_Pz"u:", cp_vchar_cstr(&loc.file->filename), loc.line+1);
     if (pos != CP_SIZE_MAX) {
         cp_vchar_printf(pre, "%"_Pz"u:", pos+1);
     }
@@ -123,7 +123,7 @@ static void cp_syn_get_loc_src_aux(
  */
 extern bool cp_syn_get_loc(
     cp_syn_loc_t *loc,
-    cp_syn_tree_t *tree,
+    cp_syn_input_t *tree,
     cp_loc_t token)
 {
     CP_ZERO(loc);
@@ -167,16 +167,22 @@ extern bool cp_syn_get_loc(
 
 /**
  * Additional to cp_syn_get_loc, also get the source line citation
+ *
+ * This ensures that pre and post can be dereferenced as a C string.
  */
 extern void cp_syn_format_loc(
     cp_vchar_t *pre,
     cp_vchar_t *post,
-    cp_syn_tree_t *tree,
+    cp_syn_input_t *tree,
     cp_loc_t token,
     cp_loc_t token2)
 {
     cp_vchar_init(pre);
+    (void)cp_vchar_cstr(pre);
+
     cp_vchar_init(post);
+    (void)cp_vchar_cstr(post);
+
     cp_syn_get_loc_src_aux(pre, post, tree, token, "");
     if (token2 != NULL) {
         cp_vchar_t post2;
@@ -197,7 +203,7 @@ extern void cp_syn_format_loc(
  */
 __attribute__((format(printf,6,0)))
 extern bool cp_syn_vmsg(
-    cp_syn_tree_t *syn,
+    cp_syn_input_t *syn,
     cp_err_t *e,
     unsigned ign,
     cp_loc_t loc,
@@ -208,9 +214,9 @@ extern bool cp_syn_vmsg(
     case CP_ERR_WARN:{
         cp_vchar_t pre, post;
         cp_syn_format_loc(&pre, &post, syn, loc, loc2);
-        fprintf(stderr, "%sWarning: ", pre.data);
+        fprintf(stderr, "%sWarning: ", cp_vchar_cstr(&pre));
         vfprintf(stderr, msg, va);
-        fprintf(stderr, " Ignoring.\n%s", post.data);
+        fprintf(stderr, " Ignoring.\n%s", cp_vchar_cstr(&post));
         cp_vchar_init(&pre);
         cp_vchar_init(&post);
         return true;}
@@ -242,7 +248,7 @@ extern bool cp_syn_vmsg(
  */
 __attribute__((format(printf,6,7)))
 extern bool cp_syn_msg(
-    cp_syn_tree_t *syn,
+    cp_syn_input_t *syn,
     cp_err_t *e,
     unsigned ign,
     cp_loc_t loc,

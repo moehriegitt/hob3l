@@ -17,12 +17,13 @@
 #define _msg_aux(c, _c, ...) \
     ({ \
         ctxt_t *c = _c; \
-        cp_syn_msg(c->syn, c->err, __VA_ARGS__); \
+        cp_syn_msg(c->input, c->err, __VA_ARGS__); \
     })
 
 typedef struct {
     cp_scad_tree_t *top;
     cp_err_t *err;
+    cp_syn_input_t *input;
     cp_syn_tree_t *syn;
     cp_scad_opt_t const *opt;
 } ctxt_t;
@@ -63,6 +64,7 @@ static bool __func_new(
         [CP_SCAD_CUBE]         = sizeof(cp_scad_cube_t),
         [CP_SCAD_CYLINDER]     = sizeof(cp_scad_cylinder_t),
         [CP_SCAD_POLYHEDRON]   = sizeof(cp_scad_polyhedron_t),
+        [CP_SCAD_IMPORT]       = sizeof(cp_scad_import_t),
         [CP_SCAD_MULTMATRIX]   = sizeof(cp_scad_multmatrix_t),
         [CP_SCAD_TRANSLATE]    = sizeof(cp_scad_translate_t),
         [CP_SCAD_MIRROR]       = sizeof(cp_scad_mirror_t),
@@ -84,7 +86,7 @@ static bool __func_new(
     if (r->modifier & CP_GC_MOD_ROOT) {
         if (t->top->root != NULL) {
             return msg(t, CP_ERR_FAIL, syn->loc, t->top->root->loc,
-                "Multiple '!' modifiers in tree.\n");
+                "Multiple '!' modifiers in tree.");
         }
         t->top->root = r;
     }
@@ -200,7 +202,7 @@ static bool get_uint32(
         return true;
     }
     return msg(t, CP_ERR_FAIL, v->loc, NULL,
-        "Expected a %"_Pz"u-bit unsigned int value.\n", sizeof(*r)*8);
+        "Expected a %"_Pz"u-bit unsigned int value.", sizeof(*r)*8);
 }
 
 static bool _get_uint32(
@@ -231,7 +233,7 @@ static bool get_bool(
     if (try_get_bool(r, v)) {
         return true;
     }
-    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a bool value.\n");
+    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a bool value.");
 }
 
 static bool _get_bool(
@@ -271,7 +273,7 @@ static bool get_float(
     if (try_get_float(r, v)) {
         return true;
     }
-    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a float or int value.\n");
+    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a float or int value.");
 }
 
 static bool _get_float(
@@ -306,7 +308,7 @@ static bool get_grey(
     if (try_get_grey(r, v)) {
         return true;
     }
-    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a float or int value within 0..1.\n");
+    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a float or int value within 0..1.");
 }
 
 static bool _get_grey(
@@ -317,12 +319,11 @@ static bool _get_grey(
     return get_grey(r, t, v);
 }
 
-#if 0
 static bool try_get_str(
     char const **r,
     cp_syn_value_t const *v)
 {
-    cp_syn_value_string_t *a = cp_syn_try_cast(*a, v);
+    cp_syn_value_string_t const *a = cp_syn_try_cast(*a, v);
     if (a != NULL) {
         *r = a->value;
         return true;
@@ -338,7 +339,7 @@ static bool get_str(
     if (try_get_str(r, v)) {
         return true;
     }
-    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a string value.\n");
+    return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a string value.");
 }
 
 static bool _get_str(
@@ -348,7 +349,6 @@ static bool _get_str(
 {
     return get_str(r, t, v);
 }
-#endif /*0*/
 
 static bool try_get_size(
     size_t *r,
@@ -379,7 +379,7 @@ static bool get_size(
         return true;
     }
     return msg(t, CP_ERR_FAIL, v->loc, NULL,
-        "Expected a %"_Pz"u-bit unsigned int value.\n", sizeof(*r)*8);
+        "Expected a %"_Pz"u-bit unsigned int value.", sizeof(*r)*8);
 }
 
 __unused static bool _get_size(
@@ -396,13 +396,13 @@ static bool get_vec2(
     cp_syn_value_t const *v)
 {
     if (v->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, v->loc, NULL,"Expected a vector.\n");
+        return msg(t, CP_ERR_FAIL, v->loc, NULL,"Expected a vector.");
     }
 
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg(t, CP_ERR_FAIL, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -451,13 +451,13 @@ static bool get_vec3(
     cp_syn_value_t const *v)
 {
     if (v->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, v->loc, NULL,"Expected a vector.\n");
+        return msg(t, CP_ERR_FAIL, v->loc, NULL,"Expected a vector.");
     }
 
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg(t, CP_ERR_FAIL, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -546,13 +546,13 @@ static bool get_vec4(
     cp_syn_value_t const *v)
 {
     if (v->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a vector.\n");
+        return msg(t, CP_ERR_FAIL, v->loc, NULL, "Expected a vector.");
     }
 
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg(t, CP_ERR_FAIL, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.\n", cp_countof(r->v));
+            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -583,7 +583,7 @@ static bool get_mat4(
         ))
     {
         return msg(t, CP_ERR_FAIL, v->loc, NULL,
-            "Expected a 2x2, 3x3, 4x4, or 3x3+T matrix array.\n");
+            "Expected a 2x2, 3x3, 4x4, or 3x3+T matrix array.");
     }
 
     for (cp_size_each(y, a->value.size)) {
@@ -616,7 +616,7 @@ static bool get_mat3w(
     if (!cp_mat3w_from_mat4(r, &q)) {
         return msg(t, CP_ERR_FAIL,
             cp_v_nth(&cp_syn_cast(cp_syn_value_array_t, v)->value, 3)->loc, NULL,
-            "Not a valid 3x3+T matrix: last row must be [0,0,0,1].\n");
+            "Not a valid 3x3+T matrix: last row must be [0,0,0,1].");
     }
 
     return true;
@@ -697,7 +697,7 @@ static bool get_arg(
         param_t *p = NULL;
         if (a->key == NULL) {
             if ((i >= pos_cnt) || need_name) {
-                return msg(t, CP_ERR_FAIL, a->value->loc, NULL, "Expected parameter name.\n");
+                return msg(t, CP_ERR_FAIL, a->value->loc, NULL, "Expected parameter name.");
             }
             p = &pos[i];
             assert(p != NULL);
@@ -719,7 +719,7 @@ static bool get_arg(
                 }
             }
             return msg(t, t->opt->err_unknown_param, a->value->loc, NULL,
-                "Unknown parameter name '%s'.\n", a->key);
+                "Unknown parameter name '%s'.", a->key);
         }
 
     get:
@@ -737,7 +737,7 @@ static bool get_arg(
         else
         if (!pos[o].have) {
             return msg(t, CP_ERR_FAIL, loc, NULL,
-                "Missing '%s' parameter.\n", pos[o].name);
+                "Missing '%s' parameter.", pos[o].name);
         }
     }
     for (cp_size_each(o, name_cnt)) {
@@ -746,7 +746,7 @@ static bool get_arg(
         }
         else
         if (!name[o].have) {
-            return msg(t, CP_ERR_FAIL, loc, NULL, "Missing '%s' parameter.\n", name[o].name);
+            return msg(t, CP_ERR_FAIL, loc, NULL, "Missing '%s' parameter.", name[o].name);
         }
     }
 
@@ -849,7 +849,7 @@ static bool sphere_from_item(
 
     if (have_r && have_d) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r' or 'd' parameters expected, but found both.\n");
+            "Either 'r' or 'd' parameters expected, but found both.");
     }
     if (have_d) {
         r->r = d / 2;
@@ -889,7 +889,7 @@ static bool circle_from_item(
 
     if (have_r && have_d) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r' or 'd' parameters expected, but found both.\n");
+            "Either 'r' or 'd' parameters expected, but found both.");
     }
     if (have_d) {
         r->r = d / 2;
@@ -926,17 +926,17 @@ static bool polyhedron_from_item(
     if (_triangles != NULL) {
         if (_faces != NULL) {
             return msg(t, CP_ERR_FAIL, f->loc, NULL,
-                "Either 'faces' or 'triangles' expected, but found both.\n");
+                "Either 'faces' or 'triangles' expected, but found both.");
         }
         _faces = _triangles;
     }
     if (_faces == NULL) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'faces' or 'triangles' expected, but found none.\n");
+            "Either 'faces' or 'triangles' expected, but found none.");
     }
 
     if (_points->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, _points->loc, NULL, "Expected array of points.\n");
+        return msg(t, CP_ERR_FAIL, _points->loc, NULL, "Expected array of points.");
     }
     cp_syn_value_array_t const *points = cp_syn_cast(*points, _points);
     cp_v_init0(&r->points, points->value.size);
@@ -948,19 +948,19 @@ static bool polyhedron_from_item(
     }
 
     if (_faces->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, _faces->loc, NULL, "Expected array of faces.\n");
+        return msg(t, CP_ERR_FAIL, _faces->loc, NULL, "Expected array of faces.");
     }
     cp_syn_value_array_t const *faces = cp_syn_cast(*faces, _faces);
     cp_v_init0(&r->faces, faces->value.size);
     for (cp_v_each(i, &faces->value)) {
         cp_syn_value_t const *_face = cp_v_nth(&faces->value, i);
         if (_face->type != CP_SYN_VALUE_ARRAY) {
-            return msg(t, CP_ERR_FAIL, _face->loc, NULL, "Expected array of point indices.\n");
+            return msg(t, CP_ERR_FAIL, _face->loc, NULL, "Expected array of point indices.");
         }
         cp_syn_value_array_t const *face = cp_syn_cast(*face, _face);
         if (face->value.size < 3) {
             return msg(t, CP_ERR_FAIL, _face->loc, NULL,
-                "Expected at least 3 point indices, but found only %"_Pz"u.\n",
+                "Expected at least 3 point indices, but found only %"_Pz"u.",
                 face->value.size);
         }
 
@@ -973,7 +973,7 @@ static bool polyhedron_from_item(
             }
             if (!(idx < r->points.size)) {
                 return msg(t, CP_ERR_FAIL, cp_v_nth(&face->value, j)->loc, points->loc,
-                    "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
+                    "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.",
                     r->points.size,
                     idx);
             }
@@ -1010,7 +1010,7 @@ static bool polygon_from_item(
     }
 
     if (_points->type != CP_SYN_VALUE_ARRAY) {
-        return msg(t, CP_ERR_FAIL, _points->loc, NULL, "Expected an array of points.\n");
+        return msg(t, CP_ERR_FAIL, _points->loc, NULL, "Expected an array of points.");
     }
     cp_syn_value_array_t const *points = cp_syn_cast(*points, _points);
     cp_v_init0(&r->points, points->value.size);
@@ -1032,7 +1032,7 @@ static bool polygon_from_item(
     }
     else {
         if (_paths->type != CP_SYN_VALUE_ARRAY) {
-            return msg(t, CP_ERR_FAIL, _paths->loc, NULL, "Expected an array of paths.\n");
+            return msg(t, CP_ERR_FAIL, _paths->loc, NULL, "Expected an array of paths.");
         }
         cp_syn_value_array_t const *paths = cp_syn_cast(*paths, _paths);
         cp_v_init0(&r->paths, paths->value.size);
@@ -1040,12 +1040,12 @@ static bool polygon_from_item(
             cp_syn_value_t const *_path = cp_v_nth(&paths->value, i);
             if (_path->type != CP_SYN_VALUE_ARRAY) {
                 return msg(t, CP_ERR_FAIL, _path->loc, NULL,
-                    "Expected an array of point indices.\n");
+                    "Expected an array of point indices.");
             }
             cp_syn_value_array_t const *path = cp_syn_cast(*path, _path);
             if (path->value.size < 3) {
                 return msg(t, CP_ERR_FAIL, path->loc, NULL,
-                    "Expected at least 3 point indices, but found only %"_Pz"u.\n",
+                    "Expected at least 3 point indices, but found only %"_Pz"u.",
                     path->value.size);
             }
 
@@ -1058,7 +1058,7 @@ static bool polygon_from_item(
                 }
                 if (!(idx < r->points.size)) {
                     return msg(t, CP_ERR_FAIL, cp_v_nth(&path->value, j)->loc, points->loc,
-                        "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.\n",
+                        "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.",
                         r->points.size,
                         idx);
                 }
@@ -1141,13 +1141,13 @@ static bool color_from_item(
         cp_syn_value_array_t const *c = cp_syn_cast(*c,_c);
         if (c->value.size < 3) {
             return msg(t, CP_ERR_FAIL, c->loc, NULL,
-                "Expected at least 3 colour components, but found %"_Pz"u.\n",
+                "Expected at least 3 colour components, but found %"_Pz"u.",
                 c->value.size);
         }
         size_t mx = 3 + (have_alpha ? 0 : 1);
         if (c->value.size > mx) {
             return msg(t, CP_ERR_FAIL, c->loc, NULL,
-                "Expected at most %"_Pz"u colour components, but found %"_Pz"u.\n",
+                "Expected at most %"_Pz"u colour components, but found %"_Pz"u.",
                 mx,
                 c->value.size);
         }
@@ -1161,13 +1161,12 @@ static bool color_from_item(
     if (_c->type == CP_SYN_VALUE_STRING) {
         cp_syn_value_string_t const *c = cp_syn_cast(*c, _c);
         if (!cp_color_by_name(&r->rgba.rgb, c->value)) {
-            return msg(t, CP_ERR_FAIL, c->loc, NULL,
-                "Unknown colour '%s'.\n", c->value);
+            return msg(t, CP_ERR_FAIL, c->loc, NULL, "Unknown colour '%s'.", c->value);
         }
     }
     else {
         return msg(t, CP_ERR_FAIL, _c->loc, NULL,
-            "Expected an array or string for color definition.\n");
+            "Expected an array or string for color definition.");
     }
 
     if (have_alpha) {
@@ -1223,7 +1222,7 @@ static bool rotate_from_item(
     if (a->type == CP_SYN_VALUE_ARRAY) {
         if (have_v) {
             return msg(t, CP_ERR_FAIL, f->loc, NULL,
-                "Either 'a' or 'v' is expected to be a vector, but found both.\n");
+                "Either 'a' or 'v' is expected to be a vector, but found both.");
         }
         if (!get_vec3(&r->n, t, a)) {
             return false;
@@ -1321,7 +1320,7 @@ static bool cylinder_from_item(
 
     if (have_d && (have_d1 || have_d2)) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'd' or 'd1'/'d2' parameters expected, but found both.\n");
+            "Either 'd' or 'd1'/'d2' parameters expected, but found both.");
     }
     if (have_d) {
         d1 = d2 = d;
@@ -1330,7 +1329,7 @@ static bool cylinder_from_item(
 
     if (have_r && (have_r1 || have_r2)) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r' or 'r1'/'r2' parameters expected, but found both.\n");
+            "Either 'r' or 'r1'/'r2' parameters expected, but found both.");
     }
     if (have_r) {
         q->r1 = q->r2 = r;
@@ -1339,15 +1338,15 @@ static bool cylinder_from_item(
 
     if (have_r && have_d) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r' or 'd' parameters expected, but found both.\n");
+            "Either 'r' or 'd' parameters expected, but found both.");
     }
     if (have_r1 && have_d1) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r1' or 'd1' parameters expected, but found both.\n");
+            "Either 'r1' or 'd1' parameters expected, but found both.");
     }
     if (have_r2 && have_d2) {
         return msg(t, CP_ERR_FAIL, f->loc, NULL,
-            "Either 'r2' or 'd2' parameters expected, but found both.\n");
+            "Either 'r2' or 'd2' parameters expected, but found both.");
     }
 
     if (have_d1) {
@@ -1355,6 +1354,60 @@ static bool cylinder_from_item(
     }
     if (have_d2) {
         q->r2 = d2 / 2;
+    }
+
+    return true;
+}
+
+static bool string_unquote(
+    ctxt_t *t,
+    cp_vchar_t *v,
+    char const *s)
+{
+    (void)cp_vchar_cstr(v);
+    for (char const *i = s, *e = s + strlen(s); i != e; i++) {
+        if (*i == '\\') {
+            i++;
+            switch (*i) {
+            case '\\': cp_vchar_push(v, '\\'); break;
+            case '\"': cp_vchar_push(v, '\"'); break;
+            case 't':  cp_vchar_push(v, '\t'); break;
+            case 'n':  cp_vchar_push(v, '\n'); break;
+            case 'r':  cp_vchar_push(v, '\r'); break;
+            default:
+                return msg(t, CP_ERR_FAIL, i, NULL, "Unsupported string escape character.");
+            }
+        }
+        else {
+            cp_vchar_push(v, *i);
+        }
+    }
+    return true;
+}
+
+static bool import_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_q)
+{
+    cp_scad_import_t *q = cp_scad_cast(*q, _q);
+
+    char const *_layer;
+    unsigned _convexity;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_STR   ("file",      &q->file_tok, MANDATORY),
+            PARAM_STR   ("layer",     &_layer,      OPTIONAL),
+            PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
+        ),
+        ()))
+    {
+        return false;
+    }
+
+    if (!string_unquote(t, &q->file, q->file_tok)) {
+        return false;
     }
 
     return true;
@@ -1413,6 +1466,16 @@ static bool v_scad_from_syn_stmt_item(
            .id = "group",
            .type = CP_SCAD_UNION,
            .from = union_from_item
+        },
+        {
+           .id = "import",
+           .type = CP_SCAD_IMPORT,
+           .from = import_from_item
+        },
+        {
+           .id = "import_stl",
+           .type = CP_SCAD_IMPORT,
+           .from = import_from_item
         },
         {
            .id = "intersection",
@@ -1491,7 +1554,7 @@ static bool v_scad_from_syn_stmt_item(
         f->functor, cmds, cp_countof(cmds), sizeof(cmds[0]), cmp_name_cmd, NULL);
     if (idx >= cp_countof(cmds)) {
         return msg(t, t->opt->err_unknown_functor, f->loc, NULL,
-            "Unknown functor/operator/object: '%s'.\n", f->functor);
+            "Unknown functor/operator/object: '%s'.", f->functor);
     }
 
     cmd_t const *c = &cmds[idx];
@@ -1570,12 +1633,15 @@ static bool v_scad_from_v_syn_stmt(
  */
 extern bool cp_scad_from_syn_tree(
     cp_scad_tree_t *result,
+    cp_syn_input_t *input,
+    cp_err_t *err,
     cp_syn_tree_t *syn)
 {
     ctxt_t t = {
         .syn = syn,
         .top = result,
-        .err = &syn->err,
+        .err = err,
+        .input = input,
         .opt = result->opt,
     };
     return v_scad_from_v_syn_stmt(&t, &result->toplevel, &syn->toplevel);

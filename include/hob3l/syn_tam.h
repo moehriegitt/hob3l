@@ -267,7 +267,7 @@ typedef struct {
 typedef CP_VEC_T(cp_syn_file_t *) cp_v_syn_file_p_t;
 
 /**
- * SCAD parser result
+ * All loaded input files.
  */
 typedef struct {
     /**
@@ -275,17 +275,17 @@ typedef struct {
      * The entry at index 0 is the top-level file.
      */
     cp_v_syn_file_p_t file;
+} cp_syn_input_t;
 
+/**
+ * SCAD parser result
+ */
+typedef struct {
     /**
      * The top-level list of funcalls in the body
      * of the file(s).
      */
     cp_v_syn_stmt_p_t toplevel;
-
-    /**
-     * In case of an error: the error location and message.
-     */
-    cp_err_t err;
 } cp_syn_tree_t;
 
 /**

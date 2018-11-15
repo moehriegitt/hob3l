@@ -120,12 +120,20 @@ static bool process_stack_diff(
 static bool do_file(
     cp_stream_t *sout,
     cp_opt_t *opt,
-    cp_syn_tree_t *r,
+    cp_err_t *err,
+    cp_syn_input_t *input,
     const char *fn,
     FILE *f)
 {
+    /* stage 0: read file */
+    cp_syn_file_t *file = CP_NEW(*file);
+    if (!cp_syn_read(file, err, input, NULL, fn, f)) {
+        return false;
+    }
+
     /* stage 1: syntax tree */
-    if (!cp_syn_parse(r, fn, f)) {
+    cp_syn_tree_t *r = CP_NEW(*r);
+    if (!cp_syn_parse(err, input, r, file)) {
         return false;
     }
     if (opt->dump_syn) {
@@ -136,7 +144,7 @@ static bool do_file(
     /* stage 2: SCAD */
     cp_scad_tree_t *scad = CP_NEW(*scad);
     scad->opt = &opt->scad;
-    if (!cp_scad_from_syn_tree(scad, r)) {
+    if (!cp_scad_from_syn_tree(scad, input, err, r)) {
         return false;
     }
     if (opt->dump_scad) {
@@ -151,7 +159,7 @@ static bool do_file(
     /* stage 3: 3D CSG */
     cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
     csg3->opt = &opt->csg;
-    if (!cp_csg3_from_scad_tree(&pool, r, csg3, &r->err, scad)) {
+    if (!cp_csg3_from_scad_tree(&pool, input, csg3, err, scad)) {
         return false;
     }
 
@@ -215,7 +223,7 @@ static bool do_file(
 
     cp_csg2_tree_t *csg2_out = opt->no_csg ? csg2 : csg2b;
     size_t zi = 0;
-    if (!process_stack_csg(opt, &pool, &r->err, csg2, csg2b, csg2_out, &zi, range.cnt)) {
+    if (!process_stack_csg(opt, &pool, err, csg2, csg2b, csg2_out, &zi, range.cnt)) {
         return false;
     }
 
@@ -223,7 +231,7 @@ static bool do_file(
     if (opt->dump_js) {
         if (!opt->no_diff) {
             zi = 0;
-            if (!process_stack_diff(opt, &pool, &r->err, csg2_out, &zi, range.cnt)) {
+            if (!process_stack_diff(opt, &pool, err, csg2_out, &zi, range.cnt)) {
                 return false;
             }
         }
@@ -622,16 +630,10 @@ int main(int argc, char **argv)
     }
 
     /* process files */
-    FILE *fin = fopen(in_file_name, "rt");
-    if (fin == NULL) {
-        fprintf(stderr, "Error: Unable to open '%s' for reading: %s\n",
-            in_file_name, strerror(errno));
-        my_exit(1);
-    }
+    cp_err_t *err = CP_NEW(*err);
+    cp_syn_input_t *input = CP_NEW(*input);
 
-    cp_syn_tree_t *r = CP_NEW(*r);
-    bool ok = do_file(sout, &opt, r, in_file_name, fin);
-    fclose(fin);
+    bool ok = do_file(sout, &opt, err, input, in_file_name, NULL);
 
     if (fout != NULL) {
         fclose(fout);
@@ -640,15 +642,15 @@ int main(int argc, char **argv)
     /* print error (FIXME: make this readable) */
     if (!ok) {
         cp_vchar_t pre, post;
-        cp_syn_format_loc(&pre, &post, r, r->err.loc, r->err.loc2);
+        cp_syn_format_loc(&pre, &post, input, err->loc, err->loc2);
 
-        if (r->err.msg.size == 0) {
-            cp_vchar_printf(&r->err.msg, "Unknown failure.\n");
+        if (err->msg.size == 0) {
+            cp_vchar_printf(&err->msg, "Unknown failure.\n");
         }
-        if (r->err.msg.data[r->err.msg.size-1] != '\n') {
-            cp_vchar_push(&r->err.msg, '\n');
+        if (err->msg.data[err->msg.size-1] != '\n') {
+            cp_vchar_push(&err->msg, '\n');
         }
-        fprintf(stderr, "%sError: %s%s", pre.data, r->err.msg.data, post.data);
+        fprintf(stderr, "%sError: %s%s", pre.data, err->msg.data, post.data);
         my_exit(1);
     }
 

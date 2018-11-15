@@ -24,6 +24,7 @@
       * [cylinder](#cylinder)
       * [difference](#difference)
       * [group](#group)
+      * [import](#import)
       * [intersection](#intersection)
       * [linear_extrude](#linear_extrude)
       * [mirror](#mirror)
@@ -139,6 +140,7 @@ OpenSCAD may still accept it and assume '1'.
     cube(size, center)
     cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
+    import(file, layer, convexity)
 
     polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
@@ -621,6 +623,32 @@ operation, also referred to as the Boolean 'OR' operation.
 group() { ... }
 ```
 
+### import
+
+Load a polyhedron from a file.
+
+```
+import(file{,layer,convexity})
+```
+
+  * `file` :: string
+  * `layer` :: string, ignored
+  * `convexity` :: integer, ignored
+
+This loads a polyhedron from the file whose path is specified by
+`file`.  If `file` is a relative path name, then it is interpreted
+relative to the file where the `import` was located.
+
+Currently, files in text STL format are supported.  The normals from
+the STL file are ignored, and the vertices are assumed to be ordered
+in the opposite order of what the SCAD format uses, i.e., when viewed
+from the outside, each face's vertices run counter-clockwise.  This
+corresponds to the right hand rule, where the thumb is the face normal
+and the other fingers indicate the vertex order.
+
+The input polyhedron must be 2-manifold just like for the `polyhedron`
+functor.
+
 ### intersection
 
 Combine substructures by intersecting them.  This is the CSG 'CUT'
@@ -826,7 +854,10 @@ of a path by a list of 0-based indices into the `points` array.  If
 a list of all indices in `points`, i.e., `points` defines the outline
 of the polygon directly.
 
-The entries in `paths` are normalised so that they run clockwise.
+The entries in `paths` are normalised so that they run clockwise from
+viewed from 'above', i.e., from the positive Z axis.  This corresponds
+to the left hand rule, where the thumb is the Z axis in positive
+direction and the other fingers indicate the vertex order.
 
 ### polyhedron
 
@@ -848,7 +879,8 @@ polyhedron(points[,faces]{,triangles,convexity});
 indices into the `points` array, which defines the path of each
 polygon describing a face.  The vertices of each face must be
 specified in clockwise direction when viewed from the outside of the
-polyhedron.
+polyhedron.  This corresponds to the left hand rule, where the thumb
+is the face normal and the other fingers indicate the vertex order.
 
 The value of `faces` defaults to the value of `triangles`.
 

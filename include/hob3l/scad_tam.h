@@ -20,15 +20,16 @@
         cp_scad_union_t:        CP_SCAD_UNION, \
         cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
         cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
-        cp_scad_sphere_t:       CP_SCAD_SPHERE, \
-        cp_scad_cylinder_t:     CP_SCAD_CYLINDER, \
-        cp_scad_cube_t:         CP_SCAD_CUBE, \
-        cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
         cp_scad_multmatrix_t:   CP_SCAD_MULTMATRIX, \
         cp_scad_translate_t:    CP_SCAD_TRANSLATE, \
         cp_scad_mirror_t:       CP_SCAD_MIRROR, \
         cp_scad_scale_t:        CP_SCAD_SCALE, \
         cp_scad_rotate_t:       CP_SCAD_ROTATE, \
+        cp_scad_sphere_t:       CP_SCAD_SPHERE, \
+        cp_scad_cylinder_t:     CP_SCAD_CYLINDER, \
+        cp_scad_cube_t:         CP_SCAD_CUBE, \
+        cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
+        cp_scad_import_t:       CP_SCAD_IMPORT, \
         cp_scad_circle_t:       CP_SCAD_CIRCLE, \
         cp_scad_square_t:       CP_SCAD_SQUARE, \
         cp_scad_polygon_t:      CP_SCAD_POLYGON, \
@@ -42,16 +43,17 @@ typedef enum {
     CP_SCAD_DIFFERENCE,
     CP_SCAD_INTERSECTION,
 
-    CP_SCAD_SPHERE,
-    CP_SCAD_CUBE,
-    CP_SCAD_CYLINDER,
-    CP_SCAD_POLYHEDRON,
-
     CP_SCAD_MULTMATRIX,
     CP_SCAD_TRANSLATE,
     CP_SCAD_MIRROR,
     CP_SCAD_SCALE,
     CP_SCAD_ROTATE,
+
+    CP_SCAD_SPHERE,
+    CP_SCAD_CUBE,
+    CP_SCAD_CYLINDER,
+    CP_SCAD_POLYHEDRON,
+    CP_SCAD_IMPORT,
 
     CP_SCAD_CIRCLE,
     CP_SCAD_SQUARE,
@@ -71,6 +73,12 @@ typedef struct {
     double r;
     unsigned _fn;
 } cp_scad_sphere_t;
+
+typedef struct {
+    _CP_SCAD
+    char const *file_tok;
+    cp_vchar_t file;
+} cp_scad_import_t;
 
 typedef struct {
     _CP_SCAD

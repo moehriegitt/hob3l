@@ -9,14 +9,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <hob3lbase/def.h>
-#include <hob3lbase/vchar.h>
-
-typedef struct {
-    size_t alloc;
-    size_t size;
-    /** Either NULL or a 0 terminated string */
-    char *data;
-} cp_vchar_t;
+#include <hob3lbase/vchar_tam.h>
 
 /**
  * Finalise/discard a vector.
@@ -86,6 +79,19 @@ static inline void cp_vchar_append(
 {
     assert(w != NULL);
     cp_vchar_append_arr(v, w->data, w->size);
+}
+
+/**
+ * Ensure that data is not NULL and then return data pointer.
+ */
+static inline char *cp_vchar_cstr(
+    cp_vchar_t *v)
+{
+    if (v->size == 0) {
+        cp_vchar_push(v, 0);
+        v->size = 0;
+    }
+    return v->data;
 }
 
 #endif /* __CP_VCHAR_H */

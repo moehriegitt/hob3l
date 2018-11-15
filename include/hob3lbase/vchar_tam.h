@@ -9,12 +9,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <hob3lbase/def.h>
+#include <hob3lbase/vec.h>
 
-typedef struct {
-    size_t alloc;
-    size_t size;
-    /** Either NULL or a 0 terminated string */
-    char *data;
-} cp_vchar_t;
+typedef CP_VEC_T(char) cp_vchar_t;
 
 #endif /* __CP_VCHAR_H */
