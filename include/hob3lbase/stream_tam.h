@@ -13,7 +13,7 @@
 
 #include <stdarg.h>
 
-typedef int (*cp_stream_vprintf_t)(void *data, char const *form, va_list va);
+typedef void (*cp_stream_vprintf_t)(void *data, char const *form, va_list va);
 
 typedef struct {
     void *data;

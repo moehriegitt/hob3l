@@ -38,7 +38,7 @@ extern void cp_vchar_swap(
 /**
  * Formatted printing into a string */
 __attribute__((format(printf,2,0)))
-extern int cp_vchar_vprintf(
+extern void cp_vchar_vprintf(
     cp_vchar_t *v,
     char const *format,
     va_list va);
@@ -46,7 +46,7 @@ extern int cp_vchar_vprintf(
 /**
  * Formatted printing into a string */
 __attribute__((format(printf,2,3)))
-extern int cp_vchar_printf(
+extern void cp_vchar_printf(
     cp_vchar_t *v,
     char const *format,
     ...);

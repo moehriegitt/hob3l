@@ -276,8 +276,7 @@ static bool do_file(
     return true;
 }
 
-__attribute__((noreturn))
-static void my_exit(int i)
+static void my_at_exit(void)
 {
 #ifdef PSTRACE
     if (cp_debug_ps != NULL) {
@@ -285,11 +284,10 @@ static void my_exit(int i)
         CP_FREE(cp_debug_ps);
     }
     if (cp_debug_ps_file != NULL) {
-        fclose(cp_debug_ps_file);
+        (void)fclose(cp_debug_ps_file);
         cp_debug_ps_file = NULL;
     }
 #endif
-    exit(i);
 }
 
 static char const *cp_prog_name(void)
@@ -313,7 +311,7 @@ static void help(void)
     PRI("Options:\n");
     PRI("%s", opt_help);
 #undef PRI
-    my_exit(0);
+    exit(0);
 }
 
 static void get_arg_bool(
@@ -337,7 +335,7 @@ static void get_arg_bool(
         return;
     }
     fprintf(stderr, "Error: %s: invalid boolean: '%s'\n", arg, str);
-    my_exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static void get_arg_err(
@@ -369,7 +367,7 @@ static void get_arg_err(
 
     fprintf(stderr, "Error: %s: invalid problem handling: '%s', expected 'error' or 'ignore'\n",
         arg, str);
-    my_exit(1);
+    exit(EXIT_FAILURE);
 }
 
 static void get_arg_neg_bool(
@@ -394,7 +392,7 @@ static void get_arg_dim(
     *v = strtod(str, &r);
     if ((str == r) || (*r != '\0')) {
         fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -407,7 +405,7 @@ static void get_arg_size(
     unsigned long long val = strtoull(str, &r, 10);
     if ((str == r) || (*r != '\0')) {
         fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
     *v = val & CP_MAX_OF(*v);
 }
@@ -421,7 +419,7 @@ static void get_arg_uint8(
     get_arg_size(&v2, arg, str);
     if (v2 > 255) {
         fprintf(stderr, "Error %s: invalid color value: %s expected 0..255\n", arg, str);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
     *v = v2 & 0xff;
 }
@@ -435,7 +433,7 @@ static void get_arg_rgb(
     unsigned long w = strtoul(str, &r, 16);
     if ((str == r) || (*r != '\0')) {
         fprintf(stderr, "Error: %s: invalid rgb color: '%s'\n", arg, str);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
 
     v->r = (w >> 16) & 0xff;
@@ -492,7 +490,7 @@ static void parse_opt(
         bsearch(&key, opt_list, cp_countof(opt_list), sizeof(opt_list[0]), opt_cmp);
     if (g == NULL) {
         fprintf(stderr, "Error: Unrecognised option: '%s'\n", argvi);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
 
     char const *arg = NULL;
@@ -504,7 +502,7 @@ static void parse_opt(
         if (g->need_arg == 2) {
             if ((*i + 1) >= argc) {
                 fprintf(stderr, "Error: Expected argument for '%s'\n", argvi);
-                my_exit(1);
+                exit(EXIT_FAILURE);
             }
             arg = argv[++*i];
         }
@@ -527,6 +525,8 @@ static bool has_suffix(
 
 int main(int argc, char **argv)
 {
+    atexit(my_at_exit);
+
     /* init options */
     cp_opt_t opt = {0};
     opt.z_step = 0.2;
@@ -561,7 +561,7 @@ int main(int argc, char **argv)
         else {
             fprintf(stderr, "Error: Multiple input files cannot be processed: '%s'\n",
                 argv[i]);
-            my_exit(1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -601,7 +601,7 @@ int main(int argc, char **argv)
         if (fout == NULL) {
             fprintf(stderr, "Error: Unable to open '%s' for writing: %s\n",
                 opt.out_file_name, strerror(errno));
-            my_exit(1);
+            exit(EXIT_FAILURE);
         }
         sout = CP_STREAM_FROM_FILE(fout);
 
@@ -624,7 +624,7 @@ int main(int argc, char **argv)
             else {
                 fprintf(stderr, "Error: Unrecognised file ending: '%s'.  Use --dump-...\n",
                     opt.out_file_name);
-                my_exit(1);
+                exit(EXIT_FAILURE);
             }
         }
     }
@@ -636,7 +636,10 @@ int main(int argc, char **argv)
     bool ok = do_file(sout, &opt, err, input, in_file_name, NULL);
 
     if (fout != NULL) {
-        fclose(fout);
+        if (fclose(fout) != 0) {
+            cp_panic(CP_FILE, CP_LINE, "Unable to close output file '%s': %s\n",
+                opt.out_file_name, strerror(ferror(fout)));
+        }
     }
 
     /* print error (FIXME: make this readable) */
@@ -651,8 +654,8 @@ int main(int argc, char **argv)
             cp_vchar_push(&err->msg, '\n');
         }
         fprintf(stderr, "%sError: %s%s", pre.data, err->msg.data, post.data);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    my_exit(0);
+    exit(EXIT_SUCCESS);
 }

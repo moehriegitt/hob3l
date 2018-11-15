@@ -230,7 +230,7 @@ static void get_opt_debug_ps(
     if (f == NULL) {
         fprintf(stderr, "Error: Unable to open %s for writing: %s\n",
             fn, strerror(errno));
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
     cp_debug_ps_file = f;
 
@@ -480,7 +480,7 @@ static void get_opt_max_simultaneous(
     if (opt->csg.max_simultaneous < 2) {
         fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
             opt->csg.max_simultaneous);
-        my_exit(1);
+        exit(EXIT_FAILURE);
     }
 }
 

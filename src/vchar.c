@@ -77,7 +77,7 @@ extern void cp_vchar_swap(
 /**
  * Formatted printing into a string */
 __attribute__((format(printf,2,0)))
-extern int cp_vchar_vprintf(
+extern void cp_vchar_vprintf(
     cp_vchar_t *v,
     char const *format,
     va_list va)
@@ -95,7 +95,7 @@ extern int cp_vchar_vprintf(
         if (done < have) {
             v->size += done;
             assert(v->size < v->alloc);
-            return done_i;
+            return;
         }
 
         assert((int)done > 0);
@@ -111,14 +111,13 @@ extern int cp_vchar_vprintf(
 /**
  * Formatted printing into a string */
 __attribute__((format(printf,2,3)))
-extern int cp_vchar_printf(
+extern void cp_vchar_printf(
     cp_vchar_t *v,
     char const *format,
     ...)
 {
     va_list va;
     va_start(va, format);
-    int i = cp_vchar_vprintf(v, format, va);
+    cp_vchar_vprintf(v, format, va);
     va_end(va);
-    return i;
 }
