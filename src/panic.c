@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <hob3lbase/panic.h>
+#include <hob3lbase/def.h>
 
 /**
  * Panic exit w/ message.
@@ -52,8 +53,8 @@ extern void cp_panic(
 __attribute__((noreturn))
 __attribute__((format(printf,3,0)))
 extern void cp_vpanic(
-    char const *file,
-    int line,
+    char const *file __unused,
+    int line __unused,
     char const *f,
     va_list va)
 {
