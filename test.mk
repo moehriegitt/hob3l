@@ -173,3 +173,9 @@ FAIL_STL.scad := \
 
 FAIL_JS.scad := \
     scad-test/linext5.scad
+
+# The following STLs need hacks, because they are not 2-manifold, although
+# slic3r does not complain.  Do I miss something?
+#   scad-test/ergo.scad
+#   scad-test/ergo1.scad
+#   scad-test/nozzle.scad

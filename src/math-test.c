@@ -226,6 +226,37 @@ extern void cp_math_test(void)
         TEST_FEQ(n.y, p.y);
         TEST_FEQ(n.z, p.z);
     }
+    {
+        /* Test of STL face */
+        cp_vec3_t n = {{ 0.682114, 0.186335, -0.707107 }};
+        cp_vec3_t a = {{ 8.24063, 27.0101, -73.3779 }};
+        cp_vec3_t b = {{ 6.10409, 30.573, -74.5 }};
+        cp_vec3_t c = {{ 7.16564, 30.9453, -73.3779 }};
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+    }
+    {
+        /* Test of STL face */
+        cp_vec3_t n = {{ -0.682114, -0.186335, 0.707107 }};
+        cp_vec3_t a = {{ 6.08316, 30.6496, -74.5 }};
+        cp_vec3_t b = {{ 6.10409, 30.573, -74.5 }};
+        cp_vec3_t c = {{ 7.16564, 30.9453, -73.3779 }};
+
+        double old_epsilon = cp_eq_epsilon;
+        cp_eq_epsilon = 0.02;
+
+        cp_vec3_t p;
+        cp_vec3_left_normal3(&p, &a, &b, &c);
+        TEST_FEQ(n.x, p.x);
+        TEST_FEQ(n.y, p.y);
+        TEST_FEQ(n.z, p.z);
+
+        cp_eq_epsilon = old_epsilon;
+    }
 
     TEST_EQ(1, 0x1p0);
     TEST_EQ(2, 0x1p1);

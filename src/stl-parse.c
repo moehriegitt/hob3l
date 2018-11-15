@@ -4,10 +4,14 @@
 #include <hob3lbase/dict.h>
 #include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lbase/mat.h>
 #include <hob3l/stl-parse.h>
 #include <hob3l/csg3_tam.h>
 #include <hob3l/syn_tam.h>
 #include <hob3l/vec3-dict.h>
+#include "internal.h"
+
+#define CHECK_NORMAL 1
 
 /* Token types 1..127 are reserved for single character syntax tokens. */
 /* Token types 128..255 are reserved for future use. */
@@ -387,14 +391,12 @@ static bool parse_facet(
         return false;
     }
     cp_vec3_dict_node_t *v[3];
-    if (!parse_vertex(p, &v[0])) {
-        return false;
-    }
-    if (!parse_vertex(p, &v[1])) {
-        return false;
-    }
-    if (!parse_vertex(p, &v[2])) {
-        return false;
+    cp_loc_t vloc[3];
+    for (cp_size_each(i, 3)) {
+        vloc[i] = p->tok_loc;
+        if (!parse_vertex(p, &v[i])) {
+            return false;
+        }
     }
     if (!expect_err(p, K_ENDLOOP)) {
         return false;
@@ -403,13 +405,34 @@ static bool parse_facet(
         return false;
     }
 
+#if CHECK_NORMAL
+    /* FIXME: according to spec, there is no need to check the normal.
+     * But here's the code to do it in case we want it later: */
+
+    /* check whether the normal is exactly opposite of what is
+     * expected so we can swap the points. */
+    cp_vec3_t normal2;
+    cp_vec3_right_cross3(&normal2, &v[0]->coord, &v[1]->coord, &v[2]->coord);
+    if (cp_vec3_has_len0(&normal2)) {
+        /* ignore collapsed triangles */
+        return true;
+    }
+    if ((cp_pt_cmp(normal.x, 0) == cp_pt_cmp(normal2.x, 0)) &&
+        (cp_pt_cmp(normal.y, 0) == cp_pt_cmp(normal2.y, 0)) &&
+        (cp_pt_cmp(normal.z, 0) == cp_pt_cmp(normal2.z, 0)))
+    {
+        CP_SWAP(&v[1], &v[2]);
+        CP_SWAP(&vloc[1], &vloc[2]);
+    }
+#endif
+
     cp_csg3_face_t *face = cp_v_push0(&p->poly->face);
     face->loc = loc;
     cp_v_init0(&face->point, 3);
     for (cp_size_each(i, 3)) {
         cp_vec3_loc_ref_t *q = &cp_v_nth(&face->point, 2 - i);
         q->ref = (void*)v[i]->idx;
-        q->loc = v[i]->loc;
+        q->loc = vloc[i];
     }
 
     return true;

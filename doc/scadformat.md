@@ -639,12 +639,16 @@ This loads a polyhedron from the file whose path is specified by
 `file`.  If `file` is a relative path name, then it is interpreted
 relative to the file where the `import` was located.
 
-Currently, files in text STL format are supported.  The normals from
-the STL file are ignored, and the vertices are assumed to be ordered
-in the opposite order of what the SCAD format uses, i.e., when viewed
-from the outside, each face's vertices run counter-clockwise.  This
-corresponds to the right hand rule, where the thumb is the face normal
-and the other fingers indicate the vertex order.
+Currently, files in text STL format are supported.  The vertices are
+assumed to be ordered in the opposite order of what the SCAD format
+uses, i.e., when viewed from the outside, each face's vertices run
+counter-clockwise.  This corresponds to the right hand rule, where the
+thumb is the face normal and the other fingers indicate the vertex
+order.
+
+The normal is used to check that the vertices are ordered the expected
+way: if the sign of the computed normal is opposite, the vertices are
+reversed to restore the right hand rule order.
 
 The input polyhedron must be 2-manifold just like for the `polyhedron`
 functor.
