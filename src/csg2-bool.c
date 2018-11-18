@@ -281,65 +281,56 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
 
 #define ev_str(x) __ev_str((char[80]){}, 80, x)
 
+static event_t *chain_other(event_t *e)
+{
+    assert(cp_ring_is_moiety(&e->node_chain));
+    event_t *o = CP_BOX_OF(cp_ring_step(&e->node_chain, 0), event_t, node_chain);
+    assert(e->p == o->p);
+    return o;
+}
+
 #ifdef PSTRACE
 static void debug_print_chain(
-    event_t *e0,
+    event_t *e,
     size_t tag)
 {
-    if (e0->debug_tag == tag) {
+    if (e->debug_tag == tag) {
         return;
     }
-    if (cp_ring_is_singleton(&e0->node_chain)) {
+    if (cp_ring_is_singleton(&e->node_chain)) {
         return;
     }
 
-    e0->debug_tag = tag;
-    cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->v.coord));
+    e->debug_tag = tag;
+    debug_print_chain(chain_other(e), tag);
 
-    event_t *e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 0), event_t, node_chain);
-    if (e0 == e1) {
-        e1 = CP_BOX_OF(cp_ring_step(&e0->node_chain, 1), event_t, node_chain);
+    cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e->p->v.coord));
+
+    for (;;) {
+        e = e->other;
+        if (e->debug_tag == tag) {
+            break;
+        }
+        cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(e->p->v.coord));
+        if (cp_ring_is_singleton(&e->node_chain)) {
+            break;
+        }
+        e->debug_tag = tag;
+        e = chain_other(e);
+        e->debug_tag = tag;
     }
-    assert(e0 != e1);
-
-    e1->debug_tag = tag;
-    cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(e1->p->v.coord));
-
-    event_t *ey __unused = e0;
-    event_t *ez __unused = e1;
-    bool close = false;
-    for (cp_ring_each(_ei, &e0->node_chain, &e1->node_chain)) {
-        event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
-        ez = ei;
-        ei->debug_tag = tag;
-        cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->v.coord));
-        close = !cp_ring_is_end(_ei);
-    }
-    if (close) {
+    if (e->debug_tag == tag) {
         cp_printf(cp_debug_ps, " closepath");
     }
     cp_printf(cp_debug_ps, " stroke\n");
-    if (!close && !cp_ring_is_end(&e0->node_chain)) {
-        /* find other end */
-        cp_printf(cp_debug_ps, "newpath %g %g moveto", CP_PS_XY(e0->p->v.coord));
-        for (cp_ring_each(_ei, &e1->node_chain, &e0->node_chain)) {
-            event_t *ei = CP_BOX_OF(_ei, event_t, node_chain);
-            ey = ei;
-            ei->debug_tag = tag;
-            cp_printf(cp_debug_ps, " %g %g lineto", CP_PS_XY(ei->p->v.coord));
-        }
-        cp_printf(cp_debug_ps, " stroke\n");
-    }
 
-    if (!close) {
-        cp_debug_ps_dot(CP_PS_XY(ey->p->v.coord), 7);
-        cp_debug_ps_dot(CP_PS_XY(ez->p->v.coord), 7);
+    if (e->debug_tag != tag) {
+        cp_debug_ps_dot(CP_PS_XY(e->p->v.coord), 7);
     }
 }
 #endif
 
 #if DEBUG || defined(PSTRACE)
-
 __attribute__((format(printf,2,6)))
 static void debug_print_s(
     ctxt_t *c,
@@ -397,6 +388,18 @@ static void debug_print_s(
                 "2 setlinewidth newpath %g %g moveto %g %g lineto stroke\n",
                 CP_PS_XY(es->p->v.coord),
                 CP_PS_XY(es->other->p->v.coord));
+        }
+        if ((epr != NULL) && (es->p == epr->other->p)) {
+            cp_printf(cp_debug_ps,
+                "5 setlinewidth newpath %g %g moveto %g %g lineto stroke\n",
+                CP_PS_XY(es->p->v.coord),
+                CP_PS_XY(epr->p->v.coord));
+        }
+        if ((ene != NULL) && (es->p == ene->other->p)) {
+            cp_printf(cp_debug_ps,
+                "5 setlinewidth newpath %g %g moveto %g %g lineto stroke\n",
+                CP_PS_XY(es->p->v.coord),
+                CP_PS_XY(ene->p->v.coord));
         }
 
         /* pt */
@@ -1143,14 +1146,6 @@ static bool path_add_point3(
     return false;
 }
 
-static event_t *chain_other(event_t *e)
-{
-    assert(cp_ring_is_moiety(&e->node_chain));
-    event_t *o = CP_BOX_OF(cp_ring_step(&e->node_chain, 0), event_t, node_chain);
-    assert(e->p == o->p);
-    return o;
-}
-
 /**
  * Construct the poly from the chains */
 static void path_make(
@@ -1517,7 +1512,7 @@ static char const *check_intersection(
     unsigned u = ev4_overlap(el, ol, eh, oh);
     if ((u == 2) && (right != NULL)) {
         /* BUG:
-         * test32f.scad triggers this.  This is similar to the other
+         * test32e.scad triggers this.  This is similar to the other
          * test32.scad tests, but this has no overlap, but a coincident
          * point.  This happens in other tests, too, without any
          * consequent failure.  This needs more debugging because it

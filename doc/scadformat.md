@@ -663,7 +663,7 @@ _OpenSCAD compatibility_:
     files are just not correct 2-manifolds, although this should be
     the case according to the specification.  Empty triangles (with
     three collinear edges) are very frequent.  And Hob3l really cannot
-    handle them at the moment, because if how its slicing algorithm
+    handle them at the moment, because of how its slicing algorithm
     works.
 
 ### intersection
