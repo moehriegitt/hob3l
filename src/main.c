@@ -525,7 +525,7 @@ static bool has_suffix(
 
 int main(int argc, char **argv)
 {
-    atexit(my_at_exit);
+    (void)atexit(my_at_exit);
 
     /* init options */
     cp_opt_t opt = {0};

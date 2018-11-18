@@ -340,15 +340,22 @@ static void debug_print_chain(
 
 #if DEBUG || defined(PSTRACE)
 
+__attribute__((format(printf,2,6)))
 static void debug_print_s(
     ctxt_t *c,
     char const *msg,
     event_t *es,
     event_t *epr __unused,
-    event_t *ene __unused)
+    event_t *ene __unused,
+    ...)
 {
+    va_list va __unused;
 #if DEBUG
-    LOG("S %s\n", msg);
+    LOG("S ");
+    va_start(va, ene);
+    VLOG(msg, va);
+    va_end(va);
+    LOG("\n");
     for (cp_dict_each(_e, c->s)) {
         event_t *e = CP_BOX_OF(_e, event_t, node_s);
         LOG("S: %s\n", ev_str(e));
@@ -359,7 +366,11 @@ static void debug_print_s(
     /* output to postscript */
     if (cp_debug_ps_page_begin()) {
         /* print info */
-        cp_printf(cp_debug_ps, "30 30 moveto (CSG: %s) show\n", msg);
+        cp_printf(cp_debug_ps, "30 30 moveto (CSG: ");
+        va_start(va, ene);
+        cp_vprintf(cp_debug_ps, msg, va);
+        va_end(va);
+        cp_printf(cp_debug_ps, ") show\n");
         cp_printf(cp_debug_ps, "30 45 moveto (%s =prev) show\n", epr ? ev_str(epr) : "NULL");
         cp_printf(cp_debug_ps, "30 60 moveto (%s =this) show\n", es  ? ev_str(es)  : "NULL");
         cp_printf(cp_debug_ps, "30 75 moveto (%s =next) show\n", ene ? ev_str(ene) : "NULL");
@@ -370,6 +381,17 @@ static void debug_print_s(
             "newpath %g dup 0 moveto %u lineto stroke\n",
             CP_PS_X(es->p->v.coord.x),
             CP_PS_PAPER_Y);
+        /* mark rasterization around current point */
+        cp_printf(cp_debug_ps,
+            "newpath %g %g moveto %g %g lineto %g %g lineto %g %g lineto closepath stroke\n",
+            CP_PS_X(es->p->v.coord.x - cp_pt_epsilon),
+            CP_PS_Y(es->p->v.coord.y - cp_pt_epsilon),
+            CP_PS_X(es->p->v.coord.x + cp_pt_epsilon),
+            CP_PS_Y(es->p->v.coord.y - cp_pt_epsilon),
+            CP_PS_X(es->p->v.coord.x + cp_pt_epsilon),
+            CP_PS_Y(es->p->v.coord.y + cp_pt_epsilon),
+            CP_PS_X(es->p->v.coord.x - cp_pt_epsilon),
+            CP_PS_Y(es->p->v.coord.y + cp_pt_epsilon));
         if (!es->left) {
             cp_printf(cp_debug_ps,
                 "2 setlinewidth newpath %g %g moveto %g %g lineto stroke\n",
@@ -923,7 +945,7 @@ static void chain_merge(
 
     cp_ring_pair(&e1->node_chain, &e2->node_chain);
 
-    debug_print_s(c, "join", e2, e1, NULL);
+    debug_print_s(c, "join", e1, e1->other, e2->other);
 }
 
 static cp_angle_t ev_atan2(
@@ -1451,12 +1473,16 @@ static void ev_ignore(
     }
 }
 
-static void check_intersection(
+/**
+ * This returns a debug string describing what was done. */
+static char const *check_intersection(
     ctxt_t *c,
     /** the lower edge in s */
     event_t *el,
     /** the upper edge in s */
-    event_t *eh)
+    event_t *eh,
+    /** whether we are finishing a right point */
+    event_t *right)
 {
     event_t *ol = el->other;
     event_t *oh = eh->other;
@@ -1489,6 +1515,53 @@ static void check_intersection(
      */
 
     unsigned u = ev4_overlap(el, ol, eh, oh);
+    if ((u == 2) && (right != NULL)) {
+        /* BUG:
+         * test32f.scad triggers this.  This is similar to the other
+         * test32.scad tests, but this has no overlap, but a coincident
+         * point.  This happens in other tests, too, without any
+         * consequent failure.  This needs more debugging because it
+         * is more difficult to distinguish when this fails and when
+         * it's ok.
+         * Works in STL output of:
+         *     chain1, test31b, uselessbox, linext1, linext7.
+         * Fails in PS output of:
+         *     test32e (at gran=0.5).
+         */
+        (void)0; /* FIXME: continue */
+    }
+    if ((u == 3) && (right != NULL)) {
+        /* BUG:
+         * linext5.scad triggered this in (WebGL) diff step (z=19.7+0.2).
+         * The fix is to do nothing (do not collapse overlap).
+         * Test32f.scad triggers exactly this at a larger scale.
+         *
+         * Tests test32*.scad have been added to further examine this,
+         * and trigger more problems.  And indeed, doing nothing is not
+         * always enough.
+         *
+         * The reason for the failure is an overlap of prev and next
+         * lines: this cannot happen except due to rounding (at small
+         * scales). => Change this into a potential intersection
+         * instead (or keep edges as is).
+         *
+         * There is no need to check whether the right points of prev
+         * and next coincide: this is not handled here and introduces
+         * no new line or point.
+         *
+         * But there is still a danger: 'find_intersection' may
+         * succeed and round 'ip' in such a way that the top line ends
+         * up right of the current sweep point, which may invalidate
+         * old decisions.
+         *
+         * We may have tried to handle this already by re-processing
+         * prev and next, but this does not cut it: linext5 has an
+         * intermediate vertical line that is already completely
+         * processed that would also need reprocessing as it ends up
+         * in the opposite side.
+         */
+        u = 0;
+    }
     if (u != 3) {
         bool collinear = false;
         point_t *ip = NULL;
@@ -1510,7 +1583,7 @@ static void check_intersection(
 
             /* If the lines meet in one point, it's ok */
             if ((el->p == eh->p) || (ol->p == oh->p)) {
-                return;
+                return "shared end";
             }
 
             if (ip == el->p) {
@@ -1534,13 +1607,15 @@ static void check_intersection(
                 divide_segment(c, eh, ip);
             }
 
-            return;
+            return "single intersection";
         }
 
         /* collinear means parallel here, i.e., no intersection */
         LOG("Rel: unrelated, parallel=%u (%s -- %s)\n", collinear, ev_str(el), ev_str(eh));
-        return;
+        return "non-intersecting";
     }
+
+    assert(!right);
 
     /* check */
     assert(pt_cmp(el->p, ol->p) < 0);
@@ -1563,7 +1638,7 @@ static void check_intersection(
     /* We do not need to care about resetting other->in.below, because it is !left
      * and is not part of S yet, and in.below will be reset upon insertion. */
     if (sev_cnt == 2) {
-        LOG("Rel: overlap same (%s -- %s)\n", ev_str(el), ev_str(eh));
+        LOG("Rel: complete overlap (%s -- %s)\n", ev_str(el), ev_str(eh));
 
         /*  eh.....oh
          *  el.....ol
@@ -1577,10 +1652,10 @@ static void check_intersection(
         assert(el->in.below == below);
 
         ev_ignore(c, el);
-        return;
+        return "complete overlap";
     }
     if (sev_cnt == 3) {
-        LOG("Rel: overlap joint end (%s -- %s)\n", ev_str(el), ev_str(eh));
+        LOG("Rel: overlap shared end (%s -- %s)\n", ev_str(el), ev_str(eh));
 
         /* sev:  0    1    2
          *       eh........NULL    ; sh == eh, shl == eh
@@ -1614,7 +1689,7 @@ static void check_intersection(
         divide_segment(c, shl, sev[1]->p);
 
         ev_ignore(c, sev[1]);
-        return;
+        return "overlap shared end";
     }
 
     assert(sev_cnt == 4);
@@ -1630,7 +1705,7 @@ static void check_intersection(
         ((sev[2] == oh) && (sev[3] == ol)));
 
     if (sev[0] != sev[3]->other) {
-        LOG("Rel: overlap opposite ends (%s -- %s)\n", ev_str(el), ev_str(eh));
+        LOG("Rel: mutual partial overlap (%s -- %s)\n", ev_str(el), ev_str(eh));
 
         /*        0   1   2   3
          *            eh......oh
@@ -1654,10 +1729,10 @@ static void check_intersection(
         divide_segment(c, sev[1], sev[2]->p);
 
         ev_ignore(c, sev[1]);
-        return;
+        return "mutual partial overlap";
     }
 
-    LOG("Rel: overlap subsumed (%s -- %s)\n", ev_str(el), ev_str(eh));
+    LOG("Rel: inner overlap (%s -- %s)\n", ev_str(el), ev_str(eh));
 
 
     /*        0   1   2   3
@@ -1683,6 +1758,7 @@ static void check_intersection(
     divide_segment(c, sev[3]->other, sev[2]->p);
 
     ev_ignore(c, sev[1]);
+    return "inner overlap";
 }
 
 static inline event_t *s_next(
@@ -1728,17 +1804,19 @@ static void ev_left(
 
     debug_print_s(c, "left after insert", e, prev, next);
 
+    char const *ni __unused = "NULL";
     if (next != NULL) {
-        check_intersection(c, e, next);
+        ni = check_intersection(c, e, next, NULL);
     }
     /* The previous 'check_intersection' may have kicked out 'e' from S due
      * to rounding, so check that e is still in S before trying to intersect.
      * If not, it is back in Q and we'll handle this later. */
+    char const *pi __unused = "NULL";
     if ((prev != NULL) && cp_dict_is_member(&e->node_s)) {
-        check_intersection(c, prev, e);
+        pi = check_intersection(c, prev, e, NULL);
     }
 
-    debug_print_s(c, "left after intersect", e, prev, next);
+    debug_print_s(c, "left after intersect (n=%s, p=%s)", e, prev, next, ni, pi);
 }
 
 static bool op_bitmap_get(
@@ -1774,11 +1852,12 @@ static void ev_right(
         chain_add(c, e);
     }
 
+    char const *npi __unused = "NULL";
     if ((next != NULL) && (prev != NULL)) {
-        check_intersection(c, prev, next);
+        npi = check_intersection(c, prev, next, e);
     }
 
-    debug_print_s(c, "right after intersect", e, prev, next);
+    debug_print_s(c, "right after intersect (npi=%s)", e, prev, next, npi);
 }
 
 static void csg2_op_poly(

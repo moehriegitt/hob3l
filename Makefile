@@ -170,6 +170,9 @@ TEST_STL.stl := \
 TEST_STL.jsgz := \
     $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js.gz)))
 
+FAIL_TRIANGLE := \
+    $(addprefix test-out/fail-,$(notdir $(FAIL_TRIANGLE.scad:.scad=.ps)))
+
 FAIL_STL := \
     $(addprefix test-out/fail-,$(notdir $(FAIL_STL.scad:.scad=.stl)))
 
@@ -382,11 +385,12 @@ test: unit-test no-unit-test
 no-unit-test: test-triangle test-triangle-prepare test-stl test-js
 
 .PHONY: fail
-fail: fail-stl fail-js
+fail: fail-triangle fail-stl fail-js
 
 .PHONY: unit-test
 unit-test: cptest.exe
 	./cptest.exe
+
 
 .PHONY: test-triangle
 test-triangle: $(TEST_TRIANGLE.png)
@@ -397,11 +401,16 @@ test-stl: $(TEST_STL.stl)
 .PHONY: test-js
 test-js: $(TEST_STL.jsgz)
 
+
+.PHONY: fail-triangle
+fail-triangle: $(FAIL_TRIANGLE)
+
 .PHONY: fail-stl
 fail-stl: $(FAIL_STL)
 
 .PHONY: fail-js
 fail-js: $(FAIL_JS)
+
 
 .PHONY: test-jsgz
 test-jsgz: test-js
@@ -414,15 +423,19 @@ test-out/%.png: test-out/%.ps
 	mv $@.new.png $@
 
 test-out/%.ps: scad-test/%.scad hob3l.exe
-	$(HOB3L) $< -z=2.0 -o $@.new.ps
+	$(HOB3L) $< -z=2.0 $(HOB3L_OPT) -o $@.new.ps
 	mv $@.new.ps $@
+
+test-out/fail-%.ps: scad-test/%.scad hob3l.exe
+	! $(MAKE) test-out/$*.ps
+	echo >| $@
 
 test-out/%.stl: scad-test/%.scad hob3l.exe
 	$(HOB3L) $< -o $@.new.stl
 	mv $@.new.stl $@
 
 test-out/fail-%.stl: scad-test/%.scad hob3l.exe
-	! $(HOB3L) $< -o $@.new.stl
+	! $(MAKE) test-out/$*.stl
 	echo >| $@
 
 test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.exe

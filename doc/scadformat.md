@@ -653,6 +653,19 @@ reversed to restore the right hand rule order.
 The input polyhedron must be 2-manifold just like for the `polyhedron`
 functor.
 
+_OpenSCAD compatibility_:
+
+  * OpenSCAD reads more file formats than Hob3l.
+
+  * OpenSCAD and also Slic3r are much more forgiving than Hob3l if the
+    input STL is not a proper 2-manifold.  Hob3l rejects many files,
+    which is frustrating.  The underlying problem is that many STL
+    files are just not correct 2-manifolds, although this should be
+    the case according to the specification.  Empty triangles (with
+    three collinear edges) are very frequent.  And Hob3l really cannot
+    handle them at the moment, because if how its slicing algorithm
+    works.
+
 ### intersection
 
 Combine substructures by intersecting them.  This is the CSG 'CUT'

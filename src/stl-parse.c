@@ -342,14 +342,10 @@ static bool parse_vec3(
     parse_t *p,
     cp_vec3_t *v)
 {
-    if (!parse_float(p, &v->v[0])) {
-        return false;
-    }
-    if (!parse_float(p, &v->v[1])) {
-        return false;
-    }
-    if (!parse_float(p, &v->v[2])) {
-        return false;
+    for (cp_size_each(i, 3)) {
+        if (!parse_float(p, &v->v[i])) {
+            return false;
+        }
     }
     return true;
 }
@@ -374,20 +370,10 @@ static bool parse_facet(
     parse_t *p)
 {
     cp_loc_t loc = p->tok_loc;
-    if (!expect_err(p, K_FACET)) {
-        return false;
-    }
-    if (!expect_err(p, K_NORMAL)) {
-        return false;
-    }
     cp_vec3_t normal = {0};
-    if (!parse_vec3(p, &normal)) {
-        return false;
-    }
-    if (!expect_err(p, K_OUTER)) {
-        return false;
-    }
-    if (!expect_err(p, K_LOOP)) {
+    if (!expect_err(p, K_FACET) || !expect_err(p, K_NORMAL) || !parse_vec3(p, &normal) ||
+        !expect_err(p, K_OUTER) || !expect_err(p, K_LOOP))
+    {
         return false;
     }
     cp_vec3_dict_node_t *v[3];
@@ -398,10 +384,7 @@ static bool parse_facet(
             return false;
         }
     }
-    if (!expect_err(p, K_ENDLOOP)) {
-        return false;
-    }
-    if (!expect_err(p, K_ENDFACET)) {
+    if (!expect_err(p, K_ENDLOOP) || !expect_err(p, K_ENDFACET)) {
         return false;
     }
 

@@ -143,7 +143,15 @@ TEST_TRIANGLE.scad := \
     scad-test/test30e.scad \
     scad-test/test30f.scad \
     scad-test/test31.scad \
-    scad-test/uselessbox+body.scad
+    scad-test/uselessbox+body.scad \
+    scad-test/test32f.scad
+
+test-out/test32.ps:  HOB3L_OPT := -gran=1
+test-out/test32b.ps: HOB3L_OPT := -gran=0.5
+test-out/test32c.ps: HOB3L_OPT := -gran=1
+test-out/test32d.ps: HOB3L_OPT := -gran=0.5
+test-out/test32e.ps: HOB3L_OPT := -gran=0.5
+test-out/test32f.ps: HOB3L_OPT := -gran=0.5
 
 TEST_STL.scad := \
     scad-test/uselessbox+body.scad \
@@ -167,12 +175,19 @@ TEST_STL.scad := \
     scad-test/test13c.scad \
     scad-test/test13c2.scad \
     scad-test/test13b.scad \
-    scad-test/chain1.scad
-
-FAIL_STL.scad := \
-
-FAIL_JS.scad := \
+    scad-test/chain1.scad \
     scad-test/linext5.scad
+
+FAIL_TRIANGLE.scad := \
+    scad-test/test32.scad \
+    scad-test/test32b.scad \
+    scad-test/test32c.scad \
+    scad-test/test32d.scad \
+    scad-test/test32e.scad
+
+FAIL_STL.scad :=
+
+FAIL_JS.scad :=
 
 # The following STLs need hacks, because they are not 2-manifold, although
 # slic3r does not complain.  Do I miss something?

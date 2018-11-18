@@ -73,7 +73,8 @@ static inline double three_steps(size_t i)
 
 #if defined(DEBUG) && DEBUG
 
-#define LOG(...) fprintf(stderr, __VA_ARGS__)
+#define LOG(...)  fprintf(stderr, __VA_ARGS__)
+#define VLOG(...) vfprintf(stderr, __VA_ARGS__)
 
 #define TRACE_AUX(__tf, ...) \
     __attribute__((cleanup(trace_func_leave))) \
@@ -108,6 +109,7 @@ static void trace_func_leave(trace_func_t *t)
 
 #define TRACE(...) ((void)0)
 #define LOG(...)   ((void)0)
+#define VLOG(...)  ((void)0)
 
 #endif
 
