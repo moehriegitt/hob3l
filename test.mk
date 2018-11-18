@@ -144,7 +144,9 @@ TEST_TRIANGLE.scad := \
     scad-test/test30f.scad \
     scad-test/test31.scad \
     scad-test/uselessbox+body.scad \
-    scad-test/test32f.scad
+    scad-test/test32f.scad \
+    scad-test/test32b.scad \
+    scad-test/test32e.scad
 
 test-out/test32.ps:  HOB3L_OPT := -gran=1
 test-out/test32b.ps: HOB3L_OPT := -gran=0.5
@@ -180,10 +182,12 @@ TEST_STL.scad := \
 
 FAIL_TRIANGLE.scad := \
     scad-test/test32.scad \
-    scad-test/test32b.scad \
     scad-test/test32c.scad \
-    scad-test/test32d.scad \
-    scad-test/test32e.scad
+    scad-test/test32d.scad
+
+# test32:  triangulation is broken, CSG works now
+# test32c: triangulation is broken, CSG works now
+# test32d: triangulation is broken, CSG works now
 
 FAIL_STL.scad :=
 

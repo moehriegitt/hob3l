@@ -1510,20 +1510,23 @@ static char const *check_intersection(
      */
 
     unsigned u = ev4_overlap(el, ol, eh, oh);
-    if ((u == 2) && (right != NULL)) {
+    if ((u == 2) && (right != NULL) && (eh->p != el->p) && (right->p != el->p)) {
         /* BUG:
-         * test32e.scad triggers this.  This is similar to the other
-         * test32.scad tests, but this has no overlap, but a coincident
-         * point.  This happens in other tests, too, without any
-         * consequent failure.  This needs more debugging because it
-         * is more difficult to distinguish when this fails and when
-         * it's ok.
-         * Works in STL output of:
-         *     chain1, test31b, uselessbox, linext1, linext7.
-         * Fails in PS output of:
-         *     test32e (at gran=0.5).
+         * test32e.scad and test32b.scad trigger this.  This is
+         * similar to the other test32.scad tests, but this has no
+         * overlap, but a coincident point.  This happens in other
+         * tests, too, without any consequent failure.  This needs
+         * more debugging because it is more difficult to distinguish
+         * when this fails and when it's ok.
+         *
+         * In this case, if there is an intersection, we must not round
+         * it into el->p.
+         *
+         * The following ones are a different case (filtered by 'eh->p != el->p') with
+         * three lines crossing on the left.  This works:
+         *     chain1, test31b, test26j, test26k, test26l, uselessbox, linext1, linext7.
          */
-        (void)0; /* FIXME: continue */
+        u = 0;
     }
     if ((u == 3) && (right != NULL)) {
         /* BUG:
@@ -1826,6 +1829,7 @@ static void ev_right(
     ctxt_t *c,
     event_t *e)
 {
+    assert(!e->left);
     event_t *sli = e->other;
     event_t *next = s_next(sli);
     event_t *prev = s_prev(sli);
@@ -1852,7 +1856,7 @@ static void ev_right(
         npi = check_intersection(c, prev, next, e);
     }
 
-    debug_print_s(c, "right after intersect (npi=%s)", e, prev, next, npi);
+    debug_print_s(c, "right after intersect (np=%s)", e, prev, next, npi);
 }
 
 static void csg2_op_poly(
