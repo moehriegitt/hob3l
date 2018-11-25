@@ -67,9 +67,13 @@ I did not want to invent another format.
 Please check [the SCAD format documentation](doc/scadformat.md) for a
 definition of the subset of SCAD that is supported by Hob3l.
 
+Also note that OpenSCAD's `csg` export can be used as a preprocessor
+for Hob3l in case some SCAD syntax is still unsupported.
+See [Using This Tool](#using-this-tool-command-line-options).
+
 ## Status, Stability, Limitations, Future Work, TODO
 
-Despite quite some testing and debugging, this will still assert-fail
+Despite quite some testing and debugging, this may still assert-fail
 occasionally or output rubbish.  The floating point algorithms are
 somewhat brittle and hard to get right.
 
