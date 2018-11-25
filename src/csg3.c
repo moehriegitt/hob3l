@@ -801,7 +801,7 @@ static bool faces_n_edges_from_tower(
     unsigned tri_side,
     bool may_need_tri)
 {
-    /* 
+    /*
      * To cope with non-convex bottom and top:
      *
      *   * Check here whether top/bottom will be non-convex.
@@ -1684,7 +1684,17 @@ static bool csg3_from_linext(
         return false;
     }
 
-    /* get polygon */
+    /*
+     * Flatten set of polygons into a single (multi-path) polygon.
+     *
+     * We need more contrained polygons here than in other phases:
+     * each path needs to be a sequence of unique points.  Other phases can
+     * cope with a path that uses points multiple times, but not this
+     * algorithm.
+     *
+     * We still need a 3D 'xor' operation here, because there can be complete
+     * enclosures.
+     */
     cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
 
     /* sweep */

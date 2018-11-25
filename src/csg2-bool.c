@@ -51,11 +51,12 @@
 #include "internal.h"
 
 typedef struct event event_t;
+typedef struct point point_t;
 
 /**
  * Points found by algorithm
  */
-typedef struct {
+struct point {
     cp_dict_t node_pt;
 
     cp_vec2_loc_t v;
@@ -64,12 +65,20 @@ typedef struct {
      * Index in output point array.
      * Initialised to CP_SIZE_MAX.
      */
-    size_t idx;
+    size_t point_idx;
+
+    /**
+     * Index in output face */
+    size_t face_idx;
 
     /**
      * Number of times this point is used in the resulting polygon. */
     size_t path_cnt;
-} point_t;
+
+    /**
+     * Next in face_idx list */
+    point_t *next;
+};
 
 typedef CP_VEC_T(point_t*) v_point_p_t;
 
@@ -218,6 +227,16 @@ typedef struct {
      * FIXME: temporary should be in pool.
      */
     v_event_p_t vert;
+
+    /**
+     * Whether to flatten the polygons into disjoint paths.  This must
+     * be 'true' for constructing linear_extrudes from the polygons to
+     * avoid non-2-manifold constructions, but it must be 'false' for
+     * the triangulation to work on the result, because 'true'
+     * introduces bends that cannot be handled by the triangulation
+     * algorithm.
+     */
+    bool flatten;
 } ctxt_t;
 
 /**
@@ -228,6 +247,13 @@ typedef struct {
     cp_pool_t *tmp;
 } op_ctxt_t;
 
+/**
+ * For clearing face_idx when detecting rings: a stack to
+ * go back to start of ring.
+ */
+typedef struct {
+    point_t *head;
+} stack_t;
 
 __unused
 static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
@@ -505,7 +531,8 @@ static point_t *pt_new(
     p->v.coord = coord;
     p->v.loc = loc;
     p->v.color = *color;
-    p->idx = CP_SIZE_MAX;
+    p->point_idx = CP_SIZE_MAX;
+    p->face_idx = CP_SIZE_MAX;
 
     LOG("new pt: %s (orig: "FD2")\n", pt_str(p), CP_V01(*_coord));
 
@@ -1102,27 +1129,59 @@ static void chain_combine(
  * Add a point to a path.
  * If necessary, allocate a new point */
 static void path_add_point(
+    ctxt_t *c,
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
+    stack_t *ps,
     point_t *q)
 {
     /* possibly allocate a point */
-    size_t idx = q->idx;
-    if (idx == CP_SIZE_MAX) {
-        cp_vec2_loc_t *v = cp_v_push0(&r->point);
-        q->idx = idx = cp_v_idx(&r->point, v);
-        *v = q->v;
+    size_t pi = q->point_idx;
+    if (pi == CP_SIZE_MAX) {
+        q->point_idx = pi = r->point.size;
+        cp_v_push(&r->point, q->v);
     }
-    assert(idx < r->point.size);
+    assert(pi < r->point.size);
 
-    /* append point to path */
-    cp_v_push(&p->point_idx, idx);
+    /* if the point is part of the current path already, then
+     * create a new path. */
+    size_t fi = q->face_idx;
+    if (c->flatten && (fi < p->point_idx.size)) {
+        size_t cnt = p->point_idx.size - fi;
+        if (cnt >= 3) {
+            /* make independent path for ring */
+            cp_csg2_path_t *p2 = cp_v_push0(&r->path);
+            cp_v_copy(&p2->point_idx, 0, &p->point_idx, fi, cnt);
+            assert(p2->point_idx.size == cnt);
+        }
+
+        /* clear face_idx of ring points (except the shared point) */
+        for (cp_size_each(i, cnt, 1)) {
+            assert(ps->head != NULL);
+            ps->head->face_idx = CP_SIZE_MAX;
+            ps->head = ps->head->next;
+        }
+        assert(ps->head != NULL);
+
+        /* cut off tail */
+        cp_v_set_size(&p->point_idx, fi + 1);
+    }
+    else {
+        /* append point to path */
+        q->face_idx = p->point_idx.size;
+        cp_v_push(&p->point_idx, pi);
+
+        /* push head */
+        q->next = ps->head;
+        ps->head = q;
+    }
 }
 
 static bool path_add_point3(
     ctxt_t *c,
     cp_csg2_poly_t *r,
     cp_csg2_path_t *p,
+    stack_t *ps,
     event_t *prev,
     event_t *cur,
     event_t *next)
@@ -1139,7 +1198,7 @@ static bool path_add_point3(
     {
         assert(!cp_vec2_eq(&prev->p->v.coord, &cur->p->v.coord));
         assert(!cp_vec2_eq(&next->p->v.coord, &cur->p->v.coord));
-        path_add_point(r, p, cur->p);
+        path_add_point(c, r, p, ps, cur->p);
         return true;
     }
 
@@ -1180,25 +1239,28 @@ static void path_make(
     }
 
     /* make a new path */
-    cp_csg2_path_t *p = cp_v_push0(&r->path);
+    cp_csg2_path_t p = {0};
+    stack_t ps = {0};
 
     /* add points, removing collinear ones (if requested) */
     do {
-        if (path_add_point3(c, r, p, ea, eb, ec)) {
+        if (path_add_point3(c, r, &p, &ps, ea, eb, ec)) {
             ea = eb;
         }
         eb = ec;
         ec = chain_other(eb)->other;
     } while (ec != e0);
-    if (path_add_point3(c, r, p, ea, eb, e0)) {
+    if (path_add_point3(c, r, &p, &ps, ea, eb, e0)) {
         ea = eb;
     }
-    path_add_point3(c, r, p, ea, e0, e1);
+    path_add_point3(c, r, &p, &ps, ea, e0, e1);
 
-    if (p->point_idx.size < 3) {
-        /*  completely collinear path: discard path again */
-        cp_v_fini(&p->point_idx);
-        cp_v_pop(&r->path);
+    /* too short: throw away, else push */
+    if (p.point_idx.size < 3) {
+        cp_v_fini(&p.point_idx);
+    }
+    else {
+        cp_v_push(&r->path, p);
     }
 }
 
@@ -2067,7 +2129,8 @@ static bool csg2_op_csg2(
 static void cp_csg2_op_poly(
     cp_pool_t *tmp,
     cp_csg2_poly_t *o,
-    cp_csg2_lazy_t const *r)
+    cp_csg2_lazy_t const *r,
+    bool flatten)
 {
     TRACE();
     /* make context */
@@ -2075,6 +2138,7 @@ static void cp_csg2_op_poly(
         .tmp = tmp,
         .comb = &r->comb,
         .comb_size = (1U << r->size),
+        .flatten = flatten,
     };
     cp_list_init(&c.poly);
 
@@ -2144,7 +2208,7 @@ static cp_csg2_poly_t *poly_sub(
     assert(o0.size == 2);
 
     cp_csg2_poly_t *o = CP_CLONE(a1);
-    cp_csg2_op_poly(tmp, o, &o0);
+    cp_csg2_op_poly(tmp, o, &o0, false);
 
     /* check that the originals really haven't changed */
     assert(a0->point.size == a0_point_sz);
@@ -2245,9 +2309,6 @@ static void csg2_op_diff_csg2(
     }
 }
 
-/* ********************************************************************** */
-/* extern */
-
 /**
  * Actually reduce a lazy poly to a single poly.
  *
@@ -2260,15 +2321,16 @@ static void csg2_op_diff_csg2(
  * this function with more than 2 polygons in the lazy structure will reuse
  * space from the polygons for storing the result.
  */
-extern void cp_csg2_op_reduce(
+static void cp_csg2_op_reduce(
     cp_pool_t *tmp,
-    cp_csg2_lazy_t *r)
+    cp_csg2_lazy_t *r,
+    bool flatten)
 {
     TRACE();
-    if (r->size <= 1) {
+    if (!flatten && (r->size <= 1)) {
         return;
     }
-    cp_csg2_op_poly(tmp, r->data[0], r);
+    cp_csg2_op_poly(tmp, r->data[0], r, flatten);
     if (r->data[0]->point.size == 0) {
         CP_ZERO(r);
         return;
@@ -2276,6 +2338,9 @@ extern void cp_csg2_op_reduce(
     r->size = 1;
     r->comb.b[0] = 2;
 }
+
+/* ********************************************************************** */
+/* extern */
 
 /**
  * Boolean operation on two lazy polygons.
@@ -2362,11 +2427,11 @@ extern void cp_csg2_op_lazy(
 
         /* otherwise reduce the larger one */
         if (r->size > b->size) {
-            cp_csg2_op_reduce(tmp, r);
+            cp_csg2_op_reduce(tmp, r, false);
             assert(r->size <= 1);
         }
         else {
-            cp_csg2_op_reduce(tmp, b);
+            cp_csg2_op_reduce(tmp, b, false);
             assert(b->size <= 1);
         }
     }
@@ -2427,7 +2492,7 @@ extern void cp_csg2_op_add_layer(
     CP_ZERO(&ol);
     bool ok __unused = csg2_op_csg2(&c, zi, &ol, a->root);
     assert(ok && "Unexpected object in tree.");
-    cp_csg2_op_reduce(tmp, &ol);
+    cp_csg2_op_reduce(tmp, &ol, false);
 
     cp_csg2_poly_t *o = ol.data[0];
     if (o != NULL) {
@@ -2479,7 +2544,7 @@ extern cp_csg2_poly_t *cp_csg2_flatten(
     CP_ZERO(&ol);
     bool ok __unused = csg2_op_v_csg2(&c, 0, &ol, root);
     assert(ok && "Unexpected object in tree.");
-    cp_csg2_op_reduce(tmp, &ol);
+    cp_csg2_op_reduce(tmp, &ol, true);
 
     return ol.data[0];
 }

@@ -9,22 +9,6 @@
 #include <hob3l/csg2_tam.h>
 
 /**
- * Actually reduce a lazy poly to a single poly.
- *
- * The result is either empty (r->size == 0) or will have a single entry
- * (r->size == 1) stored in r->data[0].  If the result is empty, this
- * ensures that r->data[0] is NULL.
- *
- * Note that because lazy polygon structures have no dedicated space to store
- * a polygon, they must reuse the space of the input polygons, so applying
- * this function with more than 2 polygons in the lazy structure will reuse
- * space from the polygons for storing the result.
- */
-extern void cp_csg2_op_reduce(
-    cp_pool_t *tmp,
-    cp_csg2_lazy_t *r);
-
-/**
  * Boolean operation on two lazy polygons.
  *
  * This does 'r = r op b'.

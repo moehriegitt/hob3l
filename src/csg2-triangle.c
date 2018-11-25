@@ -425,26 +425,15 @@ static int cmp_nx_p(
     }
 
     /* same coordinates: order by corner type */
-    i = pt_case(a) - pt_case(b);
+    int ca = pt_case(a);
+    i = ca - pt_case(b);
     if (i != 0) {
         return i;
     }
 
-    /* That was easy.  Now it's getting complicated.
-     *
-     * The order is clear, though: we cannot handle truely
-     * intersecting/crossing paths, meaning there is a truely 'lower'
-     * or more 'left' corner when looking at the edges.  csg2-bool
-     * should not produce this, though, so that restriction is fine.
-     */
-    if (i == CASE_BEND) {
-        /* FIXME: This might not happen by the way we connect edges
-         * in the csg2-bool module.
-         * Anyway: check that it cannot happen or fill in code here:
-         * the bend below the other one should be smaller.  The bends
-         * should not cross.*/
-        assert(0 && "FIXME: add test case to trigger this or prove it cannot happen");
-    }
+    /* Bends in one point should have been removed before: we cannot handle
+     * those here.  Instead, these should have become END+START. */
+    assert(ca != CASE_BEND);
 
     /* For START: The outer one should come first.
      * For END: The inner one should come first.
@@ -466,19 +455,19 @@ static int cmp_nx_p(
         /* b is inside a => END: b before a, START: a before b */
         assert((at_x_bb == at_x_bt) && "crossing start/end is not expected here");
         assert(ab_x_bt == cp_vec2_right_normal3_z(ab->coord, a->coord, bb->coord));
-        assert(ab_x_bt == (i == CASE_END ? +1 : -1));
+        assert(ab_x_bt == +1);
         return at_x_bt;
     }
     if (at_x_bt != at_x_bb) {
         /* a is inside b: analog to previous case */
         assert(at_x_bb == cp_vec2_right_normal3_z(ab->coord, a->coord, bb->coord));
-        assert(at_x_bt == (i == CASE_END ? +1 : -1));
+        assert(at_x_bt == +1);
         return at_x_bt;
     }
 
     /* one is completely above the other */
     assert(at_x_bt == cp_vec2_right_normal3_z(ab->coord, a->coord, bb->coord));
-    return i == CASE_END ? +at_x_bt : -at_x_bt;
+    return +at_x_bt;
 }
 
 static int cmp_nx(
@@ -966,6 +955,7 @@ static bool transition_improper_start(
     if (same) {
         LOG("SAME POINT\n");
     }
+    assert((same || !cp_vec2_pt_eq(p->coord, s->rm->node->coord)) && "same point found twice");
 
     if (!same) {
         list_t *lph = list_alloc(c, p);
@@ -1390,6 +1380,8 @@ extern bool cp_csg2_tri_set(
     for (cp_v_each(i, node)) {
         node_t *p = &cp_v_nth(node, i);
         cp_list_init(&p->out->list);
+        LOG("INSERT (%s) -- %s -- (%s)\n",
+            node_str(p->in->src), node_str(p), node_str(p->out->dst));
         cp_dict_t *dup __unused =
             cp_dict_insert(&p->node_nx, &c.nx, cmp_nx, NULL, 0);
         if (dup != NULL) {
@@ -1402,7 +1394,7 @@ extern bool cp_csg2_tri_set(
     /* traverse in lexicographic order, maintaining the Y structure 'c.ey'. */
     size_t i = 0;
     for (cp_dict_each(_p, c.nx)) {
-        LOG("\nPOINT %"_Pz"u %"_Pz"u: %s\n", i, n, node_str(get_nx(_p)));
+        LOG("\nPOINT %"_Pz"u %"_Pz"u: %s\n", i, node->size, node_str(get_nx(_p)));
         if (!transition(&c, get_nx(_p))) {
             return false;
         }

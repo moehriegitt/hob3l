@@ -23,6 +23,14 @@ static int cmp_line(
     return 0;
 }
 
+static bool is_printable(
+    char c)
+{
+    unsigned u = (unsigned char)c;
+    return (u == '\n') || (u == '\t') || (u == '\r') ||
+           ((u >= 32) && (u <= 126));
+}
+
 static bool format_source_line(
     cp_vchar_t *out,
     size_t *pos,
@@ -44,6 +52,12 @@ static bool format_source_line(
                 cp_vchar_push(out, ' ');
                 x++;
             }
+        }
+        else if (!is_printable(*i)) {
+            if (old != out->size) {
+                cp_vchar_printf(out, "[...binary...]");
+            }
+            break;
         }
         else {
             cp_vchar_push(out, *i);

@@ -470,6 +470,34 @@ static void stl_start_file(
     p->lex_end = f->content.data + f->content.size - 1;
 }
 
+static bool parse_text(
+    parse_t *p,
+    cp_syn_file_t *file)
+{
+    stl_start_file(p, file);
+
+    /* scan first token */
+    tok_next(p);
+
+    bool ok = parse_solid(p);
+    if (!ok) {
+        /* generic error message */
+        if (p->err->loc == NULL) {
+            p->err->loc = p->tok_loc;
+        }
+        if (p->err->msg.size == 0) {
+            cp_vchar_printf(&p->err->msg, "STL parse error.\n");
+        }
+        return false;
+    }
+    if (p->tok_type != T_EOF) {
+        p->err->loc = p->tok_loc;
+        cp_vchar_printf(&p->err->msg, "Garbage after 'endsolid'.\n");
+        return false;
+    }
+    return true;
+}
+
 /* ********************************************************************* */
 
 /**
@@ -486,33 +514,21 @@ extern bool cp_stl_parse(
     assert(file != NULL);
 
     /* basic init */
-    parse_t p[1] = {{
+    parse_t p = {
         .poly = r,
         .err = err,
         .input = input,
         .tmp = tmp
-    }};
+    };
 
-    stl_start_file(p, file);
-
-    /* scan first token */
-    tok_next(p);
-
-    bool ok = parse_solid(p);
-    if (!ok) {
-        /* generic error message */
-        if (err->loc == NULL) {
-            err->loc = p->tok_loc;
-        }
-        if (err->msg.size == 0) {
-            cp_vchar_printf(&err->msg, "STL parse error.\n");
-        }
-        return false;
+    /* check for text STL */
+    if ((file->content.size >= 5) &&
+        (memcmp(file->content.data, "solid", 5) == 0))
+    {
+        return parse_text(&p, file);
     }
-    if (p->tok_type != T_EOF) {
-        err->loc = p->tok_loc;
-        cp_vchar_printf(&err->msg, "Garbage after 'endsolid'.\n");
-        return false;
-    }
-    return true;
+
+    err->loc = file->content.data;
+    cp_vchar_printf(&err->msg, "Unrecognised STL file format.\n");
+    return false;
 }
