@@ -215,7 +215,7 @@ extern void cp_syn_format_loc(
  *
  * va_list version of cp_syn_msg().
  */
-__attribute__((format(printf,6,0)))
+CP_VPRINTF(6)
 extern bool cp_syn_vmsg(
     cp_syn_input_t *syn,
     cp_err_t *e,
@@ -260,7 +260,7 @@ extern bool cp_syn_vmsg(
  *
  * '...' version of cp_syn_vmsg().
  */
-__attribute__((format(printf,6,7)))
+CP_PRINTF(6,7)
 extern bool cp_syn_msg(
     cp_syn_input_t *syn,
     cp_err_t *e,

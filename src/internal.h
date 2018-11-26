@@ -77,7 +77,7 @@ static inline double three_steps(size_t i)
 #define VLOG(...) vfprintf(stderr, __VA_ARGS__)
 
 #define TRACE_AUX(__tf, ...) \
-    __attribute__((cleanup(trace_func_leave))) \
+    __attribute__((__cleanup__(trace_func_leave))) \
     trace_func_t __tf = { __FUNCTION__, __FILE__, __LINE__, "" }; \
     snprintf(__tf.msg, sizeof(__tf.msg), " " __VA_ARGS__); \
     trace_func_enter(&__tf);

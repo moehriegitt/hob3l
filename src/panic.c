@@ -30,8 +30,8 @@
  * In debug builds, this uses abort() to ease debugging in case this is
  * a bug, but otherwise, it uses exit(EXIT_FAILURE).
  */
-__attribute__((noreturn))
-__attribute__((format(printf,3,4)))
+CP_NORETURN
+CP_PRINTF(3,4)
 extern void cp_panic(
     char const *file,
     int line,
@@ -50,8 +50,8 @@ extern void cp_panic(
  * For debug builds, the caller should think about hiding the file/line
  * information, i.e., to pass NULL,0.
  */
-__attribute__((noreturn))
-__attribute__((format(printf,3,0)))
+CP_NORETURN
+CP_VPRINTF(3)
 extern void cp_vpanic(
     char const *file CP_UNUSED,
     int line CP_UNUSED,

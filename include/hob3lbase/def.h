@@ -14,9 +14,10 @@
 #include <hob3lbase/arch.h>
 #include <hob3lbase/float.h>
 
-#ifndef CP_UNUSED
-#define CP_UNUSED __attribute__((unused))
-#endif
+#define CP_UNUSED      __attribute__((__unused__))
+#define CP_NORETURN    __attribute__((__noreturn__))
+#define CP_PRINTF(X,Y) __attribute__((__format__(__printf__,X,Y)))
+#define CP_VPRINTF(X)  __attribute__((__format__(__printf__,X,0)))
 
 #define CP_STATIC_ASSERT(x) _Static_assert(x,#x)
 

@@ -82,6 +82,12 @@ sub learn_c($)
             elsif ($s =~ /\G^(__attribute__\(\((.+)\)\)\n)/gcm) {
                 $attr .= $1;
             }
+            elsif ($s =~ /\G^(CP_V?PRINTF\((.+)\)\n)/gcm) {
+                $attr .= $1;
+            }
+            elsif ($s =~ /\G^(CP_NORETURN\n)/gcm) {
+                $attr .= $1;
+            }
             else {
                 my $t = substr($s, pos($s));
                 $t =~ s/\n.*//gs;

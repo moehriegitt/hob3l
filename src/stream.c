@@ -7,7 +7,7 @@
 /**
  * Formatted printing into a stream.
  */
-__attribute__((format(printf,2,3)))
+CP_PRINTF(2,3)
 extern void cp_printf(
     cp_stream_t *s,
     char const *form,
@@ -22,7 +22,7 @@ extern void cp_printf(
 /**
  * Use fprintf, checking for fatal errors.
  */
-__attribute__((format(printf,2,0)))
+CP_VPRINTF(2)
 extern void cp_stream_vfprintf(
     FILE *f, char const *form, va_list va)
 {
