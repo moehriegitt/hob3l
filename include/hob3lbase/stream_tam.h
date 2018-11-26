@@ -8,8 +8,8 @@
  * To print to file or vchar.
  */
 
-#ifndef __CP_STREAM_TAM_H
-#define __CP_STREAM_TAM_H
+#ifndef CP_STREAM_TAM_H_
+#define CP_STREAM_TAM_H_
 
 #include <stdarg.h>
 
@@ -20,4 +20,4 @@ typedef struct {
     cp_stream_vprintf_t vprintf;
 } cp_stream_t;
 
-#endif /* __CP_STREAM_TAM_H */
+#endif /* CP_STREAM_TAM_H_ */

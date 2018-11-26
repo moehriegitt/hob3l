@@ -9,7 +9,7 @@
  * Function to be called when a test fails.
  */
 __attribute__((noreturn))
-extern void __cp_test_fail(
+extern void cp_test_fail_(
     char const *file,
     int line,
     char const *msg1,

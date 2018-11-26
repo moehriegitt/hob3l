@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_SCAD_TAM_H
-#define __CP_SCAD_TAM_H
+#ifndef CP_SCAD_TAM_H_
+#define CP_SCAD_TAM_H_
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/mat_tam.h>
@@ -64,30 +64,30 @@ typedef enum {
     CP_SCAD_COLOR,
 } cp_scad_type_t;
 
-#define _CP_SCAD \
-    struct { _CP_OBJ }; \
+#define CP_SCAD_ \
+    struct { CP_OBJ_ }; \
     unsigned modifier;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     double r;
     unsigned _fn;
 } cp_scad_sphere_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     char const *file_tok;
     cp_vchar_t file;
 } cp_scad_import_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     double r;
     unsigned _fn;
 } cp_scad_circle_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     double h;
     double r1;
     double r2;
@@ -96,13 +96,13 @@ typedef struct {
 } cp_scad_cylinder_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     cp_vec3_t size;
     bool center;
 } cp_scad_cube_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     cp_vec2_t size;
     bool center;
 } cp_scad_square_t;
@@ -115,7 +115,7 @@ typedef struct {
 typedef CP_VEC_T(cp_scad_face_t) cp_a_scad_face_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     cp_a_vec3_loc_t points;
     cp_a_scad_face_t faces;
 } cp_scad_polyhedron_t;
@@ -128,62 +128,62 @@ typedef struct {
 typedef CP_VEC_T(cp_scad_path_t) cp_a_scad_path_t;
 
 typedef struct {
-    _CP_SCAD
+    CP_SCAD_
     cp_a_vec2_loc_t points;
     cp_a_scad_path_t paths;
 } cp_scad_polygon_t;
 
 typedef CP_VEC_T(cp_scad_t*) cp_v_scad_p_t;
 
-#define _CP_SCAD_GROUP \
-    _CP_SCAD \
+#define CP_SCAD_GROUP_ \
+    CP_SCAD_ \
     cp_v_scad_p_t child;
 
-#define _CP_SCAD_GROUP_XYZ \
-    _CP_SCAD_GROUP \
+#define CP_SCAD_GROUP_XYZ_ \
+    CP_SCAD_GROUP_ \
     cp_vec3_t v;
 
 /**
  * To store union.
  */
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
 } cp_scad_union_t;
 
 /**
  * To store intersection.
  */
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
 } cp_scad_intersection_t;
 
 /**
  * To store difference.
  */
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
 } cp_scad_difference_t;
 
 /**
  * To store translate */
 typedef struct {
-    _CP_SCAD_GROUP_XYZ
+    CP_SCAD_GROUP_XYZ_
 } cp_scad_translate_t;
 
 /**
  * To store mirror */
 typedef struct {
-    _CP_SCAD_GROUP_XYZ
+    CP_SCAD_GROUP_XYZ_
 } cp_scad_mirror_t;
 
 /**
  * To store scale */
 typedef struct {
-    _CP_SCAD_GROUP_XYZ
+    CP_SCAD_GROUP_XYZ_
 } cp_scad_scale_t;
 
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
     /**
      * If true, rotate around n at angle a.
      * If false, rotate around all three axes at n.z, n.y, n.x.
@@ -199,7 +199,7 @@ typedef struct {
  * Tagged with CP_SCAD_COLOR.
  */
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
     cp_color_rgba_t rgba;
     /**
      * Whether rgba is valid or whether the
@@ -209,12 +209,12 @@ typedef struct {
 } cp_scad_color_t;
 
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
     cp_mat3w_t m;
 } cp_scad_multmatrix_t;
 
 typedef struct {
-    _CP_SCAD_GROUP
+    CP_SCAD_GROUP_
     cp_f_t height;
     cp_f_t twist;
     cp_vec2_t scale;
@@ -223,7 +223,7 @@ typedef struct {
     unsigned _fn;
 } cp_scad_linext_t;
 
-struct cp_scad { _CP_SCAD };
+struct cp_scad { CP_SCAD_ };
 
 typedef struct {
     /**
@@ -300,4 +300,4 @@ typedef struct {
  * projection
  */
 
-#endif /* __CP_SCAD_TAM_H */
+#endif /* CP_SCAD_TAM_H_ */

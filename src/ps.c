@@ -66,7 +66,7 @@ extern double cp_ps_y(cp_ps_xform_t const *d, double y)
  */
 extern void cp_ps_doc_begin(
     cp_stream_t *s,
-    cp_ps_opt_t const *opt __unused,
+    cp_ps_opt_t const *opt CP_UNUSED,
     size_t page_cnt,
     long x1, long y1, long x2, long y2)
 {
@@ -78,7 +78,7 @@ extern void cp_ps_doc_begin(
 
     if (page_cnt != ~(size_t)0) {
         cp_printf(s,
-            "%%%%Pages: %"_Pz"u\n",
+            "%%%%Pages: %"CP_Z"u\n",
             page_cnt);
     }
     else {
@@ -121,7 +121,7 @@ extern void cp_ps_doc_end(
 
     if (page_cnt != ~(size_t)0) {
         cp_printf(s,
-            "%%%%Pages: %"_Pz"u\n",
+            "%%%%Pages: %"CP_Z"u\n",
             page_cnt);
     }
 
@@ -144,7 +144,7 @@ extern void cp_ps_page_begin(
     size_t page)
 {
     cp_printf(s,
-        "%%%%Page: %"_Pz"u %"_Pz"u\n"
+        "%%%%Page: %"CP_Z"u %"CP_Z"u\n"
         "save\n"
         "1 setlinecap\n"
         "1 setlinejoin\n"

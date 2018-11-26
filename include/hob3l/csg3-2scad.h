@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG3_2SCAD_H
-#define __CP_CSG3_2SCAD_H
+#ifndef CP_CSG3_2SCAD_H_
+#define CP_CSG3_2SCAD_H_
 
 #include <hob3l/csg3_tam.h>
 #include <hob3l/scad_tam.h>
@@ -15,4 +15,4 @@ extern void cp_csg3_tree_put_scad(
     cp_stream_t *s,
     cp_csg3_tree_t *r);
 
-#endif /* __CP_CSG3_2SCAD_H */
+#endif /* CP_CSG3_2SCAD_H_ */

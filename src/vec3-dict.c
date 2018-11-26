@@ -9,7 +9,7 @@
 static int cmp_vec3(
     cp_vec3_t const *a,
     cp_dict_t *_b,
-    void *u __unused)
+    void *u CP_UNUSED)
 {
     cp_vec3_dict_node_t *b = CP_BOX_OF(_b, *b, node);
     return cp_vec3_lex_cmp(a, &b->coord);

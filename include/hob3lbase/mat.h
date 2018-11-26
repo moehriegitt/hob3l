@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_MAT_H
-#define __CP_MAT_H
+#ifndef CP_MAT_H_
+#define CP_MAT_H_
 
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/vec.h>
@@ -445,7 +445,7 @@ extern cp_vec2_t *_cp_v_vec2_loc_nth(
 /**
  * cp_v_vec2_loc_t idx function for cp_vec2_arr_ref_t
  */
-extern size_t _cp_v_vec2_loc_idx(
+extern size_t cp_v_vec2_loc_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a);
 
@@ -459,7 +459,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_xy_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
  */
-extern size_t _cp_v_vec3_loc_xy_idx(
+extern size_t cp_v_vec3_loc_xy_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a);
 
@@ -473,7 +473,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_ref_xy_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
  */
-extern size_t _cp_v_vec3_loc_ref_xy_idx(
+extern size_t cp_v_vec3_loc_ref_xy_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a);
 
@@ -487,7 +487,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_ref_yz_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, YZ plane
  */
-extern size_t _cp_v_vec3_loc_ref_yz_idx(
+extern size_t cp_v_vec3_loc_ref_yz_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a);
 
@@ -649,7 +649,7 @@ static inline void cp_vec2_arr_ref_from_v_vec2_loc(
     cp_v_vec2_loc_t const *v)
 {
     a->nth = _cp_v_vec2_loc_nth;
-    a->idx = _cp_v_vec2_loc_idx;
+    a->idx = cp_v_vec2_loc_idx_;
     a->user1 = v;
     a->user2 = NULL;
 }
@@ -662,7 +662,7 @@ static inline void cp_vec2_arr_ref_from_a_vec3_loc_xy(
     cp_a_vec3_loc_t const *v)
 {
     a->nth = _cp_v_vec3_loc_xy_nth;
-    a->idx = _cp_v_vec3_loc_xy_idx;
+    a->idx = cp_v_vec3_loc_xy_idx_;
     a->user1 = v;
     a->user2 = NULL;
 }
@@ -677,9 +677,9 @@ static inline void cp_vec2_arr_ref_from_a_vec3_loc_ref(
     bool yz_plane)
 {
     a->nth = yz_plane ? _cp_v_vec3_loc_ref_yz_nth : _cp_v_vec3_loc_ref_xy_nth;
-    a->idx = yz_plane ? _cp_v_vec3_loc_ref_yz_idx : _cp_v_vec3_loc_ref_xy_idx;
+    a->idx = yz_plane ? cp_v_vec3_loc_ref_yz_idx_ : cp_v_vec3_loc_ref_xy_idx_;
     a->user1 = v;
     a->user2 = w;
 }
 
-#endif /* __CP_MAT_H */
+#endif /* CP_MAT_H_ */

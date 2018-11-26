@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_PANIC_H
-#define __CP_PANIC_H
+#ifndef CP_PANIC_H_
+#define CP_PANIC_H_
 
 #include <stdarg.h>
 #include <hob3lbase/def.h>
@@ -59,9 +59,9 @@ extern void cp_panic(
 __attribute__((noreturn))
 __attribute__((format(printf,3,0)))
 extern void cp_vpanic(
-    char const *file __unused,
-    int line __unused,
+    char const *file CP_UNUSED,
+    int line CP_UNUSED,
     char const *f,
     va_list va);
 
-#endif /* __CP_PANIC_H */
+#endif /* CP_PANIC_H_ */

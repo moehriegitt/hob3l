@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG3_H
-#define __CP_CSG3_H
+#ifndef CP_CSG3_H_
+#define CP_CSG3_H_
 
 #include <hob3lbase/stream.h>
 #include <hob3l/csg3_tam.h>
@@ -12,7 +12,7 @@
 #include <hob3l/csg3-2scad.h>
 
 /** Create a CSG3 instance */
-#define cp_csg3_new(r, l) _cp_new(cp_csg3_typeof, r, l)
+#define cp_csg3_new(r, l) cp_new_(cp_csg3_typeof, r, l)
 
 /** Create a CSG3 object instance */
 #define cp_csg3_new_obj(r, _loc, _gc) \
@@ -23,10 +23,10 @@
     })
 
 /** Cast w/ dynamic check */
-#define cp_csg3_cast(t,s) _cp_cast(cp_csg3_typeof, t, s)
+#define cp_csg3_cast(t,s) cp_cast_(cp_csg3_typeof, t, s)
 
 /** Cast w/ dynamic check */
-#define cp_csg3_try_cast(t,s) _cp_try_cast(cp_csg3_typeof, t, s)
+#define cp_csg3_try_cast(t,s) cp_try_cast_(cp_csg3_typeof, t, s)
 
 /**
  * Get bounding box of all points, including those that are
@@ -55,4 +55,4 @@ extern bool cp_csg3_from_scad_tree(
     cp_err_t *t,
     cp_scad_tree_t const *scad);
 
-#endif /* __CP_CSG3_H */
+#endif /* CP_CSG3_H_ */

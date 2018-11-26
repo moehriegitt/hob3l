@@ -867,7 +867,7 @@ extern cp_vec2_t *_cp_v_vec2_loc_nth(
 /**
  * cp_v_vec2_loc_t idx function for cp_vec2_arr_ref_t
  */
-extern size_t _cp_v_vec2_loc_idx(
+extern size_t cp_v_vec2_loc_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a)
 {
@@ -889,7 +889,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_xy_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
  */
-extern size_t _cp_v_vec3_loc_xy_idx(
+extern size_t cp_v_vec3_loc_xy_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a)
 {
@@ -911,7 +911,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_ref_xy_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, XY plane
  */
-extern size_t _cp_v_vec3_loc_ref_xy_idx(
+extern size_t cp_v_vec3_loc_ref_xy_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a)
 {
@@ -933,7 +933,7 @@ extern cp_vec2_t *_cp_v_vec3_loc_ref_yz_nth(
 /**
  * cp_v_vec3_loc_t idx function for cp_vec2_arr_ref_t, YZ plane
  */
-extern size_t _cp_v_vec3_loc_ref_yz_idx(
+extern size_t cp_v_vec3_loc_ref_yz_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a)
 {

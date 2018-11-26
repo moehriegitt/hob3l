@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_H
-#define __CP_CSG2_H
+#ifndef CP_CSG2_H_
+#define CP_CSG2_H_
 
 #include <hob3lbase/mat_tam.h>
 #include <hob3l/obj.h>
@@ -18,13 +18,13 @@
 #include <hob3l/csg2-2js.h>
 
 /** Create a CSG2 instance */
-#define cp_csg2_new(r, l) _cp_new(cp_csg2_typeof, r, l)
+#define cp_csg2_new(r, l) cp_new_(cp_csg2_typeof, r, l)
 
 /** Cast w/ dynamic check */
-#define cp_csg2_cast(t, s) _cp_cast(cp_csg2_typeof, t, s)
+#define cp_csg2_cast(t, s) cp_cast_(cp_csg2_typeof, t, s)
 
 /** Cast w/ dynamic check */
-#define cp_csg2_try_cast(t, s) _cp_try_cast(cp_csg2_typeof, t, s)
+#define cp_csg2_try_cast(t, s) cp_try_cast_(cp_csg2_typeof, t, s)
 
 /**
  * Compute bounding box
@@ -54,4 +54,4 @@ static inline cp_vec2_loc_t *cp_csg2_path_nth(
     return &poly->point.data[j];
 }
 
-#endif /* __CP_CSG2_H */
+#endif /* CP_CSG2_H_ */

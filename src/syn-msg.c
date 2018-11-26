@@ -5,7 +5,7 @@
 #include <hob3l/syn.h>
 
 static int cmp_line(
-    char const *key, char const *const *elem, char const **_end __unused)
+    char const *key, char const *const *elem, char const **_end CP_UNUSED)
 {
     if (key < elem[0]) {
         return -1;
@@ -100,9 +100,9 @@ static void cp_syn_get_loc_src_aux(
         loc.orig,
         CP_PTRDIFF(loc.orig_end, loc.orig));
 
-    cp_vchar_printf(pre, "%s:%"_Pz"u:", cp_vchar_cstr(&loc.file->filename), loc.line+1);
+    cp_vchar_printf(pre, "%s:%"CP_Z"u:", cp_vchar_cstr(&loc.file->filename), loc.line+1);
     if (pos != CP_SIZE_MAX) {
-        cp_vchar_printf(pre, "%"_Pz"u:", pos+1);
+        cp_vchar_printf(pre, "%"CP_Z"u:", pos+1);
     }
     cp_vchar_printf(pre, " %s", msg);
 

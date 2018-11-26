@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_GC_H
-#define __CP_GC_H
+#ifndef CP_GC_H_
+#define CP_GC_H_
 
 #include <hob3l/gc_tam.h>
 #include <hob3lbase/stream_tam.h>
@@ -23,4 +23,4 @@ extern bool cp_color_by_name(
     cp_color_rgb_t *rgb,
     char const *name);
 
-#endif /* __CP_GC_H */
+#endif /* CP_GC_H_ */

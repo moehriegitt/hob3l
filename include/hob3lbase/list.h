@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_LIST_H
-#define __CP_LIST_H
+#ifndef CP_LIST_H_
+#define CP_LIST_H_
 
 #include <stddef.h>
 #include <assert.h>
@@ -121,7 +121,7 @@
         __typeof__(*(q)) *__p = (p); \
         assert(__q != NULL); \
         assert(__p != NULL); \
-        __cp_list_swap(\
+        cp_list_swap_(\
             __q, \
             __p, \
             CP_PTRDIFF((char*)&__q->next, (char*)__q), \
@@ -149,7 +149,7 @@
  *
  * Use cp_list_swap() instead.
  */
-extern void __cp_list_swap(
+extern void cp_list_swap_(
     void *a, void *b, size_t offset_next, size_t offset_prev);
 
-#endif /* __CP_LIST_H */
+#endif /* CP_LIST_H_ */

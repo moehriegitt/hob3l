@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_POOL_TAM_H
-#define __CP_POOL_TAM_H
+#ifndef CP_POOL_TAM_H_
+#define CP_POOL_TAM_H_
 
 #include <stddef.h>
 
@@ -18,4 +18,4 @@ typedef struct {
     cp_pool_block_list_t used;
 } cp_pool_t;
 
-#endif /*__CP_POOL_H */
+#endif /*CP_POOL_H_ */

@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_TAM_H
-#define __CP_CSG2_TAM_H
+#ifndef CP_CSG2_TAM_H_
+#define CP_CSG2_TAM_H_
 
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/dict.h>
@@ -52,14 +52,14 @@ typedef enum {
     CP_CSG2_STACK,
 } cp_csg2_type_t;
 
-#define _CP_CSG2 \
+#define CP_CSG2_ \
     union { \
-        struct { _CP_OBJ }; \
-        struct { _CP_OBJ } obj; \
+        struct { CP_OBJ_ }; \
+        struct { CP_OBJ_ } obj; \
     };
 
-#define _CP_CSG2_SIMPLE \
-    _CP_CSG2 \
+#define CP_CSG2_SIMPLE_ \
+    CP_CSG2_ \
     cp_mat2wi_t mat; \
     cp_color_rgba_t color; \
     cp_f_t _fa, _fs; \
@@ -68,7 +68,7 @@ typedef enum {
 struct cp_csg2_circle {
     /**
      * type is CP_CSG2_CIRCLE */
-    _CP_CSG2_SIMPLE
+    CP_CSG2_SIMPLE_
 };
 
 typedef struct {
@@ -82,7 +82,7 @@ typedef CP_ARR_T(cp_csg2_layer_t) cp_a_csg2_layer_t;
 struct cp_csg2_stack {
     /**
      * type is CP_CSG2_STACK */
-    _CP_OBJ
+    CP_OBJ_
 
     /**
      * Actual first global index at index[0] in \a layer */
@@ -121,7 +121,7 @@ typedef CP_VEC_T(cp_csg2_path_t) cp_v_csg2_path_t;
 struct cp_csg2_poly {
     /**
      * type is CP_CSG2_POLY */
-    _CP_CSG2
+    CP_CSG2_
 
     /**
      * The vertices of the polygon.
@@ -184,7 +184,7 @@ struct cp_csg2_poly {
  *
  * This indicates that (mainly) 2D objects are stored/processed.
  */
-struct cp_csg2 { _CP_OBJ };
+struct cp_csg2 { CP_OBJ_ };
 
 
 
@@ -336,4 +336,4 @@ typedef struct {
     cp_csg2_op_bitmap_t comb;
 } cp_csg2_lazy_t;
 
-#endif /* __CP_CSG2_TAM_H */
+#endif /* CP_CSG2_TAM_H_ */

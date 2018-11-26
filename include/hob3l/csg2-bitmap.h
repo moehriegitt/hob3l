@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_BITMAP_H
-#define __CP_CSG2_BITMAP_H
+#ifndef CP_CSG2_BITMAP_H_
+#define CP_CSG2_BITMAP_H_
 
 #include <hob3lbase/stream_tam.h>
 #include <hob3lbase/pool_tam.h>
@@ -60,4 +60,4 @@ static inline bool cp_csg2_op_bitmap_get(
     return !!(b->b[k] & (1U << j));
 }
 
-#endif /* __CP_CSG2_BITMAP_H */
+#endif /* CP_CSG2_BITMAP_H_ */

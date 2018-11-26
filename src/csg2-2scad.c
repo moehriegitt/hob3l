@@ -51,7 +51,7 @@ static void poly_put_scad(
     if (r->triangle.size > 0) {
         for (cp_v_each(i, &r->triangle)) {
             cp_size3_t const *f = &cp_v_nth(&r->triangle, i);
-            cp_printf(s, "%s[%"_Pz"u,%"_Pz"u,%"_Pz"u]",
+            cp_printf(s, "%s[%"CP_Z"u,%"CP_Z"u,%"CP_Z"u]",
                 i == 0 ? "" : ",",
                 f->p[0], f->p[1], f->p[2]);
         }
@@ -61,7 +61,7 @@ static void poly_put_scad(
             cp_csg2_path_t const *f = &cp_v_nth(&r->path, i);
             cp_printf(s, "%s[", i == 0 ? "" : ",");
             for (cp_v_each(j, &f->point_idx)) {
-                cp_printf(s, "%s%"_Pz"u", j == 0 ? "" : ",", cp_v_nth(&f->point_idx, j));
+                cp_printf(s, "%s%"CP_Z"u", j == 0 ? "" : ",", cp_v_nth(&f->point_idx, j));
             }
             cp_printf(s, "]");
         }
@@ -142,7 +142,7 @@ static void layer_put_scad(
     cp_stream_t *s,
     cp_csg2_tree_t *t,
     int d,
-    size_t zi __unused,
+    size_t zi CP_UNUSED,
     cp_csg2_layer_t *r)
 {
     if (cp_csg_add_size(r->root) == 0) {

@@ -210,7 +210,7 @@ static bool get_uint32(
         return true;
     }
     return msg(t, CP_ERR_FAIL, v->loc, NULL,
-        "Expected a %"_Pz"u-bit unsigned int value.", sizeof(*r)*8);
+        "Expected a %"CP_Z"u-bit unsigned int value.", sizeof(*r)*8);
 }
 
 static bool _get_uint32(
@@ -387,10 +387,10 @@ static bool get_size(
         return true;
     }
     return msg_fail(t, v->loc, NULL,
-        "Expected a %"_Pz"u-bit unsigned int value.", sizeof(*r)*8);
+        "Expected a %"CP_Z"u-bit unsigned int value.", sizeof(*r)*8);
 }
 
-__unused static bool _get_size(
+CP_UNUSED static bool _get_size(
     void *r,
     ctxt_t *t,
     cp_syn_value_t const *v)
@@ -410,7 +410,7 @@ static bool get_vec2(
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg_fail(t, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
+            "Expected a vector of size %"CP_Z"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -422,7 +422,7 @@ static bool get_vec2(
     return true;
 }
 
-__unused
+CP_UNUSED
 static bool _get_vec2(
     void *r,
     ctxt_t *t,
@@ -465,7 +465,7 @@ static bool get_vec3(
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg_fail(t, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
+            "Expected a vector of size %"CP_Z"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -560,7 +560,7 @@ static bool get_vec4(
     cp_syn_value_array_t const *a = cp_syn_cast(*a, v);
     if (a->value.size != cp_countof(r->v)) {
         return msg_fail(t, v->loc, NULL,
-            "Expected a vector of size %"_Pz"u.", cp_countof(r->v));
+            "Expected a vector of size %"CP_Z"u.", cp_countof(r->v));
     }
 
     for (cp_arr_each(y, r->v)) {
@@ -640,7 +640,7 @@ static bool _get_mat3w(
 
 static bool get_raw(
     cp_syn_value_t const **r,
-    ctxt_t *t __unused,
+    ctxt_t *t CP_UNUSED,
     cp_syn_value_t const *v)
 {
     *r = v;
@@ -968,7 +968,7 @@ static bool polyhedron_from_item(
         cp_syn_value_array_t const *face = cp_syn_cast(*face, _face);
         if (face->value.size < 3) {
             return msg_fail(t, _face->loc, NULL,
-                "Expected at least 3 point indices, but found only %"_Pz"u.",
+                "Expected at least 3 point indices, but found only %"CP_Z"u.",
                 face->value.size);
         }
 
@@ -981,7 +981,7 @@ static bool polyhedron_from_item(
             }
             if (!(idx < r->points.size)) {
                 return msg_fail(t, cp_v_nth(&face->value, j)->loc, points->loc,
-                    "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.",
+                    "Index out of range; have %"CP_Z"u points, but found index %"CP_Z"u.",
                     r->points.size,
                     idx);
             }
@@ -1053,7 +1053,7 @@ static bool polygon_from_item(
             cp_syn_value_array_t const *path = cp_syn_cast(*path, _path);
             if (path->value.size < 3) {
                 return msg_fail(t, path->loc, NULL,
-                    "Expected at least 3 point indices, but found only %"_Pz"u.",
+                    "Expected at least 3 point indices, but found only %"CP_Z"u.",
                     path->value.size);
             }
 
@@ -1066,7 +1066,7 @@ static bool polygon_from_item(
                 }
                 if (!(idx < r->points.size)) {
                     return msg_fail(t, cp_v_nth(&path->value, j)->loc, points->loc,
-                        "Index out of range; have %"_Pz"u points, but found index %"_Pz"u.",
+                        "Index out of range; have %"CP_Z"u points, but found index %"CP_Z"u.",
                         r->points.size,
                         idx);
                 }
@@ -1149,13 +1149,13 @@ static bool color_from_item(
         cp_syn_value_array_t const *c = cp_syn_cast(*c,_c);
         if (c->value.size < 3) {
             return msg_fail(t, c->loc, NULL,
-                "Expected at least 3 colour components, but found %"_Pz"u.",
+                "Expected at least 3 colour components, but found %"CP_Z"u.",
                 c->value.size);
         }
         size_t mx = 3 + (have_alpha ? 0 : 1);
         if (c->value.size > mx) {
             return msg_fail(t, c->loc, NULL,
-                "Expected at most %"_Pz"u colour components, but found %"_Pz"u.",
+                "Expected at most %"CP_Z"u colour components, but found %"CP_Z"u.",
                 mx,
                 c->value.size);
         }
@@ -1432,7 +1432,7 @@ typedef struct {
     char const *const *arg_name;
 } cmd_t;
 
-static int cmp_name_cmd(void const *_a, void const *_b, void *user __unused)
+static int cmp_name_cmd(void const *_a, void const *_b, void *user CP_UNUSED)
 {
     char const *a = _a;
     cmd_t const *b = _b;
@@ -1582,9 +1582,9 @@ static bool v_scad_from_syn_stmt_item(
 }
 
 static bool v_scad_from_syn_stmt_use(
-    ctxt_t *t __unused,
-    cp_v_scad_p_t *result __unused,
-    cp_syn_stmt_use_t *f __unused)
+    ctxt_t *t CP_UNUSED,
+    cp_v_scad_p_t *result CP_UNUSED,
+    cp_syn_stmt_use_t *f CP_UNUSED)
 {
     CP_NYI("use <...>");
 }

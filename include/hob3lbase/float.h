@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_FLOAT_H
-#define __CP_FLOAT_H
+#ifndef CP_FLOAT_H_
+#define CP_FLOAT_H_
 
 typedef double cp_f_t;
 
@@ -42,4 +42,4 @@ static inline cp_f_t cp_double(size_t u)
 #define cp_det    cp_f
 #define cp_angle  cp_f
 
-#endif /* __CP_FLOAT_H */
+#endif /* CP_FLOAT_H_ */

@@ -124,7 +124,7 @@ case "max-simultaneous": size &opt->csg.max_simultaneous {
     "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY) ")";
 
     if (opt->csg.max_simultaneous < 2) {
-        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
+        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"CP_Z"u.\n",
             opt->csg.max_simultaneous);
         exit(EXIT_FAILURE);
     }

@@ -644,7 +644,7 @@ static bool parse_arg(
 {
     if (p->tok_type == T_ID) {
         char const *t1;
-        bool ok __unused = parse_id(p, &t1);
+        bool ok CP_UNUSED = parse_id(p, &t1);
         assert(ok);
         if (!expect(p, '=')) {
             r->value = value_id_new(t1);

@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_COLOR_TAM_H
-#define __CP_COLOR_TAM_H
+#ifndef CP_COLOR_TAM_H_
+#define CP_COLOR_TAM_H_
 
 typedef union {
     unsigned char c[3];
@@ -22,4 +22,4 @@ typedef union {
     cp_color_rgb_t rgb;
 } cp_color_rgba_t;
 
-#endif /* __CP_COLOR_TAM_H */
+#endif /* CP_COLOR_TAM_H_ */

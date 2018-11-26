@@ -314,7 +314,7 @@ extern void cp_csg2_tree_put_ps(
                 if (!opt->single_page) {
                     page_cnt++;
                     cp_ps_page_begin(s, opt, page_cnt);
-                    cp_printf(s, "10 10 moveto (z=%g zi=%"_Pz"u) show\n", cp_v_nth(&t->z, zi), zi);
+                    cp_printf(s, "10 10 moveto (z=%g zi=%"CP_Z"u) show\n", cp_v_nth(&t->z, zi), zi);
                 }
 
                 csg2_put_ps(&k, t, zi, t->root);

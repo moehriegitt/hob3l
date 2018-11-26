@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG3_TAM_H
-#define __CP_CSG3_TAM_H
+#ifndef CP_CSG3_TAM_H_
+#define CP_CSG3_TAM_H_
 
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/err_tam.h>
@@ -43,28 +43,28 @@ typedef enum {
     CP_CSG3_POLY,
 } cp_csg3_type_t;
 
-#define _CP_CSG3 \
+#define CP_CSG3_ \
     union { \
-        struct { _CP_OBJ }; \
-        struct { _CP_OBJ } obj; \
+        struct { CP_OBJ_ }; \
+        struct { CP_OBJ_ } obj; \
     }; \
     cp_gc_t gc;
 
-#define _CP_CSG3_SIMPLE \
-    _CP_CSG3 \
+#define CP_CSG3_SIMPLE_ \
+    CP_CSG3_ \
     cp_mat3wi_t const *mat; \
     size_t _fn;
 
 typedef struct {
     /**
      * type is CP_CSG3_SPHERE */
-    _CP_CSG3_SIMPLE
+    CP_CSG3_SIMPLE_
 } cp_csg3_sphere_t;
 
 typedef struct {
     /**
      * type is CP_CSG3_2D */
-    _CP_CSG3_SIMPLE
+    CP_CSG3_SIMPLE_
     cp_csg2_t *csg2;
 } cp_csg3_2d_t;
 
@@ -127,7 +127,7 @@ typedef CP_VEC_T(cp_csg3_face_t) cp_v_csg3_face_t;
 typedef struct {
     /**
      * type is CP_CSG3_POLY */
-    _CP_CSG3
+    CP_CSG3_
 
     /**
      * All points in the polyhedron.
@@ -171,7 +171,7 @@ typedef cp_csg2_poly_t cp_csg3_poly2_t;
  *
  * This indicates that (mainly) 2D objects are stored/processed.
  */
-struct cp_csg3 { _CP_OBJ; };
+struct cp_csg3 { CP_OBJ_; };
 
 typedef struct {
     cp_v_mat3wi_p_t mat;
@@ -179,4 +179,4 @@ typedef struct {
     cp_csg_opt_t const *opt;
 } cp_csg3_tree_t;
 
-#endif /* __CP_CSG3_TAM_H */
+#endif /* CP_CSG3_TAM_H_ */

@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_SYN_TAM_H
-#define __CP_SYN_TAM_H
+#ifndef CP_SYN_TAM_H_
+#define CP_SYN_TAM_H_
 
 #include <stdio.h>
 #include <hob3lbase/vec.h>
@@ -61,10 +61,10 @@ typedef enum {
 } cp_syn_stmt_type_t;
 
 #define CP_SYN_VALUE_BASE \
-    _CP_OBJ
+    CP_OBJ_
 
 #define CP_SYN_STMT_BASE \
-    _CP_OBJ
+    CP_OBJ_
 
 /**
  * SCAD parser item statement.
@@ -333,4 +333,4 @@ typedef struct {
     char const *orig_end;
 } cp_syn_loc_t;
 
-#endif /* __CP_SYN_TAM_H */
+#endif /* CP_SYN_TAM_H_ */

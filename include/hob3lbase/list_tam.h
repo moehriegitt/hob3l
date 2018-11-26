@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_LIST_TAM_H
-#define __CP_LIST_TAM_H
+#ifndef CP_LIST_TAM_H_
+#define CP_LIST_TAM_H_
 
 #include <hob3lbase/list_fwd.h>
 
@@ -19,4 +19,4 @@ struct cp_list {
     cp_list_t *prev;
 };
 
-#endif /* __CP_LIST_H */
+#endif /* CP_LIST_H_ */

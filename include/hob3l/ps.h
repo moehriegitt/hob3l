@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_PS_H
-#define __CP_PS_H
+#ifndef CP_PS_H_
+#define CP_PS_H_
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/stream_tam.h>
@@ -45,7 +45,7 @@ extern double cp_ps_y(cp_ps_xform_t const *d, double y);
  */
 extern void cp_ps_doc_begin(
     cp_stream_t *s,
-    cp_ps_opt_t const *opt __unused,
+    cp_ps_opt_t const *opt CP_UNUSED,
     size_t page_cnt,
     long x1, long y1, long x2, long y2);
 
@@ -84,4 +84,4 @@ extern void cp_ps_clip_box(
 extern void cp_ps_page_end(
     cp_stream_t *s);
 
-#endif /* __CP_PS_H */
+#endif /* CP_PS_H_ */

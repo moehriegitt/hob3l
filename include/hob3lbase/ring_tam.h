@@ -38,8 +38,8 @@
  * This is implemented with a doubly linked list.
  */
 
-#ifndef __CP_RING_TAM_H
-#define __CP_RING_TAM_H
+#ifndef CP_RING_TAM_H_
+#define CP_RING_TAM_H_
 
 #include <stddef.h>
 #include <hob3lbase/ring_fwd.h>
@@ -51,4 +51,4 @@ struct cp_ring {
     cp_ring_t *n[2];
 };
 
-#endif /* __CP_RING_TAM_H */
+#endif /* CP_RING_TAM_H_ */

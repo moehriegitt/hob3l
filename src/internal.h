@@ -1,7 +1,7 @@
 /* -*- Mode: C -*- */
 
-#ifndef __CP_SRC_INTERNAL_H
-#define __CP_SRC_INTERNAL_H
+#ifndef CP_SRC_INTERNAL_H_
+#define CP_SRC_INTERNAL_H_
 
 #include <stdio.h>
 #include <errno.h>
@@ -87,7 +87,7 @@ static inline double three_steps(size_t i)
 
 #define TRACE_LOCUS 0
 
-__unused
+CP_UNUSED
 static void trace_func_enter(trace_func_t *t)
 {
 #if TRACE_LOCUS
@@ -96,7 +96,7 @@ static void trace_func_enter(trace_func_t *t)
     fprintf(stderr, "TRACE: %2d ENTER: %s%s\n", cp_trace_level(+1), t->func, t->msg);
 }
 
-__unused
+CP_UNUSED
 static void trace_func_leave(trace_func_t *t)
 {
 #if TRACE_LOCUS
@@ -120,4 +120,4 @@ static void trace_func_leave(trace_func_t *t)
      fprintf(stderr,"\n"), \
      0)
 
-#endif /* __CP_SRC_INTERNAL_H */
+#endif /* CP_SRC_INTERNAL_H_ */

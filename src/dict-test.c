@@ -33,7 +33,7 @@ static size_t num_value(
 static int cmp_num_f(
     size_t *a,
     cp_dict_t *_b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     return cmp_size(*a, num_value(_b));
 }
@@ -209,7 +209,7 @@ extern void cp_dict_test(void)
 
         fprintf(stderr, "INSERT:");
         for (cp_arr_each(k, a)) {
-            fprintf(stderr, " %"_Pz"u", CP_BOX_OF(a[k], num_t, node)->value);
+            fprintf(stderr, " %"CP_Z"u", CP_BOX_OF(a[k], num_t, node)->value);
             cp_dict_insert(a[k], &r, cmp_num, NULL, 0);
         }
         fprintf(stderr, "\n");
@@ -222,7 +222,7 @@ extern void cp_dict_test(void)
         }
         fprintf(stderr, "REMOVE:");
         for (cp_arr_each(k, a)) {
-            fprintf(stderr, " %"_Pz"u", CP_BOX_OF(a[k], num_t, node)->value);
+            fprintf(stderr, " %"CP_Z"u", CP_BOX_OF(a[k], num_t, node)->value);
         }
         fprintf(stderr, "\n");
         for (cp_arr_each(k, a)) {

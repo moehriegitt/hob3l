@@ -13,8 +13,8 @@
  *     documented.
  */
 
-#ifndef __CP_SCAD_H
-#define __CP_SCAD_H
+#ifndef CP_SCAD_H_
+#define CP_SCAD_H_
 
 #include <hob3lbase/stream.h>
 #include <hob3l/scad_tam.h>
@@ -23,10 +23,10 @@
 #include <hob3l/obj.h>
 
 /** Cast w/ dynamic check */
-#define cp_scad_cast(t, s) _cp_cast(cp_scad_typeof, t, s)
+#define cp_scad_cast(t, s) cp_cast_(cp_scad_typeof, t, s)
 
 /** Cast w/ dynamic check */
-#define cp_scad_try_cast(t, s) _cp_try_cast(cp_scad_typeof, t, s)
+#define cp_scad_try_cast(t, s) cp_try_cast_(cp_scad_typeof, t, s)
 
 /**
  * Same as cp_scad_from_syn_stmt_item, applied to each element
@@ -41,4 +41,4 @@ extern bool cp_scad_from_syn_tree(
     cp_err_t *err,
     cp_syn_tree_t *syn);
 
-#endif /* __CP_SCAD_H */
+#endif /* CP_SCAD_H_ */

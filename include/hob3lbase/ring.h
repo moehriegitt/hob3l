@@ -14,8 +14,8 @@
  * Again, due to being non-directional, a-b-c| is the same as c-b-a|
  */
 
-#ifndef __CP_RING_H
-#define __CP_RING_H
+#ifndef CP_RING_H_
+#define CP_RING_H_
 
 #include <assert.h>
 #include <stdio.h>
@@ -188,7 +188,7 @@ extern void cp_ring_swap2(
 /**
  * Internal: Set both neighbours
  */
-static inline void __cp_ring_set_both(
+static inline void cp_ring_set_both_(
     cp_ring_t *u,
     cp_ring_t *a,
     cp_ring_t *b)
@@ -200,7 +200,7 @@ static inline void __cp_ring_set_both(
 /**
  * Internal: Replace one neighbour
  */
-static inline void __cp_ring_replace(
+static inline void cp_ring_replace_(
     cp_ring_t *a,
     cp_ring_t *o,
     cp_ring_t *n)
@@ -212,7 +212,7 @@ static inline void __cp_ring_replace(
 /**
  * Internal: Get the reference to a neighbour without any checks.
  */
-static inline size_t __cp_ring_ref_raw(
+static inline size_t cp_ring_ref_raw_(
     cp_ring_t const *a,
     cp_ring_t const *u)
 {
@@ -221,7 +221,7 @@ static inline size_t __cp_ring_ref_raw(
 
 /**
  * Internal: Set a neighbour */
-static inline void __cp_ring_set(
+static inline void cp_ring_set_(
     cp_ring_t *a,
     size_t i,
     cp_ring_t *u)
@@ -233,7 +233,7 @@ static inline void __cp_ring_set(
  * Internal: Get other edge
  */
 static inline cp_ring_t *__cp_ring_get_buddy(
-    cp_ring_t const *a __unused,
+    cp_ring_t const *a CP_UNUSED,
     size_t i)
 {
     return a->n[!i];
@@ -245,11 +245,11 @@ static inline cp_ring_t *__cp_ring_get_buddy(
  * This can be used to access the corresponding neighbour using
  * __cp_ring_(get|set)_neigh().
  */
-static inline size_t __cp_ring_ref(
+static inline size_t cp_ring_ref_(
     cp_ring_t const *a,
     cp_ring_t const *u)
 {
-    size_t i = __cp_ring_ref_raw(a, u);
+    size_t i = cp_ring_ref_raw_(a, u);
     assert((a->n[i] == u) && "expected neighbours");
     assert(((u->n[0] == a) || (u->n[1] == a)) && "expected neighbours");
     return i;
@@ -261,7 +261,7 @@ static inline size_t __cp_ring_ref(
 static inline void cp_ring_init(
     cp_ring_t *c)
 {
-    __cp_ring_set_both(c, c, c);
+    cp_ring_set_both_(c, c, c);
 }
 
 /**
@@ -282,7 +282,7 @@ static inline cp_ring_t *cp_ring_next(
     cp_ring_t const *a,
     cp_ring_t const *b)
 {
-    return __cp_ring_get_buddy(b, __cp_ring_ref(b,a));
+    return __cp_ring_get_buddy(b, cp_ring_ref_(b,a));
 }
 
 /**
@@ -514,4 +514,4 @@ static inline cp_ring_t *cp_ring_step(
     return a->n[i];
 }
 
-#endif /* __CP_RING_H */
+#endif /* CP_RING_H_ */

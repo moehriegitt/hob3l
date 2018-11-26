@@ -1,19 +1,19 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_ARCH_H
-#define __CP_ARCH_H
+#ifndef CP_ARCH_H_
+#define CP_ARCH_H_
 
 #if defined(__WIN64)
-#  define _Pll "I64"
-#  define _Pz  _Pll
+#  define CP_LL "I64"
+#  define CP_Z  CP_LL
 #elif defined(__WIN32)
-#  define _Pll "I64"
-#  define _Pz  ""
+#  define CP_LL "I64"
+#  define CP_Z  ""
 #else
-#  define _Pll "ll"
-#  define _Pz  "z"
+#  define CP_LL "ll"
+#  define CP_Z  "z"
 #  define cp_qsort_r qsort_r
 #endif
 
-#endif /* __CP_ARCH_H */
+#endif /* CP_ARCH_H_ */

@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_STL_PARSE_H
-#define __CP_STL_PARSE_H
+#ifndef CP_STL_PARSE_H_
+#define CP_STL_PARSE_H_
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/err_tam.h>
@@ -19,4 +19,4 @@ extern bool cp_stl_parse(
     cp_csg3_poly_t *r,
     cp_syn_file_t *file);
 
-#endif /* __CP_STL_PARSE_H */
+#endif /* CP_STL_PARSE_H_ */

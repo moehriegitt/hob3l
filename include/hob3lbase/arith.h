@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_ARITH_H
-#define __CP_ARITH_H
+#ifndef CP_ARITH_H_
+#define CP_ARITH_H_
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/arith_tam.h>
@@ -98,21 +98,21 @@ extern void cp_circle_iter_step(
     cp_circle_iter_t *iter);
 
 /* min */
-static inline cp_f_t __cp_min_f(cp_f_t a, cp_f_t b)
+static inline cp_f_t cp_min_f_(cp_f_t a, cp_f_t b)
 {
     return a <= b ? a : b;
 }
 
-static inline size_t __cp_min_z(size_t a, size_t b)
+static inline size_t cp_min_z_(size_t a, size_t b)
 {
     return a <= b ? a : b;
 }
 
 #define cp_min(a,b) \
     (_Generic(a, \
-        size_t:  __cp_min_z, \
-        int:     __cp_min_z, \
-        default: __cp_min_f)(a,b))
+        size_t:  cp_min_z_, \
+        int:     cp_min_z_, \
+        default: cp_min_f_)(a,b))
 
 #define cp_min_update(a,...) \
     do{ \
@@ -121,21 +121,21 @@ static inline size_t __cp_min_z(size_t a, size_t b)
     }while(0)
 
 /* max */
-static inline cp_f_t __cp_max_f(cp_f_t a, cp_f_t b)
+static inline cp_f_t cp_max_f_(cp_f_t a, cp_f_t b)
 {
     return a >= b ? a : b;
 }
 
-static inline size_t __cp_max_z(size_t a, size_t b)
+static inline size_t cp_max_z_(size_t a, size_t b)
 {
     return a >= b ? a : b;
 }
 
 #define cp_max(a,b) \
     (_Generic(a, \
-        size_t:  __cp_max_z, \
-        int:     __cp_max_z, \
-        default: __cp_max_f)(a,b))
+        size_t:  cp_max_z_, \
+        int:     cp_max_z_, \
+        default: cp_max_f_)(a,b))
 
 #define cp_max_update(a,...) \
     do{ \
@@ -303,4 +303,4 @@ static inline void cp_range_init(
     }
 }
 
-#endif /* __CP_ARITH_H */
+#endif /* CP_ARITH_H_ */

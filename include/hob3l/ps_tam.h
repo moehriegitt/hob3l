@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_PS_TAM_H
-#define __CP_PS_TAM_H
+#ifndef CP_PS_TAM_H_
+#define CP_PS_TAM_H_
 
 #include <hob3lbase/mat_gen_tam.h>
 #include <hob3l/gc_tam.h>
@@ -54,4 +54,4 @@ typedef struct {
     bool no_mark;
 } cp_ps_opt_t;
 
-#endif /* __CP_PS_TAM_H */
+#endif /* CP_PS_TAM_H_ */

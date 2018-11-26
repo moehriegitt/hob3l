@@ -134,7 +134,7 @@ static void src_on_edge(
 }
 
 #ifdef DEBUG
-__unused
+CP_UNUSED
 static char const *__coord_str(char *s, size_t n, cp_vec3_t const *x)
 {
     if (x == NULL) {
@@ -147,7 +147,7 @@ static char const *__coord_str(char *s, size_t n, cp_vec3_t const *x)
 
 #define coord_str(p) __coord_str((char[50]){0}, 50, p)
 
-__unused
+CP_UNUSED
 static const char *__edge_str(
     char *s, size_t n, cp_csg3_face_t const *f, cp_csg3_edge_t const *e)
 {
@@ -178,7 +178,7 @@ static cp_vec2_loc_t *path_push0(
     return p;
 }
 
-__unused
+CP_UNUSED
 static bool edge_is_marked(
     ctxt_t *q,
     cp_csg3_edge_t const *e)
@@ -252,7 +252,7 @@ static unsigned edge_follow_path(
     LOG("follow_path\n");
     cp_csg3_edge_t const *e = *e_p;
     for (;;) {
-        cp_csg3_edge_t const *p __unused = e;
+        cp_csg3_edge_t const *p CP_UNUSED = e;
         assert((p->fore == f) || (p->back == f));
 
         e = edge_next(f,e);
@@ -347,7 +347,7 @@ static void edge_find_path(
     cp_csg3_face_t const *f= e->fore;
     unsigned c = edge_cmp_z(f, e, q->z);
     for (;;) {
-        cp_csg3_face_t const *fo __unused = f;
+        cp_csg3_face_t const *fo CP_UNUSED = f;
         cp_csg3_edge_t const *eo = e;
 
         LOG("FIND: e=%s, c=0x%x\n", edge_str(f, e), c);
@@ -900,7 +900,7 @@ extern void cp_csg2_poly_merge(
  */
 extern cp_dim_t cp_csg2_layer_thickness(
     cp_csg2_tree_t *t,
-    size_t zi __unused)
+    size_t zi CP_UNUSED)
 {
     /* Currently, all layers have uniform thickness. */
     return t->thick;

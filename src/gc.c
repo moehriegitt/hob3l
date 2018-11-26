@@ -161,7 +161,7 @@ static color_name_t const colors[] = {
     { "yellowgreen",             0x9acd32 },
 };
 
-static int cmp_name_color(void const *_a, void const *_b, void *user __unused)
+static int cmp_name_color(void const *_a, void const *_b, void *user CP_UNUSED)
 {
     char const *a = _a;
     color_name_t const *b = _b;

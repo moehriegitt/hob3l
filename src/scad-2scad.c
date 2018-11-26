@@ -200,7 +200,7 @@ static void polyhedron_put_scad(
         cp_scad_face_t const *f = &r->faces.data[i];
         cp_printf(s, "%s[", i == 0 ? "" : ",");
         for (cp_v_each(j, &f->points)) {
-            cp_printf(s, "%s%"_Pz"u",
+            cp_printf(s, "%s%"CP_Z"u",
                 j == 0 ? "" : ",",
                 cp_v_idx(&r->points, f->points.data[j].ref));
         }
@@ -228,7 +228,7 @@ static void polygon_put_scad(
         cp_scad_path_t const *f = &r->paths.data[i];
         cp_printf(s, "%s[", i == 0 ? "" : ",");
         for (cp_v_each(j, &f->points)) {
-            cp_printf(s, "%s%"_Pz"u",
+            cp_printf(s, "%s%"CP_Z"u",
                 j == 0 ? "" : ",",
                 cp_v_idx(&r->points, f->points.data[j].ref));
         }

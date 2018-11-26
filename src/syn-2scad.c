@@ -29,7 +29,7 @@ static void cp_v_syn_stmt_put_scad(
 
 static void cp_syn_value_put_scad(
     cp_stream_t *s,
-    int d __unused,
+    int d CP_UNUSED,
     cp_syn_value_t *f)
 {
     switch (f->type) {
@@ -38,7 +38,7 @@ static void cp_syn_value_put_scad(
         return;
 
     case CP_SYN_VALUE_INT:
-        cp_printf(s, "%"_Pll"d", cp_syn_cast(cp_syn_value_int_t, f)->value);
+        cp_printf(s, "%"CP_LL"d", cp_syn_cast(cp_syn_value_int_t, f)->value);
         return;
 
     case CP_SYN_VALUE_FLOAT:

@@ -196,33 +196,33 @@ static char const *opt_help =
     "";
 
 static void get_opt_help(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     help();
 }
 
 static void get_opt_collapse(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->csg.err_collapse, name, arg);
 }
 
 static void get_opt_csg(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->no_csg, name, arg);
 }
 
 static void get_opt_debug_ps(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *fn __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *fn CP_UNUSED)
 {
 #ifdef PSTRACE
 
@@ -244,9 +244,9 @@ static void get_opt_debug_ps(
 }
 
 static void get_opt_debug_ps_dots(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_bool(&cp_debug_ps_dots, name, arg);
@@ -254,9 +254,9 @@ static void get_opt_debug_ps_dots(
 }
 
 static void get_opt_debug_ps_no_dots(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_neg_bool(&cp_debug_ps_dots, name, arg);
@@ -264,9 +264,9 @@ static void get_opt_debug_ps_no_dots(
 }
 
 static void get_opt_debug_ps_page_count(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_size(&cp_debug_ps_page_count, name, arg);
@@ -274,9 +274,9 @@ static void get_opt_debug_ps_page_count(
 }
 
 static void get_opt_debug_ps_page_skip(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_size(&cp_debug_ps_page_skip, name, arg);
@@ -284,9 +284,9 @@ static void get_opt_debug_ps_page_skip(
 }
 
 static void get_opt_debug_ps_scale(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_scale(&cp_debug_ps_scale_x, name, arg);
@@ -295,9 +295,9 @@ static void get_opt_debug_ps_scale(
 }
 
 static void get_opt_debug_ps_scale_x(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_scale(&cp_debug_ps_scale_x, name, arg);
@@ -305,9 +305,9 @@ static void get_opt_debug_ps_scale_x(
 }
 
 static void get_opt_debug_ps_scale_y(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_scale(&cp_debug_ps_scale_y, name, arg);
@@ -315,9 +315,9 @@ static void get_opt_debug_ps_scale_y(
 }
 
 static void get_opt_debug_ps_xlat_x(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_scale(&cp_debug_ps_xlat_x, name, arg);
@@ -325,9 +325,9 @@ static void get_opt_debug_ps_xlat_x(
 }
 
 static void get_opt_debug_ps_xlat_y(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
 #ifdef PSTRACE
     get_arg_scale(&cp_debug_ps_xlat_y, name, arg);
@@ -335,209 +335,209 @@ static void get_opt_debug_ps_xlat_y(
 }
 
 static void get_opt_diff(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->no_diff, name, arg);
 }
 
 static void get_opt_dump_csg2(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_csg2, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_csg3(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_csg3, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_js(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_js, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_ps(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_ps, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_scad(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_scad, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_stl(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_stl, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_dump_syn(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->dump_syn, name, arg);
     opt->have_dump = true;
 }
 
 static void get_opt_empty(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->csg.err_empty, name, arg);
 }
 
 static void get_opt_eps(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&cp_eq_epsilon, name, arg);
 }
 
 static void get_opt_eps2(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&cp_sqr_epsilon, name, arg);
 }
 
 static void get_opt_gran(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&cp_pt_epsilon, name, arg);
 }
 
 static void get_opt_js_color_rand(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_uint8(&opt->csg.color_rand, name, arg);
 }
 
 static void get_opt_layer_gap(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->csg.layer_gap, name, arg);
 }
 
 static void get_opt_max(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->z_max, name, arg);
     opt->have_z_max = true;
 }
 
 static void get_opt_max_fn(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_size(&opt->csg.max_fn, name, arg);
 }
 
 static void get_opt_max_simultaneous(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_size(&opt->csg.max_simultaneous, name, arg);
 
     if (opt->csg.max_simultaneous < 2) {
-        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"_Pz"u.\n",
+        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"CP_Z"u.\n",
             opt->csg.max_simultaneous);
         exit(EXIT_FAILURE);
     }
 }
 
 static void get_opt_min(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->z_min, name, arg);
     opt->have_z_min = true;
 }
 
 static void get_opt_no_csg(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->no_csg, name, arg);
 }
 
 static void get_opt_no_diff(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->no_diff, name, arg);
 }
 
 static void get_opt_no_tri(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->no_tri, name, arg);
 }
 
 static void get_opt_o(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *fn __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *fn CP_UNUSED)
 {
     opt->out_file_name = fn;
 }
 
 static void get_opt_opt_drop_collinear(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     bool a;
     get_arg_bool(&a, name, arg);
 }
 
 static void get_opt_opt_no_drop_collinear(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     bool a;
     get_arg_neg_bool(&a, name, arg);
@@ -545,9 +545,9 @@ static void get_opt_opt_no_drop_collinear(
 }
 
 static void get_opt_opt_no_skip_empty(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     bool a;
     get_arg_neg_bool(&a, name, arg);
@@ -555,122 +555,122 @@ static void get_opt_opt_no_skip_empty(
 }
 
 static void get_opt_opt_skip_empty(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     bool a;
     get_arg_bool(&a, name, arg);
 }
 
 static void get_opt_outside_2d(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->csg.err_outside_2d, name, arg);
 }
 
 static void get_opt_outside_3d(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->csg.err_outside_3d, name, arg);
 }
 
 static void get_opt_ps_color_fill(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_rgb(&opt->ps.color_fill, name, arg);
 }
 
 static void get_opt_ps_color_mark(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_rgb(&opt->ps.color_mark, name, arg);
 }
 
 static void get_opt_ps_color_path(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_rgb(&opt->ps.color_path, name, arg);
 }
 
 static void get_opt_ps_color_tri(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_rgb(&opt->ps.color_tri, name, arg);
 }
 
 static void get_opt_ps_color_vertex(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_rgb(&opt->ps.color_vertex, name, arg);
 }
 
 static void get_opt_ps_line_width(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->ps.line_width, name, arg);
 }
 
 static void get_opt_ps_mark(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->ps.no_mark, name, arg);
 }
 
 static void get_opt_ps_no_mark(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->ps.no_mark, name, arg);
 }
 
 static void get_opt_ps_no_path(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->ps.no_path, name, arg);
 }
 
 static void get_opt_ps_no_single_page(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->ps.single_page, name, arg);
 }
 
 static void get_opt_ps_no_tri(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->ps.no_tri, name, arg);
 }
 
 static void get_opt_ps_no_wire(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     opt->ps.no_tri = true;
     opt->ps.no_path = true;
@@ -678,25 +678,25 @@ static void get_opt_ps_no_wire(
 }
 
 static void get_opt_ps_path(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->ps.no_path, name, arg);
 }
 
 static void get_opt_ps_persp(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_scale(&opt->ps_persp, name, arg);
 }
 
 static void get_opt_ps_rot_x(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     cp_angle_t a;
     get_arg_angle(&a, name, arg);
@@ -706,9 +706,9 @@ static void get_opt_ps_rot_x(
 }
 
 static void get_opt_ps_rot_y(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     cp_angle_t a;
     get_arg_angle(&a, name, arg);
@@ -718,9 +718,9 @@ static void get_opt_ps_rot_y(
 }
 
 static void get_opt_ps_rot_z(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     cp_angle_t a;
     get_arg_angle(&a, name, arg);
@@ -730,9 +730,9 @@ static void get_opt_ps_rot_z(
 }
 
 static void get_opt_ps_scale(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     cp_scale_t s;
     get_arg_scale(&s, name, arg);
@@ -742,97 +742,97 @@ static void get_opt_ps_scale(
 }
 
 static void get_opt_ps_scale_fit(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     opt->ps_scale_step = 1;
 }
 
 static void get_opt_ps_scale_max(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     opt->ps_scale_step = 2;
 }
 
 static void get_opt_ps_single_page(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_bool(&opt->ps.single_page, name, arg);
 }
 
 static void get_opt_ps_tri(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->ps.no_tri, name, arg);
 }
 
 static void get_opt_quiet(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     opt->verbose = 0;
 }
 
 static void get_opt_step(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->z_step, name, arg);
 }
 
 static void get_opt_tri(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_neg_bool(&opt->no_tri, name, arg);
 }
 
 static void get_opt_unknown_functor(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->scad.err_unknown_functor, name, arg);
 }
 
 static void get_opt_unknown_param(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->scad.err_unknown_param, name, arg);
 }
 
 static void get_opt_unsupported_functor(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_err(&opt->scad.err_unsupported_functor, name, arg);
 }
 
 static void get_opt_verbose(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     opt->verbose++;
 }
 
 static void get_opt_z(
-    cp_opt_t *opt __unused,
-    char const *name __unused,
-    char const *arg __unused)
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
 {
     get_arg_dim(&opt->z_min, name, arg);
     opt->z_max = opt->z_min;

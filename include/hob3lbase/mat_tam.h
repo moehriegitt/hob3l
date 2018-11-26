@@ -19,8 +19,8 @@
  * very easy to compute the inverse alongside the normal matrix.
  */
 
-#ifndef __CP_MAT_TAM_H
-#define __CP_MAT_TAM_H
+#ifndef CP_MAT_TAM_H_
+#define CP_MAT_TAM_H_
 
 #include <hob3lbase/vec.h>
 #include <hob3lbase/mat_gen_tam.h>
@@ -132,4 +132,4 @@ static inline void cp_mat4_init3(
         0, 0, 0, 1);
 }
 
-#endif /* __CP_MAT_H */
+#endif /* CP_MAT_H_ */

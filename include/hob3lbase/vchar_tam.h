@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VCHAR_TAM_H
-#define __CP_VCHAR_TAM_H
+#ifndef CP_VCHAR_TAM_H_
+#define CP_VCHAR_TAM_H_
 
 #include <assert.h>
 #include <stdlib.h>
@@ -13,4 +13,4 @@
 
 typedef CP_VEC_T(char) cp_vchar_t;
 
-#endif /* __CP_VCHAR_H */
+#endif /* CP_VCHAR_H_ */

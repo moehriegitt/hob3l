@@ -1,16 +1,16 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VEC_H
-#define __CP_VEC_H
+#ifndef CP_VEC_H_
+#define CP_VEC_H_
 
 #include <hob3lbase/vec_tam.h>
 #include <hob3lbase/qsort.h>
 
-#define __cp_v_nth_ptr(data, count, esz) \
-    ((__typeof__(data))((size_t)(1?(data):((void*)0)) + __cp_v_size(count, esz)))
+#define cp_v_nth_ptr_(data, count, esz) \
+    ((__typeof__(data))((size_t)(1?(data):((void*)0)) + cp_v_size_(count, esz)))
 
-#define __cp_v_ptrdiff(esz, a, b) \
+#define cp_v_ptrdiff_(esz, a, b) \
     (CP_PTRDIFF((char const *)(1?(a):((void*)0)), (char const *)(1?(b):((void*)0))) / (esz))
 
 /**
@@ -20,7 +20,7 @@
  *
  * This function allows v == NULL.
  */
-extern void __cp_v_fini(
+extern void cp_v_fini_(
     cp_v_t *vec);
 
 /**
@@ -32,7 +32,7 @@ extern void __cp_v_fini(
  * stay zeroed if it has not been initialised yet -- no alloc will
  * take place.
  */
-extern void __cp_v_clear(
+extern void cp_v_clear_(
     cp_v_t *vec,
     /** Element size */
     size_t esz,
@@ -44,9 +44,9 @@ extern void __cp_v_clear(
 /**
  * Internal: Ensures a minimum size of the vector.
  *
- * This is like __cp_v_set_size, except it never shrinks the vector.
+ * This is like cp_v_set_size_, except it never shrinks the vector.
  */
-extern void __cp_v_ensure_size(
+extern void cp_v_ensure_size_(
     cp_v_t *vec,
     size_t esz,
     size_t new_size);
@@ -58,7 +58,7 @@ extern void __cp_v_ensure_size(
  *
  * If the vector is grown, it is filled with NULL elements at the end.
  */
-extern void __cp_v_set_size(
+extern void cp_v_set_size_(
     cp_v_t *vec,
     size_t esz,
     size_t new_size);
@@ -83,7 +83,7 @@ extern void *__cp_v_inflate(
  *
  * The dst vector is grown as necessary.
  */
-extern void __cp_v_copy_arr(
+extern void cp_v_copy_arr_(
     /** Destination of the copying */
     cp_v_t *dst,
     /** Element size */
@@ -103,13 +103,13 @@ extern void __cp_v_copy_arr(
  *
  * The dst vector is grown if necessary, e.g.
  *
- *    __cp_v_copy(x, x->size, x, 0, CP_SIZE_MAX, c)
+ *    cp_v_copy_(x, x->size, x, 0, CP_SIZE_MAX, c)
  *
  * is equivalent to
  *
  *    __cp_v_append(x, x, c);
  */
-extern void __cp_v_copy(
+extern void cp_v_copy_(
     /** Destination of the copying. */
     cp_v_t *dst,
     /** Element size */
@@ -149,7 +149,7 @@ extern void *__cp_v_insert_arr(
 /**
  * Internal: Remove and return the given element of the array.
  */
-extern void __cp_v_remove(
+extern void cp_v_remove_(
     /** [IN/OUT] vector to append to */
     cp_v_t *vec,
     /** Element size */
@@ -163,7 +163,7 @@ extern void __cp_v_remove(
 /**
  * Reverse a portion of the vector.
  */
-extern void __cp_v_reverse(
+extern void cp_v_reverse_(
     /** [IN/OUT] vector to reverse to */
     cp_v_t *vec,
     /** Element size */
@@ -175,7 +175,7 @@ extern void __cp_v_reverse(
 
 /**
  * Internal: Remove and return the given element of the array. */
-extern void __cp_v_extract(
+extern void cp_v_extract_(
     /** [OUT] the extracted element */
     void *out,
     /** [IN/OUT] vector to append to */
@@ -187,7 +187,7 @@ extern void __cp_v_extract(
 
 /**
  * Internal: Sort (sub-)array using qsort() */
-extern void __cp_v_qsort(
+extern void cp_v_qsort_(
     /** [IN/OUT] vector to append to */
     cp_v_t *vec,
     /** Element size */
@@ -215,19 +215,19 @@ extern size_t cp_bsearch(
     int (*cmp)(void const *, void const *, void *user),
     void *user);
 
-static inline size_t __cp_v_min_alloc(void)
+static inline size_t cp_v_min_alloc_(void)
 {
     return 4;
 }
 
-static inline size_t __cp_v_max_size(size_t esz)
+static inline size_t cp_v_max_size_(size_t esz)
 {
     return CP_MAX_OF((size_t)0) / esz;
 }
 
-static inline size_t __cp_v_size(size_t count, size_t esz)
+static inline size_t cp_v_size_(size_t count, size_t esz)
 {
-    assert(count <= __cp_v_max_size(esz));
+    assert(count <= cp_v_max_size_(esz));
     return count * esz;
 }
 
@@ -237,7 +237,7 @@ static inline size_t __cp_v_size(size_t count, size_t esz)
  * with 'const' casting) if found, or 'CP_SIZE_MAX' on error,
  * which is greater than the size of the vector.
  */
-static inline size_t __cp_v_bsearch(
+static inline size_t cp_v_bsearch_(
     /** [IN] The pointer to the key to search */
     void const *key,
     /** [IN] The vector */
@@ -277,7 +277,7 @@ static inline size_t __cp_v_bsearch(
  * declared types (which misses the alloc slot).
  */
 
-#define __CP_NEED_ALLOC(vec) \
+#define CP_NEED_ALLOC_(vec) \
     ((void)(vec)->alloc)
 
 #define cp_v_init(vec) \
@@ -304,55 +304,55 @@ static inline size_t __cp_v_bsearch(
 #define cp_v_fini(vec) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
-        __cp_v_fini((cp_v_t*)__vec); \
+        cp_v_fini_((cp_v_t*)__vec); \
         CP_ZERO(__vec); \
     })
 
-#define __cp_v_esz(vec) (sizeof((vec)->data[0]))
+#define cp_v_esz_(vec) (sizeof((vec)->data[0]))
 
 #define cp_v_clear(vec, size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
-        __cp_v_clear((cp_v_t*)__vec, __cp_v_esz(__vec), size); \
+        CP_NEED_ALLOC_(__vec); \
+        cp_v_clear_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
     })
 
 #define cp_v_set_size(vec, size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
-        __cp_v_set_size((cp_v_t*)__vec, __cp_v_esz(__vec), size); \
+        CP_NEED_ALLOC_(__vec); \
+        cp_v_set_size_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
     })
 
 #define cp_v_ensure_size(vec, size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
-        __cp_v_ensure_size((cp_v_t*)__vec, __cp_v_esz(__vec), size); \
+        CP_NEED_ALLOC_(__vec); \
+        cp_v_ensure_size_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
     })
 
 #define cp_v_copy1(vec,pos,elem) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec)->data) __elem = (elem); \
-        __cp_v_copy_arr(\
-            (cp_v_t*)__vec, __cp_v_esz(__vec), pos, (void const *)(size_t)&__elem, 1); \
+        cp_v_copy_arr_(\
+            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)&__elem, 1); \
     })
 
 #define cp_v_copy(vec,pos,vec2,pos2,cnt) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec)) const *__vec2 = (vec2); \
         assert(__vec2 != NULL);  \
-        __cp_v_copy(\
-            (cp_v_t*)__vec, __cp_v_esz(__vec), pos, (cp_v_t const *)__vec2, pos2, cnt); \
+        cp_v_copy_(\
+            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (cp_v_t const *)__vec2, pos2, cnt); \
     })
 
 #define cp_v_copy_arr(vec,pos,vec2,pos2,cnt) \
@@ -370,71 +370,71 @@ static inline size_t __cp_v_bsearch(
         assert(__pos2 <= __vec2->size); \
         assert(__cnt <= __vec2->size); \
         assert(__pos2 + __cnt <= __vec2->size); \
-        memmove(&__vec->data[__pos], &__vec2->data[__pos2], __cp_v_esz(__vec) * __cnt); \
+        memmove(&__vec->data[__pos], &__vec2->data[__pos2], cp_v_esz_(__vec) * __cnt); \
     })
 
 #define cp_v_inflate(vec,pos,size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
-        __cp_v_inflate((cp_v_t*)__vec, __cp_v_esz(__vec), pos, size); \
+        CP_NEED_ALLOC_(__vec); \
+        __cp_v_inflate((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
     })
 
 #define cp_v_insert_arr(vec,pos,elem,size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec)->data) const *__elem = (elem); \
         __cp_v_insert_arr(\
-            (cp_v_t*)__vec, __cp_v_esz(__vec), pos, (void const *)(size_t)__elem, size); \
+            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)__elem, size); \
     })
 
 #define cp_v_insert1(vec,pos,elem) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec)->data) __elem = (elem); \
         __cp_v_insert_arr(\
-            (cp_v_t*)__vec, __cp_v_esz(__vec), pos, (void const *)(size_t)&__elem, 1); \
+            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)&__elem, 1); \
     })
 
 #define cp_v_insert(vec,pos,vec2) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec2)) const *__vec2 = (vec2); \
         assert(__vec2 != NULL);  \
         __typeof__(*(vec)->data) const *__data = __vec2->data; \
         __cp_v_insert_arr(\
-            (cp_v_t*)__vec, __cp_v_esz(__vec), pos, (void const *)(size_t)__data, __vec2->size); \
+            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)__data, __vec2->size); \
     })
 
 #define cp_v_remove(vec,pos,size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
-        __cp_v_remove((cp_v_t*)__vec, __cp_v_esz(__vec), pos, size); \
+        CP_NEED_ALLOC_(__vec); \
+        cp_v_remove_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
     })
 
 #define cp_v_reverse(vec,pos,size) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL); \
-        __cp_v_reverse((cp_v_t*)__vec, __cp_v_esz(__vec), pos, size); \
+        cp_v_reverse_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
     })
 
 #define cp_v_extract(vec,pos) \
     ({ \
         __typeof__(*(vec)) *__vec = (vec); \
         assert(__vec != NULL);  \
-        __CP_NEED_ALLOC(__vec); \
+        CP_NEED_ALLOC_(__vec); \
         __typeof__(*(vec)->data) __elem; \
-        __cp_v_extract(&__elem, (cp_v_t*)__vec, __cp_v_esz(__vec), pos); \
+        cp_v_extract_(&__elem, (cp_v_t*)__vec, cp_v_esz_(__vec), pos); \
         __elem; \
     })
 
@@ -446,7 +446,7 @@ static inline size_t __cp_v_bsearch(
             __typeof__(*__vec->data) const *, \
             __typeof__(*__vec->data) const *, \
             __typeof__(*(user)) *) = (cmp); \
-        __cp_v_qsort((cp_v_t*)__vec, __cp_v_esz(__vec), pos, size, \
+        cp_v_qsort_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size, \
             (int(*)(void const *, void const *, void *))__cmp, \
             (void *)(size_t)(user)); \
     })
@@ -460,9 +460,9 @@ static inline size_t __cp_v_bsearch(
             __typeof__(__key), \
             __typeof__(*__vec->data) const *, \
             __typeof__(*(user)) *) = (cmp); \
-        __cp_v_bsearch( \
+        cp_v_bsearch_( \
             (void const *)__key, \
-            (cp_v_t*)__vec, __cp_v_esz(__vec), \
+            (cp_v_t*)__vec, cp_v_esz_(__vec), \
             (int(*)(void const *, void const *, void *))__cmp, \
             (void*)(size_t)(user)); \
     })
@@ -566,7 +566,7 @@ static inline size_t __cp_v_bsearch(
         size_t __iB = (i); \
         assert(__vecB != NULL); \
         assert((__iB < __vecB->size) || \
-            (fprintf(stderr, "ERR: __iB=%"_Pz"u, __vecB->size=%"_Pz"u\n", \
+            (fprintf(stderr, "ERR: __iB=%"CP_Z"u, __vecB->size=%"CP_Z"u\n", \
                 __iB, __vecB->size),0)); \
         &__vecB->data[__iB]; \
     })
@@ -599,4 +599,4 @@ static inline size_t __cp_v_bsearch(
         __vecC->data[__ib] = (__vecC->data[__ib] | __iv) ^ ((n) ? 0 : __iv); \
     })
 
-#endif /* __CP_VEC_H */
+#endif /* CP_VEC_H_ */

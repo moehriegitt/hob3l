@@ -17,7 +17,7 @@
  *
  * This function allows v == NULL.
  */
-extern void __cp_v_fini(
+extern void cp_v_fini_(
     cp_v_t *vec)
 {
     if (vec == NULL)
@@ -35,26 +35,26 @@ static void __grow(
     }
 
     size_t new_alloc = vec->alloc;
-    if (new_alloc < __cp_v_min_alloc()) {
-        new_alloc = __cp_v_min_alloc();
+    if (new_alloc < cp_v_min_alloc_()) {
+        new_alloc = cp_v_min_alloc_();
     }
 
     while (new_alloc < new_size) {
         new_alloc *= 2;
-        if (new_alloc > __cp_v_max_size(esz)) {
+        if (new_alloc > cp_v_max_size_(esz)) {
             cp_panic(NULL, 0, "Out of memory in __cp_v_inflate()\n");
         }
         assert(new_alloc > vec->alloc);
     }
 
-    vec->data = realloc(vec->data, __cp_v_size(new_alloc, esz));
+    vec->data = realloc(vec->data, cp_v_size_(new_alloc, esz));
     vec->alloc = new_alloc;
 }
 
 static void __shrink(
-    cp_v_t *vec __unused,
-    size_t esz __unused,
-    size_t new_size __unused)
+    cp_v_t *vec CP_UNUSED,
+    size_t esz CP_UNUSED,
+    size_t new_size CP_UNUSED)
 {
 }
 
@@ -67,7 +67,7 @@ static void __shrink(
  * stay zeroed if it has not been initialised yet -- no alloc will
  * take place.
  */
-extern void __cp_v_clear(
+extern void cp_v_clear_(
     cp_v_t *vec,
     /** Element size */
     size_t esz,
@@ -84,9 +84,9 @@ extern void __cp_v_clear(
 /**
  * Internal: Ensures a minimum size of the vector.
  *
- * This is like __cp_v_set_size, except it never shrinks the vector.
+ * This is like cp_v_set_size_, except it never shrinks the vector.
  */
-extern void __cp_v_ensure_size(
+extern void cp_v_ensure_size_(
     cp_v_t *vec,
     size_t esz,
     size_t new_size)
@@ -94,9 +94,9 @@ extern void __cp_v_ensure_size(
     if (vec->size < new_size) {
         __grow(vec, esz, new_size);
         memset(
-            __cp_v_nth_ptr(vec->data, vec->size, esz),
+            cp_v_nth_ptr_(vec->data, vec->size, esz),
             0,
-            __cp_v_size(new_size - vec->size, esz));
+            cp_v_size_(new_size - vec->size, esz));
         vec->size = new_size;
     }
 }
@@ -108,7 +108,7 @@ extern void __cp_v_ensure_size(
  *
  * If the vector is grown, it is filled with NULL elements at the end.
  */
-extern void __cp_v_set_size(
+extern void cp_v_set_size_(
     cp_v_t *vec,
     size_t esz,
     size_t new_size)
@@ -116,9 +116,9 @@ extern void __cp_v_set_size(
     if (vec->size < new_size) {
         __grow(vec, esz, new_size);
         memset(
-            __cp_v_nth_ptr(vec->data, vec->size, esz),
+            cp_v_nth_ptr_(vec->data, vec->size, esz),
             0,
-            __cp_v_size(new_size - vec->size, esz));
+            cp_v_size_(new_size - vec->size, esz));
     }
     else {
         __shrink(vec, esz,new_size);
@@ -153,13 +153,13 @@ extern void *__cp_v_inflate(
 
     size_t tail_size = vec->size - pos;
 
-    void *start = __cp_v_nth_ptr(vec->data, pos, esz);
+    void *start = cp_v_nth_ptr_(vec->data, pos, esz);
     memmove(
-        __cp_v_nth_ptr(vec->data, pos + size, esz),
+        cp_v_nth_ptr_(vec->data, pos + size, esz),
         start,
-        __cp_v_size(tail_size, esz));
+        cp_v_size_(tail_size, esz));
 
-    memset(start, 0, __cp_v_size(size, esz));
+    memset(start, 0, cp_v_size_(size, esz));
 
     vec->size = new_size;
 
@@ -171,7 +171,7 @@ extern void *__cp_v_inflate(
  *
  * The dst vector is grown as necessary.
  */
-extern void __cp_v_copy_arr(
+extern void cp_v_copy_arr_(
     /** Destination of the copying */
     cp_v_t *dst,
     /** Element size */
@@ -202,16 +202,16 @@ extern void __cp_v_copy_arr(
         /* recompute index pointer if it pointed into the dst vector*/
         if (old_data &&
             (data >= old_data) &&
-            (data <= __cp_v_nth_ptr(old_data, old_size, esz)))
+            (data <= cp_v_nth_ptr_(old_data, old_size, esz)))
         {
             assert(
-                __cp_v_nth_ptr(data, size, esz) <=
-                __cp_v_nth_ptr(old_data, old_size, esz));
+                cp_v_nth_ptr_(data, size, esz) <=
+                cp_v_nth_ptr_(old_data, old_size, esz));
             data = ((char*)dst->data) + CP_PTRDIFF((char const *)data, (char const *)old_data);
         }
     }
 
-    memmove(__cp_v_nth_ptr(dst->data, dst_pos, esz), data, __cp_v_size(size, esz));
+    memmove(cp_v_nth_ptr_(dst->data, dst_pos, esz), data, cp_v_size_(size, esz));
 }
 
 /**
@@ -222,13 +222,13 @@ extern void __cp_v_copy_arr(
  *
  * The dst vector is grown if necessary, e.g.
  *
- *    __cp_v_copy(x, x->size, x, 0, CP_SIZE_MAX, c)
+ *    cp_v_copy_(x, x->size, x, 0, CP_SIZE_MAX, c)
  *
  * is equivalent to
  *
  *    __cp_v_append(x, x, c);
  */
-extern void __cp_v_copy(
+extern void cp_v_copy_(
     /** Destination of the copying. */
     cp_v_t *dst,
     /** Element size */
@@ -258,7 +258,7 @@ extern void __cp_v_copy(
     }
 
     /* use array copy */
-    __cp_v_copy_arr(dst, esz, dst_pos, __cp_v_nth_ptr(src->data, src_pos, esz), size);
+    cp_v_copy_arr_(dst, esz, dst_pos, cp_v_nth_ptr_(src->data, src_pos, esz), size);
 }
 
 /**
@@ -289,49 +289,49 @@ extern void *__cp_v_insert_arr(
      * originally contiguous data by the inflation. */
     if ((dst->data != NULL) &&
         (data >= dst->data) &&
-        (data <= __cp_v_nth_ptr(dst->data, dst->size, esz)))
+        (data <= cp_v_nth_ptr_(dst->data, dst->size, esz)))
     {
-        assert(__cp_v_nth_ptr(data, size, esz) <= __cp_v_nth_ptr(dst->data, dst->size, esz));
-        size_t src_pos = __cp_v_ptrdiff(esz, data, dst->data);
+        assert(cp_v_nth_ptr_(data, size, esz) <= cp_v_nth_ptr_(dst->data, dst->size, esz));
+        size_t src_pos = cp_v_ptrdiff_(esz, data, dst->data);
         size_t src_end = src_pos + size;
         size_t dst_end = dst_pos + size;
         __cp_v_inflate(dst, esz, dst_pos, size);
         if (src_end <= dst_pos) {
             /* completely in first part */
-            __cp_v_copy(dst, esz, dst_pos, dst, src_pos, size);
+            cp_v_copy_(dst, esz, dst_pos, dst, src_pos, size);
         }
         else
         if (dst_end <= src_pos) {
             /* completely in last part */
-            __cp_v_copy(dst, esz, dst_pos, dst, src_pos+size, size);
+            cp_v_copy_(dst, esz, dst_pos, dst, src_pos+size, size);
         }
         else {
             /* first part before gap */
             assert(src_pos < dst_pos);
             size_t size1 = dst_pos - src_pos;
             assert(size1 < size);
-            __cp_v_copy(dst, esz, dst_pos, dst, src_pos, size1);
+            cp_v_copy_(dst, esz, dst_pos, dst, src_pos, size1);
 
             /* second part behind gap */
             assert(dst_end < src_end);
             size_t size2 = size - size1;
             assert(dst_end + size2 == src_end + size);
-            __cp_v_copy(dst, esz, dst_pos+size1, dst, dst_end, size2);
+            cp_v_copy_(dst, esz, dst_pos+size1, dst, dst_end, size2);
         }
     }
     else {
         /* data arrays are disjoint => simple case */
         __cp_v_inflate(dst, esz, dst_pos, size);
-        __cp_v_copy_arr(dst, esz, dst_pos, data, size);
+        cp_v_copy_arr_(dst, esz, dst_pos, data, size);
     }
 
-    return __cp_v_nth_ptr(dst->data, dst_pos, esz);
+    return cp_v_nth_ptr_(dst->data, dst_pos, esz);
 }
 
 /**
  * Internal: Remove and return the given element of the array.
  */
-extern void __cp_v_remove(
+extern void cp_v_remove_(
     /** [IN/OUT] vector to append to */
     cp_v_t *vec,
     /** Element size */
@@ -349,9 +349,9 @@ extern void __cp_v_remove(
 
     size_t rest = vec->size - pos - size;
     memmove(
-        __cp_v_nth_ptr(vec->data, pos, esz),
-        __cp_v_nth_ptr(vec->data, pos + size, esz),
-        __cp_v_size(rest, esz));
+        cp_v_nth_ptr_(vec->data, pos, esz),
+        cp_v_nth_ptr_(vec->data, pos + size, esz),
+        cp_v_size_(rest, esz));
 
     vec->size -= size;
     __shrink(vec, esz, vec->size);
@@ -360,7 +360,7 @@ extern void __cp_v_remove(
 /**
  * Reverse a portion of the vector.
  */
-extern void __cp_v_reverse(
+extern void cp_v_reverse_(
     /** [IN/OUT] vector to reverse to */
     cp_v_t *vec,
     /** Element size */
@@ -378,8 +378,8 @@ extern void __cp_v_reverse(
     for (cp_size_each(i, size/2)) {
         size_t j = size - i - 1;
         cp_memswap(
-           __cp_v_nth_ptr(vec->data, pos + i, esz),
-           __cp_v_nth_ptr(vec->data, pos + j, esz),
+           cp_v_nth_ptr_(vec->data, pos + i, esz),
+           cp_v_nth_ptr_(vec->data, pos + j, esz),
            esz);
     }
 
@@ -388,7 +388,7 @@ extern void __cp_v_reverse(
 
 /**
  * Internal: Remove and return the given element of the array. */
-extern void __cp_v_extract(
+extern void cp_v_extract_(
     /** [OUT] the extracted element */
     void *out,
     /** [IN/OUT] vector to append to */
@@ -399,13 +399,13 @@ extern void __cp_v_extract(
     size_t pos)
 {
     assert(pos < vec->size);
-    memcpy(out, __cp_v_nth_ptr(vec->data, pos, esz), esz);
-    __cp_v_remove(vec, esz, pos, 1);
+    memcpy(out, cp_v_nth_ptr_(vec->data, pos, esz), esz);
+    cp_v_remove_(vec, esz, pos, 1);
 }
 
 /**
  * Internal: Sort (sub-)array using qsort() */
-extern void __cp_v_qsort(
+extern void cp_v_qsort_(
     /** [IN/OUT] vector to append to */
     cp_v_t *vec,
     /** Element size */
@@ -426,7 +426,7 @@ extern void __cp_v_qsort(
     if (size > vec->size - pos) {
         size = vec->size - pos;
     }
-    cp_qsort_r(__cp_v_nth_ptr(vec->data, pos, esz), size, esz, cmp, user);
+    cp_qsort_r(cp_v_nth_ptr_(vec->data, pos, esz), size, esz, cmp, user);
 }
 
 /**
@@ -446,7 +446,7 @@ extern size_t cp_bsearch(
     size_t b = nmemb;
     while (a < b) {
         size_t idx = a + ((b - a) / 2);
-        const void *p = __cp_v_nth_ptr(base, idx, size);
+        const void *p = cp_v_nth_ptr_(base, idx, size);
         int c = (*cmp)(key, p, user);
         if (c < 0) {
             b = idx;

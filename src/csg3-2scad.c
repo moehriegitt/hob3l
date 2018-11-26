@@ -38,7 +38,7 @@ static void sphere_put_scad(
     cp_printf(s, "%*s", d,"");
     cp_gc_modifier_put_scad(s, r->gc.modifier);
     mat3wi_put_scad(s, r->mat);
-    cp_printf(s, " sphere(r=1,center=true,$fn=%"_Pz"u);\n",
+    cp_printf(s, " sphere(r=1,center=true,$fn=%"CP_Z"u);\n",
         r->_fn);
 }
 
@@ -114,7 +114,7 @@ static void poly_put_scad(
         cp_csg3_face_t const *f = &r->face.data[i];
         cp_printf(s, "%s[", i == 0 ? "" : ",");
         for (cp_v_each(j, &f->point)) {
-            cp_printf(s, "%s%"_Pz"u",
+            cp_printf(s, "%s%"CP_Z"u",
                 j == 0 ? "" : ",",
                 cp_v_idx(&r->point, f->point.data[j].ref));
         }
@@ -143,7 +143,7 @@ static void poly2_put_scad(
         cp_csg2_path_t const *f = &r->path.data[i];
         cp_printf(s, "%s[", i == 0 ? "" : ",");
         for (cp_v_each(j, &f->point_idx)) {
-            cp_printf(s, "%s%"_Pz"u",
+            cp_printf(s, "%s%"CP_Z"u",
                 j == 0 ? "" : ",",
                 f->point_idx.data[j]);
         }

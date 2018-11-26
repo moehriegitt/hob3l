@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG_TAM_H
-#define __CP_CSG_TAM_H
+#ifndef CP_CSG_TAM_H_
+#define CP_CSG_TAM_H_
 
 #include <hob3l/obj_tam.h>
 #include <hob3l/csg_fwd.h>
@@ -42,14 +42,14 @@ typedef enum {
 typedef struct {
     /**
      * type is CP_CSG_ADD */
-    _CP_OBJ
+    CP_OBJ_
     cp_v_obj_p_t add;
 } cp_csg_add_t;
 
 typedef struct {
     /**
      * type is CP_CSG_SUB */
-    _CP_OBJ
+    CP_OBJ_
     cp_csg_add_t *add;
     cp_csg_add_t *sub;
 } cp_csg_sub_t;
@@ -59,14 +59,14 @@ typedef CP_VEC_T(cp_csg_add_t*) cp_v_csg_add_p_t;
 typedef struct {
     /**
      * type is CP_CSG_CUT */
-    _CP_OBJ
+    CP_OBJ_
     cp_v_csg_add_p_t cut;
 } cp_csg_cut_t;
 
 typedef struct {
     /**
      * type is CP_CSG_XOR */
-    _CP_OBJ
+    CP_OBJ_
     cp_v_csg_add_p_t xor;
 } cp_csg_xor_t;
 
@@ -77,7 +77,7 @@ typedef struct {
  * Using cp_obj_t would work, too, but this type is an additional
  * abstract type for clarity.
  */
-struct cp_csg { _CP_OBJ };
+struct cp_csg { CP_OBJ_ };
 
 /**
  * Empty polygon optimisation.
@@ -165,4 +165,4 @@ typedef struct {
 } cp_csg_opt_t;
 
 
-#endif /* __CP_CSG_TAM_H */
+#endif /* CP_CSG_TAM_H_ */

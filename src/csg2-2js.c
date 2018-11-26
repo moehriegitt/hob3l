@@ -327,7 +327,7 @@ static void layer_put_js(
     ctxt_t *c,
     cp_stream_t *s,
     cp_csg2_tree_t *t,
-    size_t zi __unused,
+    size_t zi CP_UNUSED,
     cp_csg2_layer_t *r)
 {
     if (cp_csg_add_size(r->root) == 0) {

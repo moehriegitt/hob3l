@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VEC3_DICT_TAM_H
-#define __CP_VEC3_DICT_TAM_H
+#ifndef CP_VEC3_DICT_TAM_H_
+#define CP_VEC3_DICT_TAM_H_
 
 #include <hob3lbase/dict_tam.h>
 
@@ -19,4 +19,4 @@ typedef struct {
 } cp_vec3_dict_node_t;
 
 
-#endif /* __CP_VEC3_DICT_TAM_H */
+#endif /* CP_VEC3_DICT_TAM_H_ */

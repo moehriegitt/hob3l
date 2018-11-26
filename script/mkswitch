@@ -243,9 +243,9 @@ sub generate_code($)
         }
         print
             "static void get_opt_$case->{name}(\n".
-            "    cp_opt_t *opt __unused,\n".
-            "    char const *name __unused,\n".
-            "    char const *$arg __unused)\n".
+            "    cp_opt_t *opt CP_UNUSED,\n".
+            "    char const *name CP_UNUSED,\n".
+            "    char const *$arg CP_UNUSED)\n".
             "{\n";
         for my $c (@{ $case->{cond} }) {
             print "$c\n";

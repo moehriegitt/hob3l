@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_GC_TAM_H
-#define __CP_GC_TAM_H
+#ifndef CP_GC_TAM_H_
+#define CP_GC_TAM_H_
 
 #include <stdbool.h>
 #include <hob3lbase/color_tam.h>
@@ -55,4 +55,4 @@ typedef struct {
     unsigned modifier;
 } cp_gc_t;
 
-#endif /* __CP_GC_TAM_H */
+#endif /* CP_GC_TAM_H_ */

@@ -255,7 +255,7 @@ typedef struct {
     point_t *head;
 } stack_t;
 
-__unused
+CP_UNUSED
 static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
 {
     if (x == NULL) {
@@ -268,7 +268,7 @@ static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
 
 #define coord_str(p) __coord_str((char[50]){0}, 50, p)
 
-__unused
+CP_UNUSED
 static char const *__pt_str(char *s, size_t n, point_t const *x)
 {
     if (x == NULL) {
@@ -281,21 +281,21 @@ static char const *__pt_str(char *s, size_t n, point_t const *x)
 
 #define pt_str(p) __pt_str((char[50]){}, 50, p)
 
-__unused
+CP_UNUSED
 static char const *__ev_str(char *s, size_t n, event_t const *x)
 {
     if (x == NULL) {
         return "NULL";
     }
     if (x->left) {
-        snprintf(s, n, "#("FD2"--"FD2")  o0x%"_Pz"x b0x%"_Pz"x",
+        snprintf(s, n, "#("FD2"--"FD2")  o0x%"CP_Z"x b0x%"CP_Z"x",
             CP_V01(x->p->v.coord),
             CP_V01(x->other->p->v.coord),
             x->in.owner,
             x->in.below);
     }
     else {
-        snprintf(s, n, " ("FD2"--"FD2")# o0x%"_Pz"x b0x%"_Pz"x",
+        snprintf(s, n, " ("FD2"--"FD2")# o0x%"CP_Z"x b0x%"CP_Z"x",
             CP_V01(x->other->p->v.coord),
             CP_V01(x->p->v.coord),
             x->in.owner,
@@ -362,11 +362,11 @@ static void debug_print_s(
     ctxt_t *c,
     char const *msg,
     event_t *es,
-    event_t *epr __unused,
-    event_t *ene __unused,
+    event_t *epr CP_UNUSED,
+    event_t *ene CP_UNUSED,
     ...)
 {
-    va_list va __unused;
+    va_list va CP_UNUSED;
 #if DEBUG
     LOG("S ");
     va_start(va, ene);
@@ -490,7 +490,7 @@ static int pt_cmp(
 static int pt_cmp_d(
     cp_vec2_t *a,
     cp_dict_t *_b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     point_t *b = CP_BOX_OF(_b, point_t, node_pt);
     return cp_vec2_lex_pt_cmp(a, &b->v.coord);
@@ -673,7 +673,7 @@ static int seg_cmp(event_t const *e2, event_t const *e1)
 static int ev_cmp_q(
     cp_dict_t *_e1,
     cp_dict_t *_e2,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     event_t *e1 = CP_BOX_OF(_e1, event_t, node_q);
     event_t *e2 = CP_BOX_OF(_e2, event_t, node_q);
@@ -683,7 +683,7 @@ static int ev_cmp_q(
 static int seg_cmp_s(
     cp_dict_t *_e1,
     cp_dict_t *_e2,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     event_t *e1 = CP_BOX_OF(_e1, event_t, node_s);
     event_t *e2 = CP_BOX_OF(_e2, event_t, node_s);
@@ -714,7 +714,7 @@ static void s_insert(
     ctxt_t *c,
     event_t *e)
 {
-    cp_dict_t *o __unused = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
+    cp_dict_t *o CP_UNUSED = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
     assert(o == NULL);
 }
 
@@ -725,7 +725,7 @@ static void s_remove(
     cp_dict_remove(&e->node_s, &c->s);
 }
 
-__unused
+CP_UNUSED
 static void get_coord_on_line(
     cp_vec2_t *r,
     event_t *e,
@@ -798,8 +798,8 @@ static void q_add_orig(
 #endif
 
 static void __divide_segment(
-    char const *file __unused,
-    int line __unused,
+    char const *file CP_UNUSED,
+    int line CP_UNUSED,
     ctxt_t *c,
     event_t *e,
     point_t *p)
@@ -874,7 +874,7 @@ static void __divide_segment(
 static int pt_cmp_end_d(
     cp_dict_t *_a,
     cp_dict_t *_b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     event_t *a = CP_BOX_OF(_a, event_t, node_end);
     event_t *b = CP_BOX_OF(_b, event_t, node_end);
@@ -962,7 +962,7 @@ static void chain_add(
 }
 
 static void chain_merge(
-    ctxt_t *c __unused,
+    ctxt_t *c CP_UNUSED,
     event_t *e1,
     event_t *e2)
 {
@@ -1011,7 +1011,7 @@ static int cmp_atan2(event_t *a, event_t *b)
 static int cmp_atan2_p(
     event_t * const *a,
     event_t * const *b,
-    void *u __unused)
+    void *u CP_UNUSED)
 {
     return cmp_atan2(*a, *b);
 }
@@ -1043,7 +1043,7 @@ static bool same_dir(event_t *e1, event_t *e2)
 static void chain_flush_vertex(
     ctxt_t *c)
 {
-    LOG("BEGIN: flush_vertex: %"_Pz"u points\n", c->vert.size);
+    LOG("BEGIN: flush_vertex: %"CP_Z"u points\n", c->vert.size);
     assert(c->vert.size > 0);
     assert(((c->vert.size & 1) == 0) && "Odd number of edges meet in one point");
 
@@ -1864,14 +1864,14 @@ static void ev_left(
 
     debug_print_s(c, "left after insert", e, prev, next);
 
-    char const *ni __unused = "NULL";
+    char const *ni CP_UNUSED = "NULL";
     if (next != NULL) {
         ni = check_intersection(c, e, next, NULL);
     }
     /* The previous 'check_intersection' may have kicked out 'e' from S due
      * to rounding, so check that e is still in S before trying to intersect.
      * If not, it is back in Q and we'll handle this later. */
-    char const *pi __unused = "NULL";
+    char const *pi CP_UNUSED = "NULL";
     if ((prev != NULL) && cp_dict_is_member(&e->node_s)) {
         pi = check_intersection(c, prev, e, NULL);
     }
@@ -1913,7 +1913,7 @@ static void ev_right(
         chain_add(c, e);
     }
 
-    char const *npi __unused = "NULL";
+    char const *npi CP_UNUSED = "NULL";
     if ((next != NULL) && (prev != NULL)) {
         npi = check_intersection(c, prev, next, e);
     }
@@ -1945,7 +1945,7 @@ static bool csg2_op_v_csg2(
     cp_csg2_lazy_t *o,
     cp_v_obj_p_t *a)
 {
-    TRACE("n=%"_Pz"u", a->size);
+    TRACE("n=%"CP_Z"u", a->size);
     assert(cp_mem_is0(o, sizeof(*o)));
     for (cp_v_each(i, a)) {
         cp_csg2_t *ai = cp_csg2_cast(*ai, cp_v_nth(a,i));
@@ -2145,7 +2145,7 @@ static void cp_csg2_op_poly(
     /* initialise queue */
     for (cp_size_each(m, r->size)) {
         cp_csg2_poly_t *a = r->data[m];
-        LOG("poly %"_Pz"d: #path=%"_Pz"u\n", m, a->path.size);
+        LOG("poly %"CP_Z"d: #path=%"CP_Z"u\n", m, a->path.size);
         for (cp_v_each(i, &a->path)) {
             cp_csg2_path_t *p = &cp_v_nth(&a->path, i);
             for (cp_v_each(j, &p->point_idx)) {
@@ -2158,14 +2158,14 @@ static void cp_csg2_op_poly(
     LOG("start\n");
 
     /* run algorithm */
-    size_t ev_cnt __unused = 0;
+    size_t ev_cnt CP_UNUSED = 0;
     for (;;) {
         event_t *e = q_extract_min(&c);
         if (e == NULL) {
             break;
         }
 
-        LOG("\nevent %"_Pz"u: %s o=(0x%"_Pz"x 0x%"_Pz"x)\n",
+        LOG("\nevent %"CP_Z"u: %s o=(0x%"CP_Z"x 0x%"CP_Z"x)\n",
             ++ev_cnt,
             ev_str(e),
             e->other->in.owner,
@@ -2193,8 +2193,8 @@ static cp_csg2_poly_t *poly_sub(
     cp_csg2_poly_t *a0,
     cp_csg2_poly_t *a1)
 {
-    size_t a0_point_sz __unused = a0->point.size;
-    size_t a1_point_sz __unused = a1->point.size;
+    size_t a0_point_sz CP_UNUSED = a0->point.size;
+    size_t a1_point_sz CP_UNUSED = a1->point.size;
 
     cp_csg2_lazy_t o0;
     CP_ZERO(&o0);
@@ -2490,7 +2490,7 @@ extern void cp_csg2_op_add_layer(
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
-    bool ok __unused = csg2_op_csg2(&c, zi, &ol, a->root);
+    bool ok CP_UNUSED = csg2_op_csg2(&c, zi, &ol, a->root);
     assert(ok && "Unexpected object in tree.");
     cp_csg2_op_reduce(tmp, &ol, false);
 
@@ -2542,7 +2542,7 @@ extern cp_csg2_poly_t *cp_csg2_flatten(
 
     cp_csg2_lazy_t ol;
     CP_ZERO(&ol);
-    bool ok __unused = csg2_op_v_csg2(&c, 0, &ol, root);
+    bool ok CP_UNUSED = csg2_op_v_csg2(&c, 0, &ol, root);
     assert(ok && "Unexpected object in tree.");
     cp_csg2_op_reduce(tmp, &ol, true);
 
@@ -2567,7 +2567,7 @@ extern void cp_csg2_op_diff_layer(
     size_t zi)
 {
     TRACE();
-    cp_csg2_stack_t *s __unused = cp_csg2_cast(*s, a->root);
+    cp_csg2_stack_t *s CP_UNUSED = cp_csg2_cast(*s, a->root);
     assert(zi < s->layer.size);
 
     csg2_op_diff_csg2(opt, tmp, zi, a->root);

@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VCHAR_H
-#define __CP_VCHAR_H
+#ifndef CP_VCHAR_H_
+#define CP_VCHAR_H_
 
 #include <assert.h>
 #include <stdlib.h>
@@ -94,4 +94,4 @@ static inline char *cp_vchar_cstr(
     return v->data;
 }
 
-#endif /* __CP_VCHAR_H */
+#endif /* CP_VCHAR_H_ */

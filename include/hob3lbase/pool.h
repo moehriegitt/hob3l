@@ -9,8 +9,8 @@
  * Deallocation can only be done by destructing the whole allocator.
  */
 
-#ifndef __CP_POOL_H
-#define __CP_POOL_H
+#ifndef CP_POOL_H_
+#define CP_POOL_H_
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/pool_tam.h>
@@ -79,4 +79,4 @@ static inline void cp_pool_init(
     CP_ZERO(pool);
 }
 
-#endif /*__CP_POOL_H */
+#endif /*CP_POOL_H_ */

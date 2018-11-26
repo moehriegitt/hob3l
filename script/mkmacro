@@ -15,7 +15,7 @@ sub end_func($)
     my ($func) = @_;
 
     $func->{order} = $func_order++;
-    $func->{_name} = "_$func->{name}";
+    $func->{_name} = "$func->{name}_";
     $func->{_name} =~ s/^__+/_/;
 
     # arg

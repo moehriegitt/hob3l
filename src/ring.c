@@ -22,8 +22,8 @@ extern void cp_ring_cut(
     if (nb == a) {
         nb = b;
     }
-    __cp_ring_set_both(a, pa, pa);
-    __cp_ring_set_both(b, nb, nb);
+    cp_ring_set_both_(a, pa, pa);
+    cp_ring_set_both_(b, nb, nb);
 }
 
 /**
@@ -166,30 +166,30 @@ extern void cp_ring_rewire(
           */
          cp_ring_t *x = cp_ring_prev(b,a);
          if (x != a) {
-             __cp_ring_set_both(a, a, a);
-             __cp_ring_set_both(b, x, x);
+             cp_ring_set_both_(a, a, a);
+             cp_ring_set_both_(b, x, x);
              return;
          }
     }
 
     if (a == b) {
-        __cp_ring_set_both(a, u, v);
+        cp_ring_set_both_(a, u, v);
     }
     else {
-        size_t ia = __cp_ring_ref(a,b);
-        size_t ib = __cp_ring_ref(b,a);
-        __cp_ring_set(a, ia, u);
-        __cp_ring_set(b, ib, v);
+        size_t ia = cp_ring_ref_(a,b);
+        size_t ib = cp_ring_ref_(b,a);
+        cp_ring_set_(a, ia, u);
+        cp_ring_set_(b, ib, v);
     }
 
     if (u == v) {
-        __cp_ring_set_both(u, a, b);
+        cp_ring_set_both_(u, a, b);
     }
     else {
-        size_t iu = __cp_ring_ref(u,v);
-        size_t iv = __cp_ring_ref(v,u);
-        __cp_ring_set(u, iu, a);
-        __cp_ring_set(v, iv, b);
+        size_t iu = cp_ring_ref_(u,v);
+        size_t iv = cp_ring_ref_(v,u);
+        cp_ring_set_(u, iu, a);
+        cp_ring_set_(v, iv, b);
     }
 }
 
@@ -245,8 +245,8 @@ extern void cp_ring_swap2(
     assert(nb != a);
 
     /* swap a<->b in outer neighbours */
-    __cp_ring_replace(pa, a, b);
-    __cp_ring_replace(nb, b, a);
+    cp_ring_replace_(pa, a, b);
+    cp_ring_replace_(nb, b, a);
 
     /* adjacent */
     if (na == b) {
@@ -257,8 +257,8 @@ extern void cp_ring_swap2(
 
         /* BEFORE: pa->a->b->nb */
         /* AFTER:  pa->b->a->nb */
-        __cp_ring_set_both(a, b, nb);
-        __cp_ring_set_both(b, a, pa);
+        cp_ring_set_both_(a, b, nb);
+        cp_ring_set_both_(b, a, pa);
         return;
     }
 
@@ -271,8 +271,8 @@ extern void cp_ring_swap2(
 
     /* BEFORE: pa->a->na  pb->b->nb */
     /* AFTER:  pa->b->na  pb->a->nb */
-    __cp_ring_replace(na, a, b);
-    __cp_ring_replace(pb, b, a);
-    __cp_ring_set_both(a, pb, nb);
-    __cp_ring_set_both(b, pa, na);
+    cp_ring_replace_(na, a, b);
+    cp_ring_replace_(pb, b, a);
+    cp_ring_set_both_(a, pb, nb);
+    cp_ring_set_both_(b, pa, na);
 }

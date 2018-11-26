@@ -8,8 +8,8 @@
  * To print to file or vchar.
  */
 
-#ifndef __CP_STREAM_H
-#define __CP_STREAM_H
+#ifndef CP_STREAM_H_
+#define CP_STREAM_H_
 
 #include <hob3lbase/stream_tam.h>
 #include <hob3lbase/vchar.h>
@@ -49,4 +49,4 @@ static inline void cp_vprintf(
     s->vprintf(s->data, form, va);
 }
 
-#endif /* __CP_STREAM_H */
+#endif /* CP_STREAM_H_ */

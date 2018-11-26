@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_DEF_H
-#define __CP_DEF_H
+#ifndef CP_DEF_H_
+#define CP_DEF_H_
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -14,23 +14,23 @@
 #include <hob3lbase/arch.h>
 #include <hob3lbase/float.h>
 
-#ifndef __unused
-#define __unused __attribute__((unused))
+#ifndef CP_UNUSED
+#define CP_UNUSED __attribute__((unused))
 #endif
 
-#define cp_static_assert(x) _Static_assert(x,#x)
+#define CP_STATIC_ASSERT(x) _Static_assert(x,#x)
 
 /* some assumptions about the environment */
-cp_static_assert(sizeof(short)     == 2);
-cp_static_assert(sizeof(int)       == 4);
-cp_static_assert(sizeof(long long) == 8);
-cp_static_assert(sizeof(void*)     == sizeof(size_t));
+CP_STATIC_ASSERT(sizeof(short)     == 2);
+CP_STATIC_ASSERT(sizeof(int)       == 4);
+CP_STATIC_ASSERT(sizeof(long long) == 8);
+CP_STATIC_ASSERT(sizeof(void*)     == sizeof(size_t));
 
 #define CP_IND 2
 
-#define __CP_STRINGIFY2(x) #x
-#define __CP_STRINGIFY1(x) __CP_STRINGIFY2(x)
-#define CP_STRINGIFY(x)    __CP_STRINGIFY1(x)
+#define CP_STRINGIFY_2_(x) #x
+#define CP_STRINGIFY_1_(x) CP_STRINGIFY_2_(x)
+#define CP_STRINGIFY(x)    CP_STRINGIFY_1_(x)
 
 /**
  * Make a bit mask of all ones for a given type, be sure to
@@ -39,10 +39,10 @@ cp_static_assert(sizeof(void*)     == sizeof(size_t));
 #define CP_MAX_OF(x) \
     ((__typeof__(x))(((~(1ULL << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1))
 
-cp_static_assert(CP_MAX_OF(0)    == 0x7fffffff);
-cp_static_assert(CP_MAX_OF(0U)   == 0xffffffff);
-cp_static_assert(CP_MAX_OF(0LL)  == 0x7fffffffffffffff);
-cp_static_assert(CP_MAX_OF(0ULL) == 0xffffffffffffffff);
+CP_STATIC_ASSERT(CP_MAX_OF(0)    == 0x7fffffff);
+CP_STATIC_ASSERT(CP_MAX_OF(0U)   == 0xffffffff);
+CP_STATIC_ASSERT(CP_MAX_OF(0LL)  == 0x7fffffffffffffff);
+CP_STATIC_ASSERT(CP_MAX_OF(0ULL) == 0xffffffffffffffff);
 
 #define CP_SIZE_MAX (~(size_t)0)
 
@@ -71,9 +71,9 @@ typedef enum {
 
 /* ** #define ** */
 
-#define __CP_CONCAT3(x,y) x##y
-#define __CP_CONCAT2(x,y) __CP_CONCAT3(x,y)
-#define CP_CONCAT(x,y) __CP_CONCAT2(x,y)
+#define CP_CONCAT_3_(x,y) x##y
+#define CP_CONCAT_2_(x,y) CP_CONCAT_3_(x,y)
+#define CP_CONCAT(x,y) CP_CONCAT_2_(x,y)
 
 #define cp_is_pow2(x) \
     ({ \
@@ -106,7 +106,7 @@ typedef enum {
 #define CP_COPY_N_ZERO(obj, prefix, prefix_value) \
     ({ \
         __typeof__(*(obj)) *__obj = (obj); \
-        cp_static_assert(cp_offsetof(__typeof__(*__obj), prefix) == 0); \
+        CP_STATIC_ASSERT(cp_offsetof(__typeof__(*__obj), prefix) == 0); \
         __obj->prefix = (prefix_value); \
         size_t __psz = sizeof(__obj->prefix); \
         (void)memset(((char*)obj) + __psz, 0, sizeof(*(obj)) - __psz); \
@@ -153,8 +153,8 @@ typedef enum {
  */
 #define CP_BIT_COPY(a,b,c) ((c) ? ((a) | (b)) : CP_BIC(a,b))
 
-/* Helper to gensym local symbols for __cp_size_each */
-#define __cp_size_each_aux(__skipZ, __n, i,n,skipA,skipZ) \
+/* Helper to gensym local symbols for cp_size_each_1_ */
+#define cp_size_each_2_(__skipZ, __n, i,n,skipA,skipZ) \
     size_t i = (skipA), \
          __skipZ = (skipZ), \
          __n = (n); \
@@ -164,8 +164,8 @@ typedef enum {
 /**
  * Helper macro to allow cp_range_each to have optional arguments.
  */
-#define __cp_size_each(i,n,skipA,skipZ,...) \
-    __cp_size_each_aux( \
+#define cp_size_each_1_(i,n,skipA,skipZ,...) \
+    cp_size_each_2_( \
         CP_GENSYM(__skipZ), CP_GENSYM(__n), i, n, skipA, skipZ)
 
 /**
@@ -196,12 +196,12 @@ typedef enum {
  * skipA and skipZ are optional.  If missing, 0 is assumed for either
  * of the two.
  */
-#define cp_size_each(i,...) __cp_size_each(i, __VA_ARGS__, 0, 0)
+#define cp_size_each(i,...) cp_size_each_1_(i, __VA_ARGS__, 0, 0)
 
 /**
  * Helper macro for cp_arr_each.
  */
-#define __cp_arr_each(i,v,skipA,skipZ,...) \
+#define cp_arr_each_1_(i,v,skipA,skipZ,...) \
     cp_size_each(i, cp_countof(v), skipA, skipZ)
 
 /**
@@ -209,7 +209,7 @@ typedef enum {
  *
  * See cp_size_each() for details.
  */
-#define cp_arr_each(i,...) __cp_arr_each(i, __VA_ARGS__, 0, 0)
+#define cp_arr_each(i,...) cp_arr_each_1_(i, __VA_ARGS__, 0, 0)
 
 /**
  * Address of a surrouning container of an embedded substructure.
@@ -303,4 +303,4 @@ static inline size_t cp_align_up_diff(size_t n, size_t a)
     return cp_align_up(n,a) - n;
 }
 
-#endif /* __CP_MAT_H */
+#endif /* CP_MAT_H_ */

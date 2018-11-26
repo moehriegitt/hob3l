@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_TREE_H
-#define __CP_CSG2_TREE_H
+#ifndef CP_CSG2_TREE_H_
+#define CP_CSG2_TREE_H_
 
 #include <hob3lbase/stream_tam.h>
 #include <hob3lbase/arith_tam.h>
@@ -34,4 +34,4 @@ extern void cp_csg2_tree_from_csg3(
     cp_range_t const *s,
     cp_csg_opt_t const *o);
 
-#endif /* __CP_CSG2_TREE_H */
+#endif /* CP_CSG2_TREE_H_ */

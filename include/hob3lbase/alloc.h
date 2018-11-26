@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_ALLOC_H
-#define __CP_ALLOC_H
+#ifndef CP_ALLOC_H_
+#define CP_ALLOC_H_
 
 #include <stdlib.h>
 #include <hob3lbase/def.h>
@@ -42,7 +42,7 @@ static inline void *cp_malloc(char const *file, int line, size_t a)
 {
     void *r = malloc(a);
     if (r == NULL) {
-        cp_panic(file, line, "Out of memory allocating %"_Pz"u bytes.", a);
+        cp_panic(file, line, "Out of memory allocating %"CP_Z"u bytes.", a);
     }
     return r;
 }
@@ -51,9 +51,9 @@ static inline void *cp_calloc(char const *file, int line, size_t a, size_t b)
 {
     void *r = calloc(a, b);
     if (r == NULL) {
-        cp_panic(file, line, "Out of memory allocating %"_Pz"u * %"_Pz"u bytes.", a, b);
+        cp_panic(file, line, "Out of memory allocating %"CP_Z"u * %"CP_Z"u bytes.", a, b);
     }
     return r;
 }
 
-#endif /* __CP_ALLOC_H */
+#endif /* CP_ALLOC_H_ */

@@ -16,7 +16,7 @@ static void **get_ptr(void *a, size_t o)
  *
  * Use cp_list_swap() instead.
  */
-extern void __cp_list_swap(
+extern void cp_list_swap_(
     void *a, void *b, size_t offset_next, size_t offset_prev)
 {
     /* same */
@@ -32,7 +32,7 @@ extern void __cp_list_swap(
         if (nb == b) {
             return;
         }
-        __cp_list_swap(b, a, offset_next, offset_prev);
+        cp_list_swap_(b, a, offset_next, offset_prev);
         return;
     }
 
@@ -40,7 +40,7 @@ extern void __cp_list_swap(
         if (na == b) {
             return;
         }
-        __cp_list_swap(b, a, offset_next, offset_prev);
+        cp_list_swap_(b, a, offset_next, offset_prev);
         return;
     }
 

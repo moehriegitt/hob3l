@@ -147,7 +147,7 @@ static node_t *left(
     return l;
 }
 
-__unused
+CP_UNUSED
 static node_t *right(
     edge_t *a)
 {
@@ -156,7 +156,7 @@ static node_t *right(
     return r;
 }
 
-__unused
+CP_UNUSED
 static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
 {
     if (x == NULL) {
@@ -169,7 +169,7 @@ static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
 
 #define coord_str(p) __coord_str((char[50]){0}, 50, p)
 
-__unused
+CP_UNUSED
 static const char *__node_str(char *s, size_t n, node_t *x)
 {
     return __coord_str(s, n, x->coord);
@@ -177,7 +177,7 @@ static const char *__node_str(char *s, size_t n, node_t *x)
 
 #define node_str(p)  __node_str((char[50]){0}, 50,  p)
 
-__unused
+CP_UNUSED
 static const char *__edge_str(char *s, size_t n, edge_t *e)
 {
     cp_vec2_t *a = e->src->coord;
@@ -263,7 +263,7 @@ static void dump_list_back(list_t *end, list_t *rm)
 
 static void dump_list(list_t *list, list_t *rm)
 {
-    LOG("%02"_Pz"u", list_len(list));
+    LOG("%02"CP_Z"u", list_len(list));
     if (get_li(list->prev) != NULL) {
         LOG(" T<");
         dump_list_back(list, rm);
@@ -284,8 +284,8 @@ static void dump_list(list_t *list, list_t *rm)
 
 static void dump_ey(
     ctxt_t *c,
-    char const *msg __unused,
-    node_t *p __unused)
+    char const *msg CP_UNUSED,
+    node_t *p CP_UNUSED)
 {
 #if DEBUG
     LOG("BEGIN EY\n");
@@ -473,7 +473,7 @@ static int cmp_nx_p(
 static int cmp_nx(
     cp_dict_t *_a,
     cp_dict_t *_b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     return cmp_nx_p(get_nx(_a), get_nx(_b));
 }
@@ -536,7 +536,7 @@ static int cmp_ey_pe(
 static int cmp_ey(
     node_t *a,
     cp_dict_t *b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     /* If a is exactly on b (since we assume we have no
      * degenerate edges, this can only happen at src or
@@ -576,7 +576,7 @@ static case_t find(
     }
     else {
         /* Find the insertion position by dict lookup */
-        cp_dict_t *_e __unused = cp_dict_find_ref(ref, p, c->ey, cmp_ey, NULL, 0);
+        cp_dict_t *_e CP_UNUSED = cp_dict_find_ref(ref, p, c->ey, cmp_ey, NULL, 0);
         assert(_e == NULL);
         /* p is not part of active list => we have a start.  Depending on ref,
          * find s and t. */
@@ -675,7 +675,7 @@ static edge_t *next(edge_t *e)
 
 #define assert_inactive(e) \
     do{ \
-        edge_t *__e __unused = (e); \
+        edge_t *__e CP_UNUSED = (e); \
         assert(!cp_dict_is_member(&__e->node_ey)); \
         assert(__e->type == INACTIVE); \
         assert(__e->rm == NULL); \
@@ -686,7 +686,7 @@ static edge_t *next(edge_t *e)
 
 #define assert_active(e) \
     do{ \
-        edge_t *__e __unused = (e); \
+        edge_t *__e CP_UNUSED = (e); \
         assert(cp_dict_is_member(&__e->node_ey)); \
         assert((__e->type == TOP) || (__e->type == BOT)); \
         assert(__e->rm != NULL); \
@@ -1382,7 +1382,7 @@ extern bool cp_csg2_tri_set(
         cp_list_init(&p->out->list);
         LOG("INSERT (%s) -- %s -- (%s)\n",
             node_str(p->in->src), node_str(p), node_str(p->out->dst));
-        cp_dict_t *dup __unused =
+        cp_dict_t *dup CP_UNUSED =
             cp_dict_insert(&p->node_nx, &c.nx, cmp_nx, NULL, 0);
         if (dup != NULL) {
             cp_vchar_printf(&t->msg, "Duplicate point in polygon path.\n");
@@ -1394,7 +1394,7 @@ extern bool cp_csg2_tri_set(
     /* traverse in lexicographic order, maintaining the Y structure 'c.ey'. */
     size_t i = 0;
     for (cp_dict_each(_p, c.nx)) {
-        LOG("\nPOINT %"_Pz"u %"_Pz"u: %s\n", i, node->size, node_str(get_nx(_p)));
+        LOG("\nPOINT %"CP_Z"u %"CP_Z"u: %s\n", i, node->size, node_str(get_nx(_p)));
         if (!transition(&c, get_nx(_p))) {
             return false;
         }

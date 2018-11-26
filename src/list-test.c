@@ -54,7 +54,7 @@ static void show(num_t *base, num_t *start)
     num_t *n = start;
     fprintf(stderr, "LIST: ");
     for(;;) {
-        fprintf(stderr, "%"_Pz"u->", CP_PTRDIFF(n, base));
+        fprintf(stderr, "%"CP_Z"u->", CP_PTRDIFF(n, base));
         if (n->next == start) {
             break;
         }

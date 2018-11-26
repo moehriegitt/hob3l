@@ -455,7 +455,7 @@ static cp_csg3_face_t *face_init_from_point_ref(
 static int cmp_edge(
     cp_csg3_edge_t const *a,
     cp_csg3_edge_t const *b,
-    void *u __unused)
+    void *u CP_UNUSED)
 {
     /* by order: src < dst comes before src > dst. */
     if ((a->src->ref < a->dst->ref) != (b->src->ref < b->dst->ref)) {
@@ -540,7 +540,7 @@ static bool poly_make_edges(
         if (f->point.size != f->edge.size) {
             return msg(c, CP_ERR_FAIL, f->loc, NULL,
                 "Face edge array should be preallocated, "
-                "but point.size=%"_Pz"u, edge.size=%"_Pz"u\n"
+                "but point.size=%"CP_Z"u, edge.size=%"CP_Z"u\n"
                 " Internal Error.\n",
                 f->point.size, f->edge.size);
         }
@@ -1018,7 +1018,7 @@ static bool csg3_from_sphere(
 static int cmp_vec2_loc(
     cp_vec2_loc_t const *a,
     cp_vec2_loc_t const *b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     return cp_vec2_lex_cmp(&a->coord, &b->coord);
 }
@@ -1026,7 +1026,7 @@ static int cmp_vec2_loc(
 static int cmp_vec3_loc(
     cp_vec3_loc_t const *a,
     cp_vec3_loc_t const *b,
-    void *user __unused)
+    void *user CP_UNUSED)
 {
     return cp_vec3_lex_cmp(&a->coord, &b->coord);
 }
@@ -1138,12 +1138,12 @@ static bool csg3_from_polyhedron(
 
     if (s->points.size < 4) {
         return msg(c, c->opt->err_empty, s->loc, NULL,
-            "Polyhedron needs at least 4 points, but found only %"_Pz"u.\n",
+            "Polyhedron needs at least 4 points, but found only %"CP_Z"u.\n",
             s->points.size);
     }
     if (s->faces.size < 4) {
         return msg(c, c->opt->err_empty, s->loc, NULL,
-            "Polyhedron needs at least 4 faces, but found only %"_Pz"u.\n",
+            "Polyhedron needs at least 4 faces, but found only %"CP_Z"u.\n",
             s->faces.size);
     }
 
@@ -1253,7 +1253,7 @@ static bool csg3_from_polygon(
 
     if (s->points.size < 3) {
         return msg(c, c->opt->err_empty, s->loc, NULL,
-            "Polygons needs at least 3 points, but found only %"_Pz"u.\n",
+            "Polygons needs at least 3 points, but found only %"CP_Z"u.\n",
              s->points.size);
     }
 
@@ -1424,7 +1424,7 @@ static bool csg3_from_circle(
     mn.mat = m;
     xform_2d(&mn, o);
 
-    bool rev __unused = polygon_make_clockwise(o);
+    bool rev CP_UNUSED = polygon_make_clockwise(o);
     assert(!rev);
 
     return true;
@@ -1494,7 +1494,7 @@ static bool csg3_from_square(
     cp_v_push(&path->point_idx, 3);
     cp_v_push(&path->point_idx, 1);
 
-    bool rev __unused = polygon_make_clockwise(o);
+    bool rev CP_UNUSED = polygon_make_clockwise(o);
     assert(!rev);
 
     return true;

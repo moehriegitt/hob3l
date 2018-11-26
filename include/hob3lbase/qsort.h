@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_QSORT_H
-#define __CP_QSORT_H
+#ifndef CP_QSORT_H_
+#define CP_QSORT_H_
 
 #include <hob3lbase/arch.h>
 
@@ -23,4 +23,4 @@ extern void cp_qsort_r(
 
 #endif /* cp_qsort_r */
 
-#endif /* __CP_QSORT_H */
+#endif /* CP_QSORT_H_ */

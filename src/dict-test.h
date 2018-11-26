@@ -1,11 +1,11 @@
 /* -*- Mode: C -*- */
 
-#ifndef __CP_DICT_TEST_H
-#define __CP_DICT_TEST_H
+#ifndef CP_DICT_TEST_H_
+#define CP_DICT_TEST_H_
 
 /**
  * Unit tests for dictionary data structure
  */
 extern void cp_dict_test(void);
 
-#endif /* __CP_DICT_TEST_H */
+#endif /* CP_DICT_TEST_H_ */

@@ -209,7 +209,7 @@ static bool do_file(
     }
 
     if (opt->verbose >= 1) {
-        fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"_Pz"u, max=%g\n",
+        fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"CP_Z"u, max=%g\n",
             range.min, range.step, range.cnt,
             range.min + (range.step * cp_f(range.cnt - 1)));
     }

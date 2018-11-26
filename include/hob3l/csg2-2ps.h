@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_2PS_H
-#define __CP_CSG2_2PS_H
+#ifndef CP_CSG2_2PS_H_
+#define CP_CSG2_2PS_H_
 
 #include <hob3lbase/stream_tam.h>
 #include <hob3l/csg2_tam.h>

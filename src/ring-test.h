@@ -1,11 +1,11 @@
 /* -*- Mode: C -*- */
 
-#ifndef __CP_RING_TEST_H
-#define __CP_RING_TEST_H
+#ifndef CP_RING_TEST_H_
+#define CP_RING_TEST_H_
 
 /**
  * Unit tests for ring data structure.
  */
 extern void cp_ring_test(void);
 
-#endif /* __CP_RING_TEST_H */
+#endif /* CP_RING_TEST_H_ */

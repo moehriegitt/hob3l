@@ -86,11 +86,11 @@
 static void show(cp_ring_t *base, cp_ring_t *a, cp_ring_t *b)
 {
     fprintf(stderr, "RING: ");
-    fprintf(stderr, "%"_Pz"u--", CP_PTRDIFF(a, base));
+    fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(a, base));
     if (a != b) {
-        fprintf(stderr, "%"_Pz"u--", CP_PTRDIFF(b, base));
+        fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(b, base));
         for (cp_ring_each(n,a,b)) {
-            fprintf(stderr, "%"_Pz"u--", CP_PTRDIFF(n, base));
+            fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(n, base));
             if (cp_ring_is_end(n)) {
                 fprintf(stderr, "|");
             }

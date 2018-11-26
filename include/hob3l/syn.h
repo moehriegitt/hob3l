@@ -6,8 +6,8 @@
  * SCAD input file format, syntax layer.
  */
 
-#ifndef __CP_SYN_H
-#define __CP_SYN_H
+#ifndef CP_SYN_H_
+#define CP_SYN_H_
 
 #include <stdio.h>
 #include <hob3lbase/vec.h>
@@ -17,13 +17,13 @@
 #include <hob3l/syn-2scad.h>
 
 /** Create an instance */
-#define cp_syn_new(r, l) _cp_new(cp_syn_typeof, r, l)
+#define cp_syn_new(r, l) cp_new_(cp_syn_typeof, r, l)
 
 /** Cast w/ dynamic check */
-#define cp_syn_cast(t, s) _cp_cast(cp_syn_typeof, t, s)
+#define cp_syn_cast(t, s) cp_cast_(cp_syn_typeof, t, s)
 
 /** Cast w/ dynamic check */
-#define cp_syn_try_cast(t, s) _cp_try_cast(cp_syn_typeof, t, s)
+#define cp_syn_try_cast(t, s) cp_try_cast_(cp_syn_typeof, t, s)
 
 /**
  * Read a file into memory and store it in the input file table.
@@ -51,4 +51,4 @@ extern bool cp_syn_parse(
     cp_syn_tree_t *r,
     cp_syn_file_t *file);
 
-#endif /* __CP_SCAD_H */
+#endif /* CP_SCAD_H_ */

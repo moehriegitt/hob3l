@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_CSG2_2JS_H
-#define __CP_CSG2_2JS_H
+#ifndef CP_CSG2_2JS_H_
+#define CP_CSG2_2JS_H_
 
 #include <hob3lbase/stream_tam.h>
 #include <hob3l/csg2_tam.h>
@@ -18,4 +18,4 @@ extern void cp_csg2_tree_put_js(
     cp_stream_t *s,
     cp_csg2_tree_t *t);
 
-#endif /* __CP_CSG2_2JS_H */
+#endif /* CP_CSG2_2JS_H_ */

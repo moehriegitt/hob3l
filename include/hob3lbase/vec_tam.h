@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VEC_TAM_H
-#define __CP_VEC_TAM_H
+#ifndef CP_VEC_TAM_H_
+#define CP_VEC_TAM_H_
 
 #include <assert.h>
 #include <stdlib.h>
@@ -50,7 +50,7 @@ typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
 /**
  * Helper macro to allos cp_v_each to have optional arguments.
  */
-#define __cp_v_each_aux(i,v,skipA,skipZ,...) \
+#define cp_v_each_1_(i,v,skipA,skipZ,...) \
     cp_size_each(i, (v)->size, skipA, skipZ)
 
 /**
@@ -58,6 +58,6 @@ typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
  *
  * See cp_size_each() for details.
  */
-#define cp_v_each(i,...) __cp_v_each_aux(i, __VA_ARGS__, 0, 0)
+#define cp_v_each(i,...) cp_v_each_1_(i, __VA_ARGS__, 0, 0)
 
-#endif /* __CP_VEC_TAM_H */
+#endif /* CP_VEC_TAM_H_ */

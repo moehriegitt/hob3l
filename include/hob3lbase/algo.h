@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_ALGO_H
-#define __CP_ALGO_H
+#ifndef CP_ALGO_H_
+#define CP_ALGO_H_
 
 #include <hob3lbase/mat_gen_tam.h>
 
@@ -59,4 +59,4 @@ extern void cp_dim3_rot_unit_into_z(
     cp_vec3_t *r2,
     cp_vec3_t const *u);
 
-#endif /* __CP_ALGO_H */
+#endif /* CP_ALGO_H_ */

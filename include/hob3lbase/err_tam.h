@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_ERR_TAM_H
-#define __CP_ERR_TAM_H
+#ifndef CP_ERR_TAM_H_
+#define CP_ERR_TAM_H_
 
 #include <hob3lbase/vchar.h>
 
@@ -39,4 +39,4 @@ typedef struct {
     cp_loc_t loc2;
 } cp_err_t;
 
-#endif /* __CP_ERR_TAM_H */
+#endif /* CP_ERR_TAM_H_ */

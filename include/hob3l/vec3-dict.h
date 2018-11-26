@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_VEC3_DICT_H
-#define __CP_VEC3_DICT_H
+#ifndef CP_VEC3_DICT_H_
+#define CP_VEC3_DICT_H_
 
 #include <hob3lbase/mat_gen_tam.h>
 #include <hob3lbase/pool_tam.h>
@@ -19,4 +19,4 @@ extern cp_vec3_dict_node_t *cp_vec3_dict_insert(
     cp_vec3_t const *v,
     cp_loc_t loc);
 
-#endif /* __CP_VEC3_DICT_H */
+#endif /* CP_VEC3_DICT_H_ */

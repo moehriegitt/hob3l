@@ -1,8 +1,8 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_SYN_MSG_H
-#define __CP_SYN_MSG_H
+#ifndef CP_SYN_MSG_H_
+#define CP_SYN_MSG_H_
 
 #include <hob3lbase/err_tam.h>
 #include <hob3l/syn_tam.h>
@@ -81,4 +81,4 @@ extern bool cp_syn_msg(
     cp_loc_t loc2,
     char const *msg, ...);
 
-#endif /* __CP_SYN_MSG_H */
+#endif /* CP_SYN_MSG_H_ */

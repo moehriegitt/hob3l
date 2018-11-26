@@ -1,9 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
-#ifndef __CP_LIST_FWD_H
-#define __CP_LIST_FWD_H
+#ifndef CP_LIST_FWD_H_
+#define CP_LIST_FWD_H_
 
 typedef struct cp_list cp_list_t;
 
-#endif /* __CP_LIST_FWD_H */
+#endif /* CP_LIST_FWD_H_ */
