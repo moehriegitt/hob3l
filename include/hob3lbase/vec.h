@@ -305,7 +305,7 @@
         __typeof__(*_vec) *vec = _vec; \
         assert(vec != NULL); \
         CP_NEED_ALLOC_(vec); \
-        __typeof__(*vec->data) elem \
+        __typeof__(*vec->data) elem; \
         cp_v_extract_(&elem, (cp_v_t*)vec, cp_v_esz_(vec), pos); \
         elem; \
     })

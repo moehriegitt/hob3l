@@ -84,7 +84,7 @@ sub declare_var($$$)
         return "$type $name = $value;";
     }
     else {
-        return "$type $name";
+        return "$type $name;";
     }
 }
 
