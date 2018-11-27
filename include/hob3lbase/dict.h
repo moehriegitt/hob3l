@@ -38,7 +38,7 @@
 
 /**
  * Comparison function for all basic operations of the binary search tree. */
-typedef int (*__cp_dict_cmp_t)(
+typedef int (*cp_dict_cmp_t_)(
     void *a,
     void *b,
     void *user);
@@ -67,11 +67,11 @@ typedef struct {
             __typeof__(__idx), \
             cp_dict_t *, \
             __typeof__(__user)) = (cmp); \
-        __cp_dict_find_ref( \
+        cp_dict_find_ref_( \
             NULL,\
             (void*)(size_t)__idx, \
             root, \
-            (__cp_dict_cmp_t)__cmp, \
+            (cp_dict_cmp_t_)__cmp, \
             (void*)(size_t)__user, \
             0); \
     })
@@ -109,11 +109,11 @@ typedef struct {
             __typeof__(__idx), \
             cp_dict_t *, \
             __typeof__(__user)) = (cmp); \
-        __cp_dict_find_ref( \
+        cp_dict_find_ref_( \
             ref,\
             (void*)(size_t)__idx, \
             root, \
-            (__cp_dict_cmp_t)__cmp, \
+            (cp_dict_cmp_t_)__cmp, \
             (void*)(size_t)__user, \
             dup); \
     })
@@ -142,11 +142,11 @@ typedef struct {
             __typeof__(__idx), \
             cp_dict_t *, \
             __typeof__(__user)) = (cmp); \
-        __cp_dict_insert_by( \
+        cp_dict_insert_by_( \
             nnew, \
             (void*)(size_t)__idx, \
             root, \
-            (__cp_dict_cmp_t)__cmp, \
+            (cp_dict_cmp_t_)__cmp, \
             (void*)(size_t)__user, \
             dup); \
     })
@@ -203,11 +203,11 @@ extern cp_dict_t *cp_dict_step(
  *
  * Do not use, use cp_dict_find_ref() or cp_dict_find() instead.
  */
-extern cp_dict_t *__cp_dict_find_ref(
+extern cp_dict_t *cp_dict_find_ref_(
     cp_dict_ref_t *ref,
     void *idx,
     cp_dict_t *n,
-    __cp_dict_cmp_t cmp,
+    cp_dict_cmp_t_ cmp,
     void *user,
     int duplicate);
 
@@ -259,11 +259,11 @@ extern void cp_dict_insert_ref(
  *
  * Do not use, use cp_dict_insert_by() or cp_dict_insert() instead.
  */
-extern cp_dict_t *__cp_dict_insert_by(
+extern cp_dict_t *cp_dict_insert_by_(
     cp_dict_t *node,
     void *key,
     cp_dict_t **root,
-    __cp_dict_cmp_t cmp,
+    cp_dict_cmp_t_ cmp,
     void *user,
     int duplicate);
 

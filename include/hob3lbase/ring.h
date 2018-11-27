@@ -232,7 +232,7 @@ static inline void cp_ring_set_(
 /**
  * Internal: Get other edge
  */
-static inline cp_ring_t *__cp_ring_get_buddy(
+static inline cp_ring_t *cp_ring_get_buddy_(
     cp_ring_t const *a CP_UNUSED,
     size_t i)
 {
@@ -243,7 +243,7 @@ static inline cp_ring_t *__cp_ring_get_buddy(
  * Internal: Get the reference to a neighbour.
  *
  * This can be used to access the corresponding neighbour using
- * __cp_ring_(get|set)_neigh().
+ * cp_ring_(get|set)_neigh().
  */
 static inline size_t cp_ring_ref_(
     cp_ring_t const *a,
@@ -282,7 +282,7 @@ static inline cp_ring_t *cp_ring_next(
     cp_ring_t const *a,
     cp_ring_t const *b)
 {
-    return __cp_ring_get_buddy(b, cp_ring_ref_(b,a));
+    return cp_ring_get_buddy_(b, cp_ring_ref_(b,a));
 }
 
 /**

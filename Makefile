@@ -485,6 +485,10 @@ update-header: script/xproto
 	    $(srcdir)/src/*.c \
 	    $(srcdir)/src/*.h \
 	    $(srcdir)/include/*/*.h
+	$(srcdir)/script/mkmacro \
+	    $(srcdir)/src/*.c \
+	    $(srcdir)/src/*.h \
+	    $(srcdir)/include/*/*.h
 
 .PHONY: update-toc
 update-toc: README.md script/mktoc

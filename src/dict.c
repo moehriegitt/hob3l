@@ -165,11 +165,11 @@ static void _balance_insert(
  *
  * Do not use, use cp_dict_find_ref() or cp_dict_find() instead.
  */
-extern cp_dict_t *__cp_dict_find_ref(
+extern cp_dict_t *cp_dict_find_ref_(
     cp_dict_ref_t *ref,
     void *idx,
     cp_dict_t *n,
-    __cp_dict_cmp_t cmp,
+    cp_dict_cmp_t_ cmp,
     void *user,
     int duplicate)
 {
@@ -291,11 +291,11 @@ extern void cp_dict_insert_ref(
  *
  * Do not use, use cp_dict_insert_by() or cp_dict_insert() instead.
  */
-extern cp_dict_t *__cp_dict_insert_by(
+extern cp_dict_t *cp_dict_insert_by_(
     cp_dict_t *node,
     void *key,
     cp_dict_t **root,
-    __cp_dict_cmp_t cmp,
+    cp_dict_cmp_t_ cmp,
     void *user,
     int duplicate)
 {
@@ -307,7 +307,7 @@ extern cp_dict_t *__cp_dict_insert_by(
 
     /* find */
     cp_dict_ref_t ref;
-    cp_dict_t *n = __cp_dict_find_ref(&ref, key, *root, cmp, user, duplicate);
+    cp_dict_t *n = cp_dict_find_ref_(&ref, key, *root, cmp, user, duplicate);
     if (n != NULL) {
         /* found exact entry => no duplicates are wanted */
         return n;

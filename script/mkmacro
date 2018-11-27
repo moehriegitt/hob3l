@@ -4,10 +4,12 @@
 
 use strict;
 use warnings;
+use Data::Dumper;
 
 my $ID  = '(?:\b[_a-zA-Z](?:[_a-zA-Z0-9]*)\b)';
 my $ID_ = '(?:\b[a-zA-Z](?:[_a-zA-Z0-9]*)\b)';
 my $TYPE = '(?:'.$ID.'(?:\s*[*]+)?)';
+my $ANYTYPE = '(?:'.$TYPE.'|__typeof__\([^()]+\))';
 
 my $func_order = 0;
 sub end_func($)
@@ -15,8 +17,10 @@ sub end_func($)
     my ($func) = @_;
 
     $func->{order} = $func_order++;
-    $func->{_name} = "$func->{name}_";
+    $func->{_name} = $func->{name};
+    $func->{_name} =~ s/_+$//;
     $func->{_name} =~ s/^__+/_/;
+    $func->{_name} .= "_1_";
 
     # arg
     my $argstr = $func->{argstr};
@@ -37,13 +41,26 @@ sub end_func($)
     $func->{body} =~ s/^\s+//;
     $func->{body} =~ s/}\s*$//;
     $func->{body} =~ s/\s+$//;
-    while ($func->{body} =~ /($TYPE)[^\S\n]*($ID)[^\S\n]*[=;]/g) {
+    pos($func->{body}) = 0;
+    while ($func->{body} =~ /($ANYTYPE)[^\S\n]*($ID)[^\S\n]*[=;]/g) {
         my ($type, $name) = ($1, $2);
         die "Error: Duplicate variable: $name\n" if $func->{var}{$name};
         $func->{var}{$name} = {
             name => $name,
             type => $type,
         };
+    }
+    # Anything named '_l_' is also a variable.  This is for stuff this
+    # script cannot parse.
+    pos($func->{body}) = 0;
+    while ($func->{body} =~ /\b(_l_[a-zA-Z_0-9]+)\b/g) {
+        my ($name) = ($1);
+        unless ($func->{var}{$name}) {
+            $func->{var}{$name} = {
+                name => $name,
+                type => undef,
+            };
+        }
     }
 }
 
@@ -57,11 +74,11 @@ sub declare_var($$$)
     }
     elsif ($type eq 'val') {
         die "Error: Val '$name' needs initialisation value.\n" unless defined $value;
-        return "__typeof__($value) $name = ($value);";
+        return "__typeof__($value) $name = $value;";
     }
     elsif ($type =~ /^val\s*[*]+$/) {
         die "Error: Val '$name' needs initialisation value.\n" unless defined $value;
-        return "__typeof__(*($value)) *$name = ($value);";
+        return "__typeof__(*$value) *$name = $value;";
     }
     elsif (defined $value) {
         return "$type $name = $value;";
@@ -75,12 +92,19 @@ sub format_mac($)
 {
     my ($func) = @_;
 
+    if (($func->{ret} ne 'void') &&
+        ($func->{ret} ne 'ref') &&
+        ($func->{ret} ne 'val'))
+    {
+        die "Error: Return type '$func->{ret}' cannot be enforced.  Use 'void', 'val', or 'ref'.\n";
+    }
+
     $func->{need_stmt} = 0;
     $func->{need_aux} = scalar(keys %{ $func->{var} }) > 0;
 
     # add declarations for parameters:
     for my $a (@{ $func->{arg} }) {
-        my $need_decl = ($a->{type} eq 'type');
+        my $need_decl = $a->{type} ne 'val';
         unless ($need_decl) {
             my $cnt = ($func->{body} =~ s/\b$a->{name}\b/$a->{name}/g);
             $need_decl = ($cnt >= 2);
@@ -121,11 +145,40 @@ sub format_mac($)
     # replace decls in body:
     for my $a (values %{ $func->{var} }) {
         my $name = $a->{name};
-        $body =~ s($TYPE[^\S\n]*$name[^\S\n]*(?:=\s*([^;]+))?;)
+        $body =~ s($ANYTYPE[^\S\n]*$name[^\S\n]*(?:=\s*([^;]+))?;)
                   (declare_var($a->{type}, $name, $1))gex
     }
     $func->{mbody} = $body;
 
+}
+
+sub join_long($$$$@)
+{
+    my ($pre, $post, $nl, $sep, @elem) = @_;
+    my $out = '';
+
+    my $line = $pre;
+    my $s = '';
+    for my $elem (@elem) {
+        if (length($line.$s.$elem.$post) > (78 - length($sep.$nl))) {
+            $out.= $line.$s.$nl."\n";
+            $pre =~ /^(\s+)/;
+            $line = "$1    $elem";
+        }
+        else {
+            $line.= $s.$elem;
+        }
+        $s = $sep;
+    }
+    $out .= $line.$post;
+}
+
+sub gensym($)
+{
+    my ($n) = @_;
+    $n = "_$n";
+    $n =~ s/__+/_/g;
+    return "CP_GENSYM($n)";
 }
 
 sub make_mac($)
@@ -138,6 +191,16 @@ sub make_mac($)
     if ($func->{ret} eq 'void') {
         $start = 'do{';
         $end = '}while(0)';
+    }
+    elsif ($func->{ret} eq 'ref') {
+        if (!$func->{need_stmt}) {
+            $start = '(*(';
+            $end = '))';
+        }
+        else {
+            $start = '(*({';
+            $end = '}))';
+        }
     }
     elsif (!$func->{need_stmt}) {
         $start = '(';
@@ -161,75 +224,152 @@ sub make_mac($)
         )."\n".
         "    $end\n";
 
+    my $doxy = $func->{doxy} // '';
     unless ($func->{need_aux}) {
         return
+            "$doxy".
             "#define $func->{name}($arg1) \\\n".
             "$body1";
     }
 
     return
-        "#define $func->{_name}_aux($arg1) \\\n".
-        "$body1".
-        "\n".
+        "$doxy".
         "#define $func->{name}(".
         join(',',
             (map { "$_->{name}" } @{ $func->{arg} })
         ).
         ") \\\n".
-        "    $func->{_name}_aux(".
-        join(',',
-            (map { "CP_GENSYM(_$_)" } @decl),
+        join_long("    $func->{_name}(", ")", '\\', ', ',
+            (map { gensym($_) } @decl),
             (map { $_->{type} eq 'type' ? $_->{name} : "($_->{name})" } @{ $func->{arg} })
-        ).")\n";
+        )."\n".
+        "\n".
+        "#define $func->{_name}($arg1) \\\n".
+        "$body1";
 
 }
 
-my %func = ();
+sub insert_macros($$)
+{
+    my ($fnh, $def) = @_;
+    open(my $f, '<', $fnh) or die "Error: Unable to open '$fnh': $@\n";
+    my $s = do {
+        local $/ = undef;
+        <$f>;
+    };
+    close $f;
 
-my $m = 0; # 1=args, 2=body
-my $func = undef;
-while (my $s = <>) {
-    if (($m == 0) && ($s =~ /^macro\b/)) {
-        die "Error: Unable to parse macro: $s"
-            unless $s =~ /^macro\s+($TYPE)\s*($ID)\s*(\(.*)$/;
-        $m = 1;
-        my ($ret, $name, $rest) = ($1, $2, $3);
-        my $arg = $rest;
-        my $body = "";
-        if ($rest =~ /^(.*)(\{.*)$/) {
-            $arg = $1;
-            $body = $2;
-            $m = 2;
-        }
-        if ($arg =~ /\)$/) {
-            $m = 2;
-        }
-        if ($body =~ /}$/) {
-            $m = 0;
-            end_func($func);
-        }
-        $func = $func{$name} = {
-            ret => $ret,
-            name => $name,
-            argstr => $rest,
-            body => $body,
-        };
+    $def =
+        "/* BEGIN MACRO * DO NOT EDIT, use 'mkmacro' instead. */\n\n".
+        $def.
+        "/* END MACRO */";
+
+    $s =~ s(^\/\* \s+ BEGIN \s+ MACRO \b
+            .*
+            \b END \s+ MACRO \s+ \*\/$)
+           ($def)xsm
+        or die "Error: No /* BEGIN MACRO */ ... /* END MACRO */ found.\n";
+
+    open(my $g, '>', "$fnh.new") or die "Error: Unable to open '$fnh.new': $@\n";
+    print { $g } $s;
+    close($g);
+
+    rename("$fnh.new", "$fnh") or die "Error: Unable to rename '$fnh.new' -> '$fnh': $@\n";
+}
+
+
+my %module = ();
+
+my @file = @ARGV;
+for my $file (@file) {
+    if ($file =~ m(^(?:.*/)?([^/]+)[.]([ch])$)) {
+        my ($name, $ext) = ($1, $2);
+        $module{$name}{name} = $name;
+        my $m = $module{$name};
+        $m->{ext}{$ext}{ext}  = $ext;
+        $m->{ext}{$ext}{file} = $file;
     }
-    elsif ($m == 1) {
-        $func->{argstr}.= $s;
-        if ($s =~ /\)$/) {
-            $m = 2;
-        }
-    }
-    elsif ($m == 2) {
-        $func->{body}.= $s;
-        if ($s =~ /^}$/) {
-            $m = 0;
-            end_func($func);
-        }
+    else {
+        die "Error: Unrecognised file name: '$file', expected *.c or *.h\n";
     }
 }
 
-for my $f (sort { $a->{order} <=> $b->{order} } values %func) {
-    print make_mac($f)."\n";
+MODULE: for my $m (sort { $a->{name} cmp $b->{name} } values %module) {
+    my $fnc = $m->{ext}{c}{file};
+    my $fnh = $m->{ext}{h}{file};
+    next MODULE unless $fnc && $fnh;
+
+    open(my $f, '<', $fnc) or die "Error: Unable to open '$fnc': $@\n";
+    my %func = ();
+
+    my $m = 0; # 1=args, 2=body
+    my $doxy = undef;
+    my $func = undef;
+    while (my $s = <$f>) {
+        if (($m == 0) && ($s =~ /^macro\b/)) {
+            die "Error: Unable to parse macro: $s"
+                unless $s =~ /^macro\s+($TYPE)\s*($ID)\s*(\(.*)$/;
+            $m = 1;
+            my ($ret, $name, $rest) = ($1, $2, $3);
+            my $arg = $rest;
+            my $body = "";
+            if ($rest =~ /^(.*)(\{.*)$/) {
+                $arg = $1;
+                $body = $2;
+                $m = 2;
+            }
+            if ($arg =~ /\)$/) {
+                $m = 2;
+            }
+            if ($body =~ /}$/) {
+                $m = 0;
+                end_func($func);
+            }
+            $func = $func{$name} = {
+                ret => $ret,
+                name => $name,
+                argstr => $rest,
+                body => $body,
+                doxy => $doxy,
+            };
+        }
+        elsif ($m == 1) {
+            $func->{argstr}.= $s;
+            if ($s =~ /\)$/) {
+                $m = 2;
+            }
+        }
+        elsif ($m == 2) {
+            $func->{body}.= $s;
+            if ($s =~ /^}$/) {
+                $m = 0;
+                end_func($func);
+            }
+        }
+        elsif (($m == 0) && ($s =~ m(^/\*\*))) {
+            $doxy = $s;
+            $m = 10;
+            if ($s =~ m(\*/\s*$)) {
+                $m = 0;
+            }
+        }
+        elsif ($m == 10) {
+            $doxy .= $s;
+            if ($s =~ m(\*/\s*$)) {
+                $m = 0;
+            }
+        }
+        else {
+            $doxy = undef;
+        }
+    }
+    close $f;
+
+    if (scalar(values %func)) {
+        my $def = '';
+        for my $func (sort { $a->{order} <=> $b->{order} } values %func) {
+            $def.= make_mac($func)."\n";
+        }
+        insert_macros($fnh, $def);
+    }
 }

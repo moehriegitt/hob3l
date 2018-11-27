@@ -7,11 +7,585 @@
 #include <hob3lbase/vec_tam.h>
 #include <hob3lbase/qsort.h>
 
-#define cp_v_nth_ptr_(data, count, esz) \
-    ((__typeof__(data))((size_t)(1?(data):((void*)0)) + cp_v_size_(count, esz)))
+/*
+ * (Semi) type-safe and convenience macro layer.
+ *
+ * We cannot really check that the vector pointer passed in is actually
+ * constructed using CP_VEC_T().
+ *
+ * Some of the macros that do not change the structure and that do not
+ * depend on this size of the vector can also be used for CP_ARR_T()
+ * declared types (which misses the alloc slot).
+ */
 
-#define cp_v_ptrdiff_(esz, a, b) \
-    (CP_PTRDIFF((char const *)(1?(a):((void*)0)), (char const *)(1?(b):((void*)0))) / (esz))
+/* BEGIN MACRO * DO NOT EDIT, use 'mkmacro' instead. */
+
+/**
+ * Internal: Pointer to element in vector
+ */
+#define cp_v_nth_elem_(data,count,esz) \
+    cp_v_nth_elem_1_(CP_GENSYM(_data), (data), (count), (esz))
+
+#define cp_v_nth_elem_1_(data,_data,count,esz) \
+    ({ \
+        __typeof__(*_data) *data = _data; \
+        (__typeof__(data))((size_t)data + cp_v_size_(count, esz)); \
+    })
+
+/**
+ * Internal: Difference of indexes in a vector
+ */
+#define cp_v_ptrdiff_(esz,a,b_) \
+    cp_v_ptrdiff_1_(CP_GENSYM(_a), CP_GENSYM(_b), CP_GENSYM(_esz), (esz), \
+        (a), (b_))
+
+#define cp_v_ptrdiff_1_(a,b,esz,_esz,_a,b_) \
+    ({ \
+        size_t esz = _esz; \
+        __typeof__(*_a) *a = _a; \
+        __typeof__(a) b = b_; \
+        CP_PTRDIFF((char const *)a, (char const *)b) / esz; \
+    })
+
+/**
+ * Clear vector.
+ */
+#define cp_v_init(vec) \
+    cp_v_init_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_init_1_(vec,_vec) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_ZERO(vec); \
+    }while(0)
+
+/**
+ * Initialises a vector with a given size and 0 contents.
+ */
+#define cp_v_init0(vec,sz) \
+    cp_v_init0_1_(CP_GENSYM(_sz), CP_GENSYM(_vec), (vec), (sz))
+
+#define cp_v_init0_1_(sz,vec,_vec,_sz) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t sz = _sz; \
+        assert(vec != NULL); \
+        vec->data = CP_NEW_ARR(*vec->data, sz); \
+        vec->size = sz; \
+        if (cp_countof(vec->word) == 3) { \
+            vec->word[2] = sz; \
+        } \
+    }while(0)
+
+/**
+ * Clear the vector and deallocate it, then zero it.
+ */
+#define cp_v_fini(vec) \
+    cp_v_fini_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_fini_1_(vec,_vec) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        cp_v_fini_((cp_v_t*)vec); \
+        CP_ZERO(vec); \
+    }while(0)
+
+/**
+ * The size of the vector's data
+ */
+#define cp_v_esz_(vec) \
+    cp_v_esz_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_esz_1_(vec,_vec) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        sizeof(vec->data[0]); \
+    })
+
+/**
+ * Clear the vector, i.e., set number of elements to 0.
+ */
+#define cp_v_clear(vec,size) \
+    cp_v_clear_1_(CP_GENSYM(_vec), (vec), (size))
+
+#define cp_v_clear_1_(vec,_vec,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        cp_v_clear_((cp_v_t*)vec, cp_v_esz_(vec), size); \
+    }while(0)
+
+/**
+ * Set the size of the vector.
+ * If it needs enlarging, the tail will be zeroed.
+ */
+#define cp_v_set_size(vec,size) \
+    cp_v_set_size_1_(CP_GENSYM(_vec), (vec), (size))
+
+#define cp_v_set_size_1_(vec,_vec,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        cp_v_set_size_((cp_v_t*)vec, cp_v_esz_(vec), size); \
+    }while(0)
+
+/**
+ * Make sure the vector has a given size, possibly enlarging
+ * by zeroing the tail.
+ */
+#define cp_v_ensure_size(vec,size) \
+    cp_v_ensure_size_1_(CP_GENSYM(_vec), (vec), (size))
+
+#define cp_v_ensure_size_1_(vec,_vec,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        cp_v_ensure_size_((cp_v_t*)vec, cp_v_esz_(vec), size); \
+    }while(0)
+
+/**
+ * Copy one element into the vector.
+ */
+#define cp_v_copy1(vec,pos,elem) \
+    cp_v_copy1_1_(CP_GENSYM(_elem_p), CP_GENSYM(_vec), (vec), (pos), \
+        (elem))
+
+#define cp_v_copy1_1_(elem_p,vec,_vec,pos,elem) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        void const * elem_p = &elem; \
+        cp_v_copy_arr_((cp_v_t*)vec, cp_v_esz_(vec), pos, elem_p, 1); \
+    }while(0)
+
+/**
+ * Copy from one vector to another, overwriting.
+ */
+#define cp_v_copy(vec,pos,src,pos2,cnt) \
+    cp_v_copy_1_(CP_GENSYM(_vec), CP_GENSYM(_vec2), (vec), (pos), (src), \
+        (pos2), (cnt))
+
+#define cp_v_copy_1_(vec,vec2,_vec,pos,src,pos2,cnt) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        __typeof__(*vec) const * vec2 = src; \
+        assert(vec2 != NULL); \
+        cp_v_copy_( \
+            (cp_v_t*)vec, cp_v_esz_(vec), pos, (cp_v_t const *)vec2, pos2, cnt); \
+    }while(0)
+
+/**
+ * Copy from one vector to another without resizing.
+ */
+#define cp_v_copy_arr(vec,pos,src,pos2,cnt) \
+    cp_v_copy_arr_1_(CP_GENSYM(_cnt), CP_GENSYM(_pos), CP_GENSYM(_pos2), \
+        CP_GENSYM(_vec), CP_GENSYM(_vec2), (vec), (pos), (src), (pos2), \
+        (cnt))
+
+#define cp_v_copy_arr_1_(cnt,pos,pos2,vec,vec2,_vec,_pos,src,_pos2,_cnt) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t pos = _pos; \
+        size_t pos2 = _pos2; \
+        size_t cnt = _cnt; \
+        assert(vec != NULL); \
+        __typeof__(*vec) const * vec2 = src; \
+        assert(vec2 != NULL); \
+        assert(pos <= vec->size); \
+        assert(cnt <= vec->size); \
+        assert(pos + cnt <= vec->size); \
+        assert(pos2 <= vec2->size); \
+        assert(cnt <= vec2->size); \
+        assert(pos2 + cnt <= vec2->size); \
+        memmove(&vec->data[pos], &vec2->data[pos2], cp_v_esz_(vec) * cnt); \
+    }while(0)
+
+/**
+ * Insert zero elements at a given position. */
+#define cp_v_inflate(vec,pos,size) \
+    cp_v_inflate_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+
+#define cp_v_inflate_1_(vec,_vec,pos,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        cp_v_inflate_((cp_v_t*)vec, cp_v_esz_(vec), pos, size); \
+    }while(0)
+
+/**
+ * Insert multiple values from an array into the vector at a given position.
+ */
+#define cp_v_insert_arr(vec,pos,elem_,size) \
+    cp_v_insert_arr_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos), \
+        (elem_), (size))
+
+#define cp_v_insert_arr_1_(elem,vec,_vec,pos,elem_,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        __typeof__(*vec->data) const * elem = elem_; \
+        cp_v_insert_arr_((cp_v_t*)vec, cp_v_esz_(vec), pos, elem, size); \
+    }while(0)
+
+/**
+ * Insert one value into the vector at a given position
+ */
+#define cp_v_insert1(vec,pos,elem_) \
+    cp_v_insert1_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos), \
+        (elem_))
+
+#define cp_v_insert1_1_(elem,vec,_vec,pos,elem_) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        __typeof__(*vec->data) elem = elem_; \
+        cp_v_insert_arr_((cp_v_t*)vec, cp_v_esz_(vec), pos, &elem, 1); \
+    }while(0)
+
+/**
+ * Insert one vector into the other at a given position
+ */
+#define cp_v_insert(vec,pos,vec2) \
+    cp_v_insert_1_(CP_GENSYM(_data_), CP_GENSYM(_vec), CP_GENSYM(_vec2), \
+        (vec), (pos), (vec2))
+
+#define cp_v_insert_1_(data_,vec,vec2,_vec,pos,_vec2) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        __typeof__(*_vec2) *vec2 = _vec2; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        assert(vec2 != NULL); \
+        __typeof__(*vec->data) const * data_ = vec2->data; \
+        cp_v_insert_arr_( \
+            (cp_v_t*)vec, cp_v_esz_(vec), pos, data_, vec2->size); \
+    }while(0)
+
+/**
+ * Remove elements from the vector
+ */
+#define cp_v_remove(vec,pos,size) \
+    cp_v_remove_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+
+#define cp_v_remove_1_(vec,_vec,pos,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        cp_v_remove_((cp_v_t*)vec, cp_v_esz_(vec), pos, size); \
+    }while(0)
+
+/**
+ * Reverse the order of elements in part of the vector.
+ */
+#define cp_v_reverse(vec,pos,size) \
+    cp_v_reverse_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+
+#define cp_v_reverse_1_(vec,_vec,pos,size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        cp_v_reverse_((cp_v_t*)vec, cp_v_esz_(vec), pos, size); \
+    }while(0)
+
+/**
+ * Extract an element from the vector.
+ */
+#define cp_v_extract(vec,pos) \
+    cp_v_extract_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos))
+
+#define cp_v_extract_1_(elem,vec,_vec,pos) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        CP_NEED_ALLOC_(vec); \
+        __typeof__(*vec->data) elem \
+        cp_v_extract_(&elem, (cp_v_t*)vec, cp_v_esz_(vec), pos); \
+        elem; \
+    })
+
+/**
+ * Sort a portion of the vector.
+ */
+#define cp_v_qsort(vec,pos,size,cmp,user) \
+    cp_v_qsort_1_(CP_GENSYM(_l_cmp), CP_GENSYM(_user), CP_GENSYM(_vec), \
+        (vec), (pos), (size), (cmp), (user))
+
+#define cp_v_qsort_1_(_l_cmp,user,vec,_vec,pos,size,cmp,_user) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        __typeof__(_user) user = _user; \
+        assert(vec != NULL); \
+        int (* _l_cmp)( \
+            __typeof__(*vec->data) const *, \
+            __typeof__(*vec->data) const *, \
+            __typeof__(*user) *) = cmp; \
+        cp_v_qsort_((cp_v_t*)vec, cp_v_esz_(vec), pos, size, \
+            (int(*)(void const *, void const *, void *))_l_cmp, \
+            (void *)(size_t)user); \
+    }while(0)
+
+/**
+ * Binary search a key in the vector.
+ */
+#define cp_v_bsearch(key,vec,cmp,user) \
+    cp_v_bsearch_1_(CP_GENSYM(_l_cmp), CP_GENSYM(_key), CP_GENSYM(_user), \
+        CP_GENSYM(_vec), (key), (vec), (cmp), (user))
+
+#define cp_v_bsearch_1_(_l_cmp,key,user,vec,_key,_vec,cmp,_user) \
+    ({ \
+        __typeof__(*_key) *key = _key; \
+        __typeof__(*_vec) *vec = _vec; \
+        __typeof__(*_user) *user = _user; \
+        assert(vec != NULL); \
+        int (*_l_cmp)( \
+            __typeof__(*key) const *, \
+            __typeof__(*vec->data) const *, \
+            __typeof__(user)) = cmp; \
+        cp_v_bsearch_( \
+            (void const *)key, \
+            (cp_v_t*)vec, cp_v_esz_(vec), \
+            (int(*)(void const *, void const *, void *))_l_cmp, \
+            (void*)(size_t)user); \
+    })
+
+/**
+ * Compute the index of a pointer into the vector.
+ */
+#define cp_v_idx(vec,ptr_) \
+    cp_v_idx_1_(CP_GENSYM(_idx), CP_GENSYM(_ptr), CP_GENSYM(_vec), (vec), \
+        (ptr_))
+
+#define cp_v_idx_1_(idx,ptr,vec,_vec,ptr_) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        __typeof__(*vec->data) const * ptr = ptr_; \
+        assert(vec != NULL); \
+        assert(ptr >= vec->data); \
+        assert(ptr <= (vec->data + vec->size)); \
+        size_t idx = CP_PTRDIFF(ptr, vec->data); \
+        assert(idx < vec->size); \
+        idx; \
+    })
+
+/**
+* Initialises the vector with a copy of the given data.
+*/
+#define cp_v_init_with(vec,arr_,size) \
+    cp_v_init_with_1_(CP_GENSYM(_arr), CP_GENSYM(_size), CP_GENSYM(_vec), \
+        (vec), (arr_), (size))
+
+#define cp_v_init_with_1_(arr,size,vec,_vec,arr_,_size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t size = _size; \
+        cp_v_init0(vec, size); \
+        __typeof__(*vec->data) const * arr = arr_; \
+        assert(arr != NULL); \
+        memcpy(vec->data, arr, sizeof(*arr) * size); \
+    }while(0)
+
+/**
+ * Delete the vector and its contents.
+ * Additional to cp_v_fini(), this also deletes the vector itself.
+ */
+#define cp_v_delete(vec) \
+    cp_v_delete_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_delete_1_(vec,_vec) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        cp_v_fini(*vec); \
+        CP_FREE(*vec); \
+    }while(0)
+
+/**
+ * Remove the last element from the vector and return it.
+ */
+#define cp_v_pop(vec) \
+    cp_v_pop_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_pop_1_(vec,_vec) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        cp_v_extract(vec, vec->size - 1); \
+    })
+
+/**
+ * Append a zeroed element at the end of a vector and return a pointer to it.
+ */
+#define cp_v_push0(vec) \
+    cp_v_push0_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_push0_1_(vec,_vec) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        cp_v_inflate(vec, vec->size, 1); \
+        &vec->data[vec->size-1]; \
+    })
+
+/**
+ * Append multiple elements to the end of a vector.
+ */
+#define cp_v_append_arr(vec,elem,size) \
+    cp_v_append_arr_1_(CP_GENSYM(_size), CP_GENSYM(_vec), (vec), (elem), \
+        (size))
+
+#define cp_v_append_arr_1_(size,vec,_vec,elem,_size) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        __typeof__(_size) size = _size; \
+        assert(vec != NULL); \
+        cp_v_insert_arr(vec, vec->size, elem, size); \
+    }while(0)
+
+/**
+ * Append a single element to the end of a vector and return a pointer to it.
+ */
+#define cp_v_push(vec,elem) \
+    cp_v_push_1_(CP_GENSYM(_vec), (vec), (elem))
+
+#define cp_v_push_1_(vec,_vec,elem) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        cp_v_insert1(vec, vec->size, elem); \
+        &vec->data[vec->size-1]; \
+    })
+
+/**
+ * Append a vector to another vector.
+ */
+#define cp_v_append(vec,vec2) \
+    cp_v_append_1_(CP_GENSYM(_vec), (vec), (vec2))
+
+#define cp_v_append_1_(vec,_vec,vec2) \
+    do{ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        cp_v_insert(vec, vec->size, vec2); \
+    }while(0)
+
+/**
+ * Reference to last element of vector
+ */
+#define cp_v_last(vec) \
+    cp_v_last_1_(CP_GENSYM(_vec), (vec))
+
+#define cp_v_last_1_(vec,_vec) \
+    (*({ \
+        __typeof__(*_vec) *vec = _vec; \
+        assert(vec != NULL); \
+        &vec->data[vec->size - 1]; \
+    }))
+
+/**
+ * Reference to last but ith element of vector
+ */
+#define cp_v_last_but(vec,i) \
+    cp_v_last_but_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+
+#define cp_v_last_but_1_(i,vec,_vec,_i) \
+    (*({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        assert(vec != NULL); \
+        assert(i < vec->size); \
+        &vec->data[vec->size - 1 - i]; \
+    }))
+
+/**
+ * Pointer to an element of the vector, or NULL if index is out of range.
+ */
+#define cp_v_nth_ptr0(vec,i) \
+    cp_v_nth_ptr0_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+
+#define cp_v_nth_ptr0_1_(i,vec,_vec,_i) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        ((vec != NULL) && (i < vec->size)) ? &vec->data[i] : NULL; \
+    })
+
+/**
+ * Pointer to an element of the vector.
+ */
+#define cp_v_nth_ptr(vec,i) \
+    cp_v_nth_ptr_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+
+#define cp_v_nth_ptr_1_(i,vec,_vec,_i) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        assert(vec != NULL); \
+        assert((i < vec->size) || \
+            (fprintf(stderr, "ERR: i=%"CP_Z"u, vec->size=%"CP_Z"u\n", \
+                i, vec->size),0)); \
+        &vec->data[i]; \
+    })
+
+/**
+ * Reference to an element of the vector.
+ */
+#define cp_v_nth(vec,i) \
+    (*( \
+        cp_v_nth_ptr((vec), (i)) \
+    ))
+
+/**
+ * Extract a bit from an integer vector.
+ */
+#define cp_v_bit_get(vec,i) \
+    cp_v_bit_get_1_(CP_GENSYM(_i), CP_GENSYM(_ib), CP_GENSYM(_ik), \
+        CP_GENSYM(_iv), CP_GENSYM(_vec), (vec), (i))
+
+#define cp_v_bit_get_1_(i,ib,ik,iv,vec,_vec,_i) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        size_t ib = i / (8 * sizeof(*vec->data)); \
+        assert(ib < vec->size); \
+        size_t ik = i % (8 * sizeof(*vec->data)); \
+        size_t iv = ((size_t)1) << ik; \
+        ((vec->data[ib] & iv) != 0); \
+    })
+
+/**
+ * Set a bit in an integer vector.
+ */
+#define cp_v_bit_set(vec,i,n) \
+    cp_v_bit_set_1_(CP_GENSYM(_i), CP_GENSYM(_ib), CP_GENSYM(_ik), \
+        CP_GENSYM(_iv), CP_GENSYM(_n), CP_GENSYM(_vec), (vec), (i), (n))
+
+#define cp_v_bit_set_1_(i,ib,ik,iv,n,vec,_vec,_i,_n) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        size_t n = _n; \
+        size_t ib = i / (8 * sizeof(*vec->data)); \
+        assert(ib < vec->size); \
+        size_t ik = i % (8 * sizeof(*vec->data)); \
+        size_t iv = ((size_t)1) << ik; \
+        vec->data[ib] = (vec->data[ib] | iv) ^ (n ? 0 : iv); \
+    })
+
+/* END MACRO */
+
+#define CP_NEED_ALLOC_(vec) \
+    ((void)(vec)->alloc)
+
 
 /**
  * Internal: Shallow delete a vector: remove all sub-structures, but not the
@@ -67,7 +641,7 @@ extern void cp_v_set_size_(
  * Internal: Insert a sequence of NULL into a vector at a given position.
  * Returns the pointer to the first element of the newly inserted area.
  */
-extern void *__cp_v_inflate(
+extern void *cp_v_inflate_(
     /** [IN/OUT] vector to append to */
     cp_v_t *vec,
     /** Element size */
@@ -107,7 +681,7 @@ extern void cp_v_copy_arr_(
  *
  * is equivalent to
  *
- *    __cp_v_append(x, x, c);
+ *    cp_v_append_(x, x, c);
  */
 extern void cp_v_copy_(
     /** Destination of the copying. */
@@ -134,7 +708,7 @@ extern void cp_v_copy_(
  * Internal: Insert an array of elements to a vector to a given position.
  * Returns the pointer to the first element of the newly inserted area.
  */
-extern void *__cp_v_insert_arr(
+extern void *cp_v_insert_arr_(
     /** [IN/OUT] vector to append to */
     cp_v_t *dst,
     /** [IN] Element size */
@@ -264,339 +838,5 @@ static inline size_t cp_v_bsearch_(
 {
     return cp_bsearch(key, vec->data, vec->size, esz, cmp, user);
 }
-
-
-/*
- * (Semi) type-safe and convenience macro layer.
- *
- * We cannot really check that the vector pointer passed in is actually
- * constructed using CP_VEC_T().
- *
- * Some of the macros that do not change the structure and that do not
- * depend on this size of the vector can also be used for CP_ARR_T()
- * declared types (which misses the alloc slot).
- */
-
-#define CP_NEED_ALLOC_(vec) \
-    ((void)(vec)->alloc)
-
-#define cp_v_init(vec) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL); \
-        CP_ZERO(__vec); \
-    })
-
-/**
- * Initialises a vector with a given size and 0 contents */
-#define cp_v_init0(_vec, _size) \
-    ({ \
-        __typeof__(*(_vec)) *__vec = (_vec); \
-        size_t __size = (_size); \
-        assert(__vec != NULL); \
-        __vec->data = CP_NEW_ARR(*__vec->data, __size); \
-        __vec->size = __size; \
-        if (cp_countof(__vec->word) == 3) { \
-            __vec->word[2] = __size; \
-        } \
-    })
-
-#define cp_v_fini(vec) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        cp_v_fini_((cp_v_t*)__vec); \
-        CP_ZERO(__vec); \
-    })
-
-#define cp_v_esz_(vec) (sizeof((vec)->data[0]))
-
-#define cp_v_clear(vec, size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        cp_v_clear_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
-    })
-
-#define cp_v_set_size(vec, size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        cp_v_set_size_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
-    })
-
-#define cp_v_ensure_size(vec, size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        cp_v_ensure_size_((cp_v_t*)__vec, cp_v_esz_(__vec), size); \
-    })
-
-#define cp_v_copy1(vec,pos,elem) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec)->data) __elem = (elem); \
-        cp_v_copy_arr_(\
-            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)&__elem, 1); \
-    })
-
-#define cp_v_copy(vec,pos,vec2,pos2,cnt) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec)) const *__vec2 = (vec2); \
-        assert(__vec2 != NULL);  \
-        cp_v_copy_(\
-            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (cp_v_t const *)__vec2, pos2, cnt); \
-    })
-
-#define cp_v_copy_arr(vec,pos,vec2,pos2,cnt) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        __typeof__(*(vec)) const *__vec2 = (vec2); \
-        assert(__vec2 != NULL);  \
-        size_t __pos = (pos); \
-        size_t __pos2 = (pos2); \
-        size_t __cnt = (cnt); \
-        assert(__pos <= __vec->size); \
-        assert(__cnt <= __vec->size); \
-        assert(__pos + __cnt <= __vec->size); \
-        assert(__pos2 <= __vec2->size); \
-        assert(__cnt <= __vec2->size); \
-        assert(__pos2 + __cnt <= __vec2->size); \
-        memmove(&__vec->data[__pos], &__vec2->data[__pos2], cp_v_esz_(__vec) * __cnt); \
-    })
-
-#define cp_v_inflate(vec,pos,size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __cp_v_inflate((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
-    })
-
-#define cp_v_insert_arr(vec,pos,elem,size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec)->data) const *__elem = (elem); \
-        __cp_v_insert_arr(\
-            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)__elem, size); \
-    })
-
-#define cp_v_insert1(vec,pos,elem) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec)->data) __elem = (elem); \
-        __cp_v_insert_arr(\
-            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)&__elem, 1); \
-    })
-
-#define cp_v_insert(vec,pos,vec2) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec2)) const *__vec2 = (vec2); \
-        assert(__vec2 != NULL);  \
-        __typeof__(*(vec)->data) const *__data = __vec2->data; \
-        __cp_v_insert_arr(\
-            (cp_v_t*)__vec, cp_v_esz_(__vec), pos, (void const *)(size_t)__data, __vec2->size); \
-    })
-
-#define cp_v_remove(vec,pos,size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        cp_v_remove_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
-    })
-
-#define cp_v_reverse(vec,pos,size) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL); \
-        cp_v_reverse_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size); \
-    })
-
-#define cp_v_extract(vec,pos) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        CP_NEED_ALLOC_(__vec); \
-        __typeof__(*(vec)->data) __elem; \
-        cp_v_extract_(&__elem, (cp_v_t*)__vec, cp_v_esz_(__vec), pos); \
-        __elem; \
-    })
-
-#define cp_v_qsort(vec, pos, size, cmp, user) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        assert(__vec != NULL);  \
-        int (*__cmp)( \
-            __typeof__(*__vec->data) const *, \
-            __typeof__(*__vec->data) const *, \
-            __typeof__(*(user)) *) = (cmp); \
-        cp_v_qsort_((cp_v_t*)__vec, cp_v_esz_(__vec), pos, size, \
-            (int(*)(void const *, void const *, void *))__cmp, \
-            (void *)(size_t)(user)); \
-    })
-
-#define cp_v_bsearch(key, vec, cmp, user) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        __typeof__(*(key)) const *__key = (key); \
-        assert(__vec != NULL); \
-        int (*__cmp)( \
-            __typeof__(__key), \
-            __typeof__(*__vec->data) const *, \
-            __typeof__(*(user)) *) = (cmp); \
-        cp_v_bsearch_( \
-            (void const *)__key, \
-            (cp_v_t*)__vec, cp_v_esz_(__vec), \
-            (int(*)(void const *, void const *, void *))__cmp, \
-            (void*)(size_t)(user)); \
-    })
-
-#define cp_v_idx(vec, ptr) \
-    ({ \
-        __typeof__(*(vec)) *__vec = (vec); \
-        __typeof__(*__vec->data) const *__ptr = (ptr); \
-        assert(__vec != NULL); \
-        assert(__ptr >= __vec->data); \
-        assert(__ptr <= (__vec->data + __vec->size)); \
-        size_t __idx = CP_PTRDIFF(__ptr, __vec->data); \
-        assert(__idx < __vec->size); \
-        __idx; \
-    })
-
-/* The following use different local variable names so they
- * are not equal to those of the invoked macros */
-/*
- * Sets the vector with a copy of the given data. */
-#define cp_v_init_with(_vec, _arr, _size) \
-    ({ \
-        __typeof__(*(_vec)) *__vecA = (_vec); \
-        size_t __sizeA = (_size); \
-        cp_v_init0(__vecA, __sizeA); \
-        __typeof__(*(__vecA->data)) const *__arrA = (_arr); \
-        assert(__arrA != NULL); \
-        memcpy(__vecA->data, __arrA, sizeof(*__arrA) * __sizeA); \
-    })
-
-#define cp_v_delete(vec) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = &(vec); \
-        cp_v_fini(*__vecA); \
-        CP_FREE(*__vecA); \
-    })
-
-#define cp_v_pop(vec) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = (vec); \
-        assert(__vecA != NULL); \
-        cp_v_extract(__vecA, __vecA->size-1); \
-    })
-
-#define cp_v_push0(vec) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = (vec); \
-        assert(__vecA != NULL); \
-        cp_v_inflate(__vecA, __vecA->size, 1); \
-        &__vecA->data[__vecA->size-1]; \
-    })
-
-#define cp_v_append_arr(vec,elem,size) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = (vec); \
-        assert(__vecA != NULL);  \
-        cp_v_insert_arr(__vecA, __vecA->size, elem, size); \
-    })
-
-#define cp_v_push(vec,elem) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = (vec); \
-        assert(__vecA != NULL);  \
-        cp_v_insert1(__vecA, __vecA->size, elem); \
-        &__vecA->data[__vecA->size-1]; \
-    })
-
-#define cp_v_append(vec,vec2) \
-    ({ \
-        __typeof__(*(vec)) *__vecA = (vec); \
-        assert(__vecA != NULL);  \
-        cp_v_insert(__vecA, __vecA->size, vec2); \
-    })
-
-#define cp_v_last(vec) \
-    (*({ \
-        __typeof__(*(vec)) * __vecB = (vec); \
-        assert(__vecB != NULL); \
-        &__vecB->data[__vecB->size - 1]; \
-    }))
-
-#define cp_v_last_but(vec, i) \
-    (*({ \
-        __typeof__(*(vec)) * __vecB = (vec); \
-        size_t __iB = (i); \
-        assert(__vecB != NULL); \
-        assert(__iB < __vecB->size); \
-        &__vecB->data[__vecB->size - 1 - __iB]; \
-    }))
-
-#define cp_v_nth_ptr0(vec, i) \
-    ({ \
-        __typeof__(*(vec)) * __vecB = (vec); \
-        size_t __iB = (i); \
-        (((__vecB != NULL) && (__iB < __vecB->size)) ? &__vecB->data[__iB] : NULL); \
-    })
-
-#define cp_v_nth_ptr_aux(__vecB, __iB, vec, i) \
-    ({ \
-        __typeof__(*(vec)) * __vecB = (vec); \
-        size_t __iB = (i); \
-        assert(__vecB != NULL); \
-        assert((__iB < __vecB->size) || \
-            (fprintf(stderr, "ERR: __iB=%"CP_Z"u, __vecB->size=%"CP_Z"u\n", \
-                __iB, __vecB->size),0)); \
-        &__vecB->data[__iB]; \
-    })
-
-#define cp_v_nth_ptr(vec, i) \
-    cp_v_nth_ptr_aux(CP_GENSYM(__vecB), CP_GENSYM(__iB), vec, i)
-
-#define cp_v_nth(vec, i) \
-    (*cp_v_nth_ptr(vec, i))
-
-#define cp_v_bit_get(vec, i) \
-    ({ \
-        __typeof__(*(vec)) * __vecC = (vec); \
-        size_t __i = i; \
-        size_t __ib = __i / (8 * sizeof(*__vecC->data)); \
-        assert(__ib < __vecC->size); \
-        size_t __ik = __i % (8 * sizeof(*__vecC->data)); \
-        size_t __iv = (((size_t)1) << __ik); \
-        ((__vecC->data[__ib] & __iv) != 0); \
-    })
-
-#define cp_v_bit_set(vec, i, n) \
-    ({ \
-        __typeof__(*(vec)) * __vecC = (vec); \
-        size_t __i = i; \
-        size_t __ib = __i / (8 * sizeof(*__vecC->data)); \
-        assert(__ib < __vecC->size); \
-        size_t __ik = __i % (8 * sizeof(*__vecC->data)); \
-        size_t __iv = (((size_t)1) << __ik); \
-        __vecC->data[__ib] = (__vecC->data[__ib] | __iv) ^ ((n) ? 0 : __iv); \
-    })
 
 #endif /* CP_VEC_H_ */

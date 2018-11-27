@@ -45,7 +45,7 @@ extern void cp_panic(
 }
 
 /**
- * Varargs version of __cp_panic()
+ * Varargs version of cp_panic()
  *
  * For debug builds, the caller should think about hiding the file/line
  * information, i.e., to pass NULL,0.

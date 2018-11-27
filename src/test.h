@@ -56,7 +56,7 @@
 /**
  * Function to be called when a test fails.
  */
-CP_NORETURN
+__attribute__((noreturn))
 extern void cp_test_fail_(
     char const *file,
     int line,
