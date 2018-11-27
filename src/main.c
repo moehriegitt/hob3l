@@ -297,7 +297,7 @@ static char const *cp_prog_name(void)
 
 static char const *opt_help;
 
-__attribute__((noreturn))
+CP_NORETURN
 static void help(void)
 {
 #define PRI printf

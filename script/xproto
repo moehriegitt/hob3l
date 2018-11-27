@@ -60,6 +60,9 @@ sub learn_c($)
                 $doxy = undef;
                 $attr = '';
             }
+            elsif ($s =~ /\G^(?:(?:extern|static)?\s+)?macro/gcm) {
+                $doxy = undef;
+            }
             elsif ($s =~ /\G^extern\b/gcm) {
                 unless ($s =~ /\G(.*?[);])\n/gms) {
                     my $t = substr($s, pos($s));
@@ -87,9 +90,6 @@ sub learn_c($)
             }
             elsif ($s =~ /\G^(CP_NORETURN\n)/gcm) {
                 $attr .= $1;
-            }
-            elsif ($s =~ /\G^macro/gcm) {
-                $doxy = undef;
             }
             else {
                 my $t = substr($s, pos($s));

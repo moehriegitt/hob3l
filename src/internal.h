@@ -76,14 +76,14 @@ static inline double three_steps(size_t i)
 #define LOG(...)  fprintf(stderr, __VA_ARGS__)
 #define VLOG(...) vfprintf(stderr, __VA_ARGS__)
 
-#define TRACE_AUX(__tf, ...) \
+#define TRACE_AUX(_tf, ...) \
     __attribute__((__cleanup__(trace_func_leave))) \
-    trace_func_t __tf = { __FUNCTION__, __FILE__, __LINE__, "" }; \
-    snprintf(__tf.msg, sizeof(__tf.msg), " " __VA_ARGS__); \
-    trace_func_enter(&__tf);
+    trace_func_t _tf = { __FUNCTION__, __FILE__, __LINE__, "" }; \
+    snprintf(_tf.msg, sizeof(_tf.msg), " " __VA_ARGS__); \
+    trace_func_enter(&_tf);
 
 #define TRACE(...) \
-    TRACE_AUX(CP_GENSYM(__tf), __VA_ARGS__)
+    TRACE_AUX(CP_GENSYM(_tf), __VA_ARGS__)
 
 #define TRACE_LOCUS 0
 

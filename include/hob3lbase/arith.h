@@ -116,8 +116,8 @@ static inline size_t cp_min_z_(size_t a, size_t b)
 
 #define cp_min_update(a,...) \
     do{ \
-        __typeof__(a) *__ap = &(a); \
-        *__ap = cp_min(*__ap, __VA_ARGS__); \
+        __typeof__(a) *_ap = &(a); \
+        *_ap = cp_min(*_ap, __VA_ARGS__); \
     }while(0)
 
 /* max */
@@ -139,8 +139,8 @@ static inline size_t cp_max_z_(size_t a, size_t b)
 
 #define cp_max_update(a,...) \
     do{ \
-        __typeof__(a) *__ap = &(a); \
-        *__ap = cp_max(*__ap, __VA_ARGS__); \
+        __typeof__(a) *_ap = &(a); \
+        *_ap = cp_max(*_ap, __VA_ARGS__); \
     }while(0)
 
 /* comparisons using any epsilon */

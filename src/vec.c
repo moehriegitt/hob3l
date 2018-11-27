@@ -25,7 +25,7 @@ extern void cp_v_fini_(
     free(vec->data);
 }
 
-static void __grow(
+static void v_grow(
     cp_v_t *vec,
     size_t esz,
     size_t new_size)
@@ -51,7 +51,7 @@ static void __grow(
     vec->alloc = new_alloc;
 }
 
-static void __shrink(
+static void v_shrink(
     cp_v_t *vec CP_UNUSED,
     size_t esz CP_UNUSED,
     size_t new_size CP_UNUSED)
@@ -76,8 +76,8 @@ extern void cp_v_clear_(
      * allocated may be larger). */
     size_t pre_alloc)
 {
-    __grow(vec, esz, pre_alloc);
-    __shrink(vec, esz, pre_alloc);
+    v_grow(vec, esz, pre_alloc);
+    v_shrink(vec, esz, pre_alloc);
     vec->size = 0;
 }
 
@@ -92,7 +92,7 @@ extern void cp_v_ensure_size_(
     size_t new_size)
 {
     if (vec->size < new_size) {
-        __grow(vec, esz, new_size);
+        v_grow(vec, esz, new_size);
         memset(
             cp_v_nth_elem_(vec->data, vec->size, esz),
             0,
@@ -114,14 +114,14 @@ extern void cp_v_set_size_(
     size_t new_size)
 {
     if (vec->size < new_size) {
-        __grow(vec, esz, new_size);
+        v_grow(vec, esz, new_size);
         memset(
             cp_v_nth_elem_(vec->data, vec->size, esz),
             0,
             cp_v_size_(new_size - vec->size, esz));
     }
     else {
-        __shrink(vec, esz,new_size);
+        v_shrink(vec, esz,new_size);
     }
     vec->size = new_size;
 }
@@ -149,7 +149,7 @@ extern void *cp_v_inflate_(
     }
 
     size_t new_size = vec->size + size;
-    __grow(vec, esz, new_size);
+    v_grow(vec, esz, new_size);
 
     size_t tail_size = vec->size - pos;
 
@@ -196,7 +196,7 @@ extern void cp_v_copy_arr_(
     size_t end_pos = dst_pos + size;
     if (end_pos > old_size) {
         void *old_data = dst->data;
-        __grow(dst, esz, end_pos);
+        v_grow(dst, esz, end_pos);
         dst->size = end_pos;
 
         /* recompute index pointer if it pointed into the dst vector*/
@@ -354,7 +354,7 @@ extern void cp_v_remove_(
         cp_v_size_(rest, esz));
 
     vec->size -= size;
-    __shrink(vec, esz, vec->size);
+    v_shrink(vec, esz, vec->size);
 }
 
 /**
@@ -383,7 +383,7 @@ extern void cp_v_reverse_(
            esz);
     }
 
-    __shrink(vec, esz, vec->size);
+    v_shrink(vec, esz, vec->size);
 }
 
 /**
@@ -470,7 +470,7 @@ extern size_t cp_bsearch(
 /**
  * Internal: Pointer to element in vector
  */
-macro val cp_v_nth_elem_(val *data, val count, val esz)
+extern macro val cp_v_nth_elem_(val *data, val count, val esz)
 {
     (__typeof__(data))((size_t)data + cp_v_size_(count, esz));
 }
@@ -478,7 +478,7 @@ macro val cp_v_nth_elem_(val *data, val count, val esz)
 /**
  * Internal: Difference of indexes in a vector
  */
-macro val cp_v_ptrdiff_(size_t esz, val *a, val b_)
+extern macro val cp_v_ptrdiff_(size_t esz, val *a, val b_)
 {
     __typeof__(a) b = b_;
     CP_PTRDIFF((char const *)a, (char const *)b) / esz;
@@ -487,7 +487,7 @@ macro val cp_v_ptrdiff_(size_t esz, val *a, val b_)
 /**
  * Clear vector.
  */
-macro void cp_v_init(val *vec)
+extern macro void cp_v_init(val *vec)
 {
     assert(vec != NULL);
     CP_ZERO(vec);
@@ -496,7 +496,7 @@ macro void cp_v_init(val *vec)
 /**
  * Initialises a vector with a given size and 0 contents.
  */
-macro void cp_v_init0(val *vec, size_t sz)
+extern macro void cp_v_init0(val *vec, size_t sz)
 {
     assert(vec != NULL);
     vec->data = CP_NEW_ARR(*vec->data, sz);
@@ -509,7 +509,7 @@ macro void cp_v_init0(val *vec, size_t sz)
 /**
  * Clear the vector and deallocate it, then zero it.
  */
-macro void cp_v_fini(val *vec)
+extern macro void cp_v_fini(val *vec)
 {
     cp_v_fini_((cp_v_t*)vec);
     CP_ZERO(vec);
@@ -518,7 +518,7 @@ macro void cp_v_fini(val *vec)
 /**
  * The size of the vector's data
  */
-macro val cp_v_esz_(val vec)
+extern macro val cp_v_esz_(val vec)
 {
     sizeof(vec->data[0]);
 }
@@ -526,7 +526,7 @@ macro val cp_v_esz_(val vec)
 /**
  * Clear the vector, i.e., set number of elements to 0.
  */
-macro void cp_v_clear(val *vec, val size)
+extern macro void cp_v_clear(val *vec, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -537,7 +537,7 @@ macro void cp_v_clear(val *vec, val size)
  * Set the size of the vector.
  * If it needs enlarging, the tail will be zeroed.
  */
-macro void cp_v_set_size(val *vec, val size)
+extern macro void cp_v_set_size(val *vec, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -548,7 +548,7 @@ macro void cp_v_set_size(val *vec, val size)
  * Make sure the vector has a given size, possibly enlarging
  * by zeroing the tail.
  */
-macro void cp_v_ensure_size(val *vec, val size)
+extern macro void cp_v_ensure_size(val *vec, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -558,7 +558,7 @@ macro void cp_v_ensure_size(val *vec, val size)
 /**
  * Copy one element into the vector.
  */
-macro void cp_v_copy1(val *vec, val pos, val elem)
+extern macro void cp_v_copy1(val *vec, val pos, val elem)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -569,7 +569,7 @@ macro void cp_v_copy1(val *vec, val pos, val elem)
 /**
  * Copy from one vector to another, overwriting.
  */
-macro void cp_v_copy(val *vec, val pos, val src, val pos2, val cnt)
+extern macro void cp_v_copy(val *vec, val pos, val src, val pos2, val cnt)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -582,7 +582,7 @@ macro void cp_v_copy(val *vec, val pos, val src, val pos2, val cnt)
 /**
  * Copy from one vector to another without resizing.
  */
-macro void cp_v_copy_arr(val *vec, size_t pos, val src, size_t pos2, size_t cnt)
+extern macro void cp_v_copy_arr(val *vec, size_t pos, val src, size_t pos2, size_t cnt)
 {
     assert(vec != NULL);
     __typeof__(*vec) const *vec2 = src;
@@ -598,7 +598,7 @@ macro void cp_v_copy_arr(val *vec, size_t pos, val src, size_t pos2, size_t cnt)
 
 /**
  * Insert zero elements at a given position. */
-macro void cp_v_inflate(val *vec, val pos, val size)
+extern macro void cp_v_inflate(val *vec, val pos, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -608,7 +608,7 @@ macro void cp_v_inflate(val *vec, val pos, val size)
 /**
  * Insert multiple values from an array into the vector at a given position.
  */
-macro void cp_v_insert_arr(val *vec, val pos, val elem_, val size)
+extern macro void cp_v_insert_arr(val *vec, val pos, val elem_, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -619,7 +619,7 @@ macro void cp_v_insert_arr(val *vec, val pos, val elem_, val size)
 /**
  * Insert one value into the vector at a given position
  */
-macro void cp_v_insert1(val *vec, val pos, val elem_)
+extern macro void cp_v_insert1(val *vec, val pos, val elem_)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -630,7 +630,7 @@ macro void cp_v_insert1(val *vec, val pos, val elem_)
 /**
  * Insert one vector into the other at a given position
  */
-macro void cp_v_insert(val *vec, val pos, val *vec2)
+extern macro void cp_v_insert(val *vec, val pos, val *vec2)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -643,7 +643,7 @@ macro void cp_v_insert(val *vec, val pos, val *vec2)
 /**
  * Remove elements from the vector
  */
-macro void cp_v_remove(val *vec, val pos, val size)
+extern macro void cp_v_remove(val *vec, val pos, val size)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -653,7 +653,7 @@ macro void cp_v_remove(val *vec, val pos, val size)
 /**
  * Reverse the order of elements in part of the vector.
  */
-macro void cp_v_reverse(val *vec, val pos, val size)
+extern macro void cp_v_reverse(val *vec, val pos, val size)
 {
     assert(vec != NULL);
     cp_v_reverse_((cp_v_t*)vec, cp_v_esz_(vec), pos, size);
@@ -662,7 +662,7 @@ macro void cp_v_reverse(val *vec, val pos, val size)
 /**
  * Extract an element from the vector.
  */
-macro val cp_v_extract(val *vec, val pos)
+extern macro val cp_v_extract(val *vec, val pos)
 {
     assert(vec != NULL);
     CP_NEED_ALLOC_(vec);
@@ -674,7 +674,7 @@ macro val cp_v_extract(val *vec, val pos)
 /**
  * Sort a portion of the vector.
  */
-macro void cp_v_qsort(val *vec, val pos, val size, val cmp, val user)
+extern macro void cp_v_qsort(val *vec, val pos, val size, val cmp, val user)
 {
     assert(vec != NULL);
     int (* _l_cmp)(
@@ -689,7 +689,7 @@ macro void cp_v_qsort(val *vec, val pos, val size, val cmp, val user)
 /**
  * Binary search a key in the vector.
  */
-macro val cp_v_bsearch(val *key, val *vec, val cmp, val *user)
+extern macro val cp_v_bsearch(val *key, val *vec, val cmp, val *user)
 {
     assert(vec != NULL);
     int (*_l_cmp)(
@@ -706,7 +706,7 @@ macro val cp_v_bsearch(val *key, val *vec, val cmp, val *user)
 /**
  * Compute the index of a pointer into the vector.
  */
-macro val cp_v_idx(val *vec, val ptr_)
+extern macro val cp_v_idx(val *vec, val ptr_)
 {
     __typeof__(*vec->data) const *ptr = ptr_;
     assert(vec != NULL);
@@ -720,7 +720,7 @@ macro val cp_v_idx(val *vec, val ptr_)
 /**
 * Initialises the vector with a copy of the given data.
 */
-macro void cp_v_init_with(val *vec, val arr_, size_t size)
+extern macro void cp_v_init_with(val *vec, val arr_, size_t size)
 {
     cp_v_init0(vec, size);
     __typeof__(*vec->data) const *arr = arr_;
@@ -732,7 +732,7 @@ macro void cp_v_init_with(val *vec, val arr_, size_t size)
  * Delete the vector and its contents.
  * Additional to cp_v_fini(), this also deletes the vector itself.
  */
-macro void cp_v_delete(val *vec)
+extern macro void cp_v_delete(val *vec)
 {
     cp_v_fini(*vec);
     CP_FREE(*vec);
@@ -741,7 +741,7 @@ macro void cp_v_delete(val *vec)
 /**
  * Remove the last element from the vector and return it.
  */
-macro val cp_v_pop(val *vec)
+extern macro val cp_v_pop(val *vec)
 {
     assert(vec != NULL);
     cp_v_extract(vec, vec->size - 1);
@@ -750,7 +750,7 @@ macro val cp_v_pop(val *vec)
 /**
  * Append a zeroed element at the end of a vector and return a pointer to it.
  */
-macro val cp_v_push0(val *vec)
+extern macro val cp_v_push0(val *vec)
 {
     assert(vec != NULL);
     cp_v_inflate(vec, vec->size, 1);
@@ -760,7 +760,7 @@ macro val cp_v_push0(val *vec)
 /**
  * Append multiple elements to the end of a vector.
  */
-macro void cp_v_append_arr(val *vec, val elem, val size)
+extern macro void cp_v_append_arr(val *vec, val elem, val size)
 {
     assert(vec != NULL);
     cp_v_insert_arr(vec, vec->size, elem, size);
@@ -769,7 +769,7 @@ macro void cp_v_append_arr(val *vec, val elem, val size)
 /**
  * Append a single element to the end of a vector and return a pointer to it.
  */
-macro val cp_v_push(val *vec, val elem)
+extern macro val cp_v_push(val *vec, val elem)
 {
     assert(vec != NULL);
     cp_v_insert1(vec, vec->size, elem);
@@ -779,7 +779,7 @@ macro val cp_v_push(val *vec, val elem)
 /**
  * Append a vector to another vector.
  */
-macro void cp_v_append(val *vec, val vec2)
+extern macro void cp_v_append(val *vec, val vec2)
 {
     assert(vec != NULL);
     cp_v_insert(vec, vec->size, vec2);
@@ -788,7 +788,7 @@ macro void cp_v_append(val *vec, val vec2)
 /**
  * Reference to last but ith element of vector
  */
-macro ref cp_v_last_but(val *vec, size_t i)
+extern macro ref cp_v_last_but(val *vec, size_t i)
 {
     assert(vec != NULL);
     assert(i < vec->size);
@@ -798,7 +798,7 @@ macro ref cp_v_last_but(val *vec, size_t i)
 /**
  * Reference to last element of vector
  */
-macro val cp_v_last(val vec)
+extern macro val cp_v_last(val vec)
 {
     cp_v_last_but(vec,0);
 }
@@ -806,7 +806,7 @@ macro val cp_v_last(val vec)
 /**
  * Pointer to an element of the vector, or NULL if index is out of range.
  */
-macro val cp_v_nth_ptr0(val *vec, size_t i)
+extern macro val cp_v_nth_ptr0(val *vec, size_t i)
 {
     ((vec != NULL) && (i < vec->size)) ? &vec->data[i] : NULL;
 }
@@ -814,7 +814,7 @@ macro val cp_v_nth_ptr0(val *vec, size_t i)
 /**
  * Pointer to an element of the vector.
  */
-macro val cp_v_nth_ptr(val *vec, size_t i)
+extern macro val cp_v_nth_ptr(val *vec, size_t i)
 {
     assert(vec != NULL);
     assert((i < vec->size) ||
@@ -826,7 +826,7 @@ macro val cp_v_nth_ptr(val *vec, size_t i)
 /**
  * Reference to an element of the vector.
  */
-macro ref cp_v_nth(val vec, val i)
+extern macro ref cp_v_nth(val vec, val i)
 {
     cp_v_nth_ptr(vec, i);
 }
@@ -834,7 +834,7 @@ macro ref cp_v_nth(val vec, val i)
 /**
  * Extract a bit from an integer vector.
  */
-macro val cp_v_bit_get(val *vec, size_t i)
+extern macro val cp_v_bit_get(val *vec, size_t i)
 {
     size_t ib = i / (8 * sizeof(*vec->data));
     assert(ib < vec->size);
@@ -846,7 +846,7 @@ macro val cp_v_bit_get(val *vec, size_t i)
 /**
  * Set a bit in an integer vector.
  */
-macro val cp_v_bit_set(val *vec, size_t i, size_t n)
+extern macro val cp_v_bit_set(val *vec, size_t i, size_t n)
 {
     size_t ib = i / (8 * sizeof(*vec->data));
     assert(ib < vec->size);

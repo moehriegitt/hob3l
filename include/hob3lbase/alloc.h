@@ -24,9 +24,9 @@
 #ifndef CP_FREE
 #define CP_FREE(obj) \
     do{ \
-        __typeof__(&obj) __ref = &(obj); \
-        free(*__ref); \
-        *__ref = NULL; \
+        __typeof__(&obj) _ref = &(obj); \
+        free(*_ref); \
+        *_ref = NULL; \
     }while(0)
 #endif
 

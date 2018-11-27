@@ -54,9 +54,9 @@ static bool v_scad_from_v_syn_stmt(
     cp_v_syn_stmt_p_t *fs);
 
 #define func_new(rp, t, syn, type) \
-    __func_new(CP_FILE, CP_LINE, rp, t, syn, type)
+    func_new_(CP_FILE, CP_LINE, rp, t, syn, type)
 
-static bool __func_new(
+static bool func_new_(
     char const *file,
     int line,
     cp_scad_t **rp,

@@ -16,35 +16,35 @@
 #define TEST_VOID(expr) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s   %s\n", __FILE__, __LINE__, "", #expr); \
-        (expr); \
+        expr; \
     })
 
 #define TEST_EQ(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s== %s\n", __FILE__, __LINE__, #val, #expr); \
-        __typeof__(expr) __res = (expr); \
-        TEST_CHECK_(__res == (val), "(" #expr ") == " #val); \
+        __typeof__(expr) _res = (expr); \
+        TEST_CHECK_(_res == (val), "(" #expr ") == " #val); \
     })
 
 #define TEST_NE(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s!= %s\n", __FILE__, __LINE__, #val, #expr); \
-        __typeof__(expr) __res = (expr); \
-        TEST_CHECK_(__res != (val), "(" #expr ") != " #val); \
+        __typeof__(expr) _res = (expr); \
+        TEST_CHECK_(_res != (val), "(" #expr ") != " #val); \
     })
 
 #define TEST_FEQ(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s===%s\n", __FILE__, __LINE__, #val, #expr); \
-        __typeof__(expr) __res = (expr); \
-        TEST_CHECK_(cp_eq(__res, val), "(" #expr ") === " #val); \
+        __typeof__(expr) _res = (expr); \
+        TEST_CHECK_(cp_eq(_res, val), "(" #expr ") === " #val); \
     })
 
 #define TEST_FNE(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s!==%s\n", __FILE__, __LINE__, #val, #expr); \
-        __typeof__(expr) __res = (expr); \
-        TEST_CHECK_(!cp_eq(__res, val), "(" #expr ") !== " #val); \
+        __typeof__(expr) _res = (expr); \
+        TEST_CHECK_(!cp_eq(_res, val), "(" #expr ") !== " #val); \
     })
 
 #define TEST_RUN(test) \
@@ -56,7 +56,7 @@
 /**
  * Function to be called when a test fails.
  */
-__attribute__((noreturn))
+CP_NORETURN
 extern void cp_test_fail_(
     char const *file,
     int line,

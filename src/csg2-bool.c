@@ -256,7 +256,7 @@ typedef struct {
 } stack_t;
 
 CP_UNUSED
-static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
+static char const *coord_str_(char *s, size_t n, cp_vec2_t const *x)
 {
     if (x == NULL) {
         return "NULL";
@@ -266,10 +266,10 @@ static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
     return s;
 }
 
-#define coord_str(p) __coord_str((char[50]){0}, 50, p)
+#define coord_str(p) coord_str_((char[50]){0}, 50, p)
 
 CP_UNUSED
-static char const *__pt_str(char *s, size_t n, point_t const *x)
+static char const *pt_str_(char *s, size_t n, point_t const *x)
 {
     if (x == NULL) {
         return "NULL";
@@ -279,10 +279,10 @@ static char const *__pt_str(char *s, size_t n, point_t const *x)
     return s;
 }
 
-#define pt_str(p) __pt_str((char[50]){}, 50, p)
+#define pt_str(p) pt_str_((char[50]){}, 50, p)
 
 CP_UNUSED
-static char const *__ev_str(char *s, size_t n, event_t const *x)
+static char const *ev_str_(char *s, size_t n, event_t const *x)
 {
     if (x == NULL) {
         return "NULL";
@@ -305,7 +305,7 @@ static char const *__ev_str(char *s, size_t n, event_t const *x)
     return s;
 }
 
-#define ev_str(x) __ev_str((char[80]){}, 80, x)
+#define ev_str(x) ev_str_((char[80]){}, 80, x)
 
 static event_t *chain_other(event_t *e)
 {
@@ -357,7 +357,7 @@ static void debug_print_chain(
 #endif
 
 #if DEBUG || defined(PSTRACE)
-__attribute__((format(printf,2,6)))
+CP_PRINTF(2,6)
 static void debug_print_s(
     ctxt_t *c,
     char const *msg,
@@ -618,12 +618,12 @@ static int ev_cmp(event_t const *e1, event_t const *e2)
  * pass the new element as first argument, and in some cases,
  * this changes the order of edges (if the left end point of the
  * new edge is on an existing edge).  Therefore, we have
- * __seg_cmp() and seg_cmp() to swap arguments.
+ * seg_cmp_() and seg_cmp() to swap arguments.
  * Well, this essentially means that this function is broken, because
  * it should hold that seg_cmp(a,b) == -seg_cmp(b,a), but it doesn't.
  * Some indications is clearly mapping -1,0,+1 to -1,-1,+1...
  */
-static int __seg_cmp(event_t const *e1, event_t const *e2)
+static int seg_cmp_(event_t const *e1, event_t const *e2)
 {
     /* Only left edges are inserted into S */
     assert(e1->left);
@@ -666,7 +666,7 @@ static int __seg_cmp(event_t const *e1, event_t const *e2)
 
 static int seg_cmp(event_t const *e2, event_t const *e1)
 {
-    return -__seg_cmp(e1,e2);
+    return -seg_cmp_(e1,e2);
 }
 
 /** dict version of ev_cmp for node_q */
@@ -792,12 +792,12 @@ static void q_add_orig(
 }
 
 #ifndef NDEBUG
-#  define divide_segment(c,e,p)  __divide_segment(__FILE__, __LINE__, c, e, p)
+#  define divide_segment(c,e,p)  divide_segment_(__FILE__, __LINE__, c, e, p)
 #else
-#  define __divide_segment(f,l,c,e,p) divide_segment(c,e,p)
+#  define divide_segment_(f,l,c,e,p) divide_segment(c,e,p)
 #endif
 
-static void __divide_segment(
+static void divide_segment_(
     char const *file CP_UNUSED,
     int line CP_UNUSED,
     ctxt_t *c,

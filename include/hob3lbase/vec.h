@@ -24,7 +24,7 @@
  * Internal: Pointer to element in vector
  */
 #define cp_v_nth_elem_(data,count,esz) \
-    cp_v_nth_elem_1_(CP_GENSYM(_data), (data), (count), (esz))
+    cp_v_nth_elem_1_(CP_GENSYM(_dataSH), (data), (count), (esz))
 
 #define cp_v_nth_elem_1_(data,_data,count,esz) \
     ({ \
@@ -36,8 +36,8 @@
  * Internal: Difference of indexes in a vector
  */
 #define cp_v_ptrdiff_(esz,a,b_) \
-    cp_v_ptrdiff_1_(CP_GENSYM(_a), CP_GENSYM(_b), CP_GENSYM(_esz), (esz), \
-        (a), (b_))
+    cp_v_ptrdiff_1_(CP_GENSYM(_aNP), CP_GENSYM(_bNP), CP_GENSYM(_eszNP), \
+        (esz), (a), (b_))
 
 #define cp_v_ptrdiff_1_(a,b,esz,_esz,_a,b_) \
     ({ \
@@ -51,7 +51,7 @@
  * Clear vector.
  */
 #define cp_v_init(vec) \
-    cp_v_init_1_(CP_GENSYM(_vec), (vec))
+    cp_v_init_1_(CP_GENSYM(_vecKQ), (vec))
 
 #define cp_v_init_1_(vec,_vec) \
     do{ \
@@ -64,7 +64,7 @@
  * Initialises a vector with a given size and 0 contents.
  */
 #define cp_v_init0(vec,sz) \
-    cp_v_init0_1_(CP_GENSYM(_sz), CP_GENSYM(_vec), (vec), (sz))
+    cp_v_init0_1_(CP_GENSYM(_szYF), CP_GENSYM(_vecYF), (vec), (sz))
 
 #define cp_v_init0_1_(sz,vec,_vec,_sz) \
     do{ \
@@ -82,7 +82,7 @@
  * Clear the vector and deallocate it, then zero it.
  */
 #define cp_v_fini(vec) \
-    cp_v_fini_1_(CP_GENSYM(_vec), (vec))
+    cp_v_fini_1_(CP_GENSYM(_vecVG), (vec))
 
 #define cp_v_fini_1_(vec,_vec) \
     do{ \
@@ -103,7 +103,7 @@
  * Clear the vector, i.e., set number of elements to 0.
  */
 #define cp_v_clear(vec,size) \
-    cp_v_clear_1_(CP_GENSYM(_vec), (vec), (size))
+    cp_v_clear_1_(CP_GENSYM(_vecPJ), (vec), (size))
 
 #define cp_v_clear_1_(vec,_vec,size) \
     do{ \
@@ -118,7 +118,7 @@
  * If it needs enlarging, the tail will be zeroed.
  */
 #define cp_v_set_size(vec,size) \
-    cp_v_set_size_1_(CP_GENSYM(_vec), (vec), (size))
+    cp_v_set_size_1_(CP_GENSYM(_vecVB), (vec), (size))
 
 #define cp_v_set_size_1_(vec,_vec,size) \
     do{ \
@@ -133,7 +133,7 @@
  * by zeroing the tail.
  */
 #define cp_v_ensure_size(vec,size) \
-    cp_v_ensure_size_1_(CP_GENSYM(_vec), (vec), (size))
+    cp_v_ensure_size_1_(CP_GENSYM(_vecMC), (vec), (size))
 
 #define cp_v_ensure_size_1_(vec,_vec,size) \
     do{ \
@@ -147,7 +147,7 @@
  * Copy one element into the vector.
  */
 #define cp_v_copy1(vec,pos,elem) \
-    cp_v_copy1_1_(CP_GENSYM(_elem_p), CP_GENSYM(_vec), (vec), (pos), \
+    cp_v_copy1_1_(CP_GENSYM(_elem_pCS), CP_GENSYM(_vecCS), (vec), (pos), \
         (elem))
 
 #define cp_v_copy1_1_(elem_p,vec,_vec,pos,elem) \
@@ -163,8 +163,8 @@
  * Copy from one vector to another, overwriting.
  */
 #define cp_v_copy(vec,pos,src,pos2,cnt) \
-    cp_v_copy_1_(CP_GENSYM(_vec), CP_GENSYM(_vec2), (vec), (pos), (src), \
-        (pos2), (cnt))
+    cp_v_copy_1_(CP_GENSYM(_vecIA), CP_GENSYM(_vec2IA), (vec), (pos), \
+        (src), (pos2), (cnt))
 
 #define cp_v_copy_1_(vec,vec2,_vec,pos,src,pos2,cnt) \
     do{ \
@@ -181,9 +181,9 @@
  * Copy from one vector to another without resizing.
  */
 #define cp_v_copy_arr(vec,pos,src,pos2,cnt) \
-    cp_v_copy_arr_1_(CP_GENSYM(_cnt), CP_GENSYM(_pos), CP_GENSYM(_pos2), \
-        CP_GENSYM(_vec), CP_GENSYM(_vec2), (vec), (pos), (src), (pos2), \
-        (cnt))
+    cp_v_copy_arr_1_(CP_GENSYM(_cntOU), CP_GENSYM(_posOU), \
+        CP_GENSYM(_pos2OU), CP_GENSYM(_vecOU), CP_GENSYM(_vec2OU), (vec), \
+        (pos), (src), (pos2), (cnt))
 
 #define cp_v_copy_arr_1_(cnt,pos,pos2,vec,vec2,_vec,_pos,src,_pos2,_cnt) \
     do{ \
@@ -206,7 +206,7 @@
 /**
  * Insert zero elements at a given position. */
 #define cp_v_inflate(vec,pos,size) \
-    cp_v_inflate_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+    cp_v_inflate_1_(CP_GENSYM(_vecKG), (vec), (pos), (size))
 
 #define cp_v_inflate_1_(vec,_vec,pos,size) \
     do{ \
@@ -220,7 +220,7 @@
  * Insert multiple values from an array into the vector at a given position.
  */
 #define cp_v_insert_arr(vec,pos,elem_,size) \
-    cp_v_insert_arr_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos), \
+    cp_v_insert_arr_1_(CP_GENSYM(_elemJN), CP_GENSYM(_vecJN), (vec), (pos), \
         (elem_), (size))
 
 #define cp_v_insert_arr_1_(elem,vec,_vec,pos,elem_,size) \
@@ -236,7 +236,7 @@
  * Insert one value into the vector at a given position
  */
 #define cp_v_insert1(vec,pos,elem_) \
-    cp_v_insert1_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos), \
+    cp_v_insert1_1_(CP_GENSYM(_elemEO), CP_GENSYM(_vecEO), (vec), (pos), \
         (elem_))
 
 #define cp_v_insert1_1_(elem,vec,_vec,pos,elem_) \
@@ -252,8 +252,8 @@
  * Insert one vector into the other at a given position
  */
 #define cp_v_insert(vec,pos,vec2) \
-    cp_v_insert_1_(CP_GENSYM(_data_), CP_GENSYM(_vec), CP_GENSYM(_vec2), \
-        (vec), (pos), (vec2))
+    cp_v_insert_1_(CP_GENSYM(_data_HU), CP_GENSYM(_vecHU), \
+        CP_GENSYM(_vec2HU), (vec), (pos), (vec2))
 
 #define cp_v_insert_1_(data_,vec,vec2,_vec,pos,_vec2) \
     do{ \
@@ -271,7 +271,7 @@
  * Remove elements from the vector
  */
 #define cp_v_remove(vec,pos,size) \
-    cp_v_remove_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+    cp_v_remove_1_(CP_GENSYM(_vecAE), (vec), (pos), (size))
 
 #define cp_v_remove_1_(vec,_vec,pos,size) \
     do{ \
@@ -285,7 +285,7 @@
  * Reverse the order of elements in part of the vector.
  */
 #define cp_v_reverse(vec,pos,size) \
-    cp_v_reverse_1_(CP_GENSYM(_vec), (vec), (pos), (size))
+    cp_v_reverse_1_(CP_GENSYM(_vecIG), (vec), (pos), (size))
 
 #define cp_v_reverse_1_(vec,_vec,pos,size) \
     do{ \
@@ -298,7 +298,7 @@
  * Extract an element from the vector.
  */
 #define cp_v_extract(vec,pos) \
-    cp_v_extract_1_(CP_GENSYM(_elem), CP_GENSYM(_vec), (vec), (pos))
+    cp_v_extract_1_(CP_GENSYM(_elemZI), CP_GENSYM(_vecZI), (vec), (pos))
 
 #define cp_v_extract_1_(elem,vec,_vec,pos) \
     ({ \
@@ -314,8 +314,8 @@
  * Sort a portion of the vector.
  */
 #define cp_v_qsort(vec,pos,size,cmp,user) \
-    cp_v_qsort_1_(CP_GENSYM(_l_cmp), CP_GENSYM(_user), CP_GENSYM(_vec), \
-        (vec), (pos), (size), (cmp), (user))
+    cp_v_qsort_1_(CP_GENSYM(_l_cmpYP), CP_GENSYM(_userYP), \
+        CP_GENSYM(_vecYP), (vec), (pos), (size), (cmp), (user))
 
 #define cp_v_qsort_1_(_l_cmp,user,vec,_vec,pos,size,cmp,_user) \
     do{ \
@@ -335,8 +335,8 @@
  * Binary search a key in the vector.
  */
 #define cp_v_bsearch(key,vec,cmp,user) \
-    cp_v_bsearch_1_(CP_GENSYM(_l_cmp), CP_GENSYM(_key), CP_GENSYM(_user), \
-        CP_GENSYM(_vec), (key), (vec), (cmp), (user))
+    cp_v_bsearch_1_(CP_GENSYM(_l_cmpOM), CP_GENSYM(_keyOM), \
+        CP_GENSYM(_userOM), CP_GENSYM(_vecOM), (key), (vec), (cmp), (user))
 
 #define cp_v_bsearch_1_(_l_cmp,key,user,vec,_key,_vec,cmp,_user) \
     ({ \
@@ -359,8 +359,8 @@
  * Compute the index of a pointer into the vector.
  */
 #define cp_v_idx(vec,ptr_) \
-    cp_v_idx_1_(CP_GENSYM(_idx), CP_GENSYM(_ptr), CP_GENSYM(_vec), (vec), \
-        (ptr_))
+    cp_v_idx_1_(CP_GENSYM(_idxUM), CP_GENSYM(_ptrUM), CP_GENSYM(_vecUM), \
+        (vec), (ptr_))
 
 #define cp_v_idx_1_(idx,ptr,vec,_vec,ptr_) \
     ({ \
@@ -378,8 +378,8 @@
 * Initialises the vector with a copy of the given data.
 */
 #define cp_v_init_with(vec,arr_,size) \
-    cp_v_init_with_1_(CP_GENSYM(_arr), CP_GENSYM(_size), CP_GENSYM(_vec), \
-        (vec), (arr_), (size))
+    cp_v_init_with_1_(CP_GENSYM(_arrLC), CP_GENSYM(_sizeLC), \
+        CP_GENSYM(_vecLC), (vec), (arr_), (size))
 
 #define cp_v_init_with_1_(arr,size,vec,_vec,arr_,_size) \
     do{ \
@@ -396,7 +396,7 @@
  * Additional to cp_v_fini(), this also deletes the vector itself.
  */
 #define cp_v_delete(vec) \
-    cp_v_delete_1_(CP_GENSYM(_vec), (vec))
+    cp_v_delete_1_(CP_GENSYM(_vecLU), (vec))
 
 #define cp_v_delete_1_(vec,_vec) \
     do{ \
@@ -409,7 +409,7 @@
  * Remove the last element from the vector and return it.
  */
 #define cp_v_pop(vec) \
-    cp_v_pop_1_(CP_GENSYM(_vec), (vec))
+    cp_v_pop_1_(CP_GENSYM(_vecFZ), (vec))
 
 #define cp_v_pop_1_(vec,_vec) \
     ({ \
@@ -422,7 +422,7 @@
  * Append a zeroed element at the end of a vector and return a pointer to it.
  */
 #define cp_v_push0(vec) \
-    cp_v_push0_1_(CP_GENSYM(_vec), (vec))
+    cp_v_push0_1_(CP_GENSYM(_vecDV), (vec))
 
 #define cp_v_push0_1_(vec,_vec) \
     ({ \
@@ -436,8 +436,8 @@
  * Append multiple elements to the end of a vector.
  */
 #define cp_v_append_arr(vec,elem,size) \
-    cp_v_append_arr_1_(CP_GENSYM(_size), CP_GENSYM(_vec), (vec), (elem), \
-        (size))
+    cp_v_append_arr_1_(CP_GENSYM(_sizeRI), CP_GENSYM(_vecRI), (vec), \
+        (elem), (size))
 
 #define cp_v_append_arr_1_(size,vec,_vec,elem,_size) \
     do{ \
@@ -451,7 +451,7 @@
  * Append a single element to the end of a vector and return a pointer to it.
  */
 #define cp_v_push(vec,elem) \
-    cp_v_push_1_(CP_GENSYM(_vec), (vec), (elem))
+    cp_v_push_1_(CP_GENSYM(_vecBB), (vec), (elem))
 
 #define cp_v_push_1_(vec,_vec,elem) \
     ({ \
@@ -465,7 +465,7 @@
  * Append a vector to another vector.
  */
 #define cp_v_append(vec,vec2) \
-    cp_v_append_1_(CP_GENSYM(_vec), (vec), (vec2))
+    cp_v_append_1_(CP_GENSYM(_vecCL), (vec), (vec2))
 
 #define cp_v_append_1_(vec,_vec,vec2) \
     do{ \
@@ -478,7 +478,7 @@
  * Reference to last but ith element of vector
  */
 #define cp_v_last_but(vec,i) \
-    cp_v_last_but_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+    cp_v_last_but_1_(CP_GENSYM(_iVZ), CP_GENSYM(_vecVZ), (vec), (i))
 
 #define cp_v_last_but_1_(i,vec,_vec,_i) \
     (*({ \
@@ -501,7 +501,7 @@
  * Pointer to an element of the vector, or NULL if index is out of range.
  */
 #define cp_v_nth_ptr0(vec,i) \
-    cp_v_nth_ptr0_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+    cp_v_nth_ptr0_1_(CP_GENSYM(_iCT), CP_GENSYM(_vecCT), (vec), (i))
 
 #define cp_v_nth_ptr0_1_(i,vec,_vec,_i) \
     ({ \
@@ -514,7 +514,7 @@
  * Pointer to an element of the vector.
  */
 #define cp_v_nth_ptr(vec,i) \
-    cp_v_nth_ptr_1_(CP_GENSYM(_i), CP_GENSYM(_vec), (vec), (i))
+    cp_v_nth_ptr_1_(CP_GENSYM(_iNF), CP_GENSYM(_vecNF), (vec), (i))
 
 #define cp_v_nth_ptr_1_(i,vec,_vec,_i) \
     ({ \
@@ -539,8 +539,8 @@
  * Extract a bit from an integer vector.
  */
 #define cp_v_bit_get(vec,i) \
-    cp_v_bit_get_1_(CP_GENSYM(_i), CP_GENSYM(_ib), CP_GENSYM(_ik), \
-        CP_GENSYM(_iv), CP_GENSYM(_vec), (vec), (i))
+    cp_v_bit_get_1_(CP_GENSYM(_iQC), CP_GENSYM(_ibQC), CP_GENSYM(_ikQC), \
+        CP_GENSYM(_ivQC), CP_GENSYM(_vecQC), (vec), (i))
 
 #define cp_v_bit_get_1_(i,ib,ik,iv,vec,_vec,_i) \
     ({ \
@@ -557,8 +557,9 @@
  * Set a bit in an integer vector.
  */
 #define cp_v_bit_set(vec,i,n) \
-    cp_v_bit_set_1_(CP_GENSYM(_i), CP_GENSYM(_ib), CP_GENSYM(_ik), \
-        CP_GENSYM(_iv), CP_GENSYM(_n), CP_GENSYM(_vec), (vec), (i), (n))
+    cp_v_bit_set_1_(CP_GENSYM(_iBS), CP_GENSYM(_ibBS), CP_GENSYM(_ikBS), \
+        CP_GENSYM(_ivBS), CP_GENSYM(_nBS), CP_GENSYM(_vecBS), (vec), (i), \
+        (n))
 
 #define cp_v_bit_set_1_(i,ib,ik,iv,n,vec,_vec,_i,_n) \
     ({ \

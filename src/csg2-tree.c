@@ -23,9 +23,9 @@
  */
 #define CP_CSG2_INIT(_r, _type, _loc) \
     ({ \
-        __typeof__(*(_r)) *__r = (_r); \
-        __r->type = (_type); \
-        __r->loc = (_loc); \
+        __typeof__(*(_r)) *_r = (_r); \
+        _r->type = (_type); \
+        _r->loc = (_loc); \
     })
 
 static cp_csg2_t *csg2_tree_from_csg3(
@@ -124,21 +124,23 @@ static cp_csg2_t *csg2_tree_from_csg3(
     case CP_CSG2_POLY:
         return csg2_tree_from_csg3_obj(s, d);
 
-    case CP_CSG_ADD:
-        return cp_csg2_cast(cp_csg2_t,
-            csg2_tree_from_csg3_add(r, s, cp_csg_cast(cp_csg_add_t, d)));
+    case CP_CSG_ADD: {
+        cp_csg_add_t const *dx = cp_csg_cast(*dx, d);
+        return cp_csg2_cast(cp_csg2_t, csg2_tree_from_csg3_add(r, s, dx));
+        }
+    case CP_CSG_XOR: {
+        cp_csg_xor_t const *dx = cp_csg_cast(*dx, d);
+        return cp_csg2_cast(cp_csg2_t, csg2_tree_from_csg3_xor(r, s, dx));
+        }
+    case CP_CSG_SUB: {
+        cp_csg_sub_t const *dx = cp_csg_cast(*dx, d);
+        return cp_csg2_cast(cp_csg2_t, csg2_tree_from_csg3_sub(r, s, dx));
+        }
 
-    case CP_CSG_XOR:
-        return cp_csg2_cast(cp_csg2_t,
-            csg2_tree_from_csg3_xor(r, s, cp_csg_cast(cp_csg_xor_t, d)));
-
-    case CP_CSG_SUB:
-        return cp_csg2_cast(cp_csg2_t,
-            csg2_tree_from_csg3_sub(r, s, cp_csg_cast(cp_csg_sub_t, d)));
-
-    case CP_CSG_CUT:
-        return cp_csg2_cast(cp_csg2_t,
-            csg2_tree_from_csg3_cut(r, s, cp_csg_cast(cp_csg_cut_t, d)));
+    case CP_CSG_CUT: {
+        cp_csg_cut_t const *dx = cp_csg_cast(*dx, d);
+        return cp_csg2_cast(cp_csg2_t, csg2_tree_from_csg3_cut(r, s, dx));
+        }
     }
 
     CP_DIE("3D object type");

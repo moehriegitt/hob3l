@@ -40,15 +40,18 @@
  * For a-b-c-d-e-d-c..., each(n,a,b) iterates n={c,d,e}.
  */
 #define cp_ring_each(n,a,b) \
-    cp_ring_t *__a = (a), \
-        *__b = (b), \
-        *__n = cp_ring_next(__a,__b), \
-        *n = __n; \
-    (n != __a); \
-    __n = cp_ring_next(__b, n), \
-        __n = (__n == __b ? __a : __n), \
-        __b = n, \
-        n = __n
+    cp_ring_each_1_(CP_GENSYM(_a), CP_GENSYM(_b), CP_GENSYM(_n), n, (a), (b))
+
+#define cp_ring_each_1_(_a,_b,_n,n,a,b) \
+    cp_ring_t *_a = a, \
+        *_b = b, \
+        *_n = cp_ring_next(_a,_b), \
+        *n = _n; \
+    (n != _a); \
+    _n = cp_ring_next(_b, n), \
+        _n = (_n == _b ? _a : _n), \
+        _b = n, \
+        n = _n
 
 /**
  * Cut a ring at a given pair, i.e., make each of the nodes an end.

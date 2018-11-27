@@ -38,14 +38,20 @@ CP_STATIC_ASSERT(sizeof(void*)     == sizeof(size_t));
  * only return a positive result, i.e., return the maximum value
  * for a given type. */
 #define CP_MAX_OF(x) \
-    ((__typeof__(x))(((~(1ULL << ((sizeof(x)*8)-1))) << (((0?(x):0)-1) > 0)) | 1))
+    ((__typeof__(x))(((~(1ULL << ((sizeof(x)*8)-1))) << ((((__typeof__(x))0)-1) > 0)) | 1))
 
 CP_STATIC_ASSERT(CP_MAX_OF(0)    == 0x7fffffff);
 CP_STATIC_ASSERT(CP_MAX_OF(0U)   == 0xffffffff);
 CP_STATIC_ASSERT(CP_MAX_OF(0LL)  == 0x7fffffffffffffff);
 CP_STATIC_ASSERT(CP_MAX_OF(0ULL) == 0xffffffffffffffff);
 
+CP_STATIC_ASSERT(CP_MAX_OF(short)    == 0x7fff);
+CP_STATIC_ASSERT(CP_MAX_OF(int)      == 0x7fffffff);
+CP_STATIC_ASSERT(CP_MAX_OF(unsigned) == 0xffffffff);
+
 #define CP_SIZE_MAX (~(size_t)0)
+
+CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 
 /**
  * Boolean operation
@@ -65,9 +71,14 @@ typedef enum {
  * so make that happen:
  */
 #define CP_PTRDIFF(a,b) \
+    CP_PTRDIFF_1_(CP_GENSYM(_a), CP_GENSYM(_b), (a), (b))
+
+#define CP_PTRDIFF_1_(a, b, _a, _b) \
     ({ \
-        assert((a) >= (b)); \
-        (size_t)((a) - (b)); \
+        __typeof__(*_a) const *a = _a; \
+        __typeof__(*_b) const *b = _b; \
+        assert(a >= b); \
+        (size_t)(a - b); \
     })
 
 /* ** #define ** */
@@ -78,8 +89,8 @@ typedef enum {
 
 #define cp_is_pow2(x) \
     ({ \
-        __typeof__(x) __x = (x); \
-        ((__x != 0) && ((__x & (__x - 1)) == 0)); \
+        __typeof__(x) _x = (x); \
+        ((_x != 0) && ((_x & (_x - 1)) == 0)); \
     })
 
 #define cp_offsetof(T,F) (__builtin_offsetof(__typeof__(T),F))
@@ -106,18 +117,14 @@ typedef enum {
  */
 #define CP_COPY_N_ZERO(obj, prefix, prefix_value) \
     ({ \
-        __typeof__(*(obj)) *__obj = (obj); \
-        CP_STATIC_ASSERT(cp_offsetof(__typeof__(*__obj), prefix) == 0); \
-        __obj->prefix = (prefix_value); \
-        size_t __psz = sizeof(__obj->prefix); \
-        (void)memset(((char*)obj) + __psz, 0, sizeof(*(obj)) - __psz); \
+        __typeof__(*(obj)) *_obj = (obj); \
+        CP_STATIC_ASSERT(cp_offsetof(*_obj, prefix) == 0); \
+        _obj->prefix = (prefix_value); \
+        size_t _psz = sizeof(_obj->prefix); \
+        (void)memset(((char*)obj) + _psz, 0, sizeof(*(obj)) - _psz); \
     })
 
-#ifdef __COUNTER__
-#  define CP_GENSYM(name) CP_CONCAT(name, __COUNTER__)
-#else
-#  define CP_GENSYM(name) CP_CONCAT(name, __LINE__)
-#endif
+#define CP_GENSYM(name) CP_CONCAT(name, __LINE__)
 
 /**
  * Swap two structures.
@@ -128,20 +135,20 @@ typedef enum {
  * element is cleared.  This is a problem of the C language, sorry.
  */
 #define CP_SWAP(x,y) do{ \
-        __typeof__(*(x)) *__xp = (x); \
-        __typeof__(*(y)) *__yp = (y); \
-        if (__xp != __yp) { \
-            __typeof__(*(x)) __h = *__xp; \
-            *__xp = *__yp; \
-            *__yp = __h; \
+        __typeof__(*(x)) *_xp = (x); \
+        __typeof__(*(y)) *_yp = (y); \
+        if (_xp != _yp) { \
+            __typeof__(*(x)) _h = *_xp; \
+            *_xp = *_yp; \
+            *_yp = _h; \
         } \
     }while(0)
 
 #define CP_ROUNDUP_DIV(a,b) \
     ({ \
-        __typeof(a) __a = (a); \
-        __typeof(b) __b = (b); \
-        (__a + (__b - 1)) / __b; \
+        __typeof__(a) _a = (a); \
+        __typeof__(b) _b = (b); \
+        (_a + (_b - 1)) / _b; \
     })
 
 /**
@@ -155,11 +162,11 @@ typedef enum {
 #define CP_BIT_COPY(a,b,c) ((c) ? ((a) | (b)) : CP_BIC(a,b))
 
 /* Helper to gensym local symbols for cp_size_each_1_ */
-#define cp_size_each_2_(__skipZ, __n, i,n,skipA,skipZ) \
+#define cp_size_each_2_(_skipZ, _n, i,n,skipA,skipZ) \
     size_t i = (skipA), \
-         __skipZ = (skipZ), \
-         __n = (n); \
-    i + __skipZ < __n; \
+         _skipZ = (skipZ), \
+         _n = (n); \
+    i + _skipZ < _n; \
     i++
 
 /**
@@ -167,7 +174,7 @@ typedef enum {
  */
 #define cp_size_each_1_(i,n,skipA,skipZ,...) \
     cp_size_each_2_( \
-        CP_GENSYM(__skipZ), CP_GENSYM(__n), i, n, skipA, skipZ)
+        CP_GENSYM(_skipZ), CP_GENSYM(_n), i, n, skipA, skipZ)
 
 /**
  * Iterator expression (for 'for') for a size_t iterator.
@@ -218,10 +225,13 @@ typedef enum {
  * P must not be NULL.  See CP_BOX0_OF() instead.
  */
 #define CP_BOX_OF(P,T,F) \
+    CP_BOX_OF_1_(CP_GENSYM(_p), (P), T, F)
+
+#define CP_BOX_OF_1_(_p,P,T,F) \
     ({ \
-        __typeof__(*(P)) *__p = (P); \
-        assert(__p != NULL); \
-        ((__typeof__(T)*)(((size_t)__p) - cp_offsetof(__typeof(T),F))); \
+        __typeof__(*P) *_p = P; \
+        assert(_p != NULL); \
+        ((__typeof__(T)*)(((size_t)_p) - cp_offsetof(__typeof__(T),F))); \
     })
 
 /**
@@ -229,8 +239,8 @@ typedef enum {
  */
 #define CP_BOX0_OF(P,T,F) \
     ({ \
-        __typeof__(*(P)) *__pA = (P); \
-        (__pA == NULL ? NULL : CP_BOX_OF(__pA, T, F)); \
+        __typeof__(*(P)) *_pA = (P); \
+        (_pA == NULL ? NULL : CP_BOX_OF(_pA, T, F)); \
     })
 
 /* To make object IDs unique to catch bugs, we define an offset

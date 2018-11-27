@@ -24,4 +24,4 @@ extern void cp_csg2_tree_put_ps(
     cp_ps_opt_t const *opt,
     cp_csg2_tree_t *t);
 
-#endif /* __CP_CSG2_2PS_rH */
+#endif /* CP_CSG2_2PS_H_ */

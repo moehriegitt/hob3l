@@ -688,10 +688,13 @@ static bool polygon_make_clockwise(
         for (cp_v_each(j0, &q->point_idx)) {
             size_t j1 = cp_wrap_add1(j0, q->point_idx.size);
             size_t j2 = cp_wrap_add1(j1, q->point_idx.size);
+            size_t k0 = cp_v_nth(&q->point_idx, j0);
+            size_t k1 = cp_v_nth(&q->point_idx, j1);
+            size_t k2 = cp_v_nth(&q->point_idx, j2);
             sum += cp_vec2_right_cross3_z(
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j0)).coord,
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j1)).coord,
-                &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j2)).coord);
+                &cp_v_nth(&p->point, k0).coord,
+                &cp_v_nth(&p->point, k1).coord,
+                &cp_v_nth(&p->point, k2).coord);
         }
         assert(!cp_eq(sum, 0));
         if (sum < 0) {
@@ -744,7 +747,8 @@ static void face_from_tri_or_poly(
             cp_v_init0(&f->point, 3);
             for (cp_size_each(j, 3)) {
                 cp_vec3_loc_ref_t *v = &cp_v_nth(&f->point, j);
-                v->ref = &cp_v_nth(&o->point, cp_v_nth(tri, i).p[j] + j_offset);
+                size_t jo = cp_v_nth(tri, i).p[j] + j_offset;
+                v->ref = &cp_v_nth(&o->point, jo);
                 v->loc = loc;
             }
             face_basics(f, rev ^ top, loc);
@@ -1756,7 +1760,8 @@ static bool csg3_from_linext(
             cp_mat2w_scale(&mks, cp_lerp(1, s->scale.x, z), cp_lerp(1, s->scale.y, z));
             cp_mat2w_mul(&mk, &mks, &mk);
             for (cp_v_each(j, &q->point_idx)) {
-                 cp_vec2_loc_t *v = &cp_v_nth(&p->point, cp_v_nth(&q->point_idx, j));
+                 size_t jo = cp_v_nth(&q->point_idx, j);
+                 cp_vec2_loc_t *v = &cp_v_nth(&p->point, jo);
                  cp_vec3_loc_t *w = &cp_v_nth(&o->point, (k * pcnt) + j);
                  w->coord.z = z;
                  cp_vec2w_xform(&w->coord.b, &mk, &v->coord);

@@ -157,7 +157,7 @@ static node_t *right(
 }
 
 CP_UNUSED
-static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
+static char const *coord_str_(char *s, size_t n, cp_vec2_t const *x)
 {
     if (x == NULL) {
         return "NULL";
@@ -167,18 +167,18 @@ static char const *__coord_str(char *s, size_t n, cp_vec2_t const *x)
     return s;
 }
 
-#define coord_str(p) __coord_str((char[50]){0}, 50, p)
+#define coord_str(p) coord_str_((char[50]){0}, 50, p)
 
 CP_UNUSED
-static const char *__node_str(char *s, size_t n, node_t *x)
+static const char *node_str_(char *s, size_t n, node_t *x)
 {
-    return __coord_str(s, n, x->coord);
+    return coord_str_(s, n, x->coord);
 }
 
-#define node_str(p)  __node_str((char[50]){0}, 50,  p)
+#define node_str(p)  node_str_((char[50]){0}, 50,  p)
 
 CP_UNUSED
-static const char *__edge_str(char *s, size_t n, edge_t *e)
+static const char *edge_str_(char *s, size_t n, edge_t *e)
 {
     cp_vec2_t *a = e->src->coord;
     cp_vec2_t *b = e->dst->coord;
@@ -196,7 +196,7 @@ static const char *__edge_str(char *s, size_t n, edge_t *e)
     return s;
 }
 
-#define edge_str(e)  __edge_str((char[100]){0}, 100, e)
+#define edge_str(e)  edge_str_((char[100]){0}, 100, e)
 
 #if DEBUG
 
@@ -675,35 +675,35 @@ static edge_t *next(edge_t *e)
 
 #define assert_inactive(e) \
     do{ \
-        edge_t *__e CP_UNUSED = (e); \
-        assert(!cp_dict_is_member(&__e->node_ey)); \
-        assert(__e->type == INACTIVE); \
-        assert(__e->rm == NULL); \
-        assert(__e->list.next == &__e->list); \
-        assert(__e->list.prev == &__e->list); \
-        assert(__e->list.node == NULL); \
+        edge_t *_e CP_UNUSED = (e); \
+        assert(!cp_dict_is_member(&_e->node_ey)); \
+        assert(_e->type == INACTIVE); \
+        assert(_e->rm == NULL); \
+        assert(_e->list.next == &_e->list); \
+        assert(_e->list.prev == &_e->list); \
+        assert(_e->list.node == NULL); \
     }while(0)
 
 #define assert_active(e) \
     do{ \
-        edge_t *__e CP_UNUSED = (e); \
-        assert(cp_dict_is_member(&__e->node_ey)); \
-        assert((__e->type == TOP) || (__e->type == BOT)); \
-        assert(__e->rm != NULL); \
-        assert(__e->list.next != &__e->list); \
-        assert(__e->list.prev != &__e->list); \
-        assert(__e->list.node == NULL); \
+        edge_t *_e CP_UNUSED = (e); \
+        assert(cp_dict_is_member(&_e->node_ey)); \
+        assert((_e->type == TOP) || (_e->type == BOT)); \
+        assert(_e->rm != NULL); \
+        assert(_e->list.next != &_e->list); \
+        assert(_e->list.prev != &_e->list); \
+        assert(_e->list.node == NULL); \
     }while(0)
 
 #define assert_active_pair(l,h) \
     do{ \
-        edge_t *__l = (l); \
-        edge_t *__h = (h); \
-        assert_active(__l); \
-        assert_active(__h); \
-        assert(__l->list.next == &__h->list); \
-        assert(__h->list.prev == &__l->list); \
-        assert(__l->rm == __h->rm); \
+        edge_t *_l = (l); \
+        edge_t *_h = (h); \
+        assert_active(_l); \
+        assert_active(_h); \
+        assert(_l->list.next == &_h->list); \
+        assert(_h->list.prev == &_l->list); \
+        assert(_l->rm == _h->rm); \
     }while(0)
 
 static void add_triangle(

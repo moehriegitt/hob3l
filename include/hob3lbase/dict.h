@@ -13,8 +13,8 @@
  * comparison project.
  */
 
-#ifndef __CSG_SET_H
-#define __CSG_SET_H
+#ifndef CSG_SET_H_
+#define CSG_SET_H_
 
 #include <assert.h>
 #include <hob3lbase/def.h>
@@ -36,17 +36,7 @@
     elem != NULL; \
     elem = cp_dict_prev(elem)
 
-/**
- * Comparison function for all basic operations of the binary search tree. */
-typedef int (*cp_dict_cmp_t_)(
-    void *a,
-    void *b,
-    void *user);
-
-typedef struct {
-    cp_dict_t *parent;
-    unsigned child;
-} cp_dict_ref_t;
+/* BEGIN MACRO * DO NOT EDIT, use 'mkmacro' instead. */
 
 /**
  * Find a node in the tree.
@@ -59,20 +49,24 @@ typedef struct {
  * The cmp function will receive the \p idx pointer as the second
  * parameter.
  */
-#define cp_dict_find(idx, root, cmp, user) \
+#define cp_dict_find(idx,root,cmp,user) \
+    cp_dict_find_1_(CP_GENSYM(_l_cmpFR), CP_GENSYM(_idxFR), \
+        CP_GENSYM(_userFR), (idx), (root), (cmp), (user))
+
+#define cp_dict_find_1_(_l_cmp,idx,user,_idx,root,cmp,_user) \
     ({ \
-        __typeof__(*(idx))  *__idx = (idx); \
-        __typeof__(*(user)) *__user = (user); \
-        int (*__cmp)( \
-            __typeof__(__idx), \
+        __typeof__(*_idx) *idx = _idx; \
+        __typeof__(*_user) *user = _user; \
+        int (*_l_cmp)( \
+            __typeof__(idx), \
             cp_dict_t *, \
-            __typeof__(__user)) = (cmp); \
+            __typeof__(user)) = cmp; \
         cp_dict_find_ref_( \
-            NULL,\
-            (void*)(size_t)__idx, \
+            NULL, \
+            (void*)(size_t)idx, \
             root, \
-            (cp_dict_cmp_t_)__cmp, \
-            (void*)(size_t)__user, \
+            (cp_dict_cmp_t_)_l_cmp, \
+            (void*)(size_t)user, \
             0); \
     })
 
@@ -101,20 +95,24 @@ typedef struct {
  *
  * Runtime: O(log n) (for top-down find)
  */
-#define cp_dict_find_ref(ref, idx, root, cmp, user, dup) \
+#define cp_dict_find_ref(ref,idx,root,cmp,user,dup) \
+    cp_dict_find_ref_1_(CP_GENSYM(_l_cmpWQ), CP_GENSYM(_idxWQ), \
+        CP_GENSYM(_userWQ), (ref), (idx), (root), (cmp), (user), (dup))
+
+#define cp_dict_find_ref_1_(_l_cmp,idx,user,ref,_idx,root,cmp,_user,dup) \
     ({ \
-        __typeof__(*(idx))  *__idx = (idx); \
-        __typeof__(*(user)) *__user = (user); \
-        int (*__cmp)( \
-            __typeof__(__idx), \
+        __typeof__(*_idx) *idx = _idx; \
+        __typeof__(*_user) *user = _user; \
+        int (*_l_cmp)( \
+            __typeof__(idx), \
             cp_dict_t *, \
-            __typeof__(__user)) = (cmp); \
+            __typeof__(user)) = cmp; \
         cp_dict_find_ref_( \
-            ref,\
-            (void*)(size_t)__idx, \
+            ref, \
+            (void*)(size_t)idx, \
             root, \
-            (cp_dict_cmp_t_)__cmp, \
-            (void*)(size_t)__user, \
+            (cp_dict_cmp_t_)_l_cmp, \
+            (void*)(size_t)user, \
             dup); \
     })
 
@@ -134,20 +132,24 @@ typedef struct {
  *
  * Runtime: O(log n) (for top-down find + bottom-up rebalance)
  */
-#define cp_dict_insert_by(nnew, idx, root, cmp, user, dup) \
+#define cp_dict_insert_by(nnew,idx,root,cmp,user,dup) \
+    cp_dict_insert_by_1_(CP_GENSYM(_l_cmpNF), CP_GENSYM(_idxNF), \
+        CP_GENSYM(_userNF), (nnew), (idx), (root), (cmp), (user), (dup))
+
+#define cp_dict_insert_by_1_(_l_cmp,idx,user,nnew,_idx,root,cmp,_user,dup) \
     ({ \
-        __typeof__(*(idx))  *__idx = (idx); \
-        __typeof__(*(user)) *__user = (user); \
-        int (*__cmp)( \
-            __typeof__(__idx), \
+        __typeof__(*_idx) *idx = _idx; \
+        __typeof__(*_user) *user = _user; \
+        int (*_l_cmp)( \
+            __typeof__(idx), \
             cp_dict_t *, \
-            __typeof__(__user)) = (cmp); \
+            __typeof__(user)) = cmp; \
         cp_dict_insert_by_( \
             nnew, \
-            (void*)(size_t)__idx, \
+            (void*)(size_t)idx, \
             root, \
-            (cp_dict_cmp_t_)__cmp, \
-            (void*)(size_t)__user, \
+            (cp_dict_cmp_t_)_l_cmp, \
+            (void*)(size_t)user, \
             dup); \
     })
 
@@ -158,11 +160,29 @@ typedef struct {
  *
  * Runtime: O(log n) (for top-down find + bottom-up rebalance)
  */
-#define cp_dict_insert(nnew, root, cmp, user, dup) \
+#define cp_dict_insert(nnew,root,cmp,user,dup) \
+    cp_dict_insert_1_(CP_GENSYM(_nnewRD), (nnew), (root), (cmp), (user), \
+        (dup))
+
+#define cp_dict_insert_1_(nnew,_nnew,root,cmp,user,dup) \
     ({ \
-        cp_dict_t *__nnew = (nnew); \
-        cp_dict_insert_by(__nnew, __nnew, root, cmp, user, dup); \
+        cp_dict_t * nnew = _nnew; \
+        cp_dict_insert_by(nnew, nnew, root, cmp, user, dup); \
     })
+
+/* END MACRO */
+
+/**
+ * Comparison function for all basic operations of the binary search tree. */
+typedef int (*cp_dict_cmp_t_)(
+    void *a,
+    void *b,
+    void *user);
+
+typedef struct {
+    cp_dict_t *parent;
+    unsigned child;
+} cp_dict_ref_t;
 
 /**
  * Start to iterate.
@@ -498,4 +518,4 @@ static inline bool cp_dict_is_member(
         );
 }
 
-#endif /* __CSG_SET_H */
+#endif /* CSG_SET_H_ */

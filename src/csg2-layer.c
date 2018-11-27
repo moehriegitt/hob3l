@@ -135,7 +135,7 @@ static void src_on_edge(
 
 #ifdef DEBUG
 CP_UNUSED
-static char const *__coord_str(char *s, size_t n, cp_vec3_t const *x)
+static char const *coord_str_(char *s, size_t n, cp_vec3_t const *x)
 {
     if (x == NULL) {
         return "NULL";
@@ -145,10 +145,10 @@ static char const *__coord_str(char *s, size_t n, cp_vec3_t const *x)
     return s;
 }
 
-#define coord_str(p) __coord_str((char[50]){0}, 50, p)
+#define coord_str(p) coord_str_((char[50]){0}, 50, p)
 
 CP_UNUSED
-static const char *__edge_str(
+static const char *edge_str_(
     char *s, size_t n, cp_csg3_face_t const *f, cp_csg3_edge_t const *e)
 {
     cp_vec3_loc_ref_t const *src = edge_src(f, e);
@@ -159,7 +159,7 @@ static const char *__edge_str(
     return s;
 }
 
-#define edge_str(f,e)  __edge_str((char[100]){0}, 100, f, e)
+#define edge_str(f,e)  edge_str_((char[100]){0}, 100, f, e)
 
 #endif
 

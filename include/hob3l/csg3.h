@@ -17,9 +17,9 @@
 /** Create a CSG3 object instance */
 #define cp_csg3_new_obj(r, _loc, _gc) \
     ({ \
-        __typeof__(r) * __rA = cp_csg3_new(r, _loc); \
-        __rA->gc = (_gc); \
-        __rA; \
+        __typeof__(r) * _rA = cp_csg3_new(r, _loc); \
+        _rA->gc = (_gc); \
+        _rA; \
     })
 
 /** Cast w/ dynamic check */

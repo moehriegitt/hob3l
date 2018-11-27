@@ -644,4 +644,117 @@ extern void cp_dict_swap_update_root2(
     }
 }
 
-/*EOF*/
+/* ********************************************************************** */
+/* macros */
+#if 0
+
+/**
+ * Find a node in the tree.
+ *
+ * The node is returned if found, otherwise, this returns NULL.
+ *
+ * If there are multiple nodes of the same key, \p back decides which
+ * one to return.  if back=0, return the first.  If back=1, return the last.
+ *
+ * The cmp function will receive the \p idx pointer as the second
+ * parameter.
+ */
+extern macro val cp_dict_find(val *idx, val root, val cmp, val *user)
+{
+    int (*_l_cmp)(
+        __typeof__(idx),
+        cp_dict_t *,
+        __typeof__(user)) = cmp;
+    cp_dict_find_ref_(
+        NULL,
+        (void*)(size_t)idx,
+        root,
+        (cp_dict_cmp_t_)_l_cmp,
+        (void*)(size_t)user,
+        0);
+}
+
+/**
+ * Find a node in the tree.
+ *
+ * The node is returned if found and duplicate==0, otherwise, this returns NULL.
+ *
+ * The key's reference is returned, too, so that this can be used to directly
+ * insert in the found location in the tree using cp_dict_insert_ref().
+ * If the found node is the root, the reference points is (NULL,1), i.e., marking
+ * the found node as the successor to the NULL node.
+ *
+ * If the tree is empty, the reference will be (NULL,1).
+ *
+ * If there are multiple nodes of the same key, \p back decides which
+ * one to return.  if back=0, return the first.  If back=1, return the last.
+ *
+ * The cmp function will receive the \p idx pointer as the second
+ * parameter.
+ *
+ * If duplicate is non-0, this will not return the exact entry, but will
+ * set up ref to point to the insertion position left (duplicate < 0) or
+ * right (duplicate > 0) of the actual element.  In this setup, the function
+ * will always return NULL.
+ *
+ * Runtime: O(log n) (for top-down find)
+ */
+extern macro val cp_dict_find_ref(val ref, val *idx, val root, val cmp, val *user, val dup)
+{
+    int (*_l_cmp)(
+        __typeof__(idx),
+        cp_dict_t *,
+        __typeof__(user)) = cmp;
+    cp_dict_find_ref_(
+        ref,
+        (void*)(size_t)idx,
+        root,
+        (cp_dict_cmp_t_)_l_cmp,
+        (void*)(size_t)user,
+        dup);
+}
+
+/**
+ * Insert a new node, then rebalance.
+ *
+ * This takes a pointer to the root.  The root may be updated by the operation.
+ *
+ * This takes a node and a separate key for insersion.  Once inserted into the dictionary,
+ * the order will not change, so in some cases, this can be used to insert nodes without
+ * storing the key inside the node.  In that case, cp_dict_find() cannot be used, but
+ * iteration will still work in the order of insertion.
+ *
+ * If duplicate is non-0, will insert duplicates to the given side (-1: left, +1: right).
+ *
+ * \returns an equal node if there was one and duplicate is 0.
+ *
+ * Runtime: O(log n) (for top-down find + bottom-up rebalance)
+ */
+extern macro val cp_dict_insert_by(val nnew, val *idx, val root, val cmp, val *user, val dup)
+{
+    int (*_l_cmp)(
+        __typeof__(idx),
+        cp_dict_t *,
+        __typeof__(user)) = cmp;
+    cp_dict_insert_by_(
+        nnew,
+        (void*)(size_t)idx,
+        root,
+        (cp_dict_cmp_t_)_l_cmp,
+        (void*)(size_t)user,
+        dup);
+}
+
+/**
+ * Insert a new node, then rebalance.
+ *
+ * This takes as key the node itself, and otherwise behaves like cp_dict_insert_by().
+ *
+ * Runtime: O(log n) (for top-down find + bottom-up rebalance)
+ */
+extern macro val cp_dict_insert(cp_dict_t *nnew, val root, val cmp, val user, val dup)
+{
+    cp_dict_insert_by(nnew, nnew, root, cmp, user, dup);
+}
+
+#endif /*0*/

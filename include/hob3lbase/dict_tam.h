@@ -6,8 +6,8 @@
  * This is from my rbtree vs. avl vs. llrb vs. jwtree vs. aatree project.
  */
 
-#ifndef __CSG_SET_TAM_H
-#define __CSG_SET_TAM_H
+#ifndef CP_DICT_TAM_H_
+#define CP_DICT_TAM_H_
 
 #include <stddef.h>
 
@@ -17,4 +17,4 @@ typedef struct cp_set {
     size_t red;
 } cp_dict_t;
 
-#endif /* __CSG_SET_TAM_H */
+#endif /* CP_DICT_TAM_H_ */

@@ -18,7 +18,7 @@ extern void cp_vchar_fini(
     memset(v, 0, sizeof(*v));
 }
 
-static void __grow(
+static void v_grow(
     cp_vchar_t *vec,
     size_t new_size)
 {
@@ -57,7 +57,7 @@ extern void cp_vchar_append_arr(
     char const *data,
     size_t size)
 {
-    __grow(v, v->size + size + 1);
+    v_grow(v, v->size + size + 1);
     memcpy(v->data + v->size, data, size);
     v->size += size;
     v->data[v->size] = 0;
@@ -84,7 +84,7 @@ extern void cp_vchar_vprintf(
 {
     /* Ensure there is any space at all, otherwise we must not invoke
      * vsnprintf */
-    __grow(v, 1);
+    v_grow(v, 1);
     for(;;) {
         va_list va2;
         va_copy(va2, va);
@@ -100,10 +100,10 @@ extern void cp_vchar_vprintf(
 
         assert((int)done > 0);
         if ((int)done <= 0) {
-            __grow(v, v->alloc * 2);
+            v_grow(v, v->alloc * 2);
         }
         else {
-            __grow(v, v->size + done + 1);
+            v_grow(v, v->size + done + 1);
         }
     }
 }
