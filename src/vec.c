@@ -518,7 +518,7 @@ macro void cp_v_fini(val *vec)
 /**
  * The size of the vector's data
  */
-macro val cp_v_esz_(val *vec)
+macro val cp_v_esz_(val vec)
 {
     sizeof(vec->data[0]);
 }
@@ -786,15 +786,6 @@ macro void cp_v_append(val *vec, val vec2)
 }
 
 /**
- * Reference to last element of vector
- */
-macro ref cp_v_last(val *vec)
-{
-    assert(vec != NULL);
-    &vec->data[vec->size - 1];
-}
-
-/**
  * Reference to last but ith element of vector
  */
 macro ref cp_v_last_but(val *vec, size_t i)
@@ -802,6 +793,14 @@ macro ref cp_v_last_but(val *vec, size_t i)
     assert(vec != NULL);
     assert(i < vec->size);
     &vec->data[vec->size - 1 - i];
+}
+
+/**
+ * Reference to last element of vector
+ */
+macro val cp_v_last(val vec)
+{
+    cp_v_last_but(vec,0);
 }
 
 /**
@@ -856,4 +855,4 @@ macro val cp_v_bit_set(val *vec, size_t i, size_t n)
     vec->data[ib] = (vec->data[ib] | iv) ^ (n ? 0 : iv);
 }
 
-#endif
+#endif /*0*/

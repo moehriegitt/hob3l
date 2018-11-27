@@ -95,13 +95,9 @@
  * The size of the vector's data
  */
 #define cp_v_esz_(vec) \
-    cp_v_esz_1_(CP_GENSYM(_vec), (vec))
-
-#define cp_v_esz_1_(vec,_vec) \
-    ({ \
-        __typeof__(*_vec) *vec = _vec; \
-        sizeof(vec->data[0]); \
-    })
+    ( \
+        sizeof((vec)->data[0]) \
+    )
 
 /**
  * Clear the vector, i.e., set number of elements to 0.
@@ -479,19 +475,6 @@
     }while(0)
 
 /**
- * Reference to last element of vector
- */
-#define cp_v_last(vec) \
-    cp_v_last_1_(CP_GENSYM(_vec), (vec))
-
-#define cp_v_last_1_(vec,_vec) \
-    (*({ \
-        __typeof__(*_vec) *vec = _vec; \
-        assert(vec != NULL); \
-        &vec->data[vec->size - 1]; \
-    }))
-
-/**
  * Reference to last but ith element of vector
  */
 #define cp_v_last_but(vec,i) \
@@ -505,6 +488,14 @@
         assert(i < vec->size); \
         &vec->data[vec->size - 1 - i]; \
     }))
+
+/**
+ * Reference to last element of vector
+ */
+#define cp_v_last(vec) \
+    ( \
+        cp_v_last_but((vec),0) \
+    )
 
 /**
  * Pointer to an element of the vector, or NULL if index is out of range.
