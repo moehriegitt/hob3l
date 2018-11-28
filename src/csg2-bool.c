@@ -469,7 +469,10 @@ static void debug_print_s(
 
 #else
 #define debug_print_s(...) ((void)0)
-#endif
+#endif /* DEBUG */
+
+/* ********************************************************************** */
+/* Combine Lines into Polygons */
 
 /**
  * Compare two points
@@ -482,387 +485,6 @@ static int pt_cmp(
         return 0;
     }
     return cp_vec2_lex_pt_cmp(&a->v.coord, &b->v.coord);
-}
-
-/**
- * Compare a vec2 with a point in a dictionary.
- */
-static int pt_cmp_d(
-    cp_vec2_t *a,
-    cp_dict_t *_b,
-    void *user CP_UNUSED)
-{
-    point_t *b = CP_BOX_OF(_b, point_t, node_pt);
-    return cp_vec2_lex_pt_cmp(a, &b->v.coord);
-}
-
-static cp_dim_t rasterize(cp_dim_t v)
-{
-    return cp_pt_epsilon * round(v / cp_pt_epsilon);
-}
-
-/**
- * Allocate a new point and remember in our point dictionary.
- *
- * This will either return a new point or one that was found already.
- */
-static point_t *pt_new(
-    ctxt_t *c,
-    cp_loc_t loc,
-    cp_vec2_t const *_coord,
-    cp_color_rgba_t const *color)
-{
-    cp_vec2_t coord = {
-       .x = rasterize(_coord->x),
-       .y = rasterize(_coord->y),
-    };
-
-    /* normalise coordinates around 0 to avoid funny floats */
-    if (cp_eq(coord.x, 0)) { coord.x = 0; }
-    if (cp_eq(coord.y, 0)) { coord.y = 0; }
-
-    cp_dict_ref_t ref;
-    cp_dict_t *pt = cp_dict_find_ref(&ref, &coord, c->pt, pt_cmp_d, NULL, 0);
-    if (pt != NULL) {
-        return CP_BOX_OF(pt, point_t, node_pt);
-    }
-
-    point_t *p = CP_POOL_NEW(c->tmp, *p);
-    p->v.coord = coord;
-    p->v.loc = loc;
-    p->v.color = *color;
-    p->point_idx = CP_SIZE_MAX;
-    p->face_idx = CP_SIZE_MAX;
-
-    LOG("new pt: %s (orig: "FD2")\n", pt_str(p), CP_V01(*_coord));
-
-    cp_dict_insert_ref(&p->node_pt, &ref, &c->pt);
-    return p;
-}
-
-/**
- * Allocate a new event
- */
-static event_t *ev_new(
-    ctxt_t *c,
-    cp_loc_t loc,
-    point_t *p,
-    bool left,
-    event_t *other)
-{
-    event_t *r = CP_POOL_NEW(c->tmp, *r);
-    r->loc = loc;
-    r->p = p;
-    r->left = left;
-    r->other = other;
-    return r;
-}
-
-/**
- * bottom/top compare of edge pt1--pt2 vs point pt: bottom is smaller, top is larger
- */
-static inline int pt2_pt_cmp(
-    point_t const *a1,
-    point_t const *a2,
-    point_t const *b)
-{
-    return cp_vec2_right_normal3_z(&a1->v.coord, &a2->v.coord, &b->v.coord);
-}
-
-static inline point_t *left(event_t const *ev)
-{
-    return ev->left ? ev->p : ev->other->p;
-}
-
-static inline point_t *right(event_t const *ev)
-{
-    return ev->left ? ev->other->p : ev->p;
-}
-
-/**
- * Event order in Q: generally left (small) to right (large):
- *    - left coordinates before right coordinates
- *    - bottom coordinates before top coordinates
- *    - right ends before left ends
- *    - points below an edge before points above an edge
- */
-static int ev_cmp(event_t const *e1, event_t const *e2)
-{
-    /* Different points compare with different comparison */
-    if (e1->p != e2->p) {
-        int i = pt_cmp(e1->p, e2->p);
-        assert((i != 0) && "Same coordinates found in different point objects");
-        return i;
-    }
-
-    /* right vs left endpoint?  right comes first (= is smaller) */
-    int i = e1->left - e2->left;
-    if (i != 0) {
-        return i;
-    }
-
-    /* same endpoint, same direction: lower edge comes first
-     * Note that this might still return 0, making the events equal.
-     * This is OK, it's collinear segments with the same endpoint and
-     * direction.  These will be split later, processing order does
-     * not matter.
-     */
-    return pt2_pt_cmp(left(e1), right(e1), e2->other->p);
-}
-
-/**
- * Segment order in S: generally bottom (small) to top (large)
- *
- * This was ported from a C++ Less() comparison, which seems to
- * pass the new element as second argument.  Our data structures
- * pass the new element as first argument, and in some cases,
- * this changes the order of edges (if the left end point of the
- * new edge is on an existing edge).  Therefore, we have
- * seg_cmp_() and seg_cmp() to swap arguments.
- * Well, this essentially means that this function is broken, because
- * it should hold that seg_cmp(a,b) == -seg_cmp(b,a), but it doesn't.
- * Some indications is clearly mapping -1,0,+1 to -1,-1,+1...
- */
-static int seg_cmp_(event_t const *e1, event_t const *e2)
-{
-    /* Only left edges are inserted into S */
-    assert(e1->left);
-    assert(e2->left);
-
-    if (e1 == e2) {
-        return 0;
-    }
-
-    int e1_p_cmp = pt2_pt_cmp(e1->p, e1->other->p, e2->p);
-    int e1_o_cmp = pt2_pt_cmp(e1->p, e1->other->p, e2->other->p);
-
-    LOG("seg_cmp: %s vs %s: %d %d\n", ev_str(e1), ev_str(e2), e1_p_cmp, e1_o_cmp);
-
-    if ((e1_p_cmp != 0) || (e1_o_cmp != 0)) {
-        /* non-collinear */
-        /* If e2->p is on e1, use right endpoint location to compare */
-        if (e1_p_cmp == 0) {
-            return e1_o_cmp;
-        }
-
-        /* different points */
-        if (ev_cmp(e1, e2) > 0) {
-            /* e2 is above e2->p? => e1 is below */
-            return pt2_pt_cmp(e2->p, e2->other->p, e1->p) >= 0 ? -1 : +1;
-        }
-
-        /* e1 came first */
-        return e1_p_cmp <= 0 ? -1 : +1;
-    }
-
-    /* segments are collinear. some consistent criterion is used for comparison */
-    if (e1->p == e2->p) {
-        return (e1 < e2) ? -1 : +1;
-    }
-
-    /* compare events */
-    return ev_cmp(e1, e2);
-}
-
-static int seg_cmp(event_t const *e2, event_t const *e1)
-{
-    return -seg_cmp_(e1,e2);
-}
-
-/** dict version of ev_cmp for node_q */
-static int ev_cmp_q(
-    cp_dict_t *_e1,
-    cp_dict_t *_e2,
-    void *user CP_UNUSED)
-{
-    event_t *e1 = CP_BOX_OF(_e1, event_t, node_q);
-    event_t *e2 = CP_BOX_OF(_e2, event_t, node_q);
-    return ev_cmp(e1, e2);
-}
-/** dict version of seg_cmp for node_s */
-static int seg_cmp_s(
-    cp_dict_t *_e1,
-    cp_dict_t *_e2,
-    void *user CP_UNUSED)
-{
-    event_t *e1 = CP_BOX_OF(_e1, event_t, node_s);
-    event_t *e2 = CP_BOX_OF(_e2, event_t, node_s);
-    return seg_cmp(e1, e2);
-}
-
-static void q_insert(
-    ctxt_t *c,
-    event_t *e)
-{
-    assert((pt_cmp(e->p, e->other->p) < 0) == e->left);
-    cp_dict_insert(&e->node_q, &c->q, ev_cmp_q, NULL, 1);
-}
-
-static void q_remove(
-    ctxt_t *c,
-    event_t *e)
-{
-    cp_dict_remove(&e->node_q, &c->q);
-}
-
-static inline event_t *q_extract_min(ctxt_t *c)
-{
-    return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
-}
-
-static void s_insert(
-    ctxt_t *c,
-    event_t *e)
-{
-    cp_dict_t *o CP_UNUSED = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
-    assert(o == NULL);
-}
-
-static void s_remove(
-    ctxt_t *c,
-    event_t *e)
-{
-    cp_dict_remove(&e->node_s, &c->s);
-}
-
-CP_UNUSED
-static void get_coord_on_line(
-    cp_vec2_t *r,
-    event_t *e,
-    cp_vec2_t const *p)
-{
-    LINE_X(e,r) = LINE_X(e,p);
-    LINE_Y(e,r) = e->line.b + (e->line.a * LINE_X(e,p));
-}
-
-static void q_add_orig(
-    ctxt_t *c,
-    cp_vec2_loc_t *v1,
-    cp_vec2_loc_t *v2,
-    size_t poly_id)
-{
-    point_t *p1 = pt_new(c, v1->loc, &v1->coord, &v1->color);
-    point_t *p2 = pt_new(c, v2->loc, &v2->coord, &v2->color);
-
-    if (p1 == p2) {
-        /* edge consisting of only one point (or two coordinates
-         * closer than pt_epsilon collapsed) */
-        return;
-    }
-
-    event_t *e1 = ev_new(c, v1->loc, p1, true,  NULL);
-    e1->in.owner = ((size_t)1) << poly_id;
-
-    event_t *e2 = ev_new(c, v2->loc, p2, false, e1);
-    e2->in = e1->in;
-    e1->other = e2;
-
-    if (pt_cmp(e1->p, e2->p) > 0) {
-        e1->left = false;
-        e2->left = true;
-    }
-
-    /* compute origin and slope */
-    cp_vec2_t d;
-    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
-    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
-    e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
-    e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
-    e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
-    assert(cp_le(e1->line.a, +1));
-    assert(cp_ge(e1->line.a, -1) ||
-        CONFESS("a=%g (%g,%g--%g,%g)",
-            e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
-
-    /* other direction edge is on the same line */
-    e2->line = e1->line;
-
-#ifndef NDEBUG
-    /* check computation */
-    cp_vec2_t g;
-    get_coord_on_line(&g, e1, &e2->p->v.coord);
-    assert(cp_vec2_eq(&g, &e2->p->v.coord));
-    get_coord_on_line(&g, e2, &e1->p->v.coord);
-    assert(cp_vec2_eq(&g, &e1->p->v.coord));
-#endif
-
-    /* Insert.  For 'equal' entries, order does not matter */
-    q_insert(c, e1);
-    q_insert(c, e2);
-}
-
-#ifndef NDEBUG
-#  define divide_segment(c,e,p)  divide_segment_(__FILE__, __LINE__, c, e, p)
-#else
-#  define divide_segment_(f,l,c,e,p) divide_segment(c,e,p)
-#endif
-
-static void divide_segment_(
-    char const *file CP_UNUSED,
-    int line CP_UNUSED,
-    ctxt_t *c,
-    event_t *e,
-    point_t *p)
-{
-    assert(p != e->p);
-    assert(p != e->other->p);
-
-    assert(e->left);
-    event_t *o = e->other;
-
-    assert(!cp_dict_is_member(&o->node_s));
-
-    /*
-     * Split an edge at a point p on that edge (we assume that p is correct -- no
-     * check is done).
-     *      p              p
-     * e-------.       e--.l--.
-     *  `-------o       `--r`--o
-     */
-
-    event_t *r = ev_new(c, p->v.loc, p, false, e);
-    event_t *l = ev_new(c, p->v.loc, p, true,  o);
-
-    /* relink buddies */
-    o->other = l;
-    e->other = r;
-    assert(r->other == e);
-    assert(l->other == o);
-
-    /* copy in/out tracking -- the caller must set this up appropriately */
-    r->in = e->in;
-    l->in = o->in;
-
-    /* copy edge slope and offset */
-    l->line = r->line = e->line;
-
-    /* If the middle point is rounded, the order of l and o may
-     * switch.  This must not happen with e--r, because e is already
-     * processed, so we'd need to go back in time to fix.
-     * Any caller must make sure that p is in the correct place wrt.
-     * e, in particular 'find_intersection', which computes a new point.
-     */
-    if (ev_cmp(l, o) > 0) {
-        /* for the unprocessed part, we can fix the anomality by swapping. */
-        o->left = true;
-        l->left = false;
-    }
-
-    /* For e--r, if we encounter the same corner case, remove the edges from S
-     * and put it back into Q -- this should work because the edges were adjacent,
-     * we we can process them again. */
-    if (ev_cmp(e, r) > 0) {
-        r->left = true;
-        e->left = false;
-        if (cp_dict_is_member(&e->node_s)) {
-            s_remove(c, e);
-            q_insert(c, e);
-        }
-    }
-
-    /* handle new events later */
-    q_insert(c, l);
-    q_insert(c, r);
 }
 
 /**
@@ -1284,6 +906,390 @@ static void poly_make(
             LOG("END: poly\n");
         }
     }
+}
+
+/* ********************************************************************** */
+/* CSG Algorithm */
+
+/**
+ * Compare a vec2 with a point in a dictionary.
+ */
+static int pt_cmp_d(
+    cp_vec2_t *a,
+    cp_dict_t *_b,
+    void *user CP_UNUSED)
+{
+    point_t *b = CP_BOX_OF(_b, point_t, node_pt);
+    return cp_vec2_lex_pt_cmp(a, &b->v.coord);
+}
+
+static cp_dim_t rasterize(cp_dim_t v)
+{
+    return cp_pt_epsilon * round(v / cp_pt_epsilon);
+}
+
+/**
+ * Allocate a new point and remember in our point dictionary.
+ *
+ * This will either return a new point or one that was found already.
+ */
+static point_t *pt_new(
+    ctxt_t *c,
+    cp_loc_t loc,
+    cp_vec2_t const *_coord,
+    cp_color_rgba_t const *color)
+{
+    cp_vec2_t coord = {
+       .x = rasterize(_coord->x),
+       .y = rasterize(_coord->y),
+    };
+
+    /* normalise coordinates around 0 to avoid funny floats */
+    if (cp_eq(coord.x, 0)) { coord.x = 0; }
+    if (cp_eq(coord.y, 0)) { coord.y = 0; }
+
+    cp_dict_ref_t ref;
+    cp_dict_t *pt = cp_dict_find_ref(&ref, &coord, c->pt, pt_cmp_d, NULL, 0);
+    if (pt != NULL) {
+        return CP_BOX_OF(pt, point_t, node_pt);
+    }
+
+    point_t *p = CP_POOL_NEW(c->tmp, *p);
+    p->v.coord = coord;
+    p->v.loc = loc;
+    p->v.color = *color;
+    p->point_idx = CP_SIZE_MAX;
+    p->face_idx = CP_SIZE_MAX;
+
+    LOG("new pt: %s (orig: "FD2")\n", pt_str(p), CP_V01(*_coord));
+
+    cp_dict_insert_ref(&p->node_pt, &ref, &c->pt);
+    return p;
+}
+
+/**
+ * Allocate a new event
+ */
+static event_t *ev_new(
+    ctxt_t *c,
+    cp_loc_t loc,
+    point_t *p,
+    bool left,
+    event_t *other)
+{
+    event_t *r = CP_POOL_NEW(c->tmp, *r);
+    r->loc = loc;
+    r->p = p;
+    r->left = left;
+    r->other = other;
+    return r;
+}
+
+/**
+ * bottom/top compare of edge pt1--pt2 vs point pt: bottom is smaller, top is larger
+ */
+static inline int pt2_pt_cmp(
+    point_t const *a1,
+    point_t const *a2,
+    point_t const *b)
+{
+    return cp_vec2_right_normal3_z(&a1->v.coord, &a2->v.coord, &b->v.coord);
+}
+
+static inline point_t *left(event_t const *ev)
+{
+    return ev->left ? ev->p : ev->other->p;
+}
+
+static inline point_t *right(event_t const *ev)
+{
+    return ev->left ? ev->other->p : ev->p;
+}
+
+/**
+ * Event order in Q: generally left (small) to right (large):
+ *    - left coordinates before right coordinates
+ *    - bottom coordinates before top coordinates
+ *    - right ends before left ends
+ *    - points below an edge before points above an edge
+ */
+static int ev_cmp(event_t const *e1, event_t const *e2)
+{
+    /* Different points compare with different comparison */
+    if (e1->p != e2->p) {
+        int i = pt_cmp(e1->p, e2->p);
+        assert((i != 0) && "Same coordinates found in different point objects");
+        return i;
+    }
+
+    /* right vs left endpoint?  right comes first (= is smaller) */
+    int i = e1->left - e2->left;
+    if (i != 0) {
+        return i;
+    }
+
+    /* same endpoint, same direction: lower edge comes first
+     * Note that this might still return 0, making the events equal.
+     * This is OK, it's collinear segments with the same endpoint and
+     * direction.  These will be split later, processing order does
+     * not matter.
+     */
+    return pt2_pt_cmp(left(e1), right(e1), e2->other->p);
+}
+
+/**
+ * Segment order in S: generally bottom (small) to top (large)
+ *
+ * This was ported from a C++ Less() comparison, which seems to
+ * pass the new element as second argument.  Our data structures
+ * pass the new element as first argument, and in some cases,
+ * this changes the order of edges (if the left end point of the
+ * new edge is on an existing edge).  Therefore, we have
+ * seg_cmp_() and seg_cmp() to swap arguments.
+ * Well, this essentially means that this function is broken, because
+ * it should hold that seg_cmp(a,b) == -seg_cmp(b,a), but it doesn't.
+ * Some indications is clearly mapping -1,0,+1 to -1,-1,+1...
+ */
+static int seg_cmp_(event_t const *e1, event_t const *e2)
+{
+    /* Only left edges are inserted into S */
+    assert(e1->left);
+    assert(e2->left);
+
+    if (e1 == e2) {
+        return 0;
+    }
+
+    int e1_p_cmp = pt2_pt_cmp(e1->p, e1->other->p, e2->p);
+    int e1_o_cmp = pt2_pt_cmp(e1->p, e1->other->p, e2->other->p);
+
+    LOG("seg_cmp: %s vs %s: %d %d\n", ev_str(e1), ev_str(e2), e1_p_cmp, e1_o_cmp);
+
+    if ((e1_p_cmp != 0) || (e1_o_cmp != 0)) {
+        /* non-collinear */
+        /* If e2->p is on e1, use right endpoint location to compare */
+        if (e1_p_cmp == 0) {
+            return e1_o_cmp;
+        }
+
+        /* different points */
+        if (ev_cmp(e1, e2) > 0) {
+            /* e2 is above e2->p? => e1 is below */
+            return pt2_pt_cmp(e2->p, e2->other->p, e1->p) >= 0 ? -1 : +1;
+        }
+
+        /* e1 came first */
+        return e1_p_cmp <= 0 ? -1 : +1;
+    }
+
+    /* segments are collinear. some consistent criterion is used for comparison */
+    if (e1->p == e2->p) {
+        return (e1 < e2) ? -1 : +1;
+    }
+
+    /* compare events */
+    return ev_cmp(e1, e2);
+}
+
+static int seg_cmp(event_t const *e2, event_t const *e1)
+{
+    return -seg_cmp_(e1,e2);
+}
+
+/** dict version of ev_cmp for node_q */
+static int ev_cmp_q(
+    cp_dict_t *_e1,
+    cp_dict_t *_e2,
+    void *user CP_UNUSED)
+{
+    event_t *e1 = CP_BOX_OF(_e1, event_t, node_q);
+    event_t *e2 = CP_BOX_OF(_e2, event_t, node_q);
+    return ev_cmp(e1, e2);
+}
+/** dict version of seg_cmp for node_s */
+static int seg_cmp_s(
+    cp_dict_t *_e1,
+    cp_dict_t *_e2,
+    void *user CP_UNUSED)
+{
+    event_t *e1 = CP_BOX_OF(_e1, event_t, node_s);
+    event_t *e2 = CP_BOX_OF(_e2, event_t, node_s);
+    return seg_cmp(e1, e2);
+}
+
+static void q_insert(
+    ctxt_t *c,
+    event_t *e)
+{
+    assert((pt_cmp(e->p, e->other->p) < 0) == e->left);
+    cp_dict_insert(&e->node_q, &c->q, ev_cmp_q, NULL, 1);
+}
+
+static void q_remove(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_remove(&e->node_q, &c->q);
+}
+
+static inline event_t *q_extract_min(ctxt_t *c)
+{
+    return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
+}
+
+static void s_insert(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_t *o CP_UNUSED = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
+    assert(o == NULL);
+}
+
+static void s_remove(
+    ctxt_t *c,
+    event_t *e)
+{
+    cp_dict_remove(&e->node_s, &c->s);
+}
+
+CP_UNUSED
+static void get_coord_on_line(
+    cp_vec2_t *r,
+    event_t *e,
+    cp_vec2_t const *p)
+{
+    LINE_X(e,r) = LINE_X(e,p);
+    LINE_Y(e,r) = e->line.b + (e->line.a * LINE_X(e,p));
+}
+
+static void q_add_orig(
+    ctxt_t *c,
+    cp_vec2_loc_t *v1,
+    cp_vec2_loc_t *v2,
+    size_t poly_id)
+{
+    point_t *p1 = pt_new(c, v1->loc, &v1->coord, &v1->color);
+    point_t *p2 = pt_new(c, v2->loc, &v2->coord, &v2->color);
+
+    if (p1 == p2) {
+        /* edge consisting of only one point (or two coordinates
+         * closer than pt_epsilon collapsed) */
+        return;
+    }
+
+    event_t *e1 = ev_new(c, v1->loc, p1, true,  NULL);
+    e1->in.owner = ((size_t)1) << poly_id;
+
+    event_t *e2 = ev_new(c, v2->loc, p2, false, e1);
+    e2->in = e1->in;
+    e1->other = e2;
+
+    if (pt_cmp(e1->p, e2->p) > 0) {
+        e1->left = false;
+        e2->left = true;
+    }
+
+    /* compute origin and slope */
+    cp_vec2_t d;
+    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
+    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
+    e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
+    e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
+    e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
+    assert(cp_le(e1->line.a, +1));
+    assert(cp_ge(e1->line.a, -1) ||
+        CONFESS("a=%g (%g,%g--%g,%g)",
+            e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
+
+    /* other direction edge is on the same line */
+    e2->line = e1->line;
+
+#ifndef NDEBUG
+    /* check computation */
+    cp_vec2_t g;
+    get_coord_on_line(&g, e1, &e2->p->v.coord);
+    assert(cp_vec2_eq(&g, &e2->p->v.coord));
+    get_coord_on_line(&g, e2, &e1->p->v.coord);
+    assert(cp_vec2_eq(&g, &e1->p->v.coord));
+#endif
+
+    /* Insert.  For 'equal' entries, order does not matter */
+    q_insert(c, e1);
+    q_insert(c, e2);
+}
+
+#ifndef NDEBUG
+#  define divide_segment(c,e,p)  divide_segment_(__FILE__, __LINE__, c, e, p)
+#else
+#  define divide_segment_(f,l,c,e,p) divide_segment(c,e,p)
+#endif
+
+static void divide_segment_(
+    char const *file CP_UNUSED,
+    int line CP_UNUSED,
+    ctxt_t *c,
+    event_t *e,
+    point_t *p)
+{
+    assert(p != e->p);
+    assert(p != e->other->p);
+
+    assert(e->left);
+    event_t *o = e->other;
+
+    assert(!cp_dict_is_member(&o->node_s));
+
+    /*
+     * Split an edge at a point p on that edge (we assume that p is correct -- no
+     * check is done).
+     *      p              p
+     * e-------.       e--.l--.
+     *  `-------o       `--r`--o
+     */
+
+    event_t *r = ev_new(c, p->v.loc, p, false, e);
+    event_t *l = ev_new(c, p->v.loc, p, true,  o);
+
+    /* relink buddies */
+    o->other = l;
+    e->other = r;
+    assert(r->other == e);
+    assert(l->other == o);
+
+    /* copy in/out tracking -- the caller must set this up appropriately */
+    r->in = e->in;
+    l->in = o->in;
+
+    /* copy edge slope and offset */
+    l->line = r->line = e->line;
+
+    /* If the middle point is rounded, the order of l and o may
+     * switch.  This must not happen with e--r, because e is already
+     * processed, so we'd need to go back in time to fix.
+     * Any caller must make sure that p is in the correct place wrt.
+     * e, in particular 'find_intersection', which computes a new point.
+     */
+    if (ev_cmp(l, o) > 0) {
+        /* for the unprocessed part, we can fix the anomality by swapping. */
+        o->left = true;
+        l->left = false;
+    }
+
+    /* For e--r, if we encounter the same corner case, remove the edges from S
+     * and put it back into Q -- this should work because the edges were adjacent,
+     * we we can process them again. */
+    if (ev_cmp(e, r) > 0) {
+        r->left = true;
+        e->left = false;
+        if (cp_dict_is_member(&e->node_s)) {
+            s_remove(c, e);
+            q_insert(c, e);
+        }
+    }
+
+    /* handle new events later */
+    q_insert(c, l);
+    q_insert(c, r);
 }
 
 static void intersection_add_ev(

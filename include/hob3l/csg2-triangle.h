@@ -9,7 +9,10 @@
 #include <hob3l/csg2_tam.h>
 
 /**
- * Triangulate a set of polygons.
+ * Triangulate a single path.
+ *
+ * This does not clear the list of triangles, but the new
+ * triangles are appended to the polygon's triangle vector.
  *
  * Each polygon must be simple and there must be no intersecting edges
  * neither with the same polygon nor with any other polygon.
@@ -55,29 +58,6 @@
  *     by considering the type or corner (first ends, then starts).
  *     Additionally, the improper start case has a special case if vertices
  *     coincide.
- *
- * Uses \p tmp for all temporary allocations (but not for constructing
- * point_arr or tri).
- *
- * Runtime: O(n log n)
- * Space: O(n)
- * Where n = number of points.
- */
-extern bool cp_csg2_tri_set(
-    cp_pool_t *tmp,
-    cp_err_t *t,
-    cp_vec2_arr_ref_t *point_arr,
-    cp_v_size3_t *tri,
-    cp_a_csg2_3node_t *node);
-
-/**
- * Triangulate a single path.
- *
- * This does not clear the list of triangles, but the new
- * triangles are appended to the polygon's triangle vector.
- *
- * This uses cp_csg2_tri_set() internally, so the path is contrained
- * in the way described for that function.
  *
  * Uses \p tmp for all temporary allocations (but not for constructing g).
  *

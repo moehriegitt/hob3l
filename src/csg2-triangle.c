@@ -14,6 +14,81 @@
 #include <hob3l/ps.h>
 #include "internal.h"
 
+typedef struct edge edge_t;
+typedef struct list list_t;
+
+/**
+ * Node for triangulation algorithm.
+ *
+ * When preparing this for the triangulation algorithm, this needs to
+ * be zeroed and then only the slots \a point, \a in, and \a out need
+ * to be set up properly to define a set of polygons.
+ */
+typedef struct {
+    /** internal to algorithm: node for 'X structure' */
+    cp_dict_t node_nx;
+
+    /** the coordinate of this point */
+    cp_vec2_t *coord;
+
+    /** incoming edge of node on polygon */
+    edge_t *in;
+
+    /** outgoing edge of node on polygon */
+    edge_t *out;
+
+    /**
+     * Location of the point in the input file.
+     *
+     * If this point is not directly in the input, it is better
+     * (= more useful to a user) to point to the enclosing object
+     * than to set this it NULL.  NULL is not illegal, though.
+     */
+    cp_loc_t loc;
+} node_t;
+
+/**
+ * Array of 3node.
+ */
+typedef CP_ARR_T(node_t) cp_a_node_t;
+
+/**
+ * Node list cell for triangulation algorithm.
+ */
+struct list {
+    node_t *node;
+    union {
+        struct {
+            list_t *next;
+            list_t *prev;
+        };
+        list_t *step[2];
+    };
+};
+
+/**
+ * Edge for triangulation algorithm
+ *
+ * When preparing this for the triangulation algorithm, this needs to
+ * be zeroed and then only the slots \a src, and \a dst need
+ * to be set up properly to define a set of polygons.
+ */
+struct edge {
+    /** internal to algorithm: edge in 'Y structure */
+    cp_dict_t node_ey;
+
+    /** source node of edge */
+    node_t *src;
+
+    /** destination node of edge */
+    node_t *dst;
+
+    /** internal to algorithm: linked list nodes ('C structure') */
+    unsigned type;
+    list_t list;
+    list_t *rm;
+};
+
 typedef enum {
     INACTIVE,
     BOT,
@@ -29,20 +104,9 @@ typedef enum {
     CASE_START,
 } case_t;
 
-/**
- * A point and an edge that can be inserted into a set.
- *
- * In px, this represents the point 'p'.
- *
- * In ey, this represents the edge 'p--dst->p'.
- */
-typedef cp_csg2_3node_t node_t;
-typedef cp_csg2_3edge_t edge_t;
-typedef cp_csg2_3list_t list_t;
-
 typedef struct {
     cp_vec2_arr_ref_t *point_arr;
-    cp_a_csg2_3node_t *node;
+    cp_a_node_t *node;
     cp_v_size3_t *tri;
     cp_err_t *t;
     cp_dict_t *nx;
@@ -307,7 +371,7 @@ static void dump_ey(
         /* input polygon */
         cp_printf(cp_debug_ps, "0 0.9 0.9 setrgbcolor 1 setlinewidth\n");
         for (cp_v_each(i, c->node)) {
-            cp_csg2_3node_t *n = &cp_v_nth(c->node, i);
+            node_t *n = &cp_v_nth(c->node, i);
             cp_printf(cp_debug_ps,
                 "newpath %g %g moveto %g %g lineto stroke\n",
                 CP_PS_XY(*n->coord),
@@ -1271,70 +1335,15 @@ static bool csg2_tri_diff_v_csg2(
     return true;
 }
 
-/* ********************************************************************** */
-/* extern */
-
 /**
  * Triangulate a set of polygons.
- *
- * Each polygon must be simple and there must be no intersecting edges
- * neither with the same polygon nor with any other polygon.
- * Polygons, however, may be fully contained with in other polygons,
- * i.e., they must not intersect, but may fully overlap.
- *
- * Polygons are defined by setting up an array of nodes \p node.  The
- * algorithm assumes that the structure was zeroed for initialisation
- * and then each node's \a in, \a out, and \p point slots need to be
- * initialised to represent the set of polygons.  The \p loc slot
- * is optional (meaning it may remain NULL), but highly recommended
- * for good error messages.
- *
- * Implicitly, edges need to be stored somewhere (they are pointed to
- * by each node).  Each edge is also assumed to having been zeroed for
- * initialisation.  The edges \p src and \p dst slots may be
- * initialised, but do not need to be, as they will be initialised by
- * the algorithm from each point's n->in and n->out information so
- * that n->in->dst = n->out->src = n.
- *
- * This uses the Hertel & Mehlhorn (1983) algorithm (non-optimised).
- *
- * The algorithm is extended in several ways:
- *
- * (1) It also handles subsequent collinear edges, i.e., three (and more)
- *     subsequent points in the polygon on the same line.  This
- *     situation will introduce more triangles than necessary, however,
- *     because each point will become a corner of a triangle.  This
- *     is implemented by applying a 2 dimensional lexicographical
- *     order to the points in the sweep line queue instead of the
- *     original x-only order.
- *
- * (2) It also handles coincident vertices in the same polygon.  This
- *     is what the CSG2 boolop algorithm outputs if the input is such
- *     that points coincide.  There is no way to fix this: it is just
- *     how the polygons are.  The boolop algorithm will never output
- *     vertices in the middle of an edge, so the triangulation does
- *     not need to handle that.  Also, I think no bends with coincident
- *     edges will ever be output, so this is untested (and probably
- *     will not work), only ends (proper and improper) and starts (proper
- *     and improper) are tested.
- *     This is implemented by again extending the sweep line point order
- *     by considering the type or corner (first ends, then starts).
- *     Additionally, the improper start case has a special case if vertices
- *     coincide.
- *
- * Uses \p tmp for all temporary allocations (but not for constructing
- * point_arr or tri).
- *
- * Runtime: O(n log n)
- * Space: O(n)
- * Where n = number of points.
  */
-extern bool cp_csg2_tri_set(
+static bool cp_csg2_tri_set(
     cp_pool_t *tmp,
     cp_err_t *t,
     cp_vec2_arr_ref_t *point_arr,
     cp_v_size3_t *tri,
-    cp_a_csg2_3node_t *node)
+    cp_a_node_t *node)
 {
     /*
      * What they fail to mention in the paper is that some nodes need
@@ -1404,14 +1413,59 @@ extern bool cp_csg2_tri_set(
     return true;
 }
 
+/* ********************************************************************** */
+/* extern */
+
 /**
  * Triangulate a single path.
  *
  * This does not clear the list of triangles, but the new
  * triangles are appended to the polygon's triangle vector.
  *
- * This uses cp_csg2_tri_set() internally, so the path is contrained
- * in the way described for that function.
+ * Each polygon must be simple and there must be no intersecting edges
+ * neither with the same polygon nor with any other polygon.
+ * Polygons, however, may be fully contained with in other polygons,
+ * i.e., they must not intersect, but may fully overlap.
+ *
+ * Polygons are defined by setting up an array of nodes \p node.  The
+ * algorithm assumes that the structure was zeroed for initialisation
+ * and then each node's \a in, \a out, and \p point slots need to be
+ * initialised to represent the set of polygons.  The \p loc slot
+ * is optional (meaning it may remain NULL), but highly recommended
+ * for good error messages.
+ *
+ * Implicitly, edges need to be stored somewhere (they are pointed to
+ * by each node).  Each edge is also assumed to having been zeroed for
+ * initialisation.  The edges \p src and \p dst slots may be
+ * initialised, but do not need to be, as they will be initialised by
+ * the algorithm from each point's n->in and n->out information so
+ * that n->in->dst = n->out->src = n.
+ *
+ * This uses the Hertel & Mehlhorn (1983) algorithm (non-optimised).
+ *
+ * The algorithm is extended in several ways:
+ *
+ * (1) It also handles subsequent collinear edges, i.e., three (and more)
+ *     subsequent points in the polygon on the same line.  This
+ *     situation will introduce more triangles than necessary, however,
+ *     because each point will become a corner of a triangle.  This
+ *     is implemented by applying a 2 dimensional lexicographical
+ *     order to the points in the sweep line queue instead of the
+ *     original x-only order.
+ *
+ * (2) It also handles coincident vertices in the same polygon.  This
+ *     is what the CSG2 boolop algorithm outputs if the input is such
+ *     that points coincide.  There is no way to fix this: it is just
+ *     how the polygons are.  The boolop algorithm will never output
+ *     vertices in the middle of an edge, so the triangulation does
+ *     not need to handle that.  Also, I think no bends with coincident
+ *     edges will ever be output, so this is untested (and probably
+ *     will not work), only ends (proper and improper) and starts (proper
+ *     and improper) are tested.
+ *     This is implemented by again extending the sweep line point order
+ *     by considering the type or corner (first ends, then starts).
+ *     Additionally, the improper start case has a special case if vertices
+ *     coincide.
  *
  * Uses \p tmp for all temporary allocations (but not for constructing g).
  *
@@ -1445,7 +1499,7 @@ extern bool cp_csg2_tri_path(
         p->in = &edge[cp_wrap_sub1(i,n)];
     }
 
-    cp_a_csg2_3node_t a = CP_A_INIT_WITH(node, n);
+    cp_a_node_t a = CP_A_INIT_WITH(node, n);
 
     cp_vec2_arr_ref_t a2;
     cp_vec2_arr_ref_from_v_vec2_loc(&a2, &g->point);
@@ -1514,7 +1568,7 @@ extern bool cp_csg2_tri_poly(
     size_t tri_cnt = (n - 2) + 2*(m - 1);
     cp_v_clear(&g->triangle, tri_cnt);
 
-    cp_a_csg2_3node_t a = CP_A_INIT_WITH(node, n);
+    cp_a_node_t a = CP_A_INIT_WITH(node, n);
 
     /* run the triangulation algorithm */
     cp_vec2_arr_ref_t a2;
@@ -1559,7 +1613,7 @@ extern bool cp_csg2_tri_vec2_arr_ref(
      * slightly larger than what's expected). */
     cp_v_clear(tri, n);
 
-    cp_a_csg2_3node_t a = CP_A_INIT_WITH(node, n);
+    cp_a_node_t a = CP_A_INIT_WITH(node, n);
 
     /* run the triangulation algorithm */
     if (!cp_csg2_tri_set(tmp, t, a2, tri, &a)) {
