@@ -1261,11 +1261,13 @@ static bool csg3_from_projection(
     mat_ctxt_t const *m,
     cp_scad_projection_t const *s)
 {
+    /* This is ignored if in 3D context or if the children are
+     * fully ignored. */
+
     if (c->context != IN2D) {
         return msg(c, c->opt->err_outside_2d, s->loc, NULL,
             "'projection' found outside 2D context.");
     }
-    *no = true;
 
     /* construct a separate tree for the children */
     ctxt_t c2 = *c;
@@ -1694,12 +1696,28 @@ static bool csg3_from_linext(
     mat_ctxt_t const *mo,
     cp_scad_linext_t const *s)
 {
+    /* This is ignored if it is used in non-3D context or when
+     * the child list is fully ignored (empty).  Collapsed by height=0
+     * counts as non-ignored. */
+
     if (c->context != IN3D) {
         return msg(c, c->opt->err_outside_3d, s->loc, NULL,
             "'linear_extrude' found outside 3D context.");
     }
-    *no = true;
 
+    /* construct a separate tree for the children */
+    ctxt_t c2 = *c;
+    c2.context = IN2D;
+    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
+
+    /* start with fresh matrix in 2D space */
+    mat_ctxt_t mn = *mo;
+    mn.mat = the_unit(c->tree);
+    if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
+        return false;
+    }
+
+    /* now check the parameters */
     if (cp_le(s->height, 0)) {
         return msg(c, c->opt->err_empty, s->loc, NULL,
            "Expected non-empty linear_extrude, but height="FF".\n",
@@ -1751,18 +1769,6 @@ static bool csg3_from_linext(
         cp_mat3wi_xlat(m1, 0, 0, -.5);
         cp_mat3wi_mul(m1, m, m1);
         m = m1;
-    }
-
-    /* construct a separate tree for the children */
-    ctxt_t c2 = *c;
-    c2.context = IN2D;
-    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
-
-    /* start with fresh matrix in 2D space */
-    mat_ctxt_t mn = *mo;
-    mn.mat = the_unit(c->tree);
-    if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
-        return false;
     }
 
     /*
