@@ -934,7 +934,7 @@ Hob3l can only handle this for `cut=true`, i.e., to cut a slice.
 Hob3l cannot perform the 3D operation of casting a shadow of the whole
 object into the XY plane, because no 3D algorithms are implemented.
 
-The of the projection is a 2D object.
+The result of the projection is a 2D object.
 
 _OpenSCAD compatibility_:
 
