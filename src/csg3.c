@@ -1304,8 +1304,10 @@ static bool csg3_from_projection(
     cp_csg2_stack_t *stack = cp_csg2_cast(*stack, csg2o->root);
     cp_csg2_layer_t *layer = cp_csg2_stack_get_layer(stack, 0);
     assert(layer != NULL);
+    cp_csg_add_t *root = layer->root;
 
-    /* sweep */
+    /* sweep (FIXME: should all be allocated in c->tmp) */
+    cp_v_fini(&stack->layer);
     CP_FREE(stack);
     CP_FREE(csg2o);
     CP_FREE(csg2);
@@ -1313,12 +1315,12 @@ static bool csg3_from_projection(
     CP_FREE(csg3);
 
     /* empty projection= */
-    if (layer->root == NULL) {
+    if (root == NULL) {
         return true;
     }
 
     /* return result */
-    cp_v_push(r, cp_obj(layer->root));
+    cp_v_push(r, cp_obj(root));
     return true;
 }
 
