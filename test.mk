@@ -189,7 +189,9 @@ TEST_STL.scad := \
     scad-test/test32.scad \
     scad-test/test32c.scad \
     scad-test/test32d.scad \
-    scad-test/test35.scad
+    scad-test/test35.scad \
+    scad-test/test36a.scad \
+    scad-test/test36b.scad
 
 FAIL_TRIANGLE.scad :=
 
