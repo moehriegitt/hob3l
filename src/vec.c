@@ -465,7 +465,7 @@ extern size_t cp_bsearch(
 
 /* ********************************************************************** */
 /* macros */
-#if 0
+#ifdef CP_MACRO_
 
 /**
  * Internal: Pointer to element in vector

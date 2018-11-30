@@ -43,6 +43,11 @@
  * avoid as long as possible.
  */
 typedef enum {
+    CP_CSG2_ADD = CP_CSG_ADD,
+    CP_CSG2_SUB = CP_CSG_SUB,
+    CP_CSG2_CUT = CP_CSG_CUT,
+    CP_CSG2_XOR = CP_CSG_XOR,
+
     /**
      * Polygon */
     CP_CSG2_POLY = CP_CSG2_TYPE + 1,
@@ -54,8 +59,8 @@ typedef enum {
 
 #define CP_CSG2_ \
     union { \
-        struct { CP_OBJ_ }; \
-        struct { CP_OBJ_ } obj; \
+        struct { CP_OBJ_(cp_csg2_type_t) }; \
+        struct { CP_OBJ_(cp_csg2_type_t) } obj; \
     };
 
 #define CP_CSG2_SIMPLE_ \
@@ -82,7 +87,7 @@ typedef CP_ARR_T(cp_csg2_layer_t) cp_a_csg2_layer_t;
 struct cp_csg2_stack {
     /**
      * type is CP_CSG2_STACK */
-    CP_OBJ_
+    CP_CSG2_
 
     /**
      * Actual first global index at index[0] in \a layer */
@@ -184,8 +189,7 @@ struct cp_csg2_poly {
  *
  * This indicates that (mainly) 2D objects are stored/processed.
  */
-struct cp_csg2 { CP_OBJ_ };
-
+struct cp_csg2 { CP_CSG2_ };
 
 
 /**

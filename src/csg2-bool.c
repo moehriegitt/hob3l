@@ -50,13 +50,13 @@
 #include <hob3l/csg2-bitmap.h>
 #include "internal.h"
 
-typedef struct event event_t;
-typedef struct point point_t;
+typedef struct cp_path_ev cp_path_ev_t;
+typedef struct cp_path_pt cp_path_pt_t;
 
 /**
  * Points found by algorithm
  */
-struct point {
+struct cp_path_pt {
     cp_dict_t node_pt;
 
     cp_vec2_loc_t v;
@@ -77,16 +77,14 @@ struct point {
 
     /**
      * Next in face_idx list */
-    point_t *next;
+    cp_path_pt_t *next;
 };
-
-typedef CP_VEC_T(point_t*) v_point_p_t;
 
 /**
  * Events when the algorithm progresses.
  * Points with more info in the left-right plain sweep.
  */
-struct event {
+struct cp_path_ev {
     /**
      * Storage in s and chain is mutually exclusive so we
      * use a union here.
@@ -116,8 +114,8 @@ struct event {
     };
 
     cp_loc_t loc;
-    point_t *p;
-    event_t *other;
+    cp_path_pt_t *p;
+    cp_path_ev_t *other;
 
     struct {
         /**
@@ -167,6 +165,9 @@ struct event {
     size_t debug_tag;
 #endif
 };
+
+typedef cp_path_ev_t event_t;
+typedef cp_path_pt_t point_t;
 
 #define _LINE_X(swap,c) ((c)->v[(swap)])
 #define _LINE_Y(swap,c) ((c)->v[!(swap)])
@@ -2333,6 +2334,9 @@ static void cp_csg2_op_reduce(
     bool flatten)
 {
     TRACE();
+    if (r->size == 0) {
+        return;
+    }
     if (!flatten && (r->size <= 1)) {
         return;
     }

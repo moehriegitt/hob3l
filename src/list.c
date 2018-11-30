@@ -83,7 +83,7 @@ extern void cp_list_swap_(
 
 /* ********************************************************************** */
 /* macros */
-#if 0
+#ifdef CP_MACRO_
 
 /**
  * Insert a list between p and p->next.

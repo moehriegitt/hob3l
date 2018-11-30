@@ -123,35 +123,6 @@ static void poly_put_scad(
     cp_printf(s, "]);\n");
 }
 
-static void poly2_put_scad(
-    cp_stream_t *s,
-    int d,
-    cp_csg2_poly_t *r)
-{
-    cp_printf(s, "%*s", d,"");
-    cp_printf(s, "polygon(");
-    cp_printf(s, "points=[");
-    for (cp_v_each(i, &r->point)) {
-        cp_vec2_t const *v = &r->point.data[i].coord;
-        cp_printf(s,"%s["FF","FF"]",
-            i == 0 ? "" : ",",
-            v->x, v->y);
-    }
-    cp_printf(s, "],");
-    cp_printf(s, "paths=[");
-    for (cp_v_each(i, &r->path)) {
-        cp_csg2_path_t const *f = &r->path.data[i];
-        cp_printf(s, "%s[", i == 0 ? "" : ",");
-        for (cp_v_each(j, &f->point_idx)) {
-            cp_printf(s, "%s%"CP_Z"u",
-                j == 0 ? "" : ",",
-                f->point_idx.data[j]);
-        }
-        cp_printf(s, "]");
-    }
-    cp_printf(s, "]);\n");
-}
-
 static void csg3_put_scad(
     cp_stream_t *s,
     int d,
@@ -180,10 +151,6 @@ static void csg3_put_scad(
 
     case CP_CSG3_POLY:
         poly_put_scad(s, d, cp_csg3_cast(cp_csg3_poly_t, r));
-        break;
-
-    case CP_CSG2_POLY:
-        poly2_put_scad(s, d, cp_csg2_cast(cp_csg2_poly_t, r));
         break;
 
     default:

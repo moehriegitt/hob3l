@@ -30,9 +30,11 @@
         cp_scad_cube_t:         CP_SCAD_CUBE, \
         cp_scad_polyhedron_t:   CP_SCAD_POLYHEDRON, \
         cp_scad_import_t:       CP_SCAD_IMPORT, \
+        cp_scad_surface_t:      CP_SCAD_SURFACE, \
         cp_scad_circle_t:       CP_SCAD_CIRCLE, \
         cp_scad_square_t:       CP_SCAD_SQUARE, \
         cp_scad_polygon_t:      CP_SCAD_POLYGON, \
+        cp_scad_projection_t:   CP_SCAD_PROJECTION, \
         cp_scad_linext_t:       CP_SCAD_LINEXT, \
         cp_scad_color_t:        CP_SCAD_COLOR)
 
@@ -54,10 +56,12 @@ typedef enum {
     CP_SCAD_CYLINDER,
     CP_SCAD_POLYHEDRON,
     CP_SCAD_IMPORT,
+    CP_SCAD_SURFACE,
 
     CP_SCAD_CIRCLE,
     CP_SCAD_SQUARE,
     CP_SCAD_POLYGON,
+    CP_SCAD_PROJECTION,
 
     CP_SCAD_LINEXT,
 
@@ -65,7 +69,7 @@ typedef enum {
 } cp_scad_type_t;
 
 #define CP_SCAD_ \
-    struct { CP_OBJ_ }; \
+    struct { CP_OBJ_(cp_scad_type_t) }; \
     unsigned modifier;
 
 typedef struct {
@@ -79,6 +83,13 @@ typedef struct {
     char const *file_tok;
     cp_vchar_t file;
 } cp_scad_import_t;
+
+typedef struct {
+    CP_SCAD_
+    char const *file_tok;
+    cp_vchar_t file;
+    bool center;
+} cp_scad_surface_t;
 
 typedef struct {
     CP_SCAD_
@@ -181,6 +192,11 @@ typedef struct {
 typedef struct {
     CP_SCAD_GROUP_XYZ_
 } cp_scad_scale_t;
+
+typedef struct {
+    CP_SCAD_GROUP_
+    bool cut;
+} cp_scad_projection_t;
 
 typedef struct {
     CP_SCAD_GROUP_

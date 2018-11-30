@@ -39,17 +39,20 @@ typedef enum {
     CP_CSG_XOR,
 } cp_csg_type_t;
 
+#define CP_CSG_ \
+    CP_OBJ_(cp_csg_type_t)
+
 typedef struct {
     /**
      * type is CP_CSG_ADD */
-    CP_OBJ_
+    CP_CSG_
     cp_v_obj_p_t add;
 } cp_csg_add_t;
 
 typedef struct {
     /**
      * type is CP_CSG_SUB */
-    CP_OBJ_
+    CP_CSG_
     cp_csg_add_t *add;
     cp_csg_add_t *sub;
 } cp_csg_sub_t;
@@ -59,14 +62,14 @@ typedef CP_VEC_T(cp_csg_add_t*) cp_v_csg_add_p_t;
 typedef struct {
     /**
      * type is CP_CSG_CUT */
-    CP_OBJ_
+    CP_CSG_
     cp_v_csg_add_p_t cut;
 } cp_csg_cut_t;
 
 typedef struct {
     /**
      * type is CP_CSG_XOR */
-    CP_OBJ_
+    CP_CSG_
     cp_v_csg_add_p_t xor;
 } cp_csg_xor_t;
 
@@ -77,7 +80,7 @@ typedef struct {
  * Using cp_obj_t would work, too, but this type is an additional
  * abstract type for clarity.
  */
-struct cp_csg { CP_OBJ_ };
+struct cp_csg { CP_CSG_ };
 
 /**
  * Empty polygon optimisation.

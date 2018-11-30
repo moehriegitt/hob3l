@@ -916,6 +916,33 @@ The polyhedron must be 2-manifold, i.e.:
     walls.
   * Each edge must have exactly two adjacent faces.
 
+### projection
+
+Cut out one 2D slice from a 3D model.
+
+```
+projection([cut]) { ... }
+```
+
+  * `cut` :: boolean, default=false
+
+Project a 3D object into a 2D object in the iXY plane by cutting out
+the slice at z=0.
+
+Hob3l can only handle this for `cut=true`, i.e., to cut a slice.
+Hob3l cannot perform the 3D operation of casting a shadow of the whole
+object into the XY plane, because no 3D algorithms are implemented.
+
+The of the projection is a 2D object.
+
+_OpenSCAD compatibility_:
+
+  * If the result of the projection is empty:
+      * OpenSCAD ignores the projection in `intersection` and `difference`,
+      * Hob3l never ignores this in order to ensure that which child
+        is ignored can be determined from the syntax alone, without
+        evaluating anything.
+
 ### rotate
 
 Rotate substructures.

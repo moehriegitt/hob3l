@@ -646,7 +646,7 @@ extern void cp_dict_swap_update_root2(
 
 /* ********************************************************************** */
 /* macros */
-#if 0
+#ifdef CP_MACRO_
 
 /**
  * Find a node in the tree.

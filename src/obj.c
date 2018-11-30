@@ -2,7 +2,7 @@
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /* macros */
-#if 0
+#ifdef CP_MACRO_
 
 /**
  * Create a instance of an object.

@@ -61,10 +61,10 @@ typedef enum {
 } cp_syn_stmt_type_t;
 
 #define CP_SYN_VALUE_BASE \
-    CP_OBJ_
+    CP_OBJ_(cp_syn_value_type_t)
 
 #define CP_SYN_STMT_BASE \
-    CP_OBJ_
+    CP_OBJ_(cp_syn_stmt_type_t)
 
 /**
  * SCAD parser item statement.

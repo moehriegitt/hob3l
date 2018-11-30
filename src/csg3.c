@@ -48,6 +48,15 @@ typedef struct {
     unsigned context;
 } ctxt_t;
 
+static void csg3_init_tree(
+    cp_csg3_tree_t *t,
+    cp_loc_t loc)
+{
+    if (t->root == NULL) {
+        t->root = cp_csg_new(*t->root, loc);
+    }
+}
+
 /**
  * Returns a new unit matrix.
  */
@@ -705,29 +714,6 @@ static bool polygon_make_clockwise(
     return rev;
 }
 
-#if 0
-/**
- * Whether a sequence of 3 points is convex.
- *
- * Returns a bitmask:
- *     bit 0: XY is concave
- *     bit 1: XY is collinear
- *     bit 2: XY is convex
- *     bit 3: YZ is concave
- *     bit 4: YZ is collinear
- *     bit 5: YZ is convex
- */
-static int vec3_face_normal3_z(
-    cp_vec3_t const *a,
-    cp_vec3_t const *o,
-    cp_vec3_t const *b)
-{
-    return
-        (1 << (1 + cp_vec2_right_normal3_z(&a->b,  &o->b,  &b->b))) |
-        (1 << (4 + cp_vec2_right_normal3_z(&a->be, &o->be, &b->be)));
-}
-#endif
-
 static void face_from_tri_or_poly(
     size_t *k,
     cp_csg3_poly_t *o,
@@ -1229,6 +1215,31 @@ static bool csg3_from_import(
     return poly_make_edges(o, c);
 }
 
+static bool csg3_from_surface(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *m,
+    cp_scad_surface_t const *s)
+{
+    if (c->context != IN3D) {
+        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
+            "'surface' found outside 3D context.");
+    }
+    *no = true;
+
+    /* read file */
+    cp_syn_file_t *file = CP_NEW(*file);
+    if (!cp_syn_read(file, c->err, c->syn, s->file_tok, s->file.data, NULL)) {
+        return false;
+    }
+
+    (void)r;
+    (void)m;
+    CP_NYI("surface");
+    return false;
+}
+
 static void xform_2d(
     mat_ctxt_t const *m,
     cp_csg2_poly_t *o)
@@ -1241,6 +1252,72 @@ static void xform_2d(
         w->coord = v.b;
         w->color = m->gc.color;
     }
+}
+
+static bool csg3_from_projection(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *m,
+    cp_scad_projection_t const *s)
+{
+    if (c->context != IN2D) {
+        return msg(c, c->opt->err_outside_2d, s->loc, NULL,
+            "'projection' found outside 2D context.");
+    }
+    *no = true;
+
+    /* construct a separate tree for the children */
+    ctxt_t c2 = *c;
+    c2.context = IN3D;
+
+    cp_csg3_tree_t *csg3 = CP_NEW(*csg3);
+    csg3_init_tree(csg3, s->loc);
+
+    /* start with fresh matrix in 2D space */
+    mat_ctxt_t mn = *m;
+    mn.mat = the_unit(c->tree);
+    if (!csg3_from_v_scad(no, &csg3->root->add, &c2, &mn, &s->child)) {
+        return false;
+    }
+
+    /* cut out the slice */
+    cp_range_t range;
+    cp_range_init(&range, 0, 0, 0.1);
+    range.cnt = 1;
+
+    cp_csg2_tree_t *csg2 = CP_NEW(*csg2);
+    cp_csg2_tree_from_csg3(csg2, csg3, &range, c->opt);
+
+    cp_csg2_tree_t *csg2o = CP_NEW(*csg2o);
+    cp_csg2_op_tree_init(csg2o, csg2);
+
+    if (!cp_csg2_tree_add_layer(c->tmp, csg2, c->err, 0)) {
+        return false;
+    }
+
+    /* extract the slice from the stack */
+    cp_csg2_op_add_layer(c->opt, c->tmp, csg2o, csg2, 0);
+    assert(csg2o->root != NULL);
+    cp_csg2_stack_t *stack = cp_csg2_cast(*stack, csg2o->root);
+    cp_csg2_layer_t *layer = cp_csg2_stack_get_layer(stack, 0);
+    assert(layer != NULL);
+
+    /* sweep */
+    CP_FREE(stack);
+    CP_FREE(csg2o);
+    CP_FREE(csg2);
+    CP_FREE(csg3->root);
+    CP_FREE(csg3);
+
+    /* empty projection= */
+    if (layer->root == NULL) {
+        return true;
+    }
+
+    /* return result */
+    cp_v_push(r, cp_obj(layer->root));
+    return true;
 }
 
 static bool csg3_from_polygon(
@@ -1863,6 +1940,9 @@ static bool csg3_from_scad(
     case CP_SCAD_IMPORT:
         return csg3_from_import(no, r, c, m, cp_scad_cast(cp_scad_import_t, s));
 
+    case CP_SCAD_SURFACE:
+        return csg3_from_surface(no, r, c, m, cp_scad_cast(cp_scad_surface_t, s));
+
     /* 2D objects */
     case CP_SCAD_CIRCLE:
         return csg3_from_circle(no, r, c, m, cp_scad_cast(cp_scad_circle_t, s));
@@ -1872,18 +1952,12 @@ static bool csg3_from_scad(
 
     case CP_SCAD_POLYGON:
         return csg3_from_polygon(no, r, c, m, cp_scad_cast(cp_scad_polygon_t, s));
+
+    case CP_SCAD_PROJECTION:
+        return csg3_from_projection(no, r, c, m, cp_scad_cast(cp_scad_projection_t, s));
     }
 
     CP_DIE("SCAD object type");
-}
-
-static void csg3_init_tree(
-    cp_csg3_tree_t *t,
-    cp_loc_t loc)
-{
-    if (t->root == NULL) {
-        t->root = cp_csg_new(*t->root, loc);
-    }
 }
 
 static bool cp_csg3_from_scad(
@@ -2018,19 +2092,6 @@ static void get_bb_poly(
     }
 }
 
-static void get_bb_poly2(
-    cp_vec3_minmax_t *bb,
-    cp_csg2_poly_t const *r)
-{
-    if ((r->point.size == 0) || (r->path.size < 1)) {
-        return;
-    }
-    for (cp_v_each(i, &r->point)) {
-        cp_vec2_min(&bb->min.b, &bb->min.b, &cp_v_nth(&r->point, i).coord);
-        cp_vec2_max(&bb->max.b, &bb->max.b, &cp_v_nth(&r->point, i).coord);
-    }
-}
-
 static void get_bb_sphere(
     cp_vec3_minmax_t *bb,
     cp_csg3_sphere_t const *r)
@@ -2066,10 +2127,6 @@ static void get_bb_csg3(
 
     case CP_CSG3_POLY:
         get_bb_poly(bb, cp_csg3_cast(cp_csg3_poly_t, r));
-        return;
-
-    case CP_CSG2_POLY:
-        get_bb_poly2(bb, cp_csg2_cast(cp_csg2_poly_t, r));
         return;
     }
     CP_NYI();

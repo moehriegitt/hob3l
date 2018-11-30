@@ -34,6 +34,11 @@
  * must have children of type 'add'.
  */
 typedef enum {
+    CP_CSG3_ADD = CP_CSG_ADD,
+    CP_CSG3_SUB = CP_CSG_SUB,
+    CP_CSG3_CUT = CP_CSG_CUT,
+    CP_CSG3_XOR = CP_CSG_XOR,
+
     /**
      * Sphere with radius 1, centered a [0,0,0] */
     CP_CSG3_SPHERE = CP_CSG3_TYPE + 1,
@@ -45,8 +50,8 @@ typedef enum {
 
 #define CP_CSG3_ \
     union { \
-        struct { CP_OBJ_ }; \
-        struct { CP_OBJ_ } obj; \
+        struct { CP_OBJ_(cp_csg3_type_t) }; \
+        struct { CP_OBJ_(cp_csg3_type_t) } obj; \
     }; \
     cp_gc_t gc;
 
@@ -171,7 +176,7 @@ typedef cp_csg2_poly_t cp_csg3_poly2_t;
  *
  * This indicates that (mainly) 2D objects are stored/processed.
  */
-struct cp_csg3 { CP_OBJ_; };
+struct cp_csg3 { CP_CSG3_; };
 
 typedef struct {
     cp_v_mat3wi_p_t mat;

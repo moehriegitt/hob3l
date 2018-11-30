@@ -73,6 +73,7 @@ static bool func_new_(
         [CP_SCAD_CYLINDER]     = sizeof(cp_scad_cylinder_t),
         [CP_SCAD_POLYHEDRON]   = sizeof(cp_scad_polyhedron_t),
         [CP_SCAD_IMPORT]       = sizeof(cp_scad_import_t),
+        [CP_SCAD_SURFACE]      = sizeof(cp_scad_surface_t),
         [CP_SCAD_MULTMATRIX]   = sizeof(cp_scad_multmatrix_t),
         [CP_SCAD_TRANSLATE]    = sizeof(cp_scad_translate_t),
         [CP_SCAD_MIRROR]       = sizeof(cp_scad_mirror_t),
@@ -81,6 +82,7 @@ static bool func_new_(
         [CP_SCAD_CIRCLE]       = sizeof(cp_scad_circle_t),
         [CP_SCAD_SQUARE]       = sizeof(cp_scad_square_t),
         [CP_SCAD_POLYGON]      = sizeof(cp_scad_polygon_t),
+        [CP_SCAD_PROJECTION]   = sizeof(cp_scad_projection_t),
         [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
         [CP_SCAD_LINEXT]       = sizeof(cp_scad_linext_t),
     };
@@ -1421,6 +1423,54 @@ static bool import_from_item(
     return true;
 }
 
+static bool surface_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_q)
+{
+    cp_scad_surface_t *q = cp_scad_cast(*q, _q);
+
+    unsigned _convexity;
+    bool _invert;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_STR   ("file",      &q->file_tok, MANDATORY),
+            PARAM_BOOL  ("center",    &q->center,   OPTIONAL),
+            PARAM_BOOL  ("invert",    &_invert,     OPTIONAL),
+            PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
+        ),
+        ()))
+    {
+        return false;
+    }
+
+    if (!string_unquote(t, &q->file, q->file_tok)) {
+        return false;
+    }
+
+    return true;
+}
+
+static bool projection_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_q)
+{
+    cp_scad_projection_t *q = cp_scad_cast(*q, _q);
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_BOOL("cut", &q->cut, OPTIONAL),
+        ),
+        ()))
+    {
+        return false;
+    }
+
+    return v_scad_from_v_syn_stmt_item(t, &q->child, &f->body);
+}
+
 typedef struct {
     char const *id;
     cp_scad_type_t type;
@@ -1516,6 +1566,11 @@ static bool v_scad_from_syn_stmt_item(
            .from = polyhedron_from_item
         },
         {
+           .id = "projection",
+           .type = CP_SCAD_PROJECTION,
+           .from = projection_from_item
+        },
+        {
            .id = "rotate",
            .type = CP_SCAD_ROTATE,
            .from = rotate_from_item
@@ -1534,6 +1589,11 @@ static bool v_scad_from_syn_stmt_item(
            .id = "square",
            .type = CP_SCAD_SQUARE,
            .from = square_from_item
+        },
+        {
+           .id = "surface",
+           .type = CP_SCAD_SURFACE,
+           .from = surface_from_item
         },
         {
            .id = "text",

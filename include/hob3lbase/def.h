@@ -27,12 +27,6 @@ CP_STATIC_ASSERT(sizeof(int)       == 4);
 CP_STATIC_ASSERT(sizeof(long long) == 8);
 CP_STATIC_ASSERT(sizeof(void*)     == sizeof(size_t));
 
-#define CP_IND 2
-
-#define CP_STRINGIFY_2_(x) #x
-#define CP_STRINGIFY_1_(x) CP_STRINGIFY_2_(x)
-#define CP_STRINGIFY(x)    CP_STRINGIFY_1_(x)
-
 /**
  * Make a bit mask of all ones for a given type, be sure to
  * only return a positive result, i.e., return the maximum value
@@ -54,18 +48,6 @@ CP_STATIC_ASSERT(CP_MAX_OF(unsigned) == 0xffffffff);
 CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 
 /**
- * Boolean operation
- *
- * Used for the low-level algorithm.
- */
-typedef enum {
-    CP_OP_CUT = 0,
-    CP_OP_XOR = 1,
-    CP_OP_SUB = 2,
-    CP_OP_ADD = 3,
-} cp_bool_op_t;
-
-/**
  * For some historic reason, a - b returns a signed type in C.  I do
  * not want that, I want size_t, and I will compile with -Wconversion,
  * so make that happen:
@@ -82,6 +64,12 @@ typedef enum {
     })
 
 /* ** #define ** */
+
+#define CP_IND 2
+
+#define CP_STRINGIFY_2_(x) #x
+#define CP_STRINGIFY_1_(x) CP_STRINGIFY_2_(x)
+#define CP_STRINGIFY(x)    CP_STRINGIFY_1_(x)
 
 #define CP_CONCAT_3_(x,y) x##y
 #define CP_CONCAT_2_(x,y) CP_CONCAT_3_(x,y)
@@ -268,6 +256,18 @@ typedef enum {
 #  define CP_FILE NULL
 #  define CP_LINE 0
 #endif
+
+/**
+ * Boolean operation
+ *
+ * Used for the low-level algorithm.
+ */
+typedef enum {
+    CP_OP_CUT = 0,
+    CP_OP_XOR = 1,
+    CP_OP_SUB = 2,
+    CP_OP_ADD = 3,
+} cp_bool_op_t;
 
 static inline bool strequ(char const *a, char const *b)
 {

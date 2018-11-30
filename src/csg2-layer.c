@@ -747,9 +747,6 @@ static bool csg2_add_layer_stack(
             cp_csg3_cast(cp_csg3_poly_t, d));
         break;
 
-    case CP_CSG2_POLY:
-        CP_DIE("2D object");
-
     default:
         CP_DIE("3D object");
     }
@@ -832,7 +829,7 @@ extern bool cp_csg2_tree_add_layer(
     size_t zi)
 {
     assert(r->root != NULL);
-    assert(r->root->type == CP_CSG_ADD);
+    assert(r->root->type == CP_CSG2_ADD);
     assert(zi < r->z.size);
     bool no = false;
     return csg2_add_layer_add(&no, pool, r, t, zi, cp_csg_cast(cp_csg_add_t, r->root));

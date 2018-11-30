@@ -100,7 +100,24 @@ static void import_put_scad(
     cp_scad_import_t const *r)
 {
     cp_printf(s, "import(s=\"%s\");\n", r->file_tok);
+}
 
+static void surface_put_scad(
+    cp_stream_t *s,
+    cp_scad_surface_t const *r)
+{
+    cp_printf(s, "surface(s=\"%s\",center=%s);\n",
+        r->file_tok, r->center?"true":"false");
+}
+
+static void projection_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_projection_t const *r)
+{
+    cp_printf(s, "projection(cut=%s){\n", r->cut?"true":"false");
+    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s,"%*s}\n", d, "");
 }
 
 static void rotate_put_scad(
@@ -297,6 +314,10 @@ static void scad_put_scad(
         import_put_scad(s, cp_scad_cast(cp_scad_import_t, r));
         return;
 
+    case CP_SCAD_SURFACE:
+        surface_put_scad(s, cp_scad_cast(cp_scad_surface_t, r));
+        return;
+
     case CP_SCAD_CIRCLE:
         circle_put_scad(s, cp_scad_cast(cp_scad_circle_t, r));
         return;
@@ -307,6 +328,10 @@ static void scad_put_scad(
 
     case CP_SCAD_POLYGON:
         polygon_put_scad(s, d, cp_scad_cast(cp_scad_polygon_t, r));
+        return;
+
+    case CP_SCAD_PROJECTION:
+        projection_put_scad(s, d, cp_scad_cast(cp_scad_projection_t, r));
         return;
 
     case CP_SCAD_LINEXT:
