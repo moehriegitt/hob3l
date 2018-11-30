@@ -927,7 +927,7 @@ projection([cut]) { ... }
 
   * `cut` :: boolean, default=false
 
-Project a 3D object into a 2D object in the iXY plane by cutting out
+Project a 3D object into a 2D object in the XY plane by cutting out
 the slice at z=0.
 
 Hob3l can only handle this for `cut=true`, i.e., to cut a slice.
