@@ -31,6 +31,7 @@
       * [multmatrix](#multmatrix)
       * [polygon](#polygon)
       * [polyhedron](#polyhedron)
+      * [projection](#projection)
       * [rotate](#rotate)
           * [If `v` is not specified](#if-v-is-not-specified)
           * [If `v` is specified](#if-v-is-specified)
