@@ -1283,6 +1283,12 @@ static bool csg3_from_projection(
         return false;
     }
 
+    /* check whether we can do it */
+    if (!s->cut) {
+        return msg(c, CP_ERR_FAIL, s->loc, NULL,
+            "'projection(cut=false)' is not implemented, only cut=true.");
+    }
+
     /* cut out the slice */
     cp_range_t range;
     cp_range_init(&range, 0, 0, 0.1);
