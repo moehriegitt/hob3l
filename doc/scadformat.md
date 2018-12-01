@@ -941,7 +941,7 @@ _OpenSCAD compatibility_:
   * If the result of the projection is empty:
       * OpenSCAD ignores the projection in `intersection` and `difference`,
       * Hob3l does not ignore this for this reason, in order to ensure that
-        which child is ignored can be determined from the syntax alone,
+        which child is ignored can be determined
         without evaluating anything.  Hob3l ignores this exactly if all the
         children of `projection` are ignored, i.e., the criterion is the
         same as with `rotate` etc.
