@@ -1297,33 +1297,17 @@ static bool csg3_from_projection(
     cp_csg2_tree_t *csg2 = CP_NEW(*csg2);
     cp_csg2_tree_from_csg3(csg2, csg3, &range, c->opt);
 
-    cp_csg2_tree_t *csg2o = CP_NEW(*csg2o);
-    cp_csg2_op_tree_init(csg2o, csg2);
-
     if (!cp_csg2_tree_add_layer(c->tmp, csg2, c->err, 0)) {
         return false;
     }
 
-    /* extract the slice from the stack */
-    cp_csg2_op_add_layer(c->opt, c->tmp, csg2o, csg2, 0);
-    assert(csg2o->root != NULL);
-    cp_csg2_stack_t *stack = cp_csg2_cast(*stack, csg2o->root);
-    cp_csg2_layer_t *layer = cp_csg2_stack_get_layer(stack, 0);
-    assert(layer != NULL);
-    cp_csg_add_t *root = layer->root;
+    cp_csg2_t *root = csg2->root;
+    assert(root != NULL);
 
     /* sweep (FIXME: should all be allocated in c->tmp) */
-    cp_v_fini(&stack->layer);
-    CP_FREE(stack);
-    CP_FREE(csg2o);
     CP_FREE(csg2);
     CP_FREE(csg3->root);
     CP_FREE(csg3);
-
-    /* empty projection= */
-    if (root == NULL) {
-        return true;
-    }
 
     /* return result */
     cp_v_push(r, cp_obj(root));
