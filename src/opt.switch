@@ -141,35 +141,35 @@ case "eps2": dim &cp_sqr_epsilon {
 
 help_section "Intermediate Stage Output/Alternative Output Format Options";
 
-case "dump-syn": bool &opt->dump_syn {
+case "dump-syn": {
     "print after stage 1: AST of input file; don't slice";
-    opt->have_dump = true;
+    opt->dump = DUMP_SYN;
 }
-case "dump-scad": bool &opt->dump_scad {
+case "dump-scad": {
     "print after stage 2: SCAD tree, SCAD format; don't slice";
-    opt->have_dump = true;
+    opt->dump = DUMP_SCAD;
 }
-case "dump-csg3": bool &opt->dump_csg3 {
+case "dump-csg3": {
     "print after stage 3: 3D CSG model, SCAD format; don't slice";
-    opt->have_dump = true;
+    opt->dump = DUMP_CSG3;
 }
-case "dump-csg2": bool &opt->dump_csg2 {
+case "dump-csg2": {
     "print after stage 4: final 2D polygon stack in SCAD format";
-    opt->have_dump = true;
+    opt->dump = DUMP_CSG2;
 }
-case "dump-ps": bool &opt->dump_ps {
+case "dump-ps": {
     "print after stage 4: final 2D polygon stack in PostScript format";
-    opt->have_dump = true;
+    opt->dump = DUMP_PS;
 }
-case "dump-stl": bool &opt->dump_stl {
+case "dump-stl": {
     "print after stage 4: final 2D polygon stack in STL format";
-    opt->have_dump = true;
+    opt->dump = DUMP_STL;
 }
-case "dump-js": bool &opt->dump_js {
+case "dump-js": {
     "print after stage 4: final 2D polygon stack in JavaScript/WebGL format";
     "The script 'hob3l-js-copy-aux' will add files needed to view the model";
     "in a WebGL enabled web browser.";
-    opt->have_dump = true;
+    opt->dump = DUMP_JS;
 }
 
 case "no-csg": bool &opt->no_csg {

@@ -1304,7 +1304,7 @@ static bool csg3_from_projection(
     cp_csg2_t *root = csg2->root;
     assert(root != NULL);
 
-    /* sweep (FIXME: should all be allocated in c->tmp) */
+    /* sweep (FIXME: should all be allocated in c2.tmp) */
     CP_FREE(csg2);
     CP_FREE(csg3->root);
     CP_FREE(csg3);

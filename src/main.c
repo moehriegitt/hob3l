@@ -17,20 +17,24 @@
 #define CP_PROG_NAME "hob3l"
 #endif
 
+typedef enum {
+    DUMP_NONE,
+    DUMP_SYN,
+    DUMP_SCAD,
+    DUMP_CSG3,
+    DUMP_CSG2,
+    DUMP_PS,
+    DUMP_STL,
+    DUMP_JS
+} dump_t;
+
 typedef struct {
     cp_dim_t z_min;
     cp_dim_t z_max;
     cp_dim_t z_step;
     bool have_z_min;
     bool have_z_max;
-    bool dump_syn;
-    bool dump_scad;
-    bool dump_csg3;
-    bool dump_csg2;
-    bool dump_ps;
-    bool dump_stl;
-    bool dump_js;
-    bool have_dump;
+    dump_t dump;
     bool no_tri;
     bool no_csg;
     bool no_diff;
@@ -81,9 +85,11 @@ static bool process_stack_csg(
         if (!opt->no_csg) {
             cp_csg2_op_add_layer(&opt->csg, pool, csg2b, csg2, i);
         }
-        if (!opt->no_tri) {
-            if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
-                return false;
+        if ((i == 0) || (i == (zi_count - 1)) || (opt->dump != DUMP_JS)) {
+            if (!opt->no_tri) {
+                if (!cp_csg2_tri_layer(pool, err, csg2_out, i)) {
+                    return false;
+                }
             }
         }
     }
@@ -136,7 +142,7 @@ static bool do_file(
     if (!cp_syn_parse(err, input, r, file)) {
         return false;
     }
-    if (opt->dump_syn) {
+    if (opt->dump == DUMP_SYN) {
         cp_syn_tree_put_scad(sout, r);
         return true;
     }
@@ -147,7 +153,7 @@ static bool do_file(
     if (!cp_scad_from_syn_tree(scad, input, err, r)) {
         return false;
     }
-    if (opt->dump_scad) {
+    if (opt->dump == DUMP_SCAD) {
         cp_scad_tree_put_scad(sout, scad);
         return true;
     }
@@ -183,7 +189,7 @@ static bool do_file(
 #endif
     }
 
-    if (opt->dump_csg3) {
+    if (opt->dump == DUMP_CSG3) {
         cp_csg3_tree_put_scad(sout, csg3);
         return true;
     }
@@ -228,7 +234,7 @@ static bool do_file(
     }
 
     /* compute diff if there is any output format that can use it */
-    if (opt->dump_js) {
+    if (opt->dump == DUMP_JS) {
         if (!opt->no_diff) {
             zi = 0;
             if (!process_stack_diff(opt, &pool, err, csg2_out, &zi, range.cnt)) {
@@ -238,19 +244,20 @@ static bool do_file(
     }
 
     /* print */
-    if (opt->dump_csg2) {
+    switch (opt->dump) {
+    case DUMP_CSG2:
         cp_csg2_tree_put_scad(sout, csg2_out);
         return true;
-    }
-    if (opt->dump_stl) {
+
+    case DUMP_STL:
         cp_csg2_tree_put_stl(sout, csg2_out);
         return true;
-    }
-    if (opt->dump_js) {
+
+    case DUMP_JS:
         cp_csg2_tree_put_js(sout, csg2_out);
         return true;
-    }
-    if (opt->dump_ps) {
+
+    case DUMP_PS:{
         cp_ps_xform_t xform = CP_PS_XFORM_MM;
         switch (opt->ps_scale_step) {
         default:
@@ -270,7 +277,10 @@ static bool do_file(
         }
         opt->ps.xform1 = &xform;
         cp_csg2_tree_put_ps(sout, &opt->ps, csg2_out);
-        return true;
+        return true;}
+
+    default:
+         break;
     }
 
     return true;
@@ -605,21 +615,21 @@ int main(int argc, char **argv)
         }
         sout = CP_STREAM_FROM_FILE(fout);
 
-        if (!opt.have_dump) {
+        if (opt.dump == DUMP_NONE) {
             if (has_suffix(opt.out_file_name, ".stl")) {
-                opt.dump_stl = true;
+                opt.dump = DUMP_STL;
             }
             else if (has_suffix(opt.out_file_name, ".js")) {
-                opt.dump_js = true;
+                opt.dump = DUMP_JS;
             }
             else if (
                 has_suffix(opt.out_file_name, ".scad") ||
                 has_suffix(opt.out_file_name, ".csg"))
             {
-                opt.dump_csg2 = true;
+                opt.dump = DUMP_CSG2;
             }
             else if (has_suffix(opt.out_file_name, ".ps")) {
-                opt.dump_ps = true;
+                opt.dump = DUMP_PS;
             }
             else {
                 fprintf(stderr, "Error: Unrecognised file ending: '%s'.  Use --dump-...\n",

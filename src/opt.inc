@@ -347,8 +347,7 @@ static void get_opt_dump_csg2(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_csg2, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_CSG2;
 }
 
 static void get_opt_dump_csg3(
@@ -356,8 +355,7 @@ static void get_opt_dump_csg3(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_csg3, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_CSG3;
 }
 
 static void get_opt_dump_js(
@@ -365,8 +363,7 @@ static void get_opt_dump_js(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_js, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_JS;
 }
 
 static void get_opt_dump_ps(
@@ -374,8 +371,7 @@ static void get_opt_dump_ps(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_ps, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_PS;
 }
 
 static void get_opt_dump_scad(
@@ -383,8 +379,7 @@ static void get_opt_dump_scad(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_scad, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_SCAD;
 }
 
 static void get_opt_dump_stl(
@@ -392,8 +387,7 @@ static void get_opt_dump_stl(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_stl, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_STL;
 }
 
 static void get_opt_dump_syn(
@@ -401,8 +395,7 @@ static void get_opt_dump_syn(
     char const *name CP_UNUSED,
     char const *arg CP_UNUSED)
 {
-    get_arg_bool(&opt->dump_syn, name, arg);
-    opt->have_dump = true;
+    opt->dump = DUMP_SYN;
 }
 
 static void get_opt_empty(
@@ -914,37 +907,37 @@ cp_get_opt_t opt_list[] = {
     {
         "dump-csg2",
         get_opt_dump_csg2,
-        1,
+        0,
     },
     {
         "dump-csg3",
         get_opt_dump_csg3,
-        1,
+        0,
     },
     {
         "dump-js",
         get_opt_dump_js,
-        1,
+        0,
     },
     {
         "dump-ps",
         get_opt_dump_ps,
-        1,
+        0,
     },
     {
         "dump-scad",
         get_opt_dump_scad,
-        1,
+        0,
     },
     {
         "dump-stl",
         get_opt_dump_stl,
-        1,
+        0,
     },
     {
         "dump-syn",
         get_opt_dump_syn,
-        1,
+        0,
     },
     {
         "empty",
