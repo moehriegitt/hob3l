@@ -629,7 +629,7 @@ group() { ... }
 Load a polyhedron from a file.
 
 ```
-import(file{,layer,convexity})
+import(file[,layer,convexity])
 ```
 
   * `file` :: string
@@ -922,10 +922,11 @@ The polyhedron must be 2-manifold, i.e.:
 Cut out one 2D slice from a 3D model.
 
 ```
-projection([cut]) { ... }
+projection([cut]{,convexity}) { ... }
 ```
 
   * `cut` :: boolean, default=false
+  * `convexity` :: integer, ignored
 
 Project a 3D object into a 2D object in the XY plane by cutting out
 the slice at z=0.

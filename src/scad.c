@@ -1437,10 +1437,11 @@ static bool surface_from_item(
         (
             PARAM_STR   ("file",      &q->file_tok, MANDATORY),
             PARAM_BOOL  ("center",    &q->center,   OPTIONAL),
+        ),
+        (
             PARAM_BOOL  ("invert",    &_invert,     OPTIONAL),
             PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
-        ),
-        ()))
+        )))
     {
         return false;
     }
@@ -1458,12 +1459,15 @@ static bool projection_from_item(
     cp_scad_t *_q)
 {
     cp_scad_projection_t *q = cp_scad_cast(*q, _q);
+    unsigned _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_BOOL("cut", &q->cut, OPTIONAL),
         ),
-        ()))
+        (
+            PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
+        )))
     {
         return false;
     }
