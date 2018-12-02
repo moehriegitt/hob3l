@@ -2234,6 +2234,14 @@ static void csg2_op_diff2_poly(
     if ((a0->point.size | a1->point.size) == 0) {
         return;
     }
+    if (a0->point.size == 0) {
+        a1->diff_below = a1;
+        return;
+    }
+    if (a1->point.size == 0) {
+        a0->diff_above = a0;
+        return;
+    }
 
     a0->diff_above = poly_sub(opt, tmp, a0, a1);
     a1->diff_below = poly_sub(opt, tmp, a1, a0);
@@ -2264,15 +2272,27 @@ static void csg2_op_diff2_layer(
     cp_csg2_layer_t *a1)
 {
     TRACE();
-    if (cp_csg_add_size(a0->root) != 1) {
+
+    /* Run diff even if one layer is empty because we did not triangulate
+     * the layer to speed things up, so we need to ensure that there is a
+     * above_diff/below_diff to be triangulated to avoid holes. */
+    cp_csg2_poly_t empty = { .type = CP_CSG2_POLY };
+    cp_csg2_t *pe = cp_csg2_cast(*pe, &empty);
+    cp_csg2_t *p0 = pe;
+    cp_csg2_t *p1 = pe;
+    if ((a0 != NULL) && (cp_csg_add_size(a0->root) == 1)) {
+        p0 = cp_csg2_cast(cp_csg2_t, cp_v_nth(&a0->root->add,0));
+    }
+    if ((a1 != NULL) && (cp_csg_add_size(a1->root) == 1)) {
+        p1 = cp_csg2_cast(cp_csg2_t, cp_v_nth(&a1->root->add,0));
+    }
+    if (p0 == p1) {
+        assert(p0 == pe);
         return;
     }
-    if (cp_csg_add_size(a1->root) != 1) {
-        return;
-    }
-    csg2_op_diff2(opt, tmp,
-        cp_csg2_cast(cp_csg2_t, cp_v_nth(&a0->root->add,0)),
-        cp_csg2_cast(cp_csg2_t, cp_v_nth(&a1->root->add,0)));
+    csg2_op_diff2(opt, tmp, p0, p1);
+    assert(empty.diff_above == NULL);
+    assert(empty.diff_below == NULL);
 }
 
 static void csg2_op_diff_stack(
@@ -2284,18 +2304,6 @@ static void csg2_op_diff_stack(
     TRACE();
     cp_csg2_layer_t *l0 = cp_csg2_stack_get_layer(a, zi);
     cp_csg2_layer_t *l1 = cp_csg2_stack_get_layer(a, zi + 1);
-    if ((l0 == NULL) || (l1 == NULL)) {
-        return;
-    }
-    if (zi != l0->zi) {
-        assert(l0->zi == 0); /* not visited: must be empty */
-        return;
-    }
-    if ((zi + 1) != l1->zi) {
-        assert(l1->zi == 0); /* not visited: must be empty */
-        return;
-    }
-
     csg2_op_diff2_layer(opt, tmp, l0, l1);
 }
 
