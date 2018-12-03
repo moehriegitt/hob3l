@@ -1005,7 +1005,7 @@ rotate_extrude({angle,convexity,$fn,$fa,$fs}) { ... }
 This takes a 2D scene and rotates it around the Z axis to make a
 torus-like polyhedron.  It uses `$fn` torus segments for the rotation.
 If `angle` is 360, this generates a full torus, starting with the
-first step in the negative X axis.  This unlike most other circular
+first step in the negative X axis.  This is unlike other circular
 operations, but it is legacy OpenSCAD behaviour.  With a value other
 than 360, rotation starts in the positive X axis as usual.
 
