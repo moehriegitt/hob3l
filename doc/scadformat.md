@@ -1009,6 +1009,11 @@ first step in the negative X axis.  This unlike most other circular
 operations, but it is legacy OpenSCAD behaviour.  With a value other
 than 360, rotation starts in the positive X axis as usual.
 
+The X coordinates of the points of the 2D children must all be either
+>=0 or <=0.  Mixed positive and negative X coordinates are currently
+not supported.  X coordinates equal to 0 can be combined with either
+alternative.
+
 If `angle` is smaller than 360, this generates a segment of the given
 angle, starting at the positive x axis for the first step and running
 counter-clockwise when viewed from the top.
@@ -1027,12 +1032,13 @@ _OpenSCAD compatibility_:
   * Hob3l is able to generate 2-manifold polyhedra in all
     circumstances, even if points touch the Z axis (i.e., the 2D scene
     has points with x==0).  Hob3l achieves this by not rendering a
-    full torus, because this could generate a singleton vertex that is
-    not 2-manifold. Instead, Hob3l splits the full torus into 2 pieces
-    and merges them.  The subsequent 2D algorithms of Hob3l cope with
-    this equivalent form.
+    full torus, because this could generate a singleton vertex where
+    the polyhedron is not 2-manifold. Instead, Hob3l splits the full
+    torus into 2 pieces and merges them.  The subsequent 2D algorithms
+    of Hob3l cope with this equivalent form.
   * OpenSCAD uses the usual heuristics for finding the number of steps,
-    while Hob3l relies on `$fn` to be manually set.
+    while Hob3l relies on `$fn` to be manually set or using a command
+    line defined default value.
   * The `angle` != 360 case is implemented in Hob3l without comparing
     the result experimentally with OpenSCAD 2016.x, because only
     OpenSCAD 2015.3 was used, which does not support this feature.  The
