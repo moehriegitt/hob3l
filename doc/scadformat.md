@@ -1022,7 +1022,8 @@ first step and running counter-clockwise when viewed from the top.
   * If angle is >= 180, then `$fn` is adjusted to be at least 2.
   * If angle is < 180, then `$fn` may be as small as 1.
   * If `$fn` is 0 (the default), then the torus will be rendered with
-    a large number of steps (as set by the -max-fn command line option).
+    a number of steps set by the `max-fn` parameter (e.g.
+    on the command line option).
 
 Note that this ignores `$fa` and `$fs`, which usually means that `$fn`
 needs to be supplied for a result compatible with OpenSCAD.
