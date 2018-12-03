@@ -75,6 +75,17 @@ static void linext_put_scad(
     cp_printf(s,"%*s}\n", d, "");
 }
 
+static void rotext_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_rotext_t const *r)
+{
+    cp_printf(s, "rotate_extrude("
+        "angle=%g, $fn=%u){\n", r->angle, r->_fn);
+    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s,"%*s}\n", d, "");
+}
+
 static void color_put_scad(
     cp_stream_t *s,
     int d,
@@ -336,6 +347,10 @@ static void scad_put_scad(
 
     case CP_SCAD_LINEXT:
         linext_put_scad(s, d, cp_scad_cast(cp_scad_linext_t, r));
+        return;
+
+    case CP_SCAD_ROTEXT:
+        rotext_put_scad(s, d, cp_scad_cast(cp_scad_rotext_t, r));
         return;
 
     case CP_SCAD_COLOR:

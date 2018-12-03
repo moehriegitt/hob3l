@@ -85,6 +85,7 @@ static bool func_new_(
         [CP_SCAD_PROJECTION]   = sizeof(cp_scad_projection_t),
         [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
         [CP_SCAD_LINEXT]       = sizeof(cp_scad_linext_t),
+        [CP_SCAD_ROTEXT]       = sizeof(cp_scad_rotext_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -1283,6 +1284,34 @@ static bool linext_from_item(
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
+static bool rotext_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_rotext_t *r = cp_scad_cast(*r, _r);
+    r->angle = 360;
+
+    double _fa;
+    double _fs;
+    unsigned _convexity;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (),
+        (
+            PARAM_FLOAT ("angle",        &r->angle,   OPTIONAL),
+            PARAM_UINT32("convexity",    &_convexity, OPTIONAL),
+            PARAM_FLOAT ("$fa",          &_fa,        OPTIONAL),
+            PARAM_FLOAT ("$fs",          &_fs,        OPTIONAL),
+            PARAM_UINT32("$fn",          &r->_fn,     OPTIONAL),
+        )))
+    {
+        return false;
+    }
+
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
 static bool cylinder_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
@@ -1578,6 +1607,11 @@ static bool v_scad_from_syn_stmt_item(
            .id = "rotate",
            .type = CP_SCAD_ROTATE,
            .from = rotate_from_item
+        },
+        {
+           .id = "rotate_extrude",
+           .type = CP_SCAD_ROTEXT,
+           .from = rotext_from_item,
         },
         {
            .id = "scale",

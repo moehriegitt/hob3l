@@ -36,6 +36,7 @@
         cp_scad_polygon_t:      CP_SCAD_POLYGON, \
         cp_scad_projection_t:   CP_SCAD_PROJECTION, \
         cp_scad_linext_t:       CP_SCAD_LINEXT, \
+        cp_scad_rotext_t:       CP_SCAD_ROTEXT, \
         cp_scad_color_t:        CP_SCAD_COLOR)
 
 /**
@@ -64,6 +65,7 @@ typedef enum {
     CP_SCAD_PROJECTION,
 
     CP_SCAD_LINEXT,
+    CP_SCAD_ROTEXT,
 
     CP_SCAD_COLOR,
 } cp_scad_type_t;
@@ -238,6 +240,12 @@ typedef struct {
     bool center;
     unsigned _fn;
 } cp_scad_linext_t;
+
+typedef struct {
+    CP_SCAD_GROUP_
+    cp_angle_t angle;
+    unsigned _fn;
+} cp_scad_rotext_t;
 
 struct cp_scad { CP_SCAD_ };
 

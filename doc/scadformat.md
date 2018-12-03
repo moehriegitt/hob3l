@@ -35,6 +35,7 @@
       * [rotate](#rotate)
           * [If `v` is not specified](#if-v-is-not-specified)
           * [If `v` is specified](#if-v-is-specified)
+      * [rotate_extrude](#rotate_extrude)
       * [scale](#scale)
       * [sphere](#sphere)
       * [square](#square)
@@ -986,6 +987,57 @@ int32, there is an exact solution to `sin` and/or `cos`, then this
 exact value is used.  E.g. `cos(90) = 1` and `sin(30) = 0.5`,
 exactly, so that `rotate(90,[1,0,0])` is a rotation by exactly 90
 degrees around the X axis.
+
+### rotate_extrude
+
+Make a polyhedron by spinning a polygon around the z axis.
+
+```
+rotate_extrude({angle,convexity,$fn,$fa,$fs}) { ... }
+```
+
+  * `angle` :: float 0..360, default = 360
+  * `convexity` :: integer, ignored
+  * `$fn` :: integer >= 2, default = 0
+  * `$fa` :: float, ignored
+  * `$fs` :: float, ignored
+
+This takes a 2D scene and rotates it around the Z axis to make a
+torus-like polyhedron.  It uses `$fn` torus segments for the rotation.
+If `angle` is 360, this generates a full torus, starting with the
+first step in the negative X axis.  This is counter to most other
+operations, but it is legacy OpenSCAD behaviour.  With a value other
+than 360, rotation starts in the positive X axis as usual.
+
+If `angle` is smaller than 360, this generates a segment of the given
+angle, starting at the positive x axis for the first step and running
+counter-clockwise when viewed from the top.
+
+Note that this ignores `$fa` and `$fs`, which usually means that `$fn`
+needs to be supplied for sensible results.
+
+  * If angle is >= 360, then `$fn` is adjusted to be at least 3.
+  * If angle is >= 180, then `$fn` is adjusted to be at least 2.
+  * If angle is < 180, then `$fn` is adjusted to be at least 1.
+  * If `$fn` is 0 (the default), then the torus will be rendered with
+    a large number of steps (as set by the -max-fn command line option).
+
+_OpenSCAD compatibility_:
+
+  * Hob3l is able to generate 2-manifold polyhedra in all
+    circumstances, while OpenSCAD often generates malformed polyhedra,
+    especially if points touch the Z axis (i.e., the 2D structures has
+    points with x==0).  Hob3l achieves this by never rendering a full
+    torus, because this could generate a singleton vertex that is not
+    2-manifold. Instead, Hob3l splits the full torus into 2 pieces and
+    merges them.  The subsequent 2D algorithms of Hob3l cope with this
+    equivalent form.
+  * OpenSCAD uses the usual heuristics for finding the number of steps,
+    while Hob3l relies on `$fn` to be manually set.
+  * The `angle` != 360 case is implemented in Hob3l without comparing
+    the result experimentally with OpenSCAD 2016.x, because only
+    OpenSCAD 2015.3 was used, which does not support this feature.  The
+    hook from the OpenSCAD documentation does look the same, though.
 
 ### scale
 

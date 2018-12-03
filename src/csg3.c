@@ -412,6 +412,15 @@ static bool csg3_from_rotate(
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
 
+static void face_rev_perhaps(
+    cp_csg3_face_t *face,
+    bool rev)
+{
+    if (rev) {
+        cp_v_reverse(&face->point, 0, face->point.size);
+    }
+}
+
 /**
  * Requires a convex face to work properly */
 static void face_basics(
@@ -428,9 +437,7 @@ static void face_basics(
     cp_v_init0(&face->edge, face->point.size);
 
     /* Possibly reverse */
-    if (rev) {
-        cp_v_reverse(&face->point, 0, face->point.size);
-    }
+    face_rev_perhaps(face, rev);
 }
 
 static cp_csg3_face_t *face_init_from_point_ref(
@@ -486,15 +493,14 @@ static int cmp_edge(
  * representation.  This also checks soundness of the
  * polyhedron, because an unsound polyhedron cannot be
  * converted into edge representation.
- *
- * The only thing we don't see here if we have an inside-out
- * polyhedron.  But I am not even sure where this is invalid -- I
- * suppose the subsequent algorithms should be working anyway.
  */
 static bool poly_make_edges(
     cp_csg3_poly_t *r,
     ctxt_t *c)
 {
+    assert((r->point.size >= 4) || CONFESS("size=%"CP_Z"u\n", r->point.size));
+    assert((r->face.size >= 4)  || CONFESS("size=%"CP_Z"u\n", r->face.size));
+
     /* Number of edges is equal to number of total face point divided
      * by two, because each pair of consecutive points is translated to
      * one face, and each face must be defined exactly twice, once
@@ -666,6 +672,7 @@ static void csg3_sphere_minmax(
 static size_t get_fn(
     cp_csg_opt_t const *opt,
     size_t fn,
+    size_t min_fn,
     bool have_circular)
 {
     if (fn == 0) {
@@ -674,8 +681,8 @@ static size_t get_fn(
     if (fn > opt->max_fn) {
         return have_circular ? 0 : fn;
     }
-    if (fn < 3) {
-        return 3;
+    if (fn < min_fn) {
+        return min_fn;
     }
     return fn;
 }
@@ -983,7 +990,7 @@ static bool csg3_from_sphere(
         m = m1;
     }
 
-    size_t fn = get_fn(c->opt, s->_fn, true);
+    size_t fn = get_fn(c->opt, s->_fn, 3, true);
     if (fn > 0) {
         /* all faces are convex */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
@@ -1478,7 +1485,7 @@ static bool csg3_from_circle(
     cp_v_init0(&o->path, 1);
     cp_csg2_path_t *q = &cp_v_nth(&o->path, 0);
 
-    size_t fn = get_fn(c->opt, s->_fn, false);
+    size_t fn = get_fn(c->opt, s->_fn, 3, false);
     cp_v_init0(&o->point, fn);
     cp_v_init0(&q->point_idx, fn);
 
@@ -1677,7 +1684,7 @@ static bool csg3_from_cylinder(
     }
 
     /* cp_csg3_cylinder_t: for now, generate a polyhedron */
-    size_t fn = get_fn(c->opt, s->_fn, false);
+    size_t fn = get_fn(c->opt, s->_fn, 3, false);
     return csg3_poly_cylinder(r, c, m, s, mo, r2, fn);
 }
 
@@ -1861,6 +1868,300 @@ static bool csg3_from_linext(
     return true;
 }
 
+static size_t rotext_idx(
+    size_t x0_cnt,
+    size_t xi_cnt,
+    size_t *idx,
+    size_t i,
+    size_t j)
+{
+    size_t k = idx[i];
+    if (k & 1) {
+        return (k >> 1) + x0_cnt + (xi_cnt * j);
+    }
+    assert((k >> 1) < x0_cnt);
+    return (k >> 1);
+}
+
+static void poly3_push_face4(
+    cp_csg3_poly_t *p3,
+    size_t idx0,
+    size_t idx1,
+    size_t idx2,
+    size_t idx3,
+    bool rev)
+{
+    /* filter unique point indices */
+    size_t idx[4] = { idx0 };
+    size_t cnt = 1;
+    if (idx0 != idx1) {
+        idx[cnt++] = idx1;
+    }
+    if ((idx0 != idx2) && (idx1 != idx2)) {
+        idx[cnt++] = idx2;
+    }
+    if ((idx0 != idx3) && (idx1 != idx3) && (idx2 != idx3)) {
+        idx[cnt++] = idx3;
+    }
+    /* anything less than a triangle is ignored */
+    if (cnt < 3) {
+        return;
+    }
+
+    /* make a face */
+    cp_csg3_face_t *face = cp_v_push0(&p3->face);
+    cp_v_init0(&face->point, cnt);
+    cp_v_init0(&face->edge,  cnt);
+    for (cp_v_each(i, &face->point)) {
+        cp_vec3_loc_ref_t *v = cp_v_nth_ptr(&face->point, i);
+        v->ref = cp_v_nth_ptr(&p3->point, idx[i]);
+        v->loc = p3->loc;
+    }
+
+    /* reverse if necessary */
+    face_rev_perhaps(face, rev);
+}
+
+static bool rotext_arc(
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *m,
+    cp_scad_rotext_t const *s,
+    cp_csg2_poly_t *p2,
+    size_t *idx,
+    size_t x0_cnt,
+    cp_vec2_t *cs,
+    size_t slice_cnt,
+    bool neg)
+{
+    assert((slice_cnt >= 2) || CONFESS("slice_cnt=%"CP_Z"u", slice_cnt));
+
+    /* prepare */
+    bool rev = neg ^ (m->mat->d < 0);
+    size_t xi_cnt = p2->point.size - x0_cnt;
+    size_t pt_cnt = x0_cnt + (xi_cnt * slice_cnt);
+
+    cp_csg3_poly_t *p3 = cp_csg3_new(*p3, s->loc);
+    p3->gc = m->gc;
+
+    /* generate points: those that are in the z axis are put
+     * into the first x0_cnt entries, then follow j times
+     * those that are not in the y axis, rotated around the
+     * z axis, where x defines the radius.
+     */
+    cp_v_init0(&p3->point, pt_cnt);
+    cp_v_init0(&p3->edge,  pt_cnt);
+    for (cp_v_each(i, &p2->point)) {
+        cp_vec2_loc_t *q2 = &cp_v_nth(&p2->point, i);
+        if (idx[i] & 1) {
+            for (cp_size_each(j, slice_cnt)) {
+                size_t k = rotext_idx(x0_cnt, xi_cnt, idx, i, j);
+                cp_vec3_loc_t *q3 = &cp_v_nth(&p3->point, k);
+                q3->loc = q2->loc;
+                q3->coord.z = q2->coord.y;
+                q3->coord.x = cs[j].x * q2->coord.x;
+                q3->coord.y = cs[j].y * q2->coord.x;
+            }
+        }
+        else {
+            size_t k = rotext_idx(x0_cnt, xi_cnt, idx, i, 0);
+            cp_vec3_loc_t *q3 = &cp_v_nth(&p3->point, k);
+            q3->loc = q2->loc;
+            q3->coord.z = q2->coord.y;
+        }
+    }
+
+    /* in-place xform */
+    for (cp_v_each(i, &p3->point)) {
+        cp_vec3w_xform(
+            &cp_v_nth(&p3->point, i).coord, &m->mat->n, &cp_v_nth(&p3->point, i).coord);
+    }
+
+    /* generate faces */
+    /* step 1: connections */
+    for (cp_size_each(j1, slice_cnt, 1)) {
+        size_t j0 = j1 - 1;
+        for (cp_v_each(k, &p2->path)) {
+            cp_csg2_path_t *pa = &cp_v_nth(&p2->path,k);
+            for (cp_v_each(l, &pa->point_idx)) {
+                size_t i0 = cp_v_nth(&pa->point_idx, l);
+                size_t i1 = cp_v_nth(&pa->point_idx, cp_wrap_add1(l, pa->point_idx.size));
+                poly3_push_face4(p3,
+                    rotext_idx(x0_cnt, xi_cnt, idx, i0, j0),
+                    rotext_idx(x0_cnt, xi_cnt, idx, i1, j0),
+                    rotext_idx(x0_cnt, xi_cnt, idx, i1, j1),
+                    rotext_idx(x0_cnt, xi_cnt, idx, i0, j1),
+                    rev);
+            }
+        }
+    }
+
+    /* step 2: ends */
+    for (cp_v_each(k, &p2->path)) {
+        cp_csg2_path_t *pa = &cp_v_nth(&p2->path,k);
+
+        /* front */
+        cp_csg3_face_t *face = cp_v_push0(&p3->face);
+        cp_v_init0(&face->point, pa->point_idx.size);
+        cp_v_init0(&face->edge,  pa->point_idx.size);
+        for (cp_v_each(l, &pa->point_idx)) {
+            size_t i2 = cp_v_nth(&pa->point_idx, l);
+            size_t i3 = rotext_idx(x0_cnt, xi_cnt, idx, i2, 0);
+            cp_vec3_loc_ref_t *v = cp_v_nth_ptr(&face->point, l);
+            v->ref = cp_v_nth_ptr(&p3->point, i3);
+            v->loc = p3->loc;
+        }
+        face_rev_perhaps(face, !rev);
+
+        /* back */
+        face = cp_v_push0(&p3->face);
+        cp_v_init0(&face->point, pa->point_idx.size);
+        cp_v_init0(&face->edge,  pa->point_idx.size);
+        for (cp_v_each(l, &pa->point_idx)) {
+            size_t i2 = cp_v_nth(&pa->point_idx, l);
+            size_t i3 = rotext_idx(x0_cnt, xi_cnt, idx, i2, slice_cnt - 1);
+            cp_vec3_loc_ref_t *v = cp_v_nth_ptr(&face->point, l);
+            v->ref = cp_v_nth_ptr(&p3->point, i3);
+            v->loc = p3->loc;
+        }
+        face_rev_perhaps(face, rev);
+    }
+
+    if (!poly_make_edges(p3, c)) {
+         /* FIXME: properly destruct */
+        CP_FREE(p3);
+        return msg(c, CP_ERR_FAIL, NULL, NULL,
+            " Internal Error: 'rotate_extrude' polyhedron construction algorithm is broken.\n");
+    }
+
+    cp_v_push(r, cp_obj(p3));
+    return true;
+}
+
+static bool csg3_from_rotext(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *mo,
+    cp_scad_rotext_t const *s)
+{
+    /* This is ignored if it is used in non-3D context or when
+     * the child list is fully ignored (empty).  Collapsed by height=0
+     * counts as non-ignored. */
+
+    if (c->context != IN3D) {
+        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
+            "'rotate_extrude' found outside 3D context.");
+    }
+
+    /* construct a separate tree for the children */
+    ctxt_t c2 = *c;
+    c2.context = IN2D;
+    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
+
+    /* start with fresh matrix in 2D space */
+    mat_ctxt_t mn = *mo;
+    mn.mat = the_unit(c->tree);
+    if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
+        return false;
+    }
+
+    cp_angle_t angle = s->angle;
+    if (angle > 360) {
+        angle = 360;
+    }
+    if (cp_le(angle, 0)) {
+        return msg(c, c->opt->err_empty, s->loc, NULL,
+            "Expected non-empty rotate_extrude, found angle="FF"\n", angle);
+    }
+    unsigned min_seg_cnt = cp_ge(angle, 360) ? 3 : cp_ge(angle, 180) ? 2 : 1;
+    size_t seg_cnt = get_fn(c->opt, s->_fn, min_seg_cnt, false);
+
+    /*
+     * Flatten set of polygons into a single (multi-path) polygon.
+     *
+     * We need more contrained polygons here than in other phases:
+     * each path needs to be a sequence of unique points.  Other phases can
+     * cope with a path that uses points multiple times, but not this
+     * algorithm.
+     *
+     * We still need a 3D 'xor' operation here, because there can be complete
+     * enclosures.
+     */
+    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
+
+    /* sweep */
+    cp_pool_clear(c->tmp);
+    cp_v_fini(&rc);
+
+    /* empty? */
+    if ((p == NULL) || (p->path.size == 0)) {
+        return true;
+    }
+
+    /* Partition points into those that will touch the z axis (x==0 in original
+     * XY plane 2D object) and those that do not */
+    size_t *idx = CP_POOL_NEW_ARR(c->tmp, *idx, p->point.size);
+    size_t x0_cnt = 0;
+    size_t xi_cnt = 0;
+    bool have[2] = {0, 0};
+    for (cp_v_each(i, &p->point)) {
+        cp_vec2_loc_t *q = cp_v_nth_ptr(&p->point, i);
+        if (cp_eq(q->coord.x, 0)) {
+            idx[i] = (x0_cnt << 1) | 0;
+            x0_cnt++;
+        }
+        else {
+            have[q->coord.x < 0] = true;
+            idx[i] = (xi_cnt << 1) | 1;
+            xi_cnt++;
+        }
+    }
+    if (have[false] && have[true]) {
+        return msg(c, CP_ERR_FAIL, s->loc, NULL,
+            "'rotate_extrude' children have points with both x<0 and x>0.");
+    }
+    assert((xi_cnt > 0) && "Collinear polygon encounted");
+
+    /* make table of sincos for arc */
+    cp_vec2_t *cs = CP_POOL_NEW_ARR(c->tmp, *cs, seg_cnt + 1);
+    if (cp_eq(angle, 360)) {
+        /* legacy mode */
+        for (cp_circle_each(j, seg_cnt)) {
+            assert(j.idx < seg_cnt);
+            cs[j.idx].x = -j.cos; /* negative x-axis */
+            cs[j.idx].y =  j.sin;
+        }
+        cs[seg_cnt] = cs[0];
+
+        /* split in two parts to avoid self-touching (non-3-manifold) polyhedron */
+        size_t m1 = seg_cnt / 2;
+        size_t m2 = (seg_cnt + 1) / 2;
+        assert((m1 + m2) == seg_cnt);
+        if (!rotext_arc(r, c, mo, s, p, idx, x0_cnt, cs, m1 + 1, have[true])) {
+            return false;
+        }
+        if (!rotext_arc(r, c, mo, s, p, idx, x0_cnt, cs + m1, m2 + 1, have[true])) {
+            return false;
+        }
+    }
+    else {
+        /* new arc mode (2016.x) */
+        for (cp_size_each(j, seg_cnt + 1)) {
+            cp_angle_t a = (angle / cp_f(seg_cnt)) * cp_f(j);
+            cs[j].x = cp_cos_deg(a);
+            cs[j].y = cp_sin_deg(a);
+        }
+
+        /* generate arc */
+        if (!rotext_arc(r, c, mo, s, p, idx, x0_cnt, cs, seg_cnt + 1, !have[true])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 static bool csg3_from_scad(
     bool *no,
     cp_v_obj_p_t *r,
@@ -1921,6 +2222,9 @@ static bool csg3_from_scad(
     /* 2D->3D extruding */
     case CP_SCAD_LINEXT:
         return csg3_from_linext(no, r, c, m, cp_scad_cast(cp_scad_linext_t, s));
+
+    case CP_SCAD_ROTEXT:
+        return csg3_from_rotext(no, r, c, m, cp_scad_cast(cp_scad_rotext_t, s));
 
     /* 3D objects */
     case CP_SCAD_SPHERE:
