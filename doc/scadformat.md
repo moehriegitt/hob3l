@@ -1009,8 +1009,8 @@ first step in the negative X axis.  This unlike most other circular
 operations, but it is legacy OpenSCAD behaviour.  With a value other
 than 360, rotation starts in the positive X axis as usual.
 
-The X coordinates of the points of the 2D children must all be either
->=0 or <=0.  Mixed positive and negative X coordinates are currently
+The X coordinates of the points of the 2D children must all be
+either >=0 or <=0.  Mixed positive and negative X coordinates are currently
 not supported.  X coordinates equal to 0 can be combined with either
 alternative.
 
