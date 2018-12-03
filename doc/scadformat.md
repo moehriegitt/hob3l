@@ -1025,13 +1025,12 @@ needs to be supplied for a result compatible with OpenSCAD.
 _OpenSCAD compatibility_:
 
   * Hob3l is able to generate 2-manifold polyhedra in all
-    circumstances, while OpenSCAD often generates malformed polyhedra,
-    especially if points touch the Z axis (i.e., the 2D scene has
-    points with x==0).  Hob3l achieves this by never rendering a full
-    torus, because this could generate a singleton vertex that is not
-    2-manifold. Instead, Hob3l splits the full torus into 2 pieces and
-    merges them.  The subsequent 2D algorithms of Hob3l cope with this
-    equivalent form.
+    circumstances, even if points touch the Z axis (i.e., the 2D scene
+    has points with x==0).  Hob3l achieves this by not rendering a
+    full torus, because this could generate a singleton vertex that is
+    not 2-manifold. Instead, Hob3l splits the full torus into 2 pieces
+    and merges them.  The subsequent 2D algorithms of Hob3l cope with
+    this equivalent form.
   * OpenSCAD uses the usual heuristics for finding the number of steps,
     while Hob3l relies on `$fn` to be manually set.
   * The `angle` != 360 case is implemented in Hob3l without comparing
