@@ -1014,9 +1014,9 @@ either >=0 or <=0.  Mixed positive and negative X coordinates are currently
 not supported.  X coordinates equal to 0 can be combined with either
 alternative.
 
-If `angle` is smaller than 360, this generates a segment of the given
-angle, starting at the positive x axis for the first step and running
-counter-clockwise when viewed from the top.
+If `angle` is smaller than 360, this generates an arc out of the full
+torus with the given angle, starting at the positive x axis for the
+first step and running counter-clockwise when viewed from the top.
 
   * If angle is >= 360, then `$fn` is adjusted to be at least 3.
   * If angle is >= 180, then `$fn` is adjusted to be at least 2.
