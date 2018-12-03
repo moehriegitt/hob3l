@@ -1005,7 +1005,7 @@ rotate_extrude({angle,convexity,$fn,$fa,$fs}) { ... }
 This takes a 2D scene and rotates it around the Z axis to make a
 torus-like polyhedron.  It uses `$fn` torus segments for the rotation.
 If `angle` is 360, this generates a full torus, starting with the
-first step in the negative X axis.  This is counter to most other
+first step in the negative X axis.  This unlike most other circular
 operations, but it is legacy OpenSCAD behaviour.  With a value other
 than 360, rotation starts in the positive X axis as usual.
 
@@ -1013,20 +1013,20 @@ If `angle` is smaller than 360, this generates a segment of the given
 angle, starting at the positive x axis for the first step and running
 counter-clockwise when viewed from the top.
 
-Note that this ignores `$fa` and `$fs`, which usually means that `$fn`
-needs to be supplied for sensible results.
-
   * If angle is >= 360, then `$fn` is adjusted to be at least 3.
   * If angle is >= 180, then `$fn` is adjusted to be at least 2.
-  * If angle is < 180, then `$fn` is adjusted to be at least 1.
+  * If angle is < 180, then `$fn` may be as small as 1.
   * If `$fn` is 0 (the default), then the torus will be rendered with
     a large number of steps (as set by the -max-fn command line option).
+
+Note that this ignores `$fa` and `$fs`, which usually means that `$fn`
+needs to be supplied for a result compatible with OpenSCAD.
 
 _OpenSCAD compatibility_:
 
   * Hob3l is able to generate 2-manifold polyhedra in all
     circumstances, while OpenSCAD often generates malformed polyhedra,
-    especially if points touch the Z axis (i.e., the 2D structures has
+    especially if points touch the Z axis (i.e., the 2D scene has
     points with x==0).  Hob3l achieves this by never rendering a full
     torus, because this could generate a singleton vertex that is not
     2-manifold. Instead, Hob3l splits the full torus into 2 pieces and
