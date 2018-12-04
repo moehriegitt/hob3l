@@ -324,6 +324,7 @@ clean-test:
 
 clean: clean-test
 	rm -rf out
+	rm -rf html
 	rm -f *.o
 	rm -f *.d
 	rm -f *.i
@@ -494,6 +495,17 @@ update-header: script/xproto
 update-toc: README.md script/mktoc
 	$(srcdir)/script/mktoc -skip1 -in-place README.md
 	$(srcdir)/script/mktoc -skip1 -in-place doc/scadformat.md
+
+.PHONY: markdown
+markdown: \
+    html/README.html \
+    html/doc/scadformat.html \
+    html/doc/jsformat.html \
+
+html/%.html: %.md
+	mkdir -p ./$(dir $@)
+	markdown $< > $@.new
+	mv $@.new $@
 
 SCAD_SCAD := $(wildcard $(SCAD_DIR)/*.scad)
 
