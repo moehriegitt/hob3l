@@ -909,14 +909,18 @@ The polyhedron must be 2-manifold, i.e.:
 
   * There must be no holes, i.e., the solid must be specified completely
     with no face missing.
-  * At each vertex, there must be a well-defined inside and outside, i.e.,
-    the polyhedron must not touch itself in a vertex.
-  * At each edge, there must be a well-defined inside and outside, i.e., the
-    polyhedron must not touch itself in an edge.
+  * Each edge must have exactly two adjacent faces.
   * At each face, there must be a well-defined inside and outside, i.e., the
     polyhedron must not touch itself in a face, nor must there be zero-thickness
     walls.
-  * Each edge must have exactly two adjacent faces.
+  * At each edge, there must be a well-defined inside and outside, i.e., the
+    polyhedron must not touch itself in an edge.
+  * At each vertex, there must be a well-defined inside and outside, i.e.,
+    the polyhedron must not touch itself in a vertex.
+
+The last criterion causes no error message, and the internal
+algorithms of Hob3l seem to cope with this.  (Hob3l's `rotary_extrude`
+algorithm still avoids to generate this.)
 
 ### projection
 

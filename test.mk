@@ -152,7 +152,8 @@ TEST_TRIANGLE.scad := \
     scad-test/test32d.scad \
     scad-test/test35.scad \
     scad-test/test36c.scad \
-    scad-test/test36e.scad
+    scad-test/test36e.scad \
+    scad-test/test37.scad
 
 test-out/test32.ps:  HOB3L_OPT := -gran=1
 test-out/test32b.ps: HOB3L_OPT := -gran=0.5
@@ -197,7 +198,8 @@ TEST_STL.scad := \
     scad-test/test36b.scad \
     scad-test/test36c.scad \
     scad-test/test36d.scad \
-    scad-test/test36e.scad
+    scad-test/test36e.scad \
+    scad-test/test37.scad
 
 FAIL_TRIANGLE.scad :=
 
