@@ -153,7 +153,8 @@ TEST_TRIANGLE.scad := \
     scad-test/test35.scad \
     scad-test/test36c.scad \
     scad-test/test36e.scad \
-    scad-test/test37.scad
+    scad-test/test37.scad \
+    scad-test/test2.scad
 
 test-out/test32.ps:  HOB3L_OPT := -gran=1
 test-out/test32b.ps: HOB3L_OPT := -gran=0.5
@@ -199,11 +200,15 @@ TEST_STL.scad := \
     scad-test/test36c.scad \
     scad-test/test36d.scad \
     scad-test/test36e.scad \
-    scad-test/test37.scad
+    scad-test/test37.scad \
 
-FAIL_TRIANGLE.scad :=
+# test37b shows how a non-3-manifold polyhedron currently fails.
+FAIL_TRIANGLE.scad := \
+    scad-test/test37b.scad
 
-FAIL_STL.scad :=
+# test37b shows how a non-3-manifold polyhedron currently fails.
+FAIL_STL.scad := \
+    scad-test/test37b.scad
 
 FAIL_JS.scad :=
 

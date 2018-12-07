@@ -922,9 +922,10 @@ The polyhedron must be 2-manifold, i.e.:
   * At each vertex, there must be a well-defined inside and outside, i.e.,
     the polyhedron must not touch itself in a vertex.
 
-The last criterion causes no error message, and the internal
-algorithms of Hob3l seem to cope with this.  (Hob3l's `rotary_extrude`
-algorithm still avoids to generate this.)
+The last criterion causes no error message, and the slicing algorithms
+of Hob3l often cope with this, but is does not handle this in all
+cases.  This is why Hob3l's `rotary_extrude` algorithm avoids
+generating this.
 
 ### projection
 
