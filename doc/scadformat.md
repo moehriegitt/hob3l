@@ -496,7 +496,7 @@ vertex is at y=0 in the positive x axis.
 
 ### color
 
-Set the colour of substructures.
+Graphics context modifier: set the colour of substructures.
 
 ```
 color(c[,alpha]) { ... }
@@ -602,9 +602,9 @@ The cylinder becomes a cone if `r1` or `r2` are set to 0.
 
 ### difference
 
-Combine substructures by subtracting from the first non-ignored child.
-This is the CSG 'SUB' operation, also referred to as the Boolean 'AND
-NOT' operation.
+CSG operation: combine substructures by subtracting from the first
+non-ignored child.  This is the CSG 'SUB' operation, also referred to
+as the Boolean 'AND NOT' operation.
 
 ```
 difference() { C1; C2; ... Cn; }
@@ -618,8 +618,8 @@ see [the definition](#ignored-children).
 
 ### group
 
-Combine substructures by uniting them.  This is the CSG 'ADD'
-operation, also referred to as the Boolean 'OR' operation.
+CSG operation: combine substructures by uniting them.  This is the CSG
+'ADD' operation, also referred to as the Boolean 'OR' operation.
 
 ```
 group() { ... }
@@ -627,7 +627,7 @@ group() { ... }
 
 ### import
 
-Load a polyhedron from a file.
+3D object: load a polyhedron from a file.
 
 ```
 import(file[,layer,convexity])
@@ -670,8 +670,9 @@ _OpenSCAD compatibility_:
 
 ### intersection
 
-Combine substructures by intersecting them.  This is the CSG 'CUT'
-operation, also referred to as the Boolean 'AND' operation.
+CSG operation: combine substructures by intersecting them.  This is
+the CSG 'CUT' operation, also referred to as the Boolean 'AND'
+operation.
 
 ```
 intersection() { C1; C2; ... Cn; }
@@ -691,6 +692,9 @@ _Caution_: SCAD has a complex definition of 'ignored child':
 see [the definition](#ignored-children).
 
 ### linear_extrude
+
+3D object: make a polyhedron from a polygon by extruding it in the z
+axis.
 
 ```
 linear_extrude({height, center, slices, twist, scale,
@@ -779,7 +783,7 @@ _OpenSCAD compatibility_:
 
 ### mirror
 
-Mirror substructures.
+Transformation: mirror substructures.
 
 ```
 mirror(v) { ... }
@@ -811,7 +815,7 @@ _OpenSCAD compatibility_:
 
 ### multmatrix
 
-Modify coordinate matrix for substructures.
+Transformation: modify coordinate matrix for substructures.
 
 ```
 multmatrix(m) { ... }
@@ -924,7 +928,7 @@ algorithm still avoids to generate this.)
 
 ### projection
 
-Cut out one 2D slice from a 3D model.
+2D object: cut out a 2D slice from a 3D model.
 
 ```
 projection([cut]{,convexity}) { ... }
@@ -954,7 +958,7 @@ _OpenSCAD compatibility_:
 
 ### rotate
 
-Rotate substructures.
+Transformation: rotate substructures.
 
 ```
 rotate(a[,v])) { ... }
@@ -994,7 +998,7 @@ degrees around the X axis.
 
 ### rotate_extrude
 
-Make a polyhedron by spinning a polygon around the z axis.
+3D object: make a polyhedron by spinning a polygon around the z axis.
 
 ```
 rotate_extrude({angle,convexity,$fn,$fa,$fs}) { ... }
@@ -1053,7 +1057,7 @@ _OpenSCAD compatibility_:
 
 ### scale
 
-Scale substructures.
+Transformation: scale substructures.
 
 ```
 scale(v) { ... }
@@ -1153,7 +1157,7 @@ Ignored. (Not yet implemented.)
 
 ### translate
 
-Translate substructures.
+Transformation: translate substructures.
 
 ```
 translate(v) { ... }
@@ -1175,6 +1179,8 @@ If `v` has only 2 entries, the z component is assumed to be 0.
 ```
 
 ### union
+
+CSG operation
 
 ```
 union() { ... }
