@@ -82,6 +82,15 @@ static inline void cp_vchar_append(
 }
 
 /**
+ * Append a string */
+static inline void cp_vchar_append_str(
+    cp_vchar_t *v,
+    char const *c)
+{
+    cp_vchar_append_arr(v, c, strlen(c));
+}
+
+/**
  * Ensure that data is not NULL and then return data pointer.
  */
 static inline char *cp_vchar_cstr(

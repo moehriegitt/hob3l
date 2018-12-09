@@ -14,6 +14,7 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/alloc.h>
+#include <hob3l/syn.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/gc.h>
@@ -62,13 +63,36 @@ static int idx_val(
     return r;
 }
 
+static bool is_sep(char c)
+{
+    return (c == ',') || (c == ';') || syn_is_space(c);
+}
+
 static void scene_flush(
     ctxt_t *c,
     cp_stream_t *s)
 {
     if (c->tri_cnt > 0) {
         cp_printf(s, "scene.push({\n");
-        cp_printf(s, "   'group':{},\n");
+        cp_printf(s, "   'group':{");
+        char const *g = c->tree->opt->js_group.data;
+        if (g != NULL) {
+            for(;;) {
+                while (is_sep(*g)) {
+                    g++;
+                }
+                if (!*g) {
+                    break;
+                }
+                char const *e = g;
+                while (*e && !is_sep(*e)) {
+                    e++;
+                }
+                cp_printf(s, "'%.*s':true,", (int)(e - g), g);
+                g = e;
+            }
+        }
+        cp_printf(s, "},\n");
         cp_printf(s, "   'scaleV':%g,\n", 1000/cp_pt_epsilon);
         cp_printf(s, "   'scaleC':255,\n");
         cp_printf(s, "   'shiftI':%u,\n", SHIFT_I);

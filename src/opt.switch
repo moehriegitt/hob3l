@@ -194,6 +194,12 @@ case "js-color-rand": uint8 &opt->csg.color_rand{
     "easier to grasp (default: 0, valid: 0..255, good start: 15). ";
 }
 
+case "js-group": append_vchar &opt->csg.js_group{
+    "Groups to list in JS/WebGL output.  This is a list separated by";
+    "white space, comma, or semicolon.";
+    "This options can be used multiple times to add more groups.";
+}
+
 help_section "PostScript Output Options";
 
 case "ps-scale-fit": {

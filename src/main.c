@@ -451,6 +451,15 @@ static void get_arg_rgb(
     v->b = (w >> 0)  & 0xff;
 }
 
+static void get_arg_append_vchar(
+    cp_vchar_t *v,
+    char const *arg CP_UNUSED,
+    char const *str)
+{
+    cp_vchar_push(v, ' ');
+    cp_vchar_append_str(v, str);
+}
+
 typedef struct {
     char const *name;
     void (*func)(cp_opt_t *, char const *, char const *);

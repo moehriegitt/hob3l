@@ -131,6 +131,17 @@ typedef struct {
     size_t max_simultaneous;
 
     /**
+     * Maximum number for $fn up to which to use polyhedron/polygons.
+     *
+     * For larger values, use round shapes, if available.
+     */
+    size_t max_fn;
+
+    /**
+     * With which groups to tag the output file, space or comma separated */
+    cp_vchar_t js_group;
+
+    /**
      * Optimisation.  See CP_CSG2_OPT* constants. */
     unsigned optimise;
 
@@ -138,13 +149,6 @@ typedef struct {
      * How much to randomize colours during CSG2 algorithm.
      */
     unsigned char color_rand;
-
-    /**
-     * Maximum number for $fn up to which to use polyhedron/polygons.
-     *
-     * For larger values, use round shapes, if available.
-     */
-    size_t max_fn;
 
     /**
      * Treatment of empty objects

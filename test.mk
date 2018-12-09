@@ -202,13 +202,17 @@ TEST_STL.scad := \
     scad-test/test36e.scad \
     scad-test/test37.scad \
 
-# test37b shows how a non-3-manifold polyhedron currently fails.
-FAIL_TRIANGLE.scad := \
-    scad-test/test37b.scad
+# The following tests currently fail:
+#   - test37b a non-3-manifold polyhedron currently assert-fails
+#   - test38  2D hull() operation is not yet implemented
 
-# test37b shows how a non-3-manifold polyhedron currently fails.
+FAIL_TRIANGLE.scad := \
+    scad-test/test37b.scad \
+    scad-test/test38.scad
+
 FAIL_STL.scad := \
-    scad-test/test37b.scad
+    scad-test/test37b.scad \
+    scad-test/test38.scad
 
 FAIL_JS.scad :=
 

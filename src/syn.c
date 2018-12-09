@@ -64,23 +64,6 @@ static void lex_next(parse_t *p)
     p->lex_cur = *p->lex_string;
 }
 
-static bool is_space(char c)
-{
-    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
-}
-
-static bool is_digit(char c)
-{
-    return (c >= '0') && (c <= '9');
-}
-
-static bool is_alpha(char c)
-{
-    return
-        ((c >= 'a') && (c <= 'z')) ||
-        ((c >= 'A') && (c <= 'Z'));
-}
-
 static void tok_next_aux2(parse_t *p)
 {
     /* do not scan beyond an error */
@@ -89,7 +72,7 @@ static void tok_next_aux2(parse_t *p)
     }
 
     /* skip space */
-    while (is_space(p->lex_cur)) {
+    while (syn_is_space(p->lex_cur)) {
         lex_next(p);
     }
 
@@ -102,7 +85,7 @@ static void tok_next_aux2(parse_t *p)
     if ((p->lex_cur == '+') ||
         (p->lex_cur == '-') ||
         (p->lex_cur == '.') ||
-        is_digit(p->lex_cur))
+        syn_is_digit(p->lex_cur))
     {
         if (*p->lex_string == '\0') {
             /* E.g. '9.9.9' or '9.9"hallo"' or '9.9foo' will all parse
@@ -128,13 +111,13 @@ static void tok_next_aux2(parse_t *p)
         if (p->lex_cur == '-') {
             lex_next(p);
         }
-        while (is_digit(p->lex_cur)) {
+        while (syn_is_digit(p->lex_cur)) {
             lex_next(p);
         }
         if (p->lex_cur == '.') {
             p->tok_type = T_FLOAT;
             lex_next(p);
-            while (is_digit(p->lex_cur)) {
+            while (syn_is_digit(p->lex_cur)) {
                 lex_next(p);
             }
         }
@@ -144,7 +127,7 @@ static void tok_next_aux2(parse_t *p)
             if ((p->lex_cur == '-') || (p->lex_cur == '+')) {
                 lex_next(p);
             }
-            while (is_digit(p->lex_cur)) {
+            while (syn_is_digit(p->lex_cur)) {
                 lex_next(p);
             }
         }
@@ -153,7 +136,7 @@ static void tok_next_aux2(parse_t *p)
     }
 
     /* ID */
-    if ((p->lex_cur == '$') || (p->lex_cur == '_') || is_alpha(p->lex_cur)) {
+    if ((p->lex_cur == '$') || (p->lex_cur == '_') || syn_is_alpha(p->lex_cur)) {
         if (*p->lex_string == '\0') {
             if (!have_err_msg(p)) {
                 cp_vchar_printf(&p->err->msg, "Expected no identifier here.\n");
@@ -167,8 +150,8 @@ static void tok_next_aux2(parse_t *p)
             lex_next(p);
         }
         while (
-            is_alpha(p->lex_cur) ||
-            is_digit(p->lex_cur) ||
+            syn_is_alpha(p->lex_cur) ||
+            syn_is_digit(p->lex_cur) ||
             (p->lex_cur == '_'))
         {
             lex_next(p);
@@ -1045,4 +1028,30 @@ extern bool cp_syn_parse(
         return false;
     }
     return true;
+}
+
+/**
+ * Whether c is ASCII white space character.
+ */
+extern bool syn_is_space(char c)
+{
+    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
+}
+
+/**
+ * Whether c is an ASCII digit character.
+ */
+extern bool syn_is_digit(char c)
+{
+    return (c >= '0') && (c <= '9');
+}
+
+/**
+ * Whether c is an ASCII alphabetic character.
+ */
+extern bool syn_is_alpha(char c)
+{
+    return
+        ((c >= 'a') && (c <= 'z')) ||
+        ((c >= 'A') && (c <= 'Z'));
 }

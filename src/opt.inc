@@ -114,6 +114,10 @@ static char const *opt_help =
     "    --js-color-rand=ARG\n"
     "        How much to randomise colors in CSG2 algorithm to make the result\n"
     "        easier to grasp (default: 0, valid: 0..255, good start: 15). \n"
+    "    --js-group=ARG\n"
+    "        Groups to list in JS/WebGL output.  This is a list separated by\n"
+    "        white space, comma, or semicolon.\n"
+    "        This options can be used multiple times to add more groups.\n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
     "        for --dump-ps: expand to fit normal bounding box to page\n"
@@ -436,6 +440,14 @@ static void get_opt_js_color_rand(
     char const *arg CP_UNUSED)
 {
     get_arg_uint8(&opt->csg.color_rand, name, arg);
+}
+
+static void get_opt_js_group(
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
+{
+    get_arg_append_vchar(&opt->csg.js_group, name, arg);
 }
 
 static void get_opt_layer_gap(
@@ -972,6 +984,11 @@ cp_get_opt_t opt_list[] = {
     {
         "js-color-rand",
         get_opt_js_color_rand,
+        2,
+    },
+    {
+        "js-group",
+        get_opt_js_group,
         2,
     },
     {

@@ -51,4 +51,19 @@ extern bool cp_syn_parse(
     cp_syn_tree_t *r,
     cp_syn_file_t *file);
 
+/**
+ * Whether c is ASCII white space character.
+ */
+extern bool syn_is_space(char c);
+
+/**
+ * Whether c is an ASCII digit character.
+ */
+extern bool syn_is_digit(char c);
+
+/**
+ * Whether c is an ASCII alphabetic character.
+ */
+extern bool syn_is_alpha(char c);
+
 #endif /* CP_SCAD_H_ */

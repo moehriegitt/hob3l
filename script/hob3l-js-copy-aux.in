@@ -1,12 +1,32 @@
 #! /bin/sh
+
 pkgdatadir=${pkgdatadir-'@pkgdatadir@'}
 
 FILE="$1"
+
 if test -z "$FILE"
 then
     echo "Usage: $0 FILE.js" 1>&2
     exit 1
 fi
+
+case "$FILE" in
+--help)
+    echo "Usage: $0 FILE.js"
+    exit 0
+    ;;
+-*)
+    echo "Error: Unknown option: $FILE" 1>&2
+    exit 1
+    ;;
+esac
+
+if ! test -e "$FILE"
+then
+    echo "Error: '$FILE': file not found" 1>&2
+    exit 1
+fi
+
 DIR=$(dirname "$FILE")
 NAME=$(basename "$FILE" .js)
 
