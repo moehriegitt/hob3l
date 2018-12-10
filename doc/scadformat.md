@@ -33,8 +33,8 @@
       * [polyhedron](#polyhedron)
       * [projection](#projection)
       * [rotate](#rotate)
-          * [If `v` is not specified](#if-v-is-not-specified)
           * [If `v` is specified](#if-v-is-specified)
+          * [If `v` is not specified](#if-v-is-not-specified)
       * [rotate_extrude](#rotate_extrude)
       * [scale](#scale)
       * [sphere](#sphere)
@@ -965,11 +965,11 @@ Transformation: rotate substructures.
 rotate(a[,v])) { ... }
 ```
 
-#### If `v` is not specified
-
-  * `a` :: array[3] of float
-
-`rotate([x,y,z])` is equal to `rotate(z,[0,0,1]) rotate(y,[0,1,0]) rotate(x,[1,0,0])`.
+Rotation angles are in degrees.  If for a given angle representable in
+int32, there is an exact solution to `sin` and/or `cos`, then this
+exact value is used.  E.g. `cos(90) = 1` and `sin(30) = 0.5`,
+exactly, so that `rotate(90,[1,0,0])` is a rotation by exactly 90
+degrees around the X axis.
 
 #### If `v` is specified
 
@@ -991,11 +991,28 @@ by `v`.
 where `[x,y,z]` is the unit vector of `[X,Y,Z]`, `c = cos(a)`, `s =
 sin(a)`, `d = 1-c`.
 
-Rotation angles are in degrees.  If for a given angle representable in
-int32, there is an exact solution to `sin` and/or `cos`, then this
-exact value is used.  E.g. `cos(90) = 1` and `sin(30) = 0.5`,
-exactly, so that `rotate(90,[1,0,0])` is a rotation by exactly 90
-degrees around the X axis.
+#### If `v` is not specified
+
+  * `a` :: array[3] of float
+
+`rotate([x,y,z])` is equal to `rotate(z,[0,0,1]) rotate(y,[0,1,0]) rotate(x,[1,0,0])`.
+
+This results in the coordinate matrix to be multiplied by:
+
+```
+| cz*cy   cz*sy*sx - sz*cx   cz*sy*cx + sz*sx   0 |
+| sz*cy   sz*sy*sx + cz*cx   sz*sy*cx - cz*sx   0 |
+| -sy     cy*sx              cy*cx              0 |
+| 0       0                  0                  1 |
+````
+
+where
+  * `cx = cos(x)`
+  * `sx = sin(x)`
+  * `cy = cos(y)`
+  * `sy = sin(y)`
+  * `cz = cos(z)`
+  * `sz = sin(z)`
 
 ### rotate_extrude
 
