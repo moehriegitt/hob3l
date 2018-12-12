@@ -929,6 +929,7 @@ static bool read_file(
     }
     size_t z = f->content.size;
     cp_vchar_push(&f->content, '\0');
+    f->content.size = z;
 
     /* make a copy */
     cp_vchar_append(&f->content_orig, &f->content);
@@ -955,10 +956,9 @@ static void scad_start_file(
     parse_t *p,
     cp_syn_file_t *f)
 {
-    assert(f->content.size >= 1);
     p->lex_string = f->content.data;
     p->lex_cur = *p->lex_string;
-    p->lex_end = f->content.data + f->content.size - 1;
+    p->lex_end = f->content.data + f->content.size;
 }
 
 /* ********************************************************************** */

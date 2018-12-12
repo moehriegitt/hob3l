@@ -152,7 +152,7 @@ extern bool cp_syn_get_loc(
     for (cp_v_each(i, &tree->file)) {
         cp_syn_file_t *f = cp_v_nth(&tree->file, i);
         if ((token >= f->content.data) &&
-            (token < f->content.data + f->content.size))
+            (token <= f->content.data + f->content.size))
         {
             loc->file = f;
             loc->line = cp_v_bsearch(

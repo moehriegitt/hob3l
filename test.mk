@@ -204,7 +204,9 @@ TEST_STL.scad := \
     scad-test/test36d.scad \
     scad-test/test36e.scad \
     scad-test/test37.scad \
-    scad-test/test37c.scad
+    scad-test/test37c.scad \
+    scad-test/test42a.scad \
+    scad-test/test42b.scad
 
 # The following tests currently fail:
 #   - test37b a non-3-manifold polyhedron currently assert-fails

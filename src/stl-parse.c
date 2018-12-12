@@ -366,6 +366,46 @@ static bool parse_vertex(
     return true;
 }
 
+static bool make_facet(
+    parse_t *p,
+    cp_loc_t loc,
+    cp_vec3_t *normal,
+    cp_vec3_dict_node_t *v[],
+    cp_loc_t vloc[])
+{
+#if CHECK_NORMAL
+    /* FIXME: according to spec, there is no need to check the normal.
+     * But here's the code to do it in case we want it later: */
+
+    /* check whether the normal is exactly opposite of what is
+     * expected so we can swap the points. */
+    cp_vec3_t normal2;
+    cp_vec3_right_cross3(&normal2, &v[0]->coord, &v[1]->coord, &v[2]->coord);
+    if (cp_vec3_has_len0(&normal2)) {
+        /* ignore collapsed triangles */
+        return true;
+    }
+    if ((cp_pt_cmp(normal->x, 0) == cp_pt_cmp(normal2.x, 0)) &&
+        (cp_pt_cmp(normal->y, 0) == cp_pt_cmp(normal2.y, 0)) &&
+        (cp_pt_cmp(normal->z, 0) == cp_pt_cmp(normal2.z, 0)))
+    {
+        CP_SWAP(&v[1], &v[2]);
+        CP_SWAP(&vloc[1], &vloc[2]);
+    }
+#endif
+
+    cp_csg3_face_t *face = cp_v_push0(&p->poly->face);
+    face->loc = loc;
+    cp_v_init0(&face->point, 3);
+    for (cp_size_each(i, 3)) {
+        cp_vec3_loc_ref_t *q = &cp_v_nth(&face->point, 2 - i);
+        q->ref = (void*)v[i]->idx;
+        q->loc = vloc[i];
+    }
+
+    return true;
+}
+
 static bool parse_facet(
     parse_t *p)
 {
@@ -388,37 +428,28 @@ static bool parse_facet(
         return false;
     }
 
-#if CHECK_NORMAL
-    /* FIXME: according to spec, there is no need to check the normal.
-     * But here's the code to do it in case we want it later: */
+    return make_facet(p, loc, &normal, v, vloc);
+}
 
-    /* check whether the normal is exactly opposite of what is
-     * expected so we can swap the points. */
-    cp_vec3_t normal2;
-    cp_vec3_right_cross3(&normal2, &v[0]->coord, &v[1]->coord, &v[2]->coord);
-    if (cp_vec3_has_len0(&normal2)) {
-        /* ignore collapsed triangles */
-        return true;
+static void make_solid(
+    parse_t *p)
+{
+    /* copy points */
+    cp_v_init0(&p->poly->point, p->point.size);
+    for (cp_dict_each(_n, p->point.root)) {
+        cp_vec3_dict_node_t *n = CP_BOX_OF(_n, *n, node);
+        cp_vec3_loc_t *q = &cp_v_nth(&p->poly->point, n->idx);
+        q->coord = n->coord;
+        q->loc = n->loc;
     }
-    if ((cp_pt_cmp(normal.x, 0) == cp_pt_cmp(normal2.x, 0)) &&
-        (cp_pt_cmp(normal.y, 0) == cp_pt_cmp(normal2.y, 0)) &&
-        (cp_pt_cmp(normal.z, 0) == cp_pt_cmp(normal2.z, 0)))
-    {
-        CP_SWAP(&v[1], &v[2]);
-        CP_SWAP(&vloc[1], &vloc[2]);
+    /* update face point refs */
+    for (cp_v_each(i, &p->poly->face)) {
+        cp_csg3_face_t *f = &cp_v_nth(&p->poly->face, i);
+        for (cp_v_each(j, &f->point)) {
+            cp_vec3_loc_ref_t *r = &cp_v_nth(&f->point, j);
+            r->ref = cp_v_nth_ptr(&p->poly->point, (size_t)r->ref);
+        }
     }
-#endif
-
-    cp_csg3_face_t *face = cp_v_push0(&p->poly->face);
-    face->loc = loc;
-    cp_v_init0(&face->point, 3);
-    for (cp_size_each(i, 3)) {
-        cp_vec3_loc_ref_t *q = &cp_v_nth(&face->point, 2 - i);
-        q->ref = (void*)v[i]->idx;
-        q->loc = vloc[i];
-    }
-
-    return true;
 }
 
 static bool parse_solid(
@@ -440,22 +471,7 @@ static bool parse_solid(
     tok_next_line(p);
     tok_next(p);
 
-    /* copy points */
-    cp_v_init0(&p->poly->point, p->point.size);
-    for (cp_dict_each(_n, p->point.root)) {
-        cp_vec3_dict_node_t *n = CP_BOX_OF(_n, *n, node);
-        cp_vec3_loc_t *q = &cp_v_nth(&p->poly->point, n->idx);
-        q->coord = n->coord;
-        q->loc = n->loc;
-    }
-    /* update face point refs */
-    for (cp_v_each(i, &p->poly->face)) {
-        cp_csg3_face_t *f = &cp_v_nth(&p->poly->face, i);
-        for (cp_v_each(j, &f->point)) {
-            cp_vec3_loc_ref_t *r = &cp_v_nth(&f->point, j);
-            r->ref = cp_v_nth_ptr(&p->poly->point, (size_t)r->ref);
-        }
-    }
+    make_solid(p);
 
     return true;
 }
@@ -464,18 +480,14 @@ static void stl_start_file(
     parse_t *p,
     cp_syn_file_t *f)
 {
-    assert(f->content.size >= 1);
     p->lex_string = f->content.data;
     p->lex_cur = *p->lex_string;
-    p->lex_end = f->content.data + f->content.size - 1;
+    p->lex_end = f->content.data + f->content.size;
 }
 
 static bool parse_text(
-    parse_t *p,
-    cp_syn_file_t *file)
+    parse_t *p)
 {
-    stl_start_file(p, file);
-
     /* scan first token */
     tok_next(p);
 
@@ -495,6 +507,141 @@ static bool parse_text(
         cp_vchar_printf(&p->err->msg, "Garbage after 'endsolid'.\n");
         return false;
     }
+    return true;
+}
+
+/* ********************************************************************* */
+
+static bool bin_skip(parse_t *p, size_t cnt)
+{
+    if (CP_PTRDIFF(p->lex_end, p->lex_string) < cnt) {
+        p->err->loc = p->lex_string;
+        cp_vchar_printf(&p->err->msg, "STL binary file is too short.\n");
+        return false;
+    }
+    p->lex_string += cnt;
+    return true;
+}
+
+static bool bin_u8(parse_t *p, unsigned char *x)
+{
+    *x = (unsigned char)*p->lex_string;
+    return bin_skip(p, 1);
+}
+
+static bool bin_u16(parse_t *p, unsigned short *x)
+{
+    unsigned char l,h;
+    if (!bin_u8(p, &l)) {
+        return false;
+    }
+    if (!bin_u8(p, &h)) {
+        return false;
+    }
+    unsigned r = (0u + l) + ((0u + h) << 8);
+    *x = r & 0xffff;
+    return true;
+}
+
+static bool bin_u32(parse_t *p, unsigned *x)
+{
+    unsigned short l,h;
+    if (!bin_u16(p, &l)) {
+        return false;
+    }
+    if (!bin_u16(p, &h)) {
+        return false;
+    }
+    *x = (0u + l) + ((0u + h) << 16);
+    return true;
+}
+
+static bool bin_f32(parse_t *p, float *x)
+{
+    return bin_u32(p, (void*)x);
+}
+
+static bool bin_f(parse_t *p, cp_f_t *x)
+{
+    float v;
+    if (!bin_f32(p, &v)) {
+        return false;
+    }
+    *x = v;
+    return true;
+}
+
+static bool bin_vec3(parse_t *p, cp_vec3_t *x)
+{
+    if (!bin_f(p, &x->v[0])) {
+        return false;
+    }
+    if (!bin_f(p, &x->v[1])) {
+        return false;
+    }
+    if (!bin_f(p, &x->v[2])) {
+        return false;
+    }
+    return true;
+}
+
+static bool bin_vertex(parse_t *p, cp_vec3_dict_node_t **n)
+{
+    cp_loc_t loc = p->lex_string;
+
+    cp_vec3_t v;
+    if (!bin_vec3(p, &v)) {
+        return false;
+    }
+
+    *n = cp_vec3_dict_insert(p->tmp, &p->point, &v, loc);
+    return true;
+}
+
+static bool bin_facet(parse_t *p)
+{
+    cp_loc_t loc = p->lex_string;
+
+    cp_vec3_t normal;
+    if (!bin_vec3(p, &normal)) {
+        return false;
+    }
+
+    cp_vec3_dict_node_t *v[3];
+    cp_loc_t vloc[3];
+    for (cp_size_each(i, 3)) {
+        vloc[i] = p->lex_string;
+        if (!bin_vertex(p, &v[i])) {
+            return false;
+        }
+    }
+
+    unsigned short attr_byte_cnt;
+    if (!bin_u16(p, &attr_byte_cnt)) {
+        return false;
+    }
+
+    return make_facet(p, loc, &normal, v, vloc);
+}
+
+static bool parse_bin(
+    parse_t *p)
+{
+    if (!bin_skip(p, 80)) {
+        return false;
+    }
+    unsigned triangle_cnt;
+    if (!bin_u32(p, &triangle_cnt)) {
+        return false;
+    }
+
+    for (unsigned i = 0; i < triangle_cnt; i++) {
+        if (!bin_facet(p)) {
+            return false;
+        }
+    }
+
+    make_solid(p);
     return true;
 }
 
@@ -520,12 +667,17 @@ extern bool cp_stl_parse(
         .input = input,
         .tmp = tmp
     };
+    stl_start_file(&p, file);
 
     /* check for text STL */
     if ((file->content.size >= 5) &&
         (memcmp(file->content.data, "solid", 5) == 0))
     {
-        return parse_text(&p, file);
+        return parse_text(&p);
+    }
+
+    if (((file->content.size - 84) % ((4*4*3)+2)) == 0) {
+        return parse_bin(&p);
     }
 
     err->loc = file->content.data;
