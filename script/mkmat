@@ -274,7 +274,7 @@ sub gen_type_matw($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $s = '';
-    $s.= "typedef struct {\n";
+    $s.= "typedef union {\n";
     $s.= "    X_dim_t v[$t->{dim} * ($t->{dim} + 1)];\n";
     $s.= "    struct {\n";
     $s.= "       X_$t->{base}{name}_t b;\n";
@@ -1376,7 +1376,7 @@ sub gen_get_idx_mat($$$)
     my $s = '';
     $s.= "    assert(x < $t->{dim});\n";
     $s.= "    assert(y < $t->{dim});\n";
-    $s.= "    return X_offsetof($name, m[y][x]);\n";
+    $s.= "    return X_offsetof($name, m[y][x]) / sizeof(cp_f_t);\n";
     publish_inline($oc, $p, $s);
 }
 
@@ -1388,10 +1388,10 @@ sub gen_get_idx_matw($$$)
     my $s = '';
     $s.= "    assert(y < $t->{dim});\n";
     $s.= "    if (x == $t->{dim}) {\n";
-    $s.= "        return X_offsetof($name, w.v[y]);\n";
+    $s.= "        return X_offsetof($name, w.v[y]) / sizeof(cp_f_t);\n";
     $s.= "    }\n";
     $s.= "    assert(x < $t->{dim});\n";
-    $s.= "    return X_offsetof($name, b.m[y][x]);\n";
+    $s.= "    return X_offsetof($name, b.m[y][x]) / sizeof(cp_f_t);\n";
     publish_inline($oc, $p, $s);
 }
 
@@ -1632,22 +1632,22 @@ my @gen = (
     ['det', {
         mati => \&gen_det_mati,
     }],
-    ['get_idx', {
-        mat  => \&gen_get_idx_mat,
-        matw => \&gen_get_idx_matw,
-    }],
-    ['get_ptr', {
-        mat  => \&gen_get_ptr_mat,
-        matw => \&gen_get_ptr_mat,
-    }],
-    ['get', {
-        mat  => \&gen_get_mat,
-        matw => \&gen_get_mat,
-    }],
-    ['set', {
-        mat  => \&gen_set_mat,
-        matw => \&gen_set_mat,
-    }],
+    #['get_idx', {
+    #    mat  => \&gen_get_idx_mat,
+    #    matw => \&gen_get_idx_matw,
+    #}],
+    #['get_ptr', {
+    #    mat  => \&gen_get_ptr_mat,
+    #    matw => \&gen_get_ptr_mat,
+    #}],
+    #['get', {
+    #    mat  => \&gen_get_mat,
+    #    matw => \&gen_get_mat,
+    #}],
+    #['set', {
+    #    mat  => \&gen_set_mat,
+    #    matw => \&gen_set_mat,
+    #}],
 );
 
 sub gen_all($)
@@ -1678,7 +1678,7 @@ gen_all($oc);
 my %file = (
     'tam_h' => {
         file => "include/$I/mat_gen_tam.h",
-        ifndef => "__${Puc}MAT_GEN_TAM_H",
+        ifndef => "${Puc}MAT_GEN_TAM_H_",
         include => [
             "$I/def.h",
             "$I/vec.h",
@@ -1686,7 +1686,7 @@ my %file = (
     },
     'inl_h' => {
         file => "include/$I/mat_gen_inl.h",
-        ifndef => "__${Puc}MAT_GEN_INL_H",
+        ifndef => "${Puc}MAT_GEN_INL_H_",
         include => [
             "$I/mat_gen_tam.h",
             "$I/mat_gen_ext.h",
@@ -1696,7 +1696,7 @@ my %file = (
     },
     'ext_h' => {
         file => "include/$I/mat_gen_ext.h",
-        ifndef => "__${Puc}MAT_GEN_H",
+        ifndef => "${Puc}MAT_GEN_H_",
         include => [
             "$I/stream_tam.h",
             "$I/mat_gen_tam.h",

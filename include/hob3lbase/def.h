@@ -233,18 +233,19 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */
-#define CP_TYPE_MASK      0xff00
-#define CP_TYPE2_MASK     0xf000
+#define CP_TYPE_MASK       0xff00
+#define CP_TYPE2_MASK      0xf000
 
-#define CP_SYN_VALUE_TYPE 0x1100
+#define CP_SYN_VALUE_TYPE  0x1100
 
-#define CP_SYN_STMT_TYPE  0x2100
+#define CP_SYN_STMT_TYPE   0x2100
 
-#define CP_SCAD_TYPE      0x3100
+#define CP_SCAD_TYPE       0x3000
+#define CP_SCAD_REC_TYPE   0x3100
 
-#define CP_CSG_TYPE       0x4000
-#define CP_CSG2_TYPE      0x4100
-#define CP_CSG3_TYPE      0x4200
+#define CP_CSG_TYPE        0x4000
+#define CP_CSG2_TYPE       0x4100
+#define CP_CSG3_TYPE       0x4200
 
 /** Type ID that is never given to any object */
 #define CP_ABSTRACT       0xffff

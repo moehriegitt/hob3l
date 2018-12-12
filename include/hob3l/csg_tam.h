@@ -169,6 +169,11 @@ typedef struct {
      * Treatment of 2D object outside 2D context. (CP_ERR_*)
      */
     unsigned err_outside_2d;
+
+    /**
+     * Copy position and gc back to root of CSG2 tree, so that
+     * the '!' does not change the position. */
+    bool keep_ctxt;
 } cp_csg_opt_t;
 
 

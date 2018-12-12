@@ -198,6 +198,13 @@ case "js-group": append_vchar &opt->csg.js_group{
     "Groups to list in JS/WebGL output.  This is a list separated by";
     "white space, comma, or semicolon.";
     "This options can be used multiple times to add more groups.";
+    "(Default: no group)";
+}
+
+case "js-no-keep-ctxt": neg_bool &opt->csg.keep_ctxt {
+    "Keep size, position, rotation, and color for the element marked with '!'";
+    "in the input file so it will be rendered exclusively, but put in the";
+    "WebGL scene unmodified.";
 }
 
 help_section "PostScript Output Options";

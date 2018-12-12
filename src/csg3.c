@@ -46,6 +46,7 @@ typedef struct {
     cp_csg_opt_t const *opt;
     cp_err_t *err;
     unsigned context;
+    cp_scad_t *search_root;
 } ctxt_t;
 
 static void csg3_init_tree(
@@ -120,12 +121,12 @@ static bool csg3_from_v_scad(
     return true;
 }
 
-static bool csg3_from_union(
+static bool csg3_from_rec(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
     mat_ctxt_t const *m,
-    cp_scad_union_t const *s)
+    cp_scad_rec_t const *s)
 {
     return csg3_from_v_scad(no, r, c, m, &s->child);
 }
@@ -2176,22 +2177,80 @@ static bool csg3_from_scad(
     assert(m != NULL);
     assert(s != NULL);
 
+    /* Found the root already? */
+    if ((c->search_root != NULL) && (c->tree->root_xform != NULL)) {
+        return true;
+    }
+
+    /* Is this the root? */
     mat_ctxt_t mn;
+    ctxt_t c2;
+    /* modifiers */
     if (s->modifier != 0) {
+        if (s == c->search_root) {
+            /* Keep xform matrix and reset context; in this subtree,
+             * do not search for a root anymore. */
+            c2 = *c;
+            c2.search_root = NULL;
+            c2.tree->root_xform = m->mat;
+            c = &c2;
+
+            mn = *m;
+            m = &mn;
+            mn.mat = the_unit(c->tree);
+        }
+
         /* ignore sub-structure? */
         if (s->modifier & CP_GC_MOD_IGNORE) {
             return true;
         }
 
-        mn = *m;
+        if (&mn != m) {
+            mn = *m;
+            m = &mn;
+        }
         mn.gc.modifier |= s->modifier;
-        m = &mn;
+    }
+
+    /* when searching for a root */
+    if (c->search_root != NULL) {
+        switch (s->type) {
+        /** recursive structures: just recurse **/
+        case CP_SCAD_UNION:
+        case CP_SCAD_DIFFERENCE:
+        case CP_SCAD_INTERSECTION:
+            return csg3_from_rec(no, r, c, m, cp_scad_cast(cp_scad_rec_t, s));
+
+        /* modifiers: treat them normally */
+        case CP_SCAD_TRANSLATE:
+        case CP_SCAD_MIRROR:
+        case CP_SCAD_SCALE:
+        case CP_SCAD_ROTATE:
+        case CP_SCAD_MULTMATRIX:
+        case CP_SCAD_COLOR:
+            break;
+
+        /* objects: do not render them */
+        case CP_SCAD_LINEXT:
+        case CP_SCAD_ROTEXT:
+        case CP_SCAD_SPHERE:
+        case CP_SCAD_CUBE:
+        case CP_SCAD_CYLINDER:
+        case CP_SCAD_POLYHEDRON:
+        case CP_SCAD_IMPORT:
+        case CP_SCAD_SURFACE:
+        case CP_SCAD_CIRCLE:
+        case CP_SCAD_SQUARE:
+        case CP_SCAD_POLYGON:
+        case CP_SCAD_PROJECTION:
+            return true;
+        }
     }
 
     switch (s->type) {
     /* operators */
     case CP_SCAD_UNION:
-        return csg3_from_union(no, r, c, m, cp_scad_cast(cp_scad_union_t, s));
+        return csg3_from_rec(no, r, c, m, cp_scad_cast(cp_scad_rec_t, s));
 
     case CP_SCAD_DIFFERENCE:
         return csg3_from_difference(no, r, c, m, cp_scad_cast(cp_scad_difference_t, s));
@@ -2481,8 +2540,10 @@ extern bool cp_csg3_from_scad_tree(
         .opt = r->opt,
         .err = t,
         .context = IN3D,
+        .search_root = scad->root,
     };
-    if (scad->root != NULL) {
+    if ((c.search_root != NULL) && !r->opt->keep_ctxt) {
+        c.search_root = NULL;
         return cp_csg3_from_scad(&c, scad->root);
     }
     return cp_csg3_from_v_scad(&c, &scad->toplevel);

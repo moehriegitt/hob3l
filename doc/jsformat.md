@@ -136,6 +136,13 @@ the following slots:
      Triangles of this part of the scene, each as 3 indices into the
      'vertex', 'normal', and 'color' arrays.
 
+  - 'xform' : optional array[16] of float:
+     A 16 entry (4x4) matrix with indices 0..3 forming the first
+     column, to transform the complete scene.  This transformation is
+     unconditionally applied to all the coordinates of the scene.  It
+     is equivalent to applying the transformation before writing the
+     output file.
+
 Each 3 value entry in the 'vertex' and 'normal' arrays and each 4
 value entry 'color' array correspond to each other, i.e., the 'normal'
 array has to have the same size as the 'vertex' array, and for every 3

@@ -118,6 +118,12 @@ static char const *opt_help =
     "        Groups to list in JS/WebGL output.  This is a list separated by\n"
     "        white space, comma, or semicolon.\n"
     "        This options can be used multiple times to add more groups.\n"
+    "        (Default: no group)\n"
+    "    --js-no-keep-ctxt\n"
+    "    --js-keep-ctxt\n"
+    "        Keep size, position, rotation, and color for the element marked with '!'\n"
+    "        in the input file so it will be rendered exclusively, but put in the\n"
+    "        WebGL scene unmodified.\n"
     "PostScript Output Options\n"
     "    --ps-scale-fit\n"
     "        for --dump-ps: expand to fit normal bounding box to page\n"
@@ -448,6 +454,22 @@ static void get_opt_js_group(
     char const *arg CP_UNUSED)
 {
     get_arg_append_vchar(&opt->csg.js_group, name, arg);
+}
+
+static void get_opt_js_keep_ctxt(
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
+{
+    get_arg_bool(&opt->csg.keep_ctxt, name, arg);
+}
+
+static void get_opt_js_no_keep_ctxt(
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
+{
+    get_arg_neg_bool(&opt->csg.keep_ctxt, name, arg);
 }
 
 static void get_opt_layer_gap(
@@ -990,6 +1012,16 @@ cp_get_opt_t opt_list[] = {
         "js-group",
         get_opt_js_group,
         2,
+    },
+    {
+        "js-keep-ctxt",
+        get_opt_js_keep_ctxt,
+        1,
+    },
+    {
+        "js-no-keep-ctxt",
+        get_opt_js_no_keep_ctxt,
+        1,
     },
     {
         "layer-gap",

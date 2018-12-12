@@ -17,6 +17,7 @@
     _Generic(type, \
         cp_obj_t:               CP_ABSTRACT, \
         cp_scad_t:              CP_SCAD_TYPE, \
+        cp_scad_rec_t:          CP_SCAD_REC_TYPE, \
         cp_scad_union_t:        CP_SCAD_UNION, \
         cp_scad_difference_t:   CP_SCAD_DIFFERENCE, \
         cp_scad_intersection_t: CP_SCAD_INTERSECTION, \
@@ -42,7 +43,7 @@
 /**
  * Type IDs for SCAD module */
 typedef enum {
-    CP_SCAD_UNION = CP_SCAD_TYPE + 1,
+    CP_SCAD_UNION = CP_SCAD_REC_TYPE + 1,
     CP_SCAD_DIFFERENCE,
     CP_SCAD_INTERSECTION,
 
@@ -52,7 +53,7 @@ typedef enum {
     CP_SCAD_SCALE,
     CP_SCAD_ROTATE,
 
-    CP_SCAD_SPHERE,
+    CP_SCAD_SPHERE = CP_SCAD_TYPE + 1,
     CP_SCAD_CUBE,
     CP_SCAD_CYLINDER,
     CP_SCAD_POLYHEDRON,
@@ -155,6 +156,14 @@ typedef CP_VEC_T(cp_scad_t*) cp_v_scad_p_t;
 #define CP_SCAD_GROUP_XYZ_ \
     CP_SCAD_GROUP_ \
     cp_vec3_t v;
+
+/**
+ * Common to each recursive structure
+ */
+typedef struct {
+    CP_SCAD_GROUP_
+} cp_scad_rec_t;
+
 
 /**
  * To store union.

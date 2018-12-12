@@ -182,6 +182,7 @@ typedef struct {
     cp_v_mat3wi_p_t mat;
     cp_csg_add_t *root;
     cp_csg_opt_t const *opt;
+    cp_mat3wi_t const *root_xform;
 } cp_csg3_tree_t;
 
 #endif /* CP_CSG3_TAM_H_ */

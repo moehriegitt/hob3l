@@ -87,7 +87,7 @@ typedef CP_ARR_T(cp_mat2_t) cp_a_mat2_t;
 typedef CP_VEC_T(cp_mat2_t*) cp_v_mat2_p_t;
 typedef CP_ARR_T(cp_mat2_t*) cp_a_mat2_p_t;
 
-typedef struct {
+typedef union {
     cp_dim_t v[2 * (2 + 1)];
     struct {
        cp_mat2_t b;
@@ -133,7 +133,7 @@ typedef CP_ARR_T(cp_mat3_t) cp_a_mat3_t;
 typedef CP_VEC_T(cp_mat3_t*) cp_v_mat3_p_t;
 typedef CP_ARR_T(cp_mat3_t*) cp_a_mat3_p_t;
 
-typedef struct {
+typedef union {
     cp_dim_t v[3 * (3 + 1)];
     struct {
        cp_mat3_t b;

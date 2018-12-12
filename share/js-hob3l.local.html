@@ -552,6 +552,14 @@
                 }
             }
 
+            if (s.xform) {
+                var xf = mat4.create();
+                for (var j = 0; j < 16; j++) {
+                    xf[j] = s.xform[j];
+                }
+                mat4.mul(mv, mv, xf);
+            }
+
             setMatrixUniforms(mv, pm);
             gl.drawElements(
                 gl.TRIANGLES, s.index.length, gl.UNSIGNED_SHORT, 0);

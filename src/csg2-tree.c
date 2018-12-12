@@ -186,6 +186,7 @@ extern void cp_csg2_tree_from_csg3(
     r->root = cp_csg2_cast(*r->root, root);
     r->thick = s->step;
     r->opt = o;
+    r->root_xform = d->root_xform;
 
     cp_v_init0(&r->flag, s->cnt);
 

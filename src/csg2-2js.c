@@ -96,6 +96,18 @@ static void scene_flush(
         cp_printf(s, "   'scaleV':%g,\n", 1000/cp_pt_epsilon);
         cp_printf(s, "   'scaleC':255,\n");
         cp_printf(s, "   'shiftI':%u,\n", SHIFT_I);
+
+        if (c->tree->root_xform != NULL) {
+            cp_mat3w_t const *n = &c->tree->root_xform->n;
+            cp_printf(s, "   'xform':[%g,%g,%g,0, %g,%g,%g,0, %g,%g,%g,0, %g,%g,%g,1],\n",
+                n->b.m[0][0], n->b.m[1][0], n->b.m[2][0],
+                n->b.m[0][1], n->b.m[1][1], n->b.m[2][1],
+                n->b.m[0][2], n->b.m[1][2], n->b.m[2][2],
+                n->w.v[0] / 1000,
+                n->w.v[1] / 1000,
+                n->w.v[2] / 1000);
+        }
+
         cp_printf(s, "   'vertex':[");
         for (cp_size_each(i, c->v_cnt)) {
             cp_printf(s, "%s%ld,%ld,%ld",

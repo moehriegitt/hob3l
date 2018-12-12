@@ -446,7 +446,7 @@ test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.exe
 	rm -f $@.new.csg
 
 test-out/%.js: scad-test/%.scad hob3l.exe
-	$(HOB3L) $< -o $@.new.js
+	$(HOB3L) $< $(HOB3L_OPT) -o $@.new.js
 	cat $(wildcard $<.js) $@.new.js > $@.new2.js
 	mv $@.new2.js $@
 	rm $@.new.js

@@ -14,6 +14,9 @@
 #define CP_SINCOS_RAD(a) (&(cp_vec2_t){ .v={ sin(a), cos(a) }})
 #define CP_SINCOS_DEG(a) (&(cp_vec2_t){ .v={ cp_sin_deg(a), cp_cos_deg(a) }})
 
+CP_STATIC_ASSERT(cp_offsetof(cp_mat3_t,  m[0][0]) == 0);
+CP_STATIC_ASSERT(cp_offsetof(cp_mat3w_t, b.m[0][0]) == 0);
+
 /**
  * Cross product (which is right-handed, see above)
  */

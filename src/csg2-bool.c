@@ -2610,6 +2610,7 @@ extern void cp_csg2_op_tree_init(
     r->root = cp_csg2_cast(*r->root, root);
     r->thick = a->thick;
     r->opt = a->opt;
+    r->root_xform = a->root_xform;
 
     size_t cnt = a->z.size;
 

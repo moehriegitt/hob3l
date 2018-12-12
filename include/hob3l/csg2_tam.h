@@ -222,6 +222,12 @@ typedef struct {
      * Options for conversion or generation of output formats.
      */
     cp_csg_opt_t const *opt;
+
+    /**
+     * If non-NULL, the transformation of the root node.
+     * This points into the CSG3 structure.
+     */
+    cp_mat3wi_t const *root_xform;
 } cp_csg2_tree_t;
 
 /**

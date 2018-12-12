@@ -1,5 +1,6 @@
-// translate([20, 0, 0])
-translate([0, 0, 2]) scale(10) polyhedron(
+translate([20, 0, 0])
+color([0.9, 0.4, 0.4])
+!translate([0, 0, 2]) scale(10) polyhedron(
     points=[
         [ 0, 0,  0],
 
