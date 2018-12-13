@@ -15,8 +15,9 @@ static char const *opt_help =
     "        be more verbose\n"
     "    --o=ARG\n"
     "        sets the output file.  File ending selects default output format:\n"
-    "        .stl ending selects --dump-stl format, .scad/.csg selects --dump-csg2,\n"
-    "        .ps selects --dump-ps, .js selects --dump-js.\n"
+    "        .stl ending selects --dump-stl, .stlb or .stb selects --dump-stlb,\n"
+    "        .scad/.csg selects --dump-csg2, .ps selects --dump-ps,\n"
+    "        .js selects --dump-js.\n"
     "    --layer-gap=ARG\n"
     "        gap [mm] between layers in STL, SCAD, and JavaScript output.\n"
     "        For STL, this ensures that the output is 2-manifold.\n"
@@ -91,7 +92,9 @@ static char const *opt_help =
     "    --dump-ps\n"
     "        print after stage 4: final 2D polygon stack in PostScript format\n"
     "    --dump-stl\n"
-    "        print after stage 4: final 2D polygon stack in STL format\n"
+    "        print after stage 4: final 2D polygon stack in text STL format\n"
+    "    --dump-stlb\n"
+    "        print after stage 4: final 2D polygon stack in binary STL format\n"
     "    --dump-js\n"
     "        print after stage 4: final 2D polygon stack in JavaScript/WebGL format\n"
     "        The script 'hob3l-js-copy-aux' will add files needed to view the model\n"
@@ -398,6 +401,14 @@ static void get_opt_dump_stl(
     char const *arg CP_UNUSED)
 {
     opt->dump = DUMP_STL;
+}
+
+static void get_opt_dump_stlb(
+    cp_opt_t *opt CP_UNUSED,
+    char const *name CP_UNUSED,
+    char const *arg CP_UNUSED)
+{
+    opt->dump = DUMP_STLB;
 }
 
 static void get_opt_dump_syn(
@@ -966,6 +977,11 @@ cp_get_opt_t opt_list[] = {
     {
         "dump-stl",
         get_opt_dump_stl,
+        0,
+    },
+    {
+        "dump-stlb",
+        get_opt_dump_stlb,
         0,
     },
     {

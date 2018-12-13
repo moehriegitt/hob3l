@@ -21,6 +21,7 @@
  */
 extern void cp_csg2_tree_put_stl(
     cp_stream_t *s,
-    cp_csg2_tree_t *t);
+    cp_csg2_tree_t *t,
+    bool bin);
 
 #endif /* CP_CSG2_2STL_H_ */

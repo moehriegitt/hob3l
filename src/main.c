@@ -25,6 +25,7 @@ typedef enum {
     DUMP_CSG2,
     DUMP_PS,
     DUMP_STL,
+    DUMP_STLB,
     DUMP_JS
 } dump_t;
 
@@ -250,7 +251,11 @@ static bool do_file(
         return true;
 
     case DUMP_STL:
-        cp_csg2_tree_put_stl(sout, csg2_out);
+        cp_csg2_tree_put_stl(sout, csg2_out, false);
+        return true;
+
+    case DUMP_STLB:
+        cp_csg2_tree_put_stl(sout, csg2_out, true);
         return true;
 
     case DUMP_JS:
@@ -627,6 +632,12 @@ int main(int argc, char **argv)
         if (opt.dump == DUMP_NONE) {
             if (has_suffix(opt.out_file_name, ".stl")) {
                 opt.dump = DUMP_STL;
+            }
+            else if (
+                 has_suffix(opt.out_file_name, ".stb") ||
+                 has_suffix(opt.out_file_name, ".stlb"))
+            {
+                opt.dump = DUMP_STLB;
             }
             else if (has_suffix(opt.out_file_name, ".js")) {
                 opt.dump = DUMP_JS;

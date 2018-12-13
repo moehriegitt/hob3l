@@ -1007,12 +1007,9 @@ This results in the coordinate matrix to be multiplied by:
 ````
 
 where
-  * `cx = cos(x)`
-  * `sx = sin(x)`
-  * `cy = cos(y)`
-  * `sy = sin(y)`
-  * `cz = cos(z)`
-  * `sz = sin(z)`
+  * `cx = cos(x), sx = sin(x)`
+  * `cy = cos(y), sy = sin(y)`
+  * `cz = cos(z), sz = sin(z)`
 
 ### rotate_extrude
 

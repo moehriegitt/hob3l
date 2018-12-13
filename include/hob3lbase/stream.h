@@ -16,10 +16,18 @@
 #include <stdio.h>
 
 #define CP_STREAM_FROM_FILE(file) \
-    (&(cp_stream_t){ .data = (file), .vprintf = (cp_stream_vprintf_t)cp_stream_vfprintf })
+    (&(cp_stream_t){ \
+        .data = (file), \
+        .vprintf = (cp_stream_vprintf_t)cp_stream_vfprintf, \
+        .write = (cp_stream_write_t)cp_stream_fwrite, \
+    })
 
 #define CP_STREAM_FROM_VCHAR(vchar) \
-    (&(cp_stream_t){ .data = (vchar), .vprintf = (cp_stream_vprintf_t)cp_vchar_printf })
+    (&(cp_stream_t){ \
+        .data = (vchar), \
+        .vprintf = (cp_stream_vprintf_t)cp_vchar_printf, \
+        .write = (cp_stream_write_t)cp_vchar_append_arr, \
+    })
 
 /**
  * Formatted printing into a stream.
@@ -38,6 +46,14 @@ extern void cp_stream_vfprintf(
     FILE *f, char const *form, va_list va);
 
 /**
+ * Use fputc, checking for fatal errors.
+ */
+extern void cp_stream_fwrite(
+    FILE *f,
+    void const *buff,
+    size_t size);
+
+/**
  * Print into stream via va list
  */
 CP_VPRINTF(2)
@@ -47,6 +63,17 @@ static inline void cp_vprintf(
     va_list va)
 {
     s->vprintf(s->data, form, va);
+}
+
+/**
+ * Print into stream via va list
+ */
+static inline void cp_write(
+    cp_stream_t *s,
+    void const *buff,
+    size_t size)
+{
+    s->write(s->data, buff, size);
 }
 
 #endif /* CP_STREAM_H_ */

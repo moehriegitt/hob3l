@@ -32,3 +32,18 @@ extern void cp_stream_vfprintf(
             strerror(ferror(f)));
     }
 }
+
+/**
+ * Use fputc, checking for fatal errors.
+ */
+extern void cp_stream_fwrite(
+    FILE *f,
+    void const *buff,
+    size_t size)
+{
+    size_t i = fwrite(buff, 1, size, f);
+    if (i == 0) {
+        cp_panic(CP_FILE, CP_LINE, "Unable to write output file: %s\n",
+            strerror(ferror(f)));
+    }
+}
