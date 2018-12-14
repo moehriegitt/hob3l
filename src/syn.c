@@ -857,7 +857,7 @@ static bool is_absolute(
     char const *fn)
 {
 #if defined(__WIN32) || defined(__WIN64)
-    if (is_alpha(*fn) && (fn[1] == ':')) {
+    if (syn_is_alpha(*fn) && (fn[1] == ':')) {
         return true;
     }
 #endif
