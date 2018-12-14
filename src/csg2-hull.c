@@ -20,11 +20,16 @@ static void debug_poly(
     (void)cur;
     if (cp_debug_ps_page_begin()) {
         const cp_vec2_loc_t *first = &cp_v_nth(point, 0);
+        const cp_vec2_loc_t *lastp = &cp_v_nth(point, last);
 
         cp_printf(cp_debug_ps, "0 setgray\n");
 
         /* print path we already have */
         if (last > 0) {
+            for (cp_size_each(i, last+1, 1)) {
+                cp_vec2_loc_t *p = &cp_v_nth(point, i);
+                cp_debug_ps_dot(CP_PS_XY(p->coord), 3);
+            }
             cp_printf(cp_debug_ps, "1 setlinewidth\n");
             cp_printf(cp_debug_ps, "newpath %g %g moveto\n", CP_PS_XY(first->coord));
             for (cp_size_each(i, last+1, 1)) {
@@ -43,11 +48,20 @@ static void debug_poly(
             cp_debug_ps_dot(CP_PS_XY(p->coord), 3);
         }
 
+        /* current line */
         const cp_vec2_loc_t *curp = &cp_v_nth(point, cur);
-        cp_printf(cp_debug_ps, "1 setlinewidth\n");
+        cp_printf(cp_debug_ps, "2 setlinewidth\n");
+        cp_printf(cp_debug_ps, "0.8 0 0 setrgbcolor\n");
         cp_printf(cp_debug_ps, "newpath %g %g moveto %g %g lineto stroke\n",
             CP_PS_XY(first->coord),
             CP_PS_XY(curp->coord));
+
+        /* collecting line with last */
+        cp_printf(cp_debug_ps, "2 setlinewidth\n");
+        cp_printf(cp_debug_ps, "0 0.8 0 setrgbcolor\n");
+        cp_printf(cp_debug_ps, "newpath %g %g moveto %g %g lineto stroke\n",
+            CP_PS_XY(curp->coord),
+            CP_PS_XY(lastp->coord));
 
         /* end page */
         cp_ps_page_end(cp_debug_ps);
@@ -84,7 +98,9 @@ static int pt_y_angle_cmp(
 extern void cp_csg2_hull(
     cp_v_vec2_loc_t *point)
 {
-    if (point->size <= 3) {
+    /* triangles are trivially convex, but we promise clockwise order,
+     * so only return for <=2 points and do process 3 points */
+    if (point->size <= 2) {
         return;
     }
 
@@ -116,10 +132,11 @@ extern void cp_csg2_hull(
             if (k > 0) {
                 break;
             }
+            debug_poly(point, last, i);
             last--;
         }
 
-        /* put in now point */
+        /* put in new point */
         last++;
         cp_v_nth(point, last) = cp_v_nth(point, i);
 
