@@ -1619,6 +1619,11 @@ static bool v_scad_from_syn_stmt_item(
            .from = projection_from_item
         },
         {
+           .id = "render",
+           .type = CP_SCAD_UNION,
+           .from = union_from_item
+        },
+        {
            .id = "rotate",
            .type = CP_SCAD_ROTATE,
            .from = rotate_from_item

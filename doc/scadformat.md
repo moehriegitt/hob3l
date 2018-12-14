@@ -33,6 +33,7 @@
       * [polygon](#polygon)
       * [polyhedron](#polyhedron)
       * [projection](#projection)
+      * [render](#render)
       * [rotate](#rotate)
           * [If `v` is specified](#if-v-is-specified)
           * [If `v` is not specified](#if-v-is-not-specified)
@@ -971,6 +972,21 @@ _OpenSCAD compatibility_:
         without evaluating anything.  Hob3l ignores this exactly if all the
         children of `projection` are ignored, i.e., the criterion is the
         same as with `rotate` etc.
+
+### render
+
+Alias for `group`.
+
+```
+render() { ... }
+```
+
+In OpenSCAD, this forces rendering in preview mode.  To be compatible,
+this is handled like a no-op in Hob3l, which essentially means that it
+is equivalent to `group` and `union`.
+
+Do not use regularly for `union`, but use `union` instead -- this
+exists for compatibility reasons only.
 
 ### rotate
 
