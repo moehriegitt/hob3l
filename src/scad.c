@@ -86,6 +86,7 @@ static bool func_new_(
         [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
         [CP_SCAD_LINEXT]       = sizeof(cp_scad_linext_t),
         [CP_SCAD_ROTEXT]       = sizeof(cp_scad_rotext_t),
+        [CP_SCAD_HULL]         = sizeof(cp_scad_hull_t),
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
@@ -110,6 +111,15 @@ static bool union_from_item(
     cp_scad_t *_r)
 {
     cp_scad_union_t *r = cp_scad_cast(*r, _r);
+    return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
+}
+
+static bool hull_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_r)
+{
+    cp_scad_hull_t *r = cp_scad_cast(*r, _r);
     return v_scad_from_v_syn_stmt_item(t, &r->child, &f->body);
 }
 
@@ -1557,6 +1567,11 @@ static bool v_scad_from_syn_stmt_item(
            .id = "group",
            .type = CP_SCAD_UNION,
            .from = union_from_item
+        },
+        {
+           .id = "hull",
+           .type = CP_SCAD_HULL,
+           .from = hull_from_item
         },
         {
            .id = "import",

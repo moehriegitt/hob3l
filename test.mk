@@ -155,6 +155,7 @@ TEST_TRIANGLE.scad := \
     scad-test/test36e.scad \
     scad-test/test37.scad \
     scad-test/test37c.scad \
+    scad-test/test39.scad \
     scad-test/test2.scad
 
 test-out/test32.ps:  HOB3L_OPT := -gran=1
@@ -205,6 +206,7 @@ TEST_STL.scad := \
     scad-test/test36e.scad \
     scad-test/test37.scad \
     scad-test/test37c.scad \
+    scad-test/test39.scad \
     scad-test/test42a.scad \
     scad-test/test42b.scad
 

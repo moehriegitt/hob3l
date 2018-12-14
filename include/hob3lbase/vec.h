@@ -4,6 +4,7 @@
 #ifndef CP_VEC_H_
 #define CP_VEC_H_
 
+#include <stdio.h>
 #include <hob3lbase/vec_tam.h>
 #include <hob3lbase/qsort.h>
 

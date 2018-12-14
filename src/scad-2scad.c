@@ -86,6 +86,16 @@ static void rotext_put_scad(
     cp_printf(s,"%*s}\n", d, "");
 }
 
+static void hull_put_scad(
+    cp_stream_t *s,
+    int d,
+    cp_scad_hull_t const *r)
+{
+    cp_printf(s, "hull(){\n");
+    v_scad_put_scad(s, d + IND, &r->child);
+    cp_printf(s,"%*s}\n", d, "");
+}
+
 static void color_put_scad(
     cp_stream_t *s,
     int d,
@@ -351,6 +361,10 @@ static void scad_put_scad(
 
     case CP_SCAD_ROTEXT:
         rotext_put_scad(s, d, cp_scad_cast(cp_scad_rotext_t, r));
+        return;
+
+    case CP_SCAD_HULL:
+        hull_put_scad(s, d, cp_scad_cast(cp_scad_hull_t, r));
         return;
 
     case CP_SCAD_COLOR:

@@ -24,6 +24,7 @@
       * [cylinder](#cylinder)
       * [difference](#difference)
       * [group](#group)
+      * [hull](#hull)
       * [import](#import)
       * [intersection](#intersection)
       * [linear_extrude](#linear_extrude)
@@ -624,6 +625,20 @@ CSG operation: combine substructures by uniting them.  This is the CSG
 ```
 group() { ... }
 ```
+
+### hull
+
+CSG 2D operation: compute the convex hull.
+
+```
+hull() { ... }
+```
+
+This computes the convex hull of the 2D child structure.
+
+Hob3l only supports this in 2D, not in 3D.  This is due to the
+principle of not implementing complex 3D algorithms, but reducing
+everything to faster 2D algorithms.
 
 ### import
 

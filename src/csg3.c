@@ -8,6 +8,7 @@
 #include <hob3l/obj.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
+#include <hob3l/csg2-hull.h>
 #include <hob3l/csg3.h>
 #include <hob3l/scad.h>
 #include <hob3l/syn.h>
@@ -1774,7 +1775,7 @@ static bool csg3_from_linext(
     /*
      * Flatten set of polygons into a single (multi-path) polygon.
      *
-     * We need more contrained polygons here than in other phases:
+     * We need more constrained polygons here than in other phases:
      * each path needs to be a sequence of unique points.  Other phases can
      * cope with a path that uses points multiple times, but not this
      * algorithm.
@@ -1865,6 +1866,61 @@ static bool csg3_from_linext(
                 " Internal Error: 'linear_extrude' polyhedron construction algorithm is broken.\n");
         }
     }
+
+    return true;
+}
+
+static bool csg3_from_hull(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *m,
+    cp_scad_hull_t const *s)
+{
+    /* This is ignored if the child list is fully ignored (empty) */
+    if (c->context != IN2D) {
+        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
+            "'hull' is not supported in 3D context by this tool.");
+    }
+
+    /* construct a separate tree for the children */
+    ctxt_t c2 = *c;
+    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
+
+    /* start with fresh matrix in 2D space */
+    mat_ctxt_t mn = *m;
+    mn.mat = the_unit(c->tree);
+    if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
+        return false;
+    }
+
+    /*
+     * Flatten set of polygons into a single (multi-path) polygon.
+     * We do not care about edges here, we need only the points,
+     * so just use the same method linext uses.
+     */
+    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
+
+    /* sweep */
+    cp_pool_clear(c->tmp);
+    cp_v_fini(&rc);
+
+    /* empty? */
+    if ((p == NULL) || (p->path.size == 0)) {
+        return true;
+    }
+
+    cp_csg2_hull(&p->point);
+
+    /* set up trivial path */
+    p->path.size = 1;
+    cp_csg2_path_t *q = &cp_v_nth(&p->path, 0);
+    cp_v_clear(&q->point_idx, p->point.size);
+    for (cp_v_each(i, &p->point)) {
+        cp_v_push(&q->point_idx, i);
+    }
+
+    cp_v_push(r, cp_obj(p));
 
     return true;
 }
@@ -2219,6 +2275,10 @@ static bool csg3_from_scad(
         case CP_SCAD_UNION:
         case CP_SCAD_DIFFERENCE:
         case CP_SCAD_INTERSECTION:
+        case CP_SCAD_LINEXT:
+        case CP_SCAD_ROTEXT:
+        case CP_SCAD_HULL:
+        case CP_SCAD_PROJECTION:
             return csg3_from_rec(no, r, c, m, cp_scad_cast(cp_scad_rec_t, s));
 
         /* modifiers: treat them normally */
@@ -2231,8 +2291,6 @@ static bool csg3_from_scad(
             break;
 
         /* objects: do not render them */
-        case CP_SCAD_LINEXT:
-        case CP_SCAD_ROTEXT:
         case CP_SCAD_SPHERE:
         case CP_SCAD_CUBE:
         case CP_SCAD_CYLINDER:
@@ -2242,7 +2300,6 @@ static bool csg3_from_scad(
         case CP_SCAD_CIRCLE:
         case CP_SCAD_SQUARE:
         case CP_SCAD_POLYGON:
-        case CP_SCAD_PROJECTION:
             return true;
         }
     }
@@ -2278,12 +2335,20 @@ static bool csg3_from_scad(
     case CP_SCAD_COLOR:
         return csg3_from_color(no, r, c, m, cp_scad_cast(cp_scad_color_t, s));
 
-    /* 2D->3D extruding */
+    /* 2D->3D */
     case CP_SCAD_LINEXT:
         return csg3_from_linext(no, r, c, m, cp_scad_cast(cp_scad_linext_t, s));
 
     case CP_SCAD_ROTEXT:
         return csg3_from_rotext(no, r, c, m, cp_scad_cast(cp_scad_rotext_t, s));
+
+    /* 3D->2D */
+    case CP_SCAD_PROJECTION:
+        return csg3_from_projection(no, r, c, m, cp_scad_cast(cp_scad_projection_t, s));
+
+    /* 2D->2D */
+    case CP_SCAD_HULL:
+        return csg3_from_hull(no, r, c, m, cp_scad_cast(cp_scad_hull_t, s));
 
     /* 3D objects */
     case CP_SCAD_SPHERE:
@@ -2313,9 +2378,6 @@ static bool csg3_from_scad(
 
     case CP_SCAD_POLYGON:
         return csg3_from_polygon(no, r, c, m, cp_scad_cast(cp_scad_polygon_t, s));
-
-    case CP_SCAD_PROJECTION:
-        return csg3_from_projection(no, r, c, m, cp_scad_cast(cp_scad_projection_t, s));
     }
 
     CP_DIE("SCAD object type");

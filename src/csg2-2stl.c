@@ -30,7 +30,8 @@ static void write_u32(
         u & 0xff,
         (u >> 8) & 0xff,
         (u >> 16) & 0xff,
-        (u >> 24) & 0xff
+        /* -Wconversion bug in gcc requires cast, unfortunately */
+        (unsigned char)(u >> 24)
     };
     cp_write(s, c, sizeof(c));
 }
@@ -320,6 +321,7 @@ extern void cp_csg2_tree_put_stl(
     };
 
     if (bin) {
+        /* This is unfortunate: we need the number of triangles in the header. */
         /* pass 1: count */
         c.stream = NULL;
         csg2_put_stl(&c, 0, t->root);
