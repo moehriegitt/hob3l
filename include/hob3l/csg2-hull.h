@@ -10,7 +10,7 @@
  * Compute the convex hull of a set of points.
  *
  * \a point will be rearranged to contain the points of the hull in
- * counter-clockwise order.
+ * clockwise order.
  */
 extern void cp_csg2_hull(
     cp_v_vec2_loc_t *point);
