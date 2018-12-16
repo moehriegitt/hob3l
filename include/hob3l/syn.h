@@ -12,7 +12,7 @@
 #include <stdio.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/stream_tam.h>
-#include <hob3l/obj.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/syn_tam.h>
 #include <hob3l/syn-2scad.h>
 

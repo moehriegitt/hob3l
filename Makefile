@@ -274,6 +274,14 @@ MOD_C.cptest.exe := \
 MOD_O.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.o))
 MOD_D.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.d))
 
+# Font generator:
+# fontgen.exe:
+MOD_C.fontgen.exe := \
+    fontgen.c
+
+MOD_O.fontgen.exe := $(addprefix out/,$(MOD_C.fontgen.exe:.c=.o))
+MOD_D.fontgen.exe := $(addprefix out/,$(MOD_C.fontgen.exe:.c=.d))
+
 ######################################################################
 
 _ := $(shell mkdir -p out)
@@ -302,12 +310,14 @@ data: \
 
 maintainer-clean: zap
 
-.PHONY: sweep
+.PHONY: sweep 
 sweep:
 	rm -f *~
 	rm -f *.bak
 	rm -f src/*~
 	rm -f src/*.bak
+	rm -f font/*~
+	rm -f font/*.bak
 	rm -f include/*~
 	rm -f include/*.bak
 	rm -f include/hob3lbase/*~
@@ -354,6 +364,9 @@ hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a
 cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
+fontgen.exe: $(MOD_O.fontgen.exe)
+	$(CC) -o $@ $(MOD_O.fontgen.exe) -L. -lhob3lbase $(LIBS) -lm $(CFLAGS)
+
 out/%: script/%.in
 	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
 	mv $@.new $@
@@ -368,6 +381,9 @@ src/mat_is_rot.c: $(srcdir)/script/mkrotmat
 out/math-test.o: CFLAGS+=-Wno-float-equal
 
 out/%.o: src/%.c src/mat_gen_ext.c
+	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
+
+out/%.o: font/%.c
 	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
 
 %.i: %.c

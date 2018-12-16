@@ -5,7 +5,7 @@
 #define CP_CSG2_H_
 
 #include <hob3lbase/mat_tam.h>
-#include <hob3l/obj.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/csg2_tam.h>
 #include <hob3l/csg3_tam.h>
 #include <hob3l/csg2-bool.h>

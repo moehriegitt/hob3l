@@ -6,8 +6,8 @@
 
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/err_tam.h>
+#include <hob3lbase/obj_tam.h>
 #include <hob3l/gc_tam.h>
-#include <hob3l/obj_tam.h>
 #include <hob3l/csg_tam.h>
 #include <hob3l/csg2_tam.h>
 #include <hob3l/csg3_fwd.h>

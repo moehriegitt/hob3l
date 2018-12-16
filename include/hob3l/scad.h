@@ -17,10 +17,10 @@
 #define CP_SCAD_H_
 
 #include <hob3lbase/stream.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/scad_tam.h>
 #include <hob3l/syn_tam.h>
 #include <hob3l/scad-2scad.h>
-#include <hob3l/obj.h>
 
 /** Cast w/ dynamic check */
 #define cp_scad_cast(t, s) cp_cast_(cp_scad_typeof, t, s)

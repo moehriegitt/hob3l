@@ -4,8 +4,8 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/gc.h>
-#include <hob3l/obj.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/csg2-hull.h>

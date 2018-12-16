@@ -8,9 +8,9 @@
 #include <hob3lbase/vec.h>
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/err_tam.h>
+#include <hob3lbase/obj_tam.h>
 #include <hob3l/gc_tam.h>
 #include <hob3l/syn_fwd.h>
-#include <hob3l/obj_tam.h>
 
 typedef CP_VEC_T(cp_syn_stmt_t*) cp_v_syn_stmt_p_t;
 

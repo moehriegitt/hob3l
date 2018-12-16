@@ -43,7 +43,7 @@
 #include <hob3lbase/alloc.h>
 #include <hob3lbase/vec.h>
 #include <hob3lbase/panic.h>
-#include <hob3l/obj.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/ps.h>

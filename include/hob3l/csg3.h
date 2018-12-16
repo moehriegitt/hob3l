@@ -5,10 +5,10 @@
 #define CP_CSG3_H_
 
 #include <hob3lbase/stream.h>
+#include <hob3lbase/obj.h>
 #include <hob3l/csg3_tam.h>
 #include <hob3l/scad_tam.h>
 #include <hob3l/syn_tam.h>
-#include <hob3l/obj.h>
 #include <hob3l/csg3-2scad.h>
 
 /** Create a CSG3 instance */

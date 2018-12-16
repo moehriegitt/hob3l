@@ -4,7 +4,7 @@
 #ifndef CP_CSG_H_
 #define CP_CSG_H_
 
-#include <hob3l/obj_tam.h>
+#include <hob3lbase/obj_tam.h>
 #include <hob3l/csg_tam.h>
 
 /**

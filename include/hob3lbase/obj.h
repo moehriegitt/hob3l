@@ -4,7 +4,7 @@
 #ifndef CP_OBJ_H_
 #define CP_OBJ_H_
 
-#include <hob3l/obj_tam.h>
+#include <hob3lbase/obj_tam.h>
 
 /* BEGIN MACRO * DO NOT EDIT, use 'mkmacro' instead. */
 
