@@ -37,7 +37,13 @@
 typedef CP_ARR_T(unsigned) cp_a_unsigned_t;
 typedef CP_VEC_T(unsigned) cp_v_unsigned_t;
 
+typedef CP_ARR_T(int const)    cp_a_int_const_t;
+typedef CP_ARR_T(double const) cp_a_double_const_t;
+
 typedef signed char font_coord_t;
+
+typedef struct font font_t;
+typedef struct font_glyph font_glyph_t;
 
 typedef struct {
     struct {
@@ -89,6 +95,7 @@ typedef enum {
     FONT_VERTEX_ROUND,
     FONT_VERTEX_LARGE,
     FONT_VERTEX_HUGE,
+    FONT_VERTEX_GIANT,
     FONT_VERTEX_SMALL,
     FONT_VERTEX_CHAMFER,
     FONT_VERTEX_ANGLED,
@@ -139,13 +146,21 @@ typedef enum {
  *           (primary < 0 ? -1 : +1) *
  *           sign(sub)*sub_*[abs(sub)])
  *
+ * scale_y has a fixed value of 1.
+ *
  * Additionally, values of 'large_dist + min_dist' can be added in
  * 1/60 units by specifying 'round'.
  *
  * Further, coordinates can be offset by a multiple of the dot size
  * of the font using the 'dot_rel' 1/60 multiplier.
  *
- * scale_y has a fixed value of 1.
+ * Further, lengths defined by distances can be added using 'len':
+ * the length (coord_x(to) - coord_x(from)) * frac/60.
+
+ * CURRENTLY NOT USED:
+ * Further, lengths from the other coordinate (y for x and x for y) can
+ * be used using olen: the length (coord_y(to) - coord_y(from)) * frac/60.
+ * can be added.
  */
 typedef struct {
     int8_t sub;
@@ -153,6 +168,17 @@ typedef struct {
     int8_t secondary;
     int16_t interpol;
     int16_t dot_rel;
+    struct {
+        int8_t  from;
+        int8_t  to;
+        int16_t frac;
+    } len;
+    /* currently not used: position by other dimension's length */
+    struct {
+        int8_t  from;
+        int8_t  to;
+        int16_t frac;
+    } olen;
     unsigned _line;
 } font_def_coord_t;
 
@@ -193,7 +219,7 @@ typedef struct {
     double line_width;
 } font_gc_t;
 
-typedef void (*font_xform_t)(font_gc_t *);
+typedef void (*font_xform_t)(font_t const *, font_gc_t *);
 
 typedef struct {
     FONT_DRAW_OBJ_
@@ -286,9 +312,6 @@ typedef struct {
 
 typedef CP_VEC_T(font_vertex_t) font_v_vertex_t;
 
-typedef struct font font_t;
-typedef struct font_glyph font_glyph_t;
-
 struct font_glyph {
     unicode_t unicode;
 
@@ -339,11 +362,14 @@ typedef struct {
     font_coord_t base_y;
     double line_width[5];
     double slant;
-    double radius[3];
+    double radius[4];
     double angle[2];
     double min_dist;
-    double const *coord_x;
-    double const *coord_y;
+    cp_a_double_const_t const coord_x;
+    cp_a_double_const_t const coord_y;
+    /** which y lines to highlight */
+    cp_a_int_const_t const highlight_y;
+
     /** size (=length) of a dot */
     double dot_size;
     double sub_x[10];
@@ -394,6 +420,7 @@ typedef struct {
 #define R FONT_VERTEX_ROUND
 #define L FONT_VERTEX_LARGE
 #define H FONT_VERTEX_HUGE
+#define G FONT_VERTEX_GIANT
 #define S FONT_VERTEX_SMALL
 #define P FONT_VERTEX_POINTED
 #define C FONT_VERTEX_CHAMFER
@@ -441,8 +468,12 @@ typedef struct {
 #define Q_1_(P,X,Y) Q_2_(P,X,Y)
 #define Q(P,X,Y)    Q_1_(P,X,Y)
 
-static void swap_x(font_gc_t *);
-static void swap_y(font_gc_t *);
+static void swap_x(font_t const *, font_gc_t *);
+static void swap_y(font_t const *, font_gc_t *);
+static void rot180(font_t const *, font_gc_t *);
+static void slant1(font_t const *, font_gc_t *);
+static void frac_left1(font_t const *, font_gc_t *);
+static void frac_right1(font_t const *, font_gc_t *);
 
 /* ********************************************************************** */
 
@@ -570,24 +601,25 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_REPLACEMENT_CHARACTER,
         .draw = STROKE(
-            Q(L, ( 0,-10,+10,30), (+3,+7, 0, 0)),
-            Q(L, (+3,-10,  0, 0), ( 0,+7,-4,30)),
-            Q(L, ( 0,-10,+10,30), (+3,-4, 0, 0)),
-            Q(L, (+3,+10,  0, 0), ( 0,+7,-4,30)),
+            Q(L, ( 0,-12,+12,30), (+3,+7, 0, 0)),
+            Q(L, (+3,-12,  0, 0), ( 0,+7,-5,30)),
+            Q(L, ( 0,-12,+12,30), (+3,-5, 0, 0)),
+            Q(L, (+3,+12,  0, 0), ( 0,+7,-5,30)),
             Q(N, ( 0,  0,  0, 0), ( 0, 0, 0, 0)),
-            Q(B, ( 0,  0,  0, 0), ( 0,-2,-1,-10)),
-            Q(E, ( 0,  0,  0, 0), ( 0,-1,-2,+10)),
-            Q(I, ( 0,-10,+10,20), ( 0,-4,+7,35)),
-            Q(S, ( 0,-10,+10,30), ( 0,-4,+7,45)),
-            Q(S, ( 0,-10,+10,40), ( 0,-4,+7,35)),
-            Q(P, ( 0,-10,+10,30), ( 0,-4,+7,25)),
-            Q(E, ( 0,-10,+10,30), ( 0,-4,+7,20)),
+            Q(B, ( 0,  0,  0, 0), ( 0,-5,+7,18)),
+            Q(E, ( 0,  0,  0, 0), ( 0,-5,+7,18, +60)),
+            Q(I, ( 0,-12,+12,20), ( 0,-5,+7,38)),
+            Q(S, ( 0,-12,+12,30), ( 0,-5,+7,48)),
+            Q(S, ( 0,-12,+12,40), ( 0,-5,+7,38)),
+            Q(P, ( 0,-12,+12,30), ( 0,-5,+7,28)),
+            Q(E, ( 0,-12,+12,30), ( 0,-5,+7,23)),
         ),
     },
 
-    /* ascii punctuation */
+    /* punctuation */
     {
         .unicode = U_FULL_STOP,
+        .line_step = 1,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -595,6 +627,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COMMA,
+        .line_step = 1,
         .min_coord = COORD(-6,0,0,0),
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -604,6 +637,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_SEMICOLON,
+        .line_step = 1,
         .min_coord = COORD(-6,0,0,0),
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -615,6 +649,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COLON,
+        .line_step = 1,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -624,6 +659,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_EXCLAMATION_MARK,
+        .line_step = 1,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -632,7 +668,13 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
+        .unicode = U_INVERTED_EXCLAMATION_MARK,
+        .line_step = 1,
+        .draw = XFORM(swap_y, REF(U_EXCLAMATION_MARK)),
+    },
+    {
         .unicode = U_QUESTION_MARK,
+        .line_step = 1,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -643,6 +685,11 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(S, (+1,-2, 0, 0), (-2,+6, 0, 0)),
             Q(E, (+1,-5, 0, 0), ( 0,+5, 0, 0)),
         ),
+    },
+    {
+        .unicode = U_INVERTED_QUESTION_MARK,
+        .line_step = 1,
+        .draw = XFORM(rot180, REF(U_QUESTION_MARK)),
     },
     {
         .unicode = U_SOLIDUS,
@@ -657,9 +704,20 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_REVERSE_SOLIDUS,
         .min_coord = COORD(0,-4,0,0),
         .max_coord = COORD(0,+4,0,0),
+        .draw = XFORM(swap_x, REF(U_SOLIDUS)),
+    },
+    {
+        .unicode = U_VERTICAL_LINE,
         .draw = STROKE(
-            Q(B, ( 0,-4, 0, 0), ( 0,+6, 0, 0)),
-            Q(E, ( 0,+4, 0, 0), ( 0,-4, 0, 0)),
+            Q(B, ( 0, 0, 0, 0), (+1,+6, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), (+1,-5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_HYPHEN_MINUS,
+        .draw = STROKE(
+            Q(B, ( 0,+5, 0, 0), ( 0,-3,+3,30)),
+            Q(E, ( 0,-5, 0, 0), ( 0,-3,+3,30)),
         ),
     },
     {
@@ -675,6 +733,273 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
+        .unicode = U_QUOTATION_MARK,
+        .draw = STROKE(
+            Q(B, (+3,-2, 0, 0), ( 0,+6, 0, 0)),
+            Q(E, (+3,-2, 0, 0), ( 0,+3, 0, 0)),
+            Q(B, (+3,+2, 0, 0), ( 0,+6, 0, 0)),
+            Q(E, (+3,+2, 0, 0), ( 0,+3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_APOSTROPHE,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
+        ),
+    },
+
+    /* number or currency related signs */
+    {
+        .unicode = U_NUMBER_SIGN,
+        .draw = XFORM(slant1, STROKE(
+            Q(B, ( 0,+4, 0, 0), ( 0,+3, 0, 0, .len = { -3, -1, 60 })),
+            Q(E, ( 0,+4, 0, 0), ( 0,-3, 0, 0)),
+            Q(B, ( 0,-4, 0, 0), ( 0,+3, 0, 0, .len = { -3, -1, 60 })),
+            Q(E, ( 0,-4, 0, 0), ( 0,-3, 0, 0)),
+            Q(B, ( 0,-9, 0, 0), (-2,+3, 0, 0)),
+            Q(E, ( 0,+9, 0, 0), (-2,+3, 0, 0)),
+            Q(B, ( 0,-9, 0, 0), (-2,-1, 0, 0)),
+            Q(E, ( 0,+9, 0, 0), (-2,-1, 0, 0)),
+        )),
+    },
+    {
+        .unicode = U_DOLLAR_SIGN,
+        .draw = STROKE(
+            Q(I, (+1,+6, 0, 0), ( 0,+3, 0, 0)),
+            Q(R, ( 0,+3, 0, 0), (-2,+5, 0, 0)),
+            Q(L, ( 0,-6, 0, 0), (-2,+5, 0, 0)),
+            Q(L, ( 0,-6, 0, 0), (-1,-3,+5,30)),
+            Q(L, ( 0,+6, 0, 0), (+1,-3,+5,30)),
+            Q(L, ( 0,+6, 0, 0), (-2,-3, 0, 0)),
+            Q(R, ( 0,-3, 0, 0), (-2,-3, 0, 0)),
+            Q(O, (+1,-6, 0, 0), ( 0,-2, 0, 0)),
+            Q(B, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+5, 0, 0, .len = { -3, -5, -60 })),
+            Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,-5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_AMPERSAND,
+        .line_step = 1,
+        .draw = COMPOSE(
+          WIDTH(U_DIGIT_ZERO),
+          STROKE(
+            Q(I, (+1, +4, 0, 0), ( 0,+5, 0, 0)),
+            Q(S, (+1, +1, 0, 0), (-2,+6, 0, 0)),
+            Q(L, ( 0, -6, 0, 0), (-2,+6, 0, 0)),
+            Q(T, ( 0, -6, 0, 0), ( 0,-3,+6,30)),
+            Q(M, ( 0, +5, 0, 0), ( 0,-3,+6,30)),
+            Q(T, ( 0, -6, 0, 0), ( 0,-3,+6,30)),
+            Q(L, ( 0, -6, 0, 0), (-2,-3, 0, 0)),
+            Q(P, ( 0, +5, 0, 0), (-2,-3, 0, 0)),
+            Q(P, ( 0, +5, 0, 0), ( 0,-3,+6,30)),
+            Q(E, ( 0,+10, 0, 0), ( 0,-3,+6,30)),
+          )
+        ),
+    },
+    {
+        .unicode = U_COMMERCIAL_AT,
+        .line_step = 2,
+        .draw = STROKE(
+            Q(B, ( 0,-4, 0, 0), ( 0,+2, 0, 0)),
+            Q(L, ( 0,+4, 0, 0), ( 0,+2, 0, 0)),
+            Q(P, ( 0,+4, 0, 0), ( 0,-2, 0, 0)),
+            Q(R, ( 0,-4, 0, 0), ( 0,-2, 0, 0)),
+            Q(R, ( 0,-4, 0, 0), ( 0, 0, 0, 0)),
+            Q(E, ( 0,+4, 0, 0), ( 0, 0, 0, 0)),
+
+            Q(B, ( 0,+4, 0, 0), ( 0,-2, 0, 0)),
+            Q(S, ( 0,+9, 0, 0), ( 0,-2, 0, 0)),
+            Q(P, ( 0,+9, 0, 0), ( 0, 0, 0, 0)),
+            Q(G, ( 0,+9, 0, 0), ( 0,+5,+4,30)),
+            Q(G, ( 0,-9, 0, 0), ( 0,+5,+4,30)),
+            Q(G, ( 0,-9, 0, 0), ( 0,-4, 0, 0)),
+            Q(E, ( 0,+1, 0, 0), ( 0,-4, 0, 0)),
+        ),
+    },
+
+    /* fractions */
+    {
+        .unicode = U_FRACTION_SLASH,
+        .line_step = 2,
+        .draw = STROKE(
+            Q(B, ( 0,+6, 0, 0), ( 0,+6, 0, 0)),
+            Q(E, ( 0,-6, 0, 0), ( 0,-3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_PERCENT_SIGN,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ZERO)),
+            XFORM(frac_right1, REF(U_DIGIT_ZERO)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_HALF,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_TWO)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_THIRD,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_THREE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_TWO_THIRDS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_TWO)),
+            XFORM(frac_right1, REF(U_DIGIT_THREE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_QUARTER,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_FOUR)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_THREE_QUARTERS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
+            XFORM(frac_right1, REF(U_DIGIT_FOUR)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_FIFTH,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_TWO_FIFTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_TWO)),
+            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_THREE_FIFTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
+            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_FOUR_FIFTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_FOUR)),
+            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_SIXTH,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_SIX)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_FIVE_SIXTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
+            XFORM(frac_right1, REF(U_DIGIT_SIX)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_SEVENTH,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_SEVEN)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_ONE_EIGHTH,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
+            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_THREE_EIGHTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
+            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_FIVE_EIGHTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
+            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+    {
+        .unicode = U_VULGAR_FRACTION_SEVEN_EIGHTHS,
+        .line_step = 2,
+        .draw = COMPOSE(
+            REF(U_FRACTION_SLASH),
+            XFORM(frac_left1,  REF(U_DIGIT_SEVEN)),
+            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+
+    /* parens and brackets */
+    {
+        .unicode = U_LEFT_PARENTHESIS,
+        .max_coord = COORD(0,+3,0,0),
+        .draw = STROKE(
+            Q(I, ( 0,+3, 0, 0), ( 0,+6, 0, 0)),
+            Q(L, ( 0,-3, 0, 0), ( 0,+3, 0, 0)),
+            Q(L, ( 0,-3, 0, 0), ( 0,-2, 0, 0)),
+            Q(O, ( 0,+3, 0, 0), ( 0,-5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_RIGHT_PARENTHESIS,
+        .min_coord = COORD(0,-3,0,0),
+        .draw = XFORM(swap_x, REF(U_LEFT_PARENTHESIS)),
+    },
+    {
         .unicode = U_LEFT_SQUARE_BRACKET,
         .draw = STROKE(
             Q(B, ( 0,+3, 0, 0), (-2,+6, 0, 0)),
@@ -685,39 +1010,102 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_RIGHT_SQUARE_BRACKET,
-        .draw = STROKE(
-            Q(B, ( 0,-3, 0, 0), (-2,+6, 0, 0)),
-            Q(P, ( 0,+3, 0, 0), (-2,+6, 0, 0)),
-            Q(P, ( 0,+3, 0, 0), (-2,-5, 0, 0)),
-            Q(E, ( 0,-3, 0, 0), (-2,-5, 0, 0)),
-        ),
+        .draw = XFORM(swap_x, REF(U_LEFT_SQUARE_BRACKET)),
     },
     {
         .unicode = U_LEFT_CURLY_BRACKET,
         .draw = STROKE(
             Q(B, ( 0,+6, 0, 0), (-2,+6, 0, 0)),
             Q(L, ( 0,-1, 0, 0), (-2,+6, 0, 0)),
-            Q(C, ( 0,+1, 0, 0), ( 0,-5,+6,30)),
-            Q(P, ( 0,-2, 0, 0), ( 0,-5,+6,30)),
-            Q(M, ( 0,-6, 0, 0), ( 0,-5,+6,30)),
-            Q(P, ( 0,-2, 0, 0), ( 0,-5,+6,30)),
-            Q(C, ( 0,+1, 0, 0), ( 0,-5,+6,30)),
+            Q(T, ( 0,+1, 0, 0), ( 0,-5,+6,30)),
+            Q(M, ( 0,-5,-5,30), ( 0,-5,+6,30)),
+            Q(T, ( 0,+1, 0, 0), ( 0,-5,+6,30)),
             Q(L, ( 0,-1, 0, 0), (-2,-5, 0, 0)),
             Q(E, ( 0,+6, 0, 0), (-2,-5, 0, 0)),
         ),
     },
     {
         .unicode = U_RIGHT_CURLY_BRACKET,
+        .draw = XFORM(swap_x, REF(U_LEFT_CURLY_BRACKET)),
+    },
+
+    /* math operators */
+    {
+        .unicode = U_PLUS_SIGN,
         .draw = STROKE(
-            Q(B, ( 0,-6, 0, 0), (-2,+6, 0, 0)),
-            Q(L, ( 0,+1, 0, 0), (-2,+6, 0, 0)),
-            Q(C, ( 0,-1, 0, 0), ( 0,-5,+6,30)),
-            Q(P, ( 0,+2, 0, 0), ( 0,-5,+6,30)),
-            Q(M, ( 0,+6, 0, 0), ( 0,-5,+6,30)),
-            Q(P, ( 0,+2, 0, 0), ( 0,-5,+6,30)),
-            Q(C, ( 0,-1, 0, 0), ( 0,-5,+6,30)),
-            Q(L, ( 0,+1, 0, 0), (-2,-5, 0, 0)),
-            Q(E, ( 0,-6, 0, 0), (-2,-5, 0, 0)),
+            Q(B, ( 0,+8, 0, 0), ( 0,-3,+4,30)),
+            Q(E, ( 0,-8, 0, 0), ( 0,-3,+4,30)),
+            Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+4, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_MINUS_SIGN,
+        .draw = STROKE(
+            Q(B, ( 0,+8, 0, 0), ( 0,-3,+4,30)),
+            Q(E, ( 0,-8, 0, 0), ( 0,-3,+4,30)),
+        ),
+    },
+    {
+        .unicode = U_EQUALS_SIGN,
+        .draw = STROKE(
+            Q(B, ( 0,+8, 0, 0), ( 0,+2,+2, 0)),
+            Q(E, ( 0,-8, 0, 0), ( 0,+2,+2, 0)),
+            Q(B, ( 0,+8, 0, 0), ( 0,-1,-1, 0)),
+            Q(E, ( 0,-8, 0, 0), ( 0,-1,-1, 0)),
+        ),
+    },
+    {
+        .unicode = U_PLUS_MINUS_SIGN,
+        .draw = STROKE(
+            Q(B, ( 0,+8, 0, 0), (-2,-3, 0, 0)),
+            Q(E, ( 0,-8, 0, 0), (-2,-3, 0, 0)),
+            Q(B, ( 0,+8, 0, 0), ( 0,-1,+4,30)),
+            Q(E, ( 0,-8, 0, 0), ( 0,-1,+4,30)),
+            Q(B, ( 0, 0, 0, 0), ( 0,+4, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,-1, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LESS_THAN_SIGN,
+        .min_coord = COORD(0,-8,0,0),
+        .max_coord = COORD(0,+8,0,0),
+        .draw = STROKE(
+            Q(I, ( 0,+8, 0, 0), ( 0,-3, 0, 0)),
+            Q(P, ( 0,-8, 0, 0), ( 0,-3,+4,30)),
+            Q(O, ( 0,+8, 0, 0), ( 0,+4, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_GREATER_THAN_SIGN,
+        .min_coord = COORD(0,-8,0,0),
+        .max_coord = COORD(0,+8,0,0),
+        .draw = XFORM(swap_x, REF(U_LESS_THAN_SIGN)),
+    },
+    {
+        .unicode = U_ASTERISK,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,-1, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
+
+            Q(I, (+3,-5, 0, 0), ( 0,-1,+5,50)),
+            Q(P, (-6, 0, 0, 0), ( 0,-1,+5,30)),
+            Q(P, (+6, 0, 0, 0), ( 0,-1,+5,30)),
+            Q(O, (+3,+5, 0, 0), ( 0,-1,+5,50)),
+
+            Q(I, (+3,-5, 0, 0), ( 0,-1,+5,10)),
+            Q(P, (-6, 0, 0, 0), ( 0,-1,+5,30)),
+            Q(P, (+6, 0, 0, 0), ( 0,-1,+5,30)),
+            Q(O, (+3,+5, 0, 0), ( 0,-1,+5,10)),
+        ),
+    },
+    {
+        .unicode = U_TILDE,
+        .draw = STROKE(
+            Q(I, ( 0,+8, 0, 0), ( 0,-3,+4,35)),
+            Q(L, ( 0,+8,-8,20), ( 0,-3,+4,20)),
+            Q(L, ( 0,-8,+8,20), ( 0,-3,+4,40)),
+            Q(O, ( 0,-8, 0, 0), ( 0,-3,+4,25)),
         ),
     },
 
@@ -769,11 +1157,9 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(I, (+1,-6, 0, 0), ( 0,+5, 0, 0)),
             Q(S, (+1,-3, 0, 0), (-2,+6, 0, 0)),
             Q(L, ( 0,+6, 0, 0), (-2,+6, 0, 0)),
-            Q(P, ( 0,+6, 0, 0), ( 0,-3,+6,38)),
-            Q(C, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
+            Q(T, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
             Q(M, ( 0,-2, 0, 0), ( 0,-3,+6,30)),
-            Q(C, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
-            Q(P, ( 0,+6, 0, 0), ( 0,-3,+6,22)),
+            Q(T, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
             Q(L, ( 0,+6, 0, 0), (-2,-3, 0, 0)),
             Q(S, (+1,-3, 0, 0), (-2,-3, 0, 0)),
             Q(O, (+1,-6, 0, 0), ( 0,-2, 0, 0)),
@@ -849,18 +1235,14 @@ static font_def_glyph_t f1_a_glyph[] = {
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(L, (-1,+6, 0, 0), (-2,+6, 0, 0)),
-            Q(P, (-1,+6, 0, 0), ( 0,-3,+6,38)),
-            Q(C, (-1,+6, 0, 0), ( 0,-3,+6,30)),
+            Q(T, (-1,+6, 0, 0), ( 0,-3,+6,30)),
             Q(M, ( 0,-1, 0, 0), ( 0,-3,+6,30)),
-            Q(C, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
-            Q(P, ( 0,+6, 0, 0), ( 0,-3,+6,22)),
+            Q(T, ( 0,+6, 0, 0), ( 0,-3,+6,30)),
             Q(L, ( 0,+6, 0, 0), (-2,-3, 0, 0)),
             Q(L, ( 0,-6, 0, 0), (-2,-3, 0, 0)),
-            Q(P, ( 0,-6, 0, 0), ( 0,-3,+6,22)),
-            Q(C, ( 0,-6, 0, 0), ( 0,-3,+6,30)),
+            Q(T, ( 0,-6, 0, 0), ( 0,-3,+6,30)),
             Q(M, ( 0,+1, 0, 0), ( 0,-3,+6,30)),
-            Q(C, (-1,-6, 0, 0), ( 0,-3,+6,30)),
-            Q(P, (-1,-6, 0, 0), ( 0,-3,+6,38)),
+            Q(T, (-1,-6, 0, 0), ( 0,-3,+6,30)),
             Q(L, (-1,-6, 0, 0), (-2,+6, 0, 0)),
 
           )
@@ -883,38 +1265,24 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = U_LATIN_CAPITAL_LETTER_REVERSED_OPEN_E,
-        .line_step = 1,
-        .draw = STROKE(
-            Q(I, (+1,+7, 0, 0), ( 0,+5, 0, 0)),
-            Q(S, (+1,+3, 0, 0), (-2,+6, 0, 0)),
-            Q(H, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
-            Q(P, ( 0,-7, 0, 0), ( 0,-3,+6,38)),
-            Q(C, ( 0,-7, 0, 0), ( 0,-3,+6,30)),
-            Q(M, ( 0,+2, 0, 0), ( 0,-3,+6,30)),
-            Q(C, ( 0,-7, 0, 0), ( 0,-3,+6,30)),
-            Q(P, ( 0,-7, 0, 0), ( 0,-3,+6,22)),
-            Q(H, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
-            Q(S, (+1,+3, 0, 0), (-2,-3, 0, 0)),
-            Q(O, (+1,+7, 0, 0), ( 0,-2, 0, 0)),
-        ),
-    },
-    {
         .unicode = U_LATIN_CAPITAL_LETTER_OPEN_E,
         .line_step = 1,
         .draw = STROKE(
             Q(I, (+1,-7, 0, 0), ( 0,+5, 0, 0)),
             Q(S, (+1,-3, 0, 0), (-2,+6, 0, 0)),
             Q(H, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
-            Q(P, ( 0,+7, 0, 0), ( 0,-3,+6,38)),
-            Q(C, ( 0,+7, 0, 0), ( 0,-3,+6,30)),
+            Q(T, ( 0,+7, 0, 0), ( 0,-3,+6,30)),
             Q(M, ( 0,-2, 0, 0), ( 0,-3,+6,30)),
-            Q(C, ( 0,+7, 0, 0), ( 0,-3,+6,30)),
-            Q(P, ( 0,+7, 0, 0), ( 0,-3,+6,22)),
+            Q(T, ( 0,+7, 0, 0), ( 0,-3,+6,30)),
             Q(H, ( 0,+7, 0, 0), (-2,-3, 0, 0)),
             Q(S, (+1,-3, 0, 0), (-2,-3, 0, 0)),
             Q(O, (+1,-7, 0, 0), ( 0,-2, 0, 0)),
         ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_REVERSED_OPEN_E,
+        .line_step = 1,
+        .draw = XFORM(swap_x, REF(U_LATIN_CAPITAL_LETTER_OPEN_E)),
     },
 
     /* latin capital letters */
@@ -2349,25 +2717,33 @@ LATIN SMALL LETTER H WITH CIRCUMFLEX
 static font_def_t f1_font_book = {
     .family_name = FAMILY_NAME,
     .box = {
-        .lo = { .x = -12, .y = -9 },
-        .hi = { .x = +12, .y = +9 },
+        .lo = { .x = -14, .y = -9 },
+        .hi = { .x = +14, .y = +9 },
     },
     .base_y = -3,
-    .line_width = { 4, 4.4 },
+    .line_width = { 4, 4.4, 3.5 },
     .slant = 0,
-    .radius = { 4, 8, 12 }, // SMALL, LARGE, HUGE
-    .angle = { 5, 8 },      // TIGHT, ANGLED
+    .radius = { 4, 8, 12, 24 }, // SMALL, LARGE, HUGE, GIANT
+    .angle = { 5, 8 },          // TIGHT, ANGLED
     .min_dist = 1,
 
     /* integer->float coordinate translations */
-    .coord_x = (double const []){
-    /*  -12-11-10 -9  -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7 +8 +9+10+11+12 */
-        -16, 0,-5,-0., 6,10,12,14,18,22,26,29,32,35,38,42,46,50,52,54,58,64,69, 0,80,
-    },
-    .coord_y = (double const []){
+    .coord_x = VEC(((double const []){
+    /*  -14-13-12-11-10 -9  -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7 +8 +9+10+11+12+13+14 */
+        -32,0,-16, 0,-5,-0., 6,10,12,14,18,22,26,29,32,35,38,42,46,50,52,54,58,64,69, 0,80, 0,96
+    })),
+    .coord_y = VEC(((double const []){
     /* -9  -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7 +8 +9 */
-       -0., 0, 0, 8,12,16,20,25,29,33,37,41,46, 0,52,58,61, 0,66,
-    },
+       -0., 0, 0, 8,12,16,20,25,29,33,37,41,46,49,52,58,61,64,66,
+    })),
+    .highlight_y = VEC(((int const []) {
+       /* baseline */
+       -3,
+       /* cap height */
+       +6,
+       /* median */
+       +3,
+    })),
     .dot_size = 5.0,
 
     .sub_x = { 0, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 3.5 },
@@ -2409,14 +2785,82 @@ static font_def_t f1_font_book = {
 
 /* ********************************************************************** */
 
-static void swap_x(font_gc_t *gc)
+static void swap_x(font_t const *font CP_UNUSED, font_gc_t *gc)
 {
     gc->swap_x = !gc->swap_x;
 }
 
-static void swap_y(font_gc_t *gc)
+static void swap_y(font_t const *font CP_UNUSED, font_gc_t *gc)
 {
     gc->swap_y = !gc->swap_y;
+}
+
+static void rot180(font_t const *font CP_UNUSED, font_gc_t *gc)
+{
+    gc->swap_x = !gc->swap_x;
+    gc->swap_y = !gc->swap_y;
+}
+
+static void slant1(font_t const *font CP_UNUSED, font_gc_t *gc)
+{
+    cp_mat2w_t m = CP_MAT2W(
+        1, 0.15, 0,
+        0, 1,    0);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+}
+
+static double coord_y_abs(font_def_t const *def, int i)
+{
+    return cp_v_nth(&def->coord_y, (size_t)(i - def->box.lo.y));
+}
+
+static double coord_y_rel(font_def_t const *def, int i, int j)
+{
+    return coord_y_abs(def, i) - coord_y_abs(def, j);
+}
+
+static double coord_x_abs(font_def_t const *def, int i)
+{
+    return cp_v_nth(&def->coord_x, (size_t)(i - def->box.lo.x)) * def->scale_x;
+}
+
+static double coord_x_rel(font_def_t const *def, int i, int j)
+{
+    return coord_x_abs(def, i) - coord_x_abs(def, j);
+}
+
+static void frac_right1(font_t const *font, font_gc_t *gc)
+{
+    cp_mat2w_t m;
+
+    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), 0);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_scale(&m, 0.8, 0.6);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), 0);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_xlat(&m, +(coord_x_rel(font->def, 6, 0) + font->def->line_width[0]), 0);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+}
+
+static void frac_left1(font_t const *font CP_UNUSED, font_gc_t *gc)
+{
+    cp_mat2w_t m;
+
+    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), +coord_y_rel(font->def, -3, +6));
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_scale(&m, 0.8, 0.6);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), -coord_y_rel(font->def, -3, +6));
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+
+    cp_mat2w_xlat(&m, -(coord_x_rel(font->def, 6, 0) + font->def->line_width[0]), 0);
+    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
 }
 
 CP_NORETURN
@@ -2486,7 +2930,7 @@ static double coord_x(font_glyph_t *out, font_t const *font, int i)
     if (out != NULL) {
         out->used_x[idx] = 1;
     }
-    double d = def->coord_x[idx];
+    double d = cp_v_nth(&def->coord_x, (size_t)idx);
     if (!is_defined(d)) {
         die(out, font, "x coord %+d refers to undefined coord_x[%d]=%+g", i, idx, d);
     }
@@ -2506,7 +2950,7 @@ static double coord_y(font_glyph_t *out, font_t const *font, int i)
     if (out != NULL) {
         out->used_y[idx] = 1;
     }
-    double d = def->coord_y[idx];
+    double d = cp_v_nth(&def->coord_y, (size_t)idx);
     if (!is_defined(d)) {
         die(out, font, "y coord %+d refers to undefined coord_y[%d]=%+g", i, idx, d);
     }
@@ -2546,11 +2990,24 @@ static double get_x(
     if (x->interpol != 0) {
         d2 = coord_x(out, font, sec);
     }
+    double len = 0;
+    if (x->len.frac != 0) {
+        len += (x->len.frac / 60.) * (
+            coord_x(out, font, x->len.to) -
+            coord_x(out, font, x->len.from));
+    }
+    if (x->olen.frac != 0) {
+        assert(0 && "currently not used, think about whether you really need this");
+        len += (x->olen.frac / 60.) * (
+            coord_y(out, font, x->olen.to) -
+            coord_y(out, font, x->olen.from));
+    }
     double f = pri < 0 ? -1 : +1;
     return
         cp_lerp(d1, d2, x->interpol/60.)
         + (f * 0.5 * line_width * cp_cmp(x->sub,0) * def->sub_x[abs(x->sub)])
-        + (f * font->def->dot_size * (x->dot_rel / 60.));
+        + (f * font->def->dot_size * (x->dot_rel / 60.))
+        + len;
 }
 
 static double get_y(
@@ -2577,10 +3034,23 @@ static double get_y(
         d2 = coord_y(out, font, sec);
     }
     double f = (pri < 0) ? -1 : +1;
+    double len = 0;
+    if (y->len.frac != 0) {
+        len += (y->len.frac / 60.) * (
+            coord_y(out, font, y->len.to) -
+            coord_y(out, font, y->len.from));
+    }
+    if (y->olen.frac != 0) {
+        assert(0 && "currently not used, think about whether you really need this");
+        len += (y->olen.frac / 60.) * (
+            coord_x(out, font, y->olen.to) -
+            coord_x(out, font, y->olen.from));
+    }
     return
         cp_lerp(d1, d2, y->interpol/60.)
         + (f * 0.5 * line_width * cp_cmp(y->sub,0) * def->sub_y[abs(y->sub)])
-        + (f * font->def->dot_size * (y->dot_rel / 60.));
+        + (f * font->def->dot_size * (y->dot_rel / 60.))
+        + len;
 }
 
 static void poly_push_path_(
@@ -2768,6 +3238,7 @@ static void convert_draw_segment(
     default:
         break;
 
+    case FONT_VERTEX_GIANT:
     case FONT_VERTEX_HUGE:
     case FONT_VERTEX_LARGE:
     case FONT_VERTEX_SMALL:{
@@ -2826,6 +3297,7 @@ static void convert_draw_segment(
 
     switch (type) {
     case FONT_VERTEX_ROUND:
+    case FONT_VERTEX_GIANT:
     case FONT_VERTEX_HUGE:
     case FONT_VERTEX_LARGE:
     case FONT_VERTEX_ANGLED:
@@ -2979,6 +3451,9 @@ static void convert_draw_vertex_arr(
         case FONT_VERTEX_HUGE:
             r[i] = def->radius[2];
             break;
+        case FONT_VERTEX_GIANT:
+            r[i] = def->radius[3];
+            break;
 
         case FONT_VERTEX_TIGHT:
             r[i] = def->angle[0];
@@ -3114,7 +3589,7 @@ static void get_glyph_xform(
     font_draw_xform_t const *vi = font_draw_cast(*vi, _vi);
 
     font_gc_t gn = *go;
-    vi->xform(&gn);
+    vi->xform(out->font, &gn);
 
     get_glyph(vo, out, &gn, vi->child);
 }
@@ -3170,7 +3645,9 @@ static void get_glyph_ref(
         out->line_step_of = gj;
     }
 
+    font_glyph_t *width_of = out->width_of;
     get_glyph(vo, out, gc, gj->def->draw);
+    out->width_of = width_of;
 }
 
 static void get_glyph_width(
@@ -3222,7 +3699,9 @@ static void get_glyph_stroke(
         oi->line_width = gc->line_width;
         oi->coord.x = get_x(out, font, &ii->x, gc->swap_x, gc->line_width);
         oi->coord.y = get_y(out, font, &ii->y, gc->swap_y, gc->line_width);
+        oi->coord.y -= out->font->base_y;
         cp_vec2w_xform(&oi->coord, &gc->xform, &oi->coord);
+        oi->coord.y += out->font->base_y;
     }
 }
 
@@ -3489,10 +3968,10 @@ static font_t *convert_font(
     assert(is_defined(coord_y(NULL, font, def->box.lo.y)));
     assert(is_defined(coord_y(NULL, font, def->box.hi.y)));
     double lw2 = def->line_width[0]/2;
-    font->box_max.min.x = -lw2 + coord_x(NULL, font, def->box.lo.x);
-    font->box_max.max.x = +lw2 + coord_x(NULL, font, def->box.hi.x);
-    font->box_max.min.y = -lw2 + coord_y(NULL, font, def->box.lo.y);
-    font->box_max.max.y = +lw2 + coord_y(NULL, font, def->box.hi.y);
+    font->box_max.min.x = coord_x(NULL, font, def->box.lo.x) -lw2;
+    font->box_max.max.x = coord_x(NULL, font, def->box.hi.x) +lw2;
+    font->box_max.min.y = coord_y(NULL, font, def->box.lo.y);
+    font->box_max.max.y = coord_y(NULL, font, def->box.hi.y);
 
     font->box = (cp_vec2_minmax_t)CP_VEC2_MINMAX_EMPTY;
 
@@ -3847,11 +4326,24 @@ static void ps_detail_grid(
         CXY(font, box->max.x, box->min.y),
         CXY(font, box->max.x, box->max.y));
 
-     /* coordinate grid */
+    /* highlighted y lines */
+    fprintf(ps->f, "%g setlinewidth\n", 4./scale);
+    fprintf(ps->f, "%g setgray\n", 0.8);
+    for (cp_v_each(i, &def->highlight_y)) {
+        int idx = cp_v_nth(&def->highlight_y, i);
+        double d = cp_v_nth(&def->coord_y, (size_t)(idx - def->box.lo.y));
+        assert(is_defined(d));
+        fprintf(ps->f, "newpath %g %g moveto %g %g lineto stroke\n",
+            CXY(font, box->min.x, d),
+            CXY(font, box->max.x, d));
+    }
+
+    /* coordinate grid */
+    fprintf(ps->f, "%g setlinewidth\n", 1./scale);
     for (unsigned pass = 0; pass < 2; pass++) {
         fprintf(ps->f, "%g setgray\n", (pass == 1) ? 0 : 0.8);
         for (cp_size_each(i, INTV_SIZE(def->box.lo.y, def->box.hi.y))) {
-            double d = def->coord_y[i];
+            double d = cp_v_nth(&def->coord_y, i);
             if (!is_defined(d)) {
                 continue;
             }
@@ -3869,7 +4361,7 @@ static void ps_detail_grid(
                 def->box.lo.y + (int)i);
         }
         for (cp_size_each(i, INTV_SIZE(def->box.lo.x, def->box.hi.x))) {
-            double d = def->coord_x[i];
+            double d = cp_v_nth(&def->coord_x, i);
             if (!is_defined(d)) {
                 continue;
             }
@@ -4133,10 +4625,15 @@ static void ps_proof_sheet(
     (void)ps_write_str7(ps, font, 0, yy, "abcdefghijklmnopqrstuvwxyz");
     yy -= font->box_max.max.y - font->box_max.min.y;
 
-    (void)ps_write_str7(ps, font, 0, yy, "0123456789 .:x;!? 5/8");
+    (void)ps_write_str7(ps, font, 0, yy, "0123456789 .:x;!? 5/8 fox-like b=(1+*a) x||y");
     yy -= font->box_max.max.y - font->box_max.min.y;
 
-    (void)ps_write_str7(ps, font, 0, yy, "a[k] foo_bar __LINE__ hsn{xy}");
+    (void)ps_write_str32(ps, font, 0, yy,
+        U"a[k] foo_bar __LINE__ hsn{xy} x*(y+5)<78 a\u2212b\u00b1c");
+    yy -= font->box_max.max.y - font->box_max.min.y;
+
+    (void)ps_write_str32(ps, font, 0, yy,
+        U"#define TE \"ta\"#5 '$45' S$s 50% ~g &a o<a @a");
     yy -= font->box_max.max.y - font->box_max.min.y;
 
     ps_end_font(ps);
@@ -4178,8 +4675,9 @@ static void convert_family_all_sizes(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->size_name = "Caption";
-        def2->line_width[0] *= 5./4.;
-        def2->line_width[1] *= 5./4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 5./4.;
+        }
         def2->scale_x *= 1.3;
         convert_family_push(vfont, def2);
     }
@@ -4187,8 +4685,9 @@ static void convert_family_all_sizes(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->size_name = "Small";
-        def2->line_width[0] *= 4.5/4.;
-        def2->line_width[1] *= 4.5/4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 4.5/4.;
+        }
         def2->scale_x *= 1.15;
         convert_family_push(vfont, def2);
     }
@@ -4196,8 +4695,9 @@ static void convert_family_all_sizes(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->size_name = "Display";
-        def2->line_width[0] *= 3.5/4.;
-        def2->line_width[1] *= 3.5/4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 3.5/4.;
+        }
         def2->scale_x *= 0.95;
         convert_family_push(vfont, def2);
     }
@@ -4236,8 +4736,9 @@ static void convert_family_all_weights(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->weight_name = "Medium";
-        def2->line_width[0] *= 5./4.;
-        def2->line_width[1] *= 5./4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 5./4.;
+        }
         convert_family_all_slopes(vfont, def2);
     }
 
@@ -4245,8 +4746,9 @@ static void convert_family_all_weights(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->weight_name = "Bold";
-        def2->line_width[0] *= 6./4.;
-        def2->line_width[1] *= 6./4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 6./4.;
+        }
         convert_family_all_slopes(vfont, def2);
     }
 
@@ -4254,8 +4756,9 @@ static void convert_family_all_weights(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->weight_name = "Black";
-        def2->line_width[0] *= 8./4.;
-        def2->line_width[1] *= 8./4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 8./4.;
+        }
         convert_family_all_slopes(vfont, def2);
     }
 
@@ -4263,8 +4766,9 @@ static void convert_family_all_weights(
     {
         font_def_t *def2 = CP_CLONE(*def2, def);
         def2->weight_name = "Light";
-        def2->line_width[0] *= 3./4.;
-        def2->line_width[1] *= 3./4.;
+        for (cp_arr_each(i, def2->line_width)) {
+            def2->line_width[i] *= 3./4.;
+        }
         convert_family_all_slopes(vfont, def2);
     }
 }
