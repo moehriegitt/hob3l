@@ -2214,7 +2214,7 @@ static cp_csg2_poly_t *poly_sub(
     cp_csg2_op_lazy(opt, tmp, &o0, &o1, CP_OP_SUB);
     assert(o0.size == 2);
 
-    cp_csg2_poly_t *o = CP_CLONE(a1);
+    cp_csg2_poly_t *o = CP_CLONE(*o, a1);
     cp_csg2_op_poly(tmp, o, &o0, false);
 
     /* check that the originals really haven't changed */

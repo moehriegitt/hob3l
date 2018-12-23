@@ -103,4 +103,14 @@ static inline char *cp_vchar_cstr(
     return v->data;
 }
 
+static inline char cp_vchar_pop(
+    cp_vchar_t *v)
+{
+    assert(v->size > 0);
+    v->size--;
+    char r = v->data[v->size];
+    v->data[v->size] = 0;
+    return r;
+}
+
 #endif /* CP_VCHAR_H_ */

@@ -136,6 +136,15 @@ ifeq ($(WERROR),1)
 CFLAGS_WARN   += -Werror
 endif
 
+######################################################################
+
+all:
+
+include install.mk
+include test.mk
+
+######################################################################
+
 CFLAGS   += $(CFLAGS_OPT)
 CFLAGS   += $(CFLAGS_WARN)
 CFLAGS   += $(CFLAGS_ARCH)
@@ -144,7 +153,7 @@ CFLAGS   += $(CFLAGS_DEBUG)
 
 CPPFLAGS += $(CPPFLAGS_STD)
 CPPFLAGS += $(CPPFLAGS_DEF)
-CPPFLAGS += $(CPPFLAGS_INC)
+CPPFLAGS := $(CPPFLAGS_INC) $(CPPFLAGS)
 CPPFLAGS += $(CPPFLAGS_WARN)
 
 ######################################################################
@@ -155,11 +164,6 @@ HOB3L := ./hob3l.exe
 HOB3L_JS_COPY_AUX := pkgdatadir=./share sh ./script/hob3l-js-copy-aux.in
 
 ######################################################################
-
-all:
-
-include install.mk
-include test.mk
 
 TEST_TRIANGLE.png := \
     $(addprefix test-out/,$(notdir $(TEST_TRIANGLE.scad:.scad=.png)))
@@ -553,6 +557,17 @@ speed-test:
 	bash -c 'time $(HOB3L) scad-test/test31b.scad'
 	rm -f .mode.d && mv .mode.d.old .mode.d
 	$(MAKE) clean
+
+######################################################################
+
+PS2PDF := ps2pdf
+
+.PHONY: font
+font: out-font/.stamp
+
+out-font/.stamp: fontgen.exe
+	mkdir -p out-font
+	./fontgen.exe
 
 ######################################################################
 # installation, the usual ceremony.

@@ -7,15 +7,28 @@
 /**
  * Create a instance of an object.
  *
+ * Simple version without setting the location.
+ *
  * The set of types that can be created here is defined by passing
  * get_typeof, which is supposed to be macro defining per type which
  * typeid to use.
  */
-extern macro val cp_new_(text get_typeof, type obj_t, val location)
+extern macro val cp_new_type_(text get_typeof, type obj_t)
 {
     obj_t *nobj = CP_NEW(*nobj);
     CP_STATIC_ASSERT(get_typeof(*nobj) != CP_ABSTRACT);
     nobj->type = get_typeof(*nobj);
+    nobj;
+}
+
+/**
+ * Create a instance of an object.
+ *
+ * Same as cp_new_type_(), but also sets the location.
+ */
+extern macro val cp_new_(text get_typeof, type obj_t, val location)
+{
+    obj_t *nobj = cp_new_type_(get_typeof, obj_t);
     nobj->loc = location;
     nobj;
 }

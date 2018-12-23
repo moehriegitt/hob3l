@@ -544,7 +544,7 @@ sub gen_minmax_vec($$$)
 sub gen_minmax_valid_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $tm = "X_$t->{name}_minmax_t *";
+    my $tm = "X_$t->{name}_minmax_t const *";
     my $p = proto($t, 'bool', $elem, a=>$tm);
     my $s = '';
     for my $i (0..$t->{dim}-1) {
@@ -560,7 +560,8 @@ sub gen_minmax_or_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $tm = "X_$t->{name}_minmax_t *";
-    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tm, b=>$tm);
+    my $tmc = "X_$t->{name}_minmax_t const *";
+    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tmc, b=>$tmc);
     my $s = '';
     $s.= "    if (!X_$t->{name}_minmax_valid(a)) { *r = *b; return; }\n";
     $s.= "    if (!X_$t->{name}_minmax_valid(b)) { *r = *a; return; }\n";
@@ -575,7 +576,8 @@ sub gen_minmax_and_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $tm = "X_$t->{name}_minmax_t *";
-    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tm, b=>$tm);
+    my $tmc = "X_$t->{name}_minmax_t const *";
+    my $p = proto($t, 'void', $elem, r=>$tm, a=>$tmc, b=>$tmc);
     my $s = '';
     $s.= "    X_$t->{name}_max(&r->min, &a->min, &b->min);\n";
     $s.= "    X_$t->{name}_min(&r->max, &a->max, &b->max);\n";

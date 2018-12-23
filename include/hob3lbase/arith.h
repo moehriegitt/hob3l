@@ -97,6 +97,14 @@ extern cp_f_t cp_cos_deg(cp_f_t a);
 extern void cp_circle_iter_step(
     cp_circle_iter_t *iter);
 
+/**
+ * Quadratic interpolation */
+extern cp_f_t cp_interpol2(cp_f_t a, cp_f_t b, cp_f_t c, cp_f_t t);
+
+/**
+ * Cubic interpolation */
+extern cp_f_t cp_interpol3(cp_f_t a, cp_f_t b, cp_f_t c, cp_f_t d, cp_f_t t);
+
 /* min */
 static inline cp_f_t cp_min_f_(cp_f_t a, cp_f_t b)
 {

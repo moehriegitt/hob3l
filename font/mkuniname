@@ -1,0 +1,60 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+
+my $unidata = $ENV{UNIDATA};
+unless (defined $unidata) {
+    die "Error: Expected \$UNIDATA to point to unicodedata.txt database.  Please download\n".
+        "    from www.unicode.org and point \$UNIDATA to it before running this.\n";
+}
+
+my %have = ();
+my %def = ();
+my %alt_def = ();
+my %cnt = ();
+my %name = ();
+my %alt_name = ();
+
+sub name($)
+{
+    my ($num) = @_;
+    return $name{$num} || $alt_name{$num};
+}
+
+open(my $f, '<', $unidata) or
+    die "Error: Unable to open '$unidata' for reading: $@\n";
+while (<$f>) {
+    my @d = split /;/;
+    my ($hex, $name, @other) = @d;
+    my $alt_name = $d[10];
+    if ($name =~ m/^[A-Z][-A-Z\s_0-9]*$/) {
+        my $c_name = $name;
+        $c_name =~ s/[-\s+_]+/_/g;
+        $have{$c_name} = 1;
+        $def{$c_name} = $hex;
+        $cnt{$c_name}++;
+        $name{hex($hex)} = $name;
+    }
+    if ($alt_name =~ m/^[A-Z][-A-Z\s_0-9]*$/) {
+        my $c_name = $alt_name;
+        $c_name =~ s/[-\s+_]+/_/g;
+        $have{$c_name} = 1;
+        $alt_def{$c_name} = $hex;
+        $alt_name{hex($hex)} = $alt_name;
+    }
+}
+close $f;
+
+for my $c_name(sort keys %have) {
+    if ($def{$c_name} && ($cnt{$c_name} == 1)) {
+        my $hex = $def{$c_name};
+        print "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+    }
+    elsif (my $hex = $alt_def{$c_name}) {
+        print "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+    }
+    else {
+        print "#define U_$c_name /* multiple */\n";
+    }
+}

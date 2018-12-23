@@ -698,7 +698,7 @@ extern macro val cp_v_bsearch(val *key, val *vec, val cmp, val *user)
         __typeof__(user)) = cmp;
     cp_v_bsearch_(
         (void const *)key,
-        (cp_v_t*)vec, cp_v_esz_(vec),
+        (cp_v_t*)(size_t)vec, cp_v_esz_(vec),
         (int(*)(void const *, void const *, void *))_l_cmp,
         (void*)(size_t)user);
 }

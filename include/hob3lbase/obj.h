@@ -11,9 +11,29 @@
 /**
  * Create a instance of an object.
  *
+ * Simple version without setting the location.
+ *
  * The set of types that can be created here is defined by passing
  * get_typeof, which is supposed to be macro defining per type which
  * typeid to use.
+ */
+#define cp_new_type_(get_typeof,obj_t) \
+    cp_new_type_1_(CP_GENSYM(_nobjGN), CP_GENSYM(_obj_tGN), get_typeof, \
+        obj_t)
+
+#define cp_new_type_1_(nobj,obj_t,get_typeof,_obj_t) \
+    ({ \
+        typedef __typeof__(_obj_t) obj_t; \
+        obj_t * nobj = CP_NEW(*nobj); \
+        CP_STATIC_ASSERT(get_typeof(*nobj) != CP_ABSTRACT); \
+        nobj->type = get_typeof(*nobj); \
+        nobj; \
+    })
+
+/**
+ * Create a instance of an object.
+ *
+ * Same as cp_new_type_(), but also sets the location.
  */
 #define cp_new_(get_typeof,obj_t,location) \
     cp_new_1_(CP_GENSYM(_nobjGF), CP_GENSYM(_obj_tGF), get_typeof, obj_t, \
@@ -22,9 +42,7 @@
 #define cp_new_1_(nobj,obj_t,get_typeof,_obj_t,location) \
     ({ \
         typedef __typeof__(_obj_t) obj_t; \
-        obj_t * nobj = CP_NEW(*nobj); \
-        CP_STATIC_ASSERT(get_typeof(*nobj) != CP_ABSTRACT); \
-        nobj->type = get_typeof(*nobj); \
+        obj_t * nobj = cp_new_type_(get_typeof, obj_t); \
         nobj->loc = location; \
         nobj; \
     })

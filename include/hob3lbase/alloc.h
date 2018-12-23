@@ -16,9 +16,17 @@
 #define CP_NEW(X)  CP_NEW_ARR(X,1)
 #endif
 
+#ifndef CP_CLONE_ARR
+#define CP_CLONE_ARR(X,Y,N) \
+    ({ \
+        __typeof__(X) const * _y = (Y); \
+        size_t _sz = (N) * sizeof(X); \
+        (__typeof(X)*)memcpy(cp_malloc(CP_FILE, CP_LINE, _sz), _y, _sz); \
+    })
+#endif
+
 #ifndef CP_CLONE
-#define CP_CLONE(X) \
-    ((__typeof__(X))memcpy(cp_malloc(CP_FILE, CP_LINE, sizeof(*X)), (X), sizeof(*X)))
+#define CP_CLONE(X,Y) CP_CLONE_ARR(X,Y,1)
 #endif
 
 #ifndef CP_FREE

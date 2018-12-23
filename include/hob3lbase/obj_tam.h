@@ -29,10 +29,17 @@
 
 
 /**
+ * The slots that need to be at the beginning of any raw cp_obj_t,
+ * which has nothing but a type.
+ */
+#define CP_OBJ_TYPE_(type_t) \
+    CP_ENUM_OR_UINT(type_t) type;
+
+/**
  * The slots that need to be at the beginning of any cp_obj_t.
  */
 #define CP_OBJ_(type_t) \
-    CP_ENUM_OR_UINT(type_t) type; \
+    CP_OBJ_TYPE_(type_t) \
     cp_loc_t loc;
 
 

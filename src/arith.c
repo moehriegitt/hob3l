@@ -245,3 +245,21 @@ extern void cp_circle_iter_step(
         iter->idx = iter->_n - iter->idx;
     }
 }
+
+/**
+ * Quadratic interpolation */
+extern cp_f_t cp_interpol2(cp_f_t a, cp_f_t b, cp_f_t c, cp_f_t t)
+{
+    double s  = 1-t;
+    return (a*s*s) + (2*b*s*t) + (c*t*t);
+}
+
+/**
+ * Cubic interpolation */
+extern cp_f_t cp_interpol3(cp_f_t a, cp_f_t b, cp_f_t c, cp_f_t d, cp_f_t t)
+{
+    double s  = 1-t;
+    double t2 = t*t;
+    double s2 = s*s;
+    return (a*s2*s) + (3*b*s2*t) + (3*c*s*t2) + (d*t*t2);
+}
