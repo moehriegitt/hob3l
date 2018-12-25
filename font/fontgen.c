@@ -494,6 +494,9 @@ static void swap_x(font_t const *, font_gc_t *);
 static void swap_y(font_t const *, font_gc_t *);
 static void rot180(font_t const *, font_gc_t *);
 static void slant1(font_t const *, font_gc_t *);
+static void superscript_lc(font_t const *, font_gc_t *);
+static void superscript(font_t const *, font_gc_t *);
+static void subscript(font_t const *, font_gc_t *);
 static void frac_left1(font_t const *, font_gc_t *);
 static void frac_right1(font_t const *, font_gc_t *);
 static void ls_thin(font_t const *, font_gc_t *);
@@ -843,6 +846,143 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(E, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
         ),
     },
+    {
+        .unicode = U_SINGLE_LOW_9_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .min_coord = COORD(-6,0,0,0),
+        .draw = REF(U_COMMA),
+    },
+    {
+        .unicode = U_RIGHT_SINGLE_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .min_coord = COORD(-6,0,0,0),
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+6, 0, 0, -60)),
+            Q(E, ( 0,-3, 0, 0), ( 0,+6, 0, 0, -60, .len = { -3, -5, 60 })),
+        ),
+    },
+    {
+        .unicode = U_SINGLE_HIGH_REVERSED_9_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .max_coord = COORD(+6,0,0,0),
+        .draw = XFORM(swap_x, REF(U_RIGHT_SINGLE_QUOTATION_MARK)),
+    },
+    {
+        .unicode = U_LEFT_SINGLE_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .max_coord = COORD(+6,0,0,0),
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0, -60, .len = { -3, -5, 60 })),
+            Q(P, ( 0, 0, 0, 0), ( 0,+4, 0, 0)),
+            Q(E, ( 0,+3, 0, 0), ( 0,+6, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_DOUBLE_LOW_9_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .draw = STROKE(
+            Q(B, (+3,-2,0,0),                 (0,-3,0,0, -60)),
+            Q(P, (+3,-2,0,0),                 (0,-3,0,0)),
+            Q(E, (+3,-2,0,0, .len={0,-3,60}), (0,-5,0,0)),
+
+            Q(B, (+3,+2,0,0),                 (0,-3,0,0, -60)),
+            Q(P, (+3,+2,0,0),                 (0,-3,0,0)),
+            Q(E, (+3,+2,0,0, .len={0,-3,60}), (0,-5,0,0)),
+        ),
+    },
+    {
+        .unicode = U_RIGHT_DOUBLE_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .draw = STROKE(
+            Q(B, (+3,-2,0,0), (0,+6,0,0)),
+            Q(P, (+3,-2,0,0), (0,+6,0,0,-60)),
+            Q(E, (+3,-2,0,0, .len={0,-3,60}), (0,+6,0,0,-60, .len={-3,-5,60})),
+
+            Q(B, (+3,+2,0,0), (0,+6,0,0)),
+            Q(P, (+3,+2,0,0), (0,+6,0,0,-60)),
+            Q(E, (+3,+2,0,0, .len={0,-3,60}), (0,+6,0,0,-60, .len={-3,-5,60})),
+        ),
+    },
+    {
+        .unicode = U_DOUBLE_HIGH_REVERSED_9_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .draw = XFORM(swap_x, REF(U_RIGHT_DOUBLE_QUOTATION_MARK)),
+    },
+    {
+        .unicode = U_LEFT_DOUBLE_QUOTATION_MARK,
+        .line_step = LS_PUNCT,
+        .draw = STROKE(
+            Q(B, (+3,-2,0,0), (0,+6,0,0,-60, .len={-3,-5,60})),
+            Q(P, (+3,-2,0,0), (0,+4,0,0)),
+            Q(E, (+3,-2,0,0, .len={0,+3,60}), (0,+6,0,0)),
+
+            Q(B, (+3,+2,0,0), (0,+6,0,0,-60, .len={-3,-5,60})),
+            Q(P, (+3,+2,0,0), (0,+4,0,0)),
+            Q(E, (+3,+2,0,0, .len={0,+3,60}), (0,+6,0,0)),
+        ),
+    },
+    {
+        .unicode = U_SINGLE_LEFT_POINTING_ANGLE_QUOTATION_MARK,
+        .line_step = LS_THIN,
+        .max_coord = COORD(0,-1,0,0),
+        .min_coord = COORD(0,-6,0,0),
+        .draw = STROKE(
+            Q(I, ( 0, 0, 0, 0), ( 0,-3,-2,40)),
+            Q(D, ( 0,-1, 0, 0), ( 0, 0, 0, 0)),
+            Q(O, ( 0, 0, 0, 0), ( 0,+3,+2,40)),
+        ),
+    },
+    {
+        .unicode = U_SINGLE_RIGHT_POINTING_ANGLE_QUOTATION_MARK,
+        .line_step = LS_THIN,
+        .min_coord = COORD(0,+1,0,0),
+        .max_coord = COORD(0,+6,0,0),
+        .draw = XFORM(swap_x, REF(U_SINGLE_LEFT_POINTING_ANGLE_QUOTATION_MARK)),
+    },
+    {
+        .unicode = U_LEFT_POINTING_DOUBLE_ANGLE_QUOTATION_MARK,
+        .min_coord = COORD(0,-9,0,0),
+        .max_coord = COORD(0,+3,0,0),
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(I, (+2,-3, 0, 0), ( 0,-3,-2,40)),
+            Q(D, ( 0,-8, 0, 0), ( 0, 0, 0, 0)),
+            Q(O, (+2,-3, 0, 0), ( 0,+3,+2,40)),
+            Q(I, (+2,+3, 0, 0), ( 0,-3,-2,40)),
+            Q(D, ( 0,-8, 0, 0), ( 0, 0, 0, 0)),
+            Q(O, (+2,+3, 0, 0), ( 0,+3,+2,40)),
+        ),
+    },
+    {
+        .unicode = U_RIGHT_POINTING_DOUBLE_ANGLE_QUOTATION_MARK,
+        .min_coord = COORD(0,-3,0,0),
+        .max_coord = COORD(0,+9,0,0),
+        .line_step = LS_THIN,
+        .draw = XFORM(swap_x, REF(U_LEFT_POINTING_DOUBLE_ANGLE_QUOTATION_MARK)),
+    },
+    {
+        .unicode = U_MASCULINE_ORDINAL_INDICATOR,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript_lc, REF(U_LATIN_SMALL_LETTER_O)),
+            STROKE(
+              Q(B, ( 0,-5, 0, 0), ( 0, 0, 0, 0)),
+              Q(E, ( 0,+5, 0, 0), ( 0, 0, 0, 0)),
+            ),
+        ),
+    },
+    {
+        .unicode = U_FEMININE_ORDINAL_INDICATOR,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript_lc, REF(U_LATIN_SMALL_LETTER_A)),
+            STROKE(
+              Q(B, ( 0,-5, 0, 0), ( 0, 0, 0, 0)),
+              Q(E, ( 0,+5, 0, 0), ( 0, 0, 0, 0)),
+            ),
+        ),
+    },
 
     /* number or currency related signs */
     {
@@ -894,10 +1034,9 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_AMPERSAND,
+        .max_coord = COORD(0,+9,0,0),
         .line_step = LS_UPPER,
-        .draw = COMPOSE(
-          WIDTH(U_DIGIT_ZERO),
-          STROKE(
+        .draw = STROKE(
             Q(I, (+1, +4, 0, 0), ( 0,+5, 0, 0)),
             Q(S, (+1, +1, 0, 0), (-2,+6, 0, 0)),
             Q(L, ( 0, -6, 0, 0), (-2,+6, 0, 0)),
@@ -908,7 +1047,6 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(P, ( 0, +5, 0, 0), (-2,-3, 0, 0)),
             Q(P, ( 0, +5, 0, 0), ( 0,-3,+6,30)),
             Q(E, ( 0,+10, 0, 0), ( 0,-3,+6,30)),
-          )
         ),
     },
     {
@@ -931,8 +1069,115 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(E, ( 0, +1, 0, 0), ( 0,-4,-5,30)),
         ),
     },
+    {
+        .unicode = U_YEN_SIGN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+          STROKE(
+            Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
+            Q(A, ( 0,-7, 0, 0), (+2,+2, 0, 0)),
+            Q(A, ( 0,+7, 0, 0), (+2,+2, 0, 0)),
+            Q(E, ( 0,+7, 0, 0), ( 0,+6, 0, 0)),
+            Q(B, ( 0, 0, 0, 0), ( 0,+2, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
+          ),
+          XFORM(ls_thinner,
+            STROKE(
+              Q(B, (+3,-7, 0, 0), (+1,-1, 0, 0)),
+              Q(E, (+3,+7, 0, 0), (+1,-1, 0, 0)),
 
-    /* fractions */
+              Q(B, (+3,-7, 0, 0), (+1,+1, 0,30)),
+              Q(E, (+3,+7, 0, 0), (+1,+1, 0,30)),
+            )
+          ),
+        )
+    },
+    {
+        .unicode = U_CENT_SIGN,
+        .draw = COMPOSE(
+          REF(U_LATIN_SMALL_LETTER_C),
+          XFORM(ls_thinner,
+            STROKE(
+              Q(B, ( 0,+1, 0, 0), ( 0,-5, 0, 0)),
+              Q(E, ( 0,+1, 0, 0), ( 0, 0, 0, 0, .len={-5,0,+60})),
+            )
+          )
+        ),
+    },
+    {
+        .unicode = U_POUND_SIGN,
+        .min_coord = COORD(0,-7,0,0),
+        .draw = STROKE(
+            Q(B, ( 0,+7, 0, 0), (-2,-3, 0, 0)),
+            Q(P, (-2,-8, 0, 0), (-2,-3, 0, 0)),
+            Q(P, (-2,-8, 0, 0), ( 0,-2, 0, 0)),
+            Q(P, ( 0,-4, 0, 0), ( 0, 0, 0, 0)),
+            Q(H, ( 0,-4, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,+1, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0,+3,+4,30), (-2,+6, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0,+5, 0, 0)),
+
+            Q(B, ( 0,-8, 0, 0), ( 0,+1,+2,20)),
+            Q(E, ( 0,+3, 0, 0), ( 0,+1,+2,20)),
+        ),
+    },
+    {
+        .unicode = U_CURRENCY_SIGN,
+        .line_step = LS_THIN,
+        .min_coord = COORD(0,-7,0,0),
+        .max_coord = COORD(0,+7,0,0),
+        .draw = STROKE(
+            Q(L, ( 0,-7,+7, 0), ( 0,+4,-1,30)),
+            Q(P, ( 0,-7,+7,15), ( 0,+4,-1,45)),
+            Q(L, ( 0,-7,+7,30), ( 0,+4,-1,60)),
+            Q(P, ( 0,-7,+7,45), ( 0,+4,-1,45)),
+            Q(L, ( 0,-7,+7,60), ( 0,+4,-1,30)),
+            Q(P, ( 0,-7,+7,45), ( 0,+4,-1,15)),
+            Q(L, ( 0,-7,+7,30), ( 0,+4,-1, 0)),
+            Q(P, ( 0,-7,+7,15), ( 0,+4,-1,15)),
+
+            Q(N, (0), (0)),
+
+            Q(I, ( 0,-7,+7,15), ( 0,+4,-1,45)),
+            Q(O, ( 0,-7,+7,-5), ( 0,+4,-1,65)),
+
+            Q(I, ( 0,-7,+7,15), ( 0,+4,-1,15)),
+            Q(O, ( 0,-7,+7,-5), ( 0,+4,-1,-5)),
+
+            Q(I, ( 0,-7,+7,45), ( 0,+4,-1,45)),
+            Q(O, ( 0,-7,+7,65), ( 0,+4,-1,65)),
+
+            Q(I, ( 0,-7,+7,45), ( 0,+4,-1,15)),
+            Q(O, ( 0,-7,+7,65), ( 0,+4,-1,-5)),
+        ),
+    },
+    {
+        .unicode = U_MICRO_SIGN,
+        .draw = STROKE(
+            Q(B, ( 0,-5, 0, 0), ( 0,+3, 0, 0)),
+            Q(E, ( 0,-5, 0, 0), ( 0,-6, 0, 0)),
+            Q(B, ( 0,-5, 0, 0), (-2,-3, 0, 0)),
+            Q(L, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
+            Q(E, ( 0,+5, 0, 0), ( 0,+3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_PILCROW_SIGN,
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+2, 0, 0)),
+            Q(H, ( 0,-7, 0, 0), ( 0,+2, 0, 0)),
+            Q(H, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), (-2,+6, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,-4, 0, 0)),
+
+            Q(B, ( 0,+7, 0, 0), ( 0,-4, 0, 0)),
+            Q(P, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), (-2,+6, 0, 0)),
+        ),
+    },
+
+    /* fractions and other small numbers */
     {
         .unicode = U_FRACTION_SLASH,
         .line_step = LS_THIN,
@@ -946,8 +1191,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ZERO)),
-            XFORM(frac_right1, REF(U_DIGIT_ZERO)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ZERO)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_ZERO)),
         ),
     },
     {
@@ -955,8 +1200,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_TWO)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_TWO)),
         ),
     },
     {
@@ -964,8 +1209,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_THREE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_THREE)),
         ),
     },
     {
@@ -973,8 +1218,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_TWO)),
-            XFORM(frac_right1, REF(U_DIGIT_THREE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_TWO)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_THREE)),
         ),
     },
     {
@@ -982,8 +1227,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_FOUR)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FOUR)),
         ),
     },
     {
@@ -991,8 +1236,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
-            XFORM(frac_right1, REF(U_DIGIT_FOUR)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_THREE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FOUR)),
         ),
     },
     {
@@ -1000,8 +1245,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FIVE)),
         ),
     },
     {
@@ -1009,8 +1254,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_TWO)),
-            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_TWO)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FIVE)),
         ),
     },
     {
@@ -1018,8 +1263,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
-            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_THREE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FIVE)),
         ),
     },
     {
@@ -1027,8 +1272,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_FOUR)),
-            XFORM(frac_right1, REF(U_DIGIT_FIVE)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_FOUR)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_FIVE)),
         ),
     },
     {
@@ -1036,8 +1281,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_SIX)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_SIX)),
         ),
     },
     {
@@ -1045,8 +1290,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
-            XFORM(frac_right1, REF(U_DIGIT_SIX)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_FIVE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_SIX)),
         ),
     },
     {
@@ -1054,8 +1299,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_SEVEN)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_SEVEN)),
         ),
     },
     {
@@ -1063,8 +1308,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_ONE)),
-            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_ONE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_EIGHT)),
         ),
     },
     {
@@ -1072,8 +1317,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_THREE)),
-            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_THREE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_EIGHT)),
         ),
     },
     {
@@ -1081,8 +1326,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
-            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_FIVE)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_EIGHT)),
         ),
     },
     {
@@ -1090,8 +1335,254 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
-            XFORM(frac_left1,  REF(U_DIGIT_SEVEN)),
-            XFORM(frac_right1, REF(U_DIGIT_EIGHT)),
+            XFORM(frac_left1,  REF(U_SUPERSCRIPT_SEVEN)),
+            XFORM(frac_right1, REF(U_SUBSCRIPT_EIGHT)),
+        ),
+    },
+
+    /* superscript */
+    {
+        .unicode = U_SUPERSCRIPT_ZERO,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_DIGIT_ZERO)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_ONE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_ONE)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_TWO,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_TWO)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_THREE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_THREE)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_FOUR,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_FOUR)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_FIVE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_SIX,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_SIX)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_SEVEN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_SEVEN)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_EIGHT,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_NINE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUPERSCRIPT_ZERO),
+            XFORM(superscript, REF(U_DIGIT_NINE)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_PLUS_SIGN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_PLUS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_MINUS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_MINUS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_EQUALS_SIGN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_EQUALS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_LEFT_PARENTHESIS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_LEFT_PARENTHESIS)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_RIGHT_PARENTHESIS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_RIGHT_PARENTHESIS)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_LATIN_SMALL_LETTER_I,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_LATIN_SMALL_LETTER_I)),
+        ),
+    },
+    {
+        .unicode = U_SUPERSCRIPT_LATIN_SMALL_LETTER_N,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(superscript, REF(U_LATIN_SMALL_LETTER_N)),
+        ),
+    },
+
+    /* subscript */
+    {
+        .unicode = U_SUBSCRIPT_ZERO,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_DIGIT_ZERO)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_ONE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_ONE)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_TWO,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_TWO)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_THREE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_THREE)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_FOUR,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_FOUR)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_FIVE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_FIVE)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_SIX,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_SIX)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_SEVEN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_SEVEN)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_EIGHT,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_EIGHT)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_NINE,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            WIDTH(U_SUBSCRIPT_ZERO),
+            XFORM(subscript, REF(U_DIGIT_NINE)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_PLUS_SIGN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_PLUS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_MINUS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_MINUS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_EQUALS_SIGN,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_EQUALS_SIGN)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_LEFT_PARENTHESIS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_LEFT_PARENTHESIS)),
+        ),
+    },
+    {
+        .unicode = U_SUBSCRIPT_RIGHT_PARENTHESIS,
+        .line_step = LS_THIN,
+        .draw = COMPOSE(
+            XFORM(subscript, REF(U_RIGHT_PARENTHESIS)),
         ),
     },
 
@@ -1156,6 +1647,17 @@ static font_def_glyph_t f1_a_glyph[] = {
         .draw = STROKE(
             Q(B, ( 0,+8, 0, 0), ( 0,-3,+4,30)),
             Q(E, ( 0,-8, 0, 0), ( 0,-3,+4,30)),
+        ),
+    },
+    {
+        .unicode = U_NOT_SIGN,
+        .draw = COMPOSE(
+          WIDTH(U_MINUS_SIGN),
+          STROKE(
+            Q(B, ( 0,-8, 0, 0), ( 0,+1, 0, 0)),
+            Q(P, (-2,+8, 0, 0), ( 0,+1, 0, 0)),
+            Q(E, (-2,+8, 0, 0), ( 0,-2, 0, 0)),
+          )
         ),
     },
     {
@@ -2269,8 +2771,9 @@ static font_def_glyph_t f1_a_glyph[] = {
         .draw = STROKE(
             Q(B, ( 0,-5, 0, 0), ( 0,-3, 0, 0)),
             Q(H, ( 0,-5, 0, 0), (-2,+6, 0, 0)),
-            Q(H, ( 0,+5, 0, 0), (-2,+6, 0, 0)),
-            Q(E, ( 0,+5, 0, 0), ( 0,+3, 0, 0)),
+            Q(P, ( 0,+1, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0,+3,+4,30), (-2,+6, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0,+5, 0, 0)),
         ),
     },
     {
@@ -4312,37 +4815,56 @@ static double coord_x_rel(font_def_t const *def, int i, int j)
     return coord_x_abs(def, i) - coord_x_abs(def, j);
 }
 
-static void frac_right1(font_t const *font, font_gc_t *gc)
+static void superscript_lc(font_t const *font CP_UNUSED, font_gc_t *gc)
 {
     cp_mat2w_t m;
+    cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), -coord_y_rel(font->def, -3, +6));
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
 
-    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), 0);
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+    cp_mat2w_scale(&m, 0.85, 0.7);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
+
+    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), +coord_y_rel(font->def, -3, +3));
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
+}
+
+static void superscript(font_t const *font CP_UNUSED, font_gc_t *gc)
+{
+    cp_mat2w_t m;
+    cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), -coord_y_rel(font->def, -3, +6));
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
 
     cp_mat2w_scale(&m, 0.8, 0.6);
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
 
+    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), +coord_y_rel(font->def, -3, +6));
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
+}
+
+static void subscript(font_t const *font CP_UNUSED, font_gc_t *gc)
+{
+    cp_mat2w_t m;
     cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), 0);
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
 
-    cp_mat2w_xlat(&m, +(coord_x_rel(font->def, 6, 0) + font->def->line_width[0]), 0);
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
+    cp_mat2w_scale(&m, 0.8, 0.6);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
+
+    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), 0);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
 }
 
 static void frac_left1(font_t const *font CP_UNUSED, font_gc_t *gc)
 {
     cp_mat2w_t m;
-
-    cp_mat2w_xlat(&m, -coord_x_abs(font->def, 0), +coord_y_rel(font->def, -3, +6));
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
-
-    cp_mat2w_scale(&m, 0.8, 0.6);
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
-
-    cp_mat2w_xlat(&m, +coord_x_abs(font->def, 0), -coord_y_rel(font->def, -3, +6));
-    cp_mat2w_mul(&gc->xform, &m, &gc->xform);
-
     cp_mat2w_xlat(&m, -(coord_x_rel(font->def, 6, 0) + font->def->line_width[0]), 0);
+    cp_mat2w_mul(&gc->xform, &gc->xform, &m);
+}
+
+static void frac_right1(font_t const *font, font_gc_t *gc)
+{
+    cp_mat2w_t m;
+    cp_mat2w_xlat(&m, +(coord_x_rel(font->def, 6, 0) + font->def->line_width[0]), 0);
     cp_mat2w_mul(&gc->xform, &m, &gc->xform);
 }
 
@@ -4476,8 +4998,8 @@ static double get_x(
     double len = 0;
     if (x->len.frac != 0) {
         len += (x->len.frac / 60.) * (
-            coord_x(out, font, x->len.to) -
-            coord_x(out, font, x->len.from));
+            coord_x(out, font, swap_x ? -x->len.to   : +x->len.to) -
+            coord_x(out, font, swap_x ? -x->len.from : +x->len.from));
     }
     if (x->olen.frac != 0) {
         assert(0 && "currently not used, think about whether you really need this");
@@ -4520,8 +5042,8 @@ static double get_y(
     double len = 0;
     if (y->len.frac != 0) {
         len += (y->len.frac / 60.) * (
-            coord_y(out, font, y->len.to) -
-            coord_y(out, font, y->len.from));
+            coord_y(out, font, swap_y ? -y->len.to   : +y->len.to) -
+            coord_y(out, font, swap_y ? -y->len.from : +y->len.from));
     }
     if (y->olen.frac != 0) {
         assert(0 && "currently not used, think about whether you really need this");
@@ -5203,15 +5725,12 @@ static void get_glyph_stroke(
     }
 }
 
-static void get_glyph(
+static void get_glyph_aux(
     font_v_vertex_t *vo,
     font_glyph_t *out,
     font_gc_t const *gc,
     font_draw_t const *vi)
 {
-    if (vi == NULL) {
-        return;
-    }
     switch (vi->type) {
     case FONT_DRAW_COMPOSE:
         return get_glyph_compose(vo, out, gc, vi);
@@ -5229,6 +5748,24 @@ static void get_glyph(
         return get_glyph_stroke(vo, out, gc, vi);
     }
     CP_DIE();
+}
+
+static void get_glyph(
+    font_v_vertex_t *vo,
+    font_glyph_t *out,
+    font_gc_t const *gc,
+    font_draw_t const *vi)
+{
+    if (vi == NULL) {
+        return;
+    }
+    static size_t incarn = 0;
+    incarn++;
+    if (incarn >= 100) {
+        die(out, out->font, "deep recursion");
+    }
+    get_glyph_aux(vo, out, gc, vi);
+    incarn--;
 }
 
 static font_draw_poly_t *convert_draw(
@@ -6134,7 +6671,8 @@ static void ps_proof_sheet(
     yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str32(ps, font, 0, yy,
-        U"50\x20aC 50$");
+        U"50\x20aC 50$ \x2039o\x203a \xabo\xbb \x00B2\x2154\x2083 3x\xb2+4x $\xa4 10\xb5""F "
+         "5\xaa 6\xba");
     yy -= font->top_y - font->bottom_y;
 
     ps_end_font(ps);
