@@ -46,13 +46,26 @@ while (<$f>) {
 }
 close $f;
 
+my %have_hex = ();
 for my $c_name(sort keys %have) {
     if ($def{$c_name} && ($cnt{$c_name} == 1)) {
         my $hex = $def{$c_name};
-        print "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+        print  "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+        printf "#define U_%04X U_$c_name\n", hex($hex);
+        $have_hex{hex($hex)} = 1;
+    }
+}
+
+for my $c_name(sort keys %have) {
+    if ($def{$c_name} && ($cnt{$c_name} == 1)) {
+        # defined above already
     }
     elsif (my $hex = $alt_def{$c_name}) {
-        print "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+        print  "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
+        if (!$have_hex{hex($hex)}) {
+            printf "#define U_%04X U_$c_name\n", hex($hex);
+            $have_hex{hex($hex)} = 1;
+        }
     }
     else {
         print "#define U_$c_name /* multiple */\n";

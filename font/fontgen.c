@@ -19,7 +19,14 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/obj.h>
 #include <hob3lbase/alloc.h>
+
 #include "uniname.h"
+
+#undef  U_TIBETAN_LETTER_A
+#define U_TIBETAN_LETTER_A UNICODE(0x0F68, "TIBETAN LETTER A")
+
+#undef  U_TIBETAN_SUBJOINED_LETTER_A
+#define U_TIBETAN_SUBJOINED_LETTER_A UNICODE(0x0FB8, "TIBETAN SUBJOINED LETTER A")
 
 #define FAMILY_NAME "Nozzl3 Sans"
 #define DEFAULT_STYLE "Book"
@@ -216,6 +223,7 @@ typedef struct {
     bool swap_x;
     bool swap_y;
     cp_mat2w_t xform;
+    bool line_width_defined;
     double line_width;
 } font_gc_t;
 
@@ -295,8 +303,10 @@ typedef struct {
     /** increase right padding */
     double rpad_add;
 
-    /** index in line_width array for strokes */
-    int line_step;
+    /** index in line_width array for strokes, see LS_*
+     * This is the intermediate value between the two integer positions.
+     */
+    double line_step;
 
     /** draw tree (may be NULL (for white space)) */
     font_draw_t const *draw;
@@ -360,6 +370,8 @@ typedef struct {
     char const *size_name;
     font_box_t box;
     font_coord_t base_y;
+    font_coord_t top_y;
+    font_coord_t bottom_y;
     double line_width[5];
     double slant;
     double radius[4];
@@ -391,6 +403,8 @@ struct font {
     cp_vec2_minmax_t box;
     cp_vec2_minmax_t box_max;
     double base_y;
+    double top_y;
+    double bottom_y;
     double slant;
     double em; /* actual em size of this font (for scaling into nominal size) */
     font_v_glyph_t glyph;
@@ -428,6 +442,14 @@ typedef struct {
 #define T FONT_VERTEX_TIGHT
 #define N FONT_VERTEX_NEW
 #define D FONT_VERTEX_DENT
+
+#define LS_DEFAULT 0
+#define LS_UPPER   1
+#define LS_DIGIT   1
+#define LS_PUNCT   1
+#define LS_THIN    2
+#define LS_THINNER 3
+#define LS_LOWER   -0.0 /* usually just uses the default, but this is for overriding REF() */
 
 #define VEC(x) {{ .data = (x), .size = cp_countof(x) }}
 
@@ -474,6 +496,66 @@ static void rot180(font_t const *, font_gc_t *);
 static void slant1(font_t const *, font_gc_t *);
 static void frac_left1(font_t const *, font_gc_t *);
 static void frac_right1(font_t const *, font_gc_t *);
+static void ls_thin(font_t const *, font_gc_t *);
+static void ls_thinner(font_t const *, font_gc_t *);
+
+/* ********************************************************************** */
+/* private use characters */
+
+#define PRIVATE(X,Y) UNICODE(X, "PRIVATE "Y)
+
+#define UX_COMBINING_CAPITAL_ACUTE      PRIVATE(0x9f2000, "COMBINING CAPITAL ACUTE")
+#define UX_COMBINING_CAPITAL_GRAVE      PRIVATE(0x9f2001, "COMBINING CAPITAL GRAVE")
+#define UX_COMBINING_CAPITAL_CIRCUMFLEX PRIVATE(0x9f2002, "COMBINING CAPITAL CIRCUMFLEX")
+#define UX_COMBINING_CAPITAL_CARON      PRIVATE(0x9f2003, "COMBINING CAPITAL CARON")
+#define UX_COMBINING_CAPITAL_DIAERESIS  PRIVATE(0x9f2004, "COMBINING CAPITAL DIAERESIS")
+#define UX_COMBINING_CAPITAL_DOT_ABOVE  PRIVATE(0x9f2005, "COMBINING CAPITAL DOT ABOVE")
+#define UX_COMBINING_CAPITAL_TILDE      PRIVATE(0x9f2006, "COMBINING CAPITAL TILDE")
+#define UX_COMBINING_CAPITAL_RING_ABOVE PRIVATE(0x9f2007, "COMBINING CAPITAL RING ABOVE")
+#define UX_COMBINING_CAPITAL_MACRON     PRIVATE(0x9f2008, "COMBINING CAPITAL MACRON")
+
+#define UX_LATIN_CAPITAL_LETTER_M_WITH_MACRON                    PRIVATE(0x9f1000, "LATIN CAPITAL LETTER M WITH MACRON")
+#define UX_LATIN_CAPITAL_LETTER_P_WITH_MACRON                    PRIVATE(0x9f1002, "LATIN CAPITAL LETTER P WITH MACRON")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_MACRON                    PRIVATE(0x9f1011, "LATIN CAPITAL LETTER N WITH MACRON")
+
+#define UX_LATIN_CAPITAL_LETTER_M_WITH_MACRON                    PRIVATE(0x9f1000, "LATIN CAPITAL LETTER M WITH MACRON")
+#define UX_LATIN_SMALL_LETTER_M_WITH_MACRON                      PRIVATE(0x9f1001, "LATIN SMALL LETTER M WITH MACRON")
+#define UX_LATIN_CAPITAL_LETTER_P_WITH_MACRON                    PRIVATE(0x9f1002, "LATIN CAPITAL LETTER P WITH MACRON")
+#define UX_LATIN_SMALL_LETTER_P_WITH_MACRON                      PRIVATE(0x9f1003, "LATIN SMALL LETTER P WITH MACRON")
+#define UX_LATIN_CAPITAL_LETTER_E_WITH_CIRCUMFLEX_AND_MACRON     PRIVATE(0x9f1004, "LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND MACRON")
+#define UX_LATIN_SMALL_LETTER_E_WITH_CIRCUMFLEX_AND_MACRON       PRIVATE(0x9f1005, "LATIN SMALL LETTER E WITH CIRCUMFLEX AND MACRON")
+#define UX_LATIN_CAPITAL_LETTER_E_WITH_CIRCUMFLEX_AND_CARON      PRIVATE(0x9f1006, "LATIN CAPITAL LETTER E WITH CIRCUMFLEX AND CARON")
+#define UX_LATIN_SMALL_LETTER_E_WITH_CIRCUMFLEX_AND_CARON        PRIVATE(0x9f1007, "LATIN SMALL LETTER E WITH CIRCUMFLEX AND CARON")
+#define UX_LATIN_CAPITAL_LETTER_M_WITH_GRAVE                     PRIVATE(0x9f1008, "LATIN CAPITAL LETTER M WITH GRAVE")
+#define UX_LATIN_SMALL_LETTER_M_WITH_GRAVE                       PRIVATE(0x9f1009, "LATIN SMALL LETTER M WITH GRAVE")
+#define UX_LATIN_SMALL_LETTER_G_WITH_TILDE                       PRIVATE(0x9f100a, "LATIN SMALL LETTER G WITH TILDE")
+#define UX_LATIN_CAPITAL_LETTER_M_WITH_CIRCUMFLEX                PRIVATE(0x9f100b, "LATIN CAPITAL LETTER M WITH CIRCUMFLEX")
+#define UX_LATIN_SMALL_LETTER_M_WITH_CIRCUMFLEX                  PRIVATE(0x9f100c, "LATIN SMALL LETTER M WITH CIRCUMFLEX")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_CIRCUMFLEX                PRIVATE(0x9f100d, "LATIN CAPITAL LETTER N WITH CIRCUMFLEX")
+#define UX_LATIN_SMALL_LETTER_N_WITH_CIRCUMFLEX                  PRIVATE(0x9f100e, "LATIN SMALL LETTER N WITH CIRCUMFLEX")
+#define UX_LATIN_CAPITAL_LETTER_M_WITH_REAL_CEDILLA              PRIVATE(0x9f100f, "LATIN CAPITAL LETTER M WITH REAL CEDILLA")
+#define UX_LATIN_SMALL_LETTER_M_WITH_REAL_CEDILLA                PRIVATE(0x9f1010, "LATIN SMALL LETTER M WITH REAL CEDILLA")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_MACRON                    PRIVATE(0x9f1011, "LATIN CAPITAL LETTER N WITH MACRON")
+#define UX_LATIN_SMALL_LETTER_N_WITH_MACRON                      PRIVATE(0x9f1012, "LATIN SMALL LETTER N WITH MACRON")
+#define UX_LATIN_CAPITAL_LETTER_O_WITH_REAL_CEDILLA              PRIVATE(0x9f1013, "LATIN CAPITAL LETTER O WITH REAL CEDILLA")
+#define UX_LATIN_SMALL_LETTER_O_WITH_REAL_CEDILLA                PRIVATE(0x9f1014, "LATIN SMALL LETTER O WITH REAL CEDILLA")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_DIAERESIS                 PRIVATE(0x9f1015, "LATIN CAPITAL LETTER N WITH DIAERESIS")
+#define UX_LATIN_SMALL_LETTER_N_WITH_DIAERESIS                   PRIVATE(0x9f1016, "LATIN SMALL LETTER N WITH DIAERESIS")
+#define UX_CYRILLIC_SMALL_LETTER_GHE_WITH_STROKE_AND_DESCENDER   PRIVATE(0x9f1017, "CYRILLIC SMALL LETTER GHE WITH STROKE AND DESCENDER")
+#define UX_CYRILLIC_SMALL_LETTER_A_WITH_RING_ABOVE               PRIVATE(0x9f1018, "CYRILLIC SMALL LETTER A WITH RING ABOVE")
+#define UX_CYRILLIC_SMALL_LIGATURE_O_IE                          PRIVATE(0x9f1019, "CYRILLIC SMALL LIGATURE O IE")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_DESCENDER                 PRIVATE(0x9f101a, "LATIN CAPITAL LETTER N WITH DESCENDER")
+#define UX_LATIN_SMALL_LETTER_N_WITH_DESCENDER                   PRIVATE(0x9f101b, "LATIN SMALL LETTER N WITH DESCENDER")
+#define UX_LATIN_CAPITAL_LETTER_G_WITH_TILDE                     PRIVATE(0x9f101c, "LATIN CAPITAL LETTER G WITH TILDE")
+#define UX_LATIN_CAPITAL_LETTER_G_WITH_TURNED_COMMA_ABOVE_RIGHT  PRIVATE(0x9f101e, "LATIN CAPITAL LETTER G WITH TURNED COMMA ABOVE RIGHT")
+#define UX_LATIN_SMALL_LETTER_G_WITH_TURNED_COMMA_ABOVE_RIGHT    PRIVATE(0x9f101f, "LATIN SMALL LETTER G WITH TURNED COMMA ABOVE RIGHT")
+#define UX_LATIN_CAPITAL_LETTER_O_WITH_TURNED_COMMA_ABOVE_RIGHT  PRIVATE(0x9f1020, "LATIN CAPITAL LETTER O WITH TURNED COMMA ABOVE RIGHT")
+#define UX_LATIN_SMALL_LETTER_O_WITH_TURNED_COMMA_ABOVE_RIGHT    PRIVATE(0x9f1021, "LATIN SMALL LETTER O WITH TURNED COMMA ABOVE RIGHT")
+#define UX_CYRILLIC_SMALL_LETTER_E_WITH_DOT_ABOVE                PRIVATE(0x9f1026, "CYRILLIC SMALL LETTER E WITH DOT ABOVE")
+#define UX_LATIN_CAPITAL_LETTER_L_WITH_REAL_CEDILLA              PRIVATE(0x9f1027, "LATIN CAPITAL LETTER L WITH REAL CEDILLA")
+#define UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA                PRIVATE(0x9f1028, "LATIN SMALL LETTER L WITH REAL CEDILLA")
+#define UX_LATIN_CAPITAL_LETTER_N_WITH_REAL_CEDILLA              PRIVATE(0x9f1029, "LATIN CAPITAL LETTER N WITH REAL CEDILLA")
+#define UX_LATIN_SMALL_LETTER_N_WITH_REAL_CEDILLA                PRIVATE(0x9f102a, "LATIN SMALL LETTER N WITH REAL CEDILLA")
 
 /* ********************************************************************** */
 
@@ -491,7 +573,7 @@ static font_def_glyph_t f1_a_glyph[] = {
           * Currently, this is like a capital W.
           */
         .unicode = U_IDEOGRAPHIC_SPACE,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .min_coord = COORD(+3,-9, 0, 0),
         .max_coord = COORD(+3,+9, 0, 0),
         .draw = NULL,
@@ -587,6 +669,10 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_ZERO_WIDTH_NO_BREAK_SPACE,
         .draw = WIDTH(U_ZERO_WIDTH_SPACE),
     },
+    {
+        .unicode = U_SOFT_HYPHEN,
+        .draw = WIDTH(U_ZERO_WIDTH_SPACE),
+    },
 
     /* special characters */
     {
@@ -619,7 +705,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* punctuation */
     {
         .unicode = U_FULL_STOP,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -627,7 +713,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COMMA,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .min_coord = COORD(-6,0,0,0),
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -637,7 +723,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_SEMICOLON,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .min_coord = COORD(-6,0,0,0),
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -649,7 +735,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COLON,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -659,7 +745,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_EXCLAMATION_MARK,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -669,12 +755,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_INVERTED_EXCLAMATION_MARK,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = XFORM(swap_y, REF(U_EXCLAMATION_MARK)),
     },
     {
         .unicode = U_QUESTION_MARK,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0, -60)),
@@ -688,7 +774,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_INVERTED_QUESTION_MARK,
-        .line_step = 1,
+        .line_step = LS_PUNCT,
         .draw = XFORM(rot180, REF(U_QUESTION_MARK)),
     },
     {
@@ -711,6 +797,15 @@ static font_def_glyph_t f1_a_glyph[] = {
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), (+1,+6, 0, 0)),
             Q(E, ( 0, 0, 0, 0), (+1,-5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_BROKEN_BAR,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+6,-4,30, +45)),
+            Q(B, ( 0, 0, 0, 0), ( 0,+6,-4,30, -45)),
+            Q(E, ( 0, 0, 0, 0), ( 0,-4, 0, 0)),
         ),
     },
     {
@@ -781,8 +876,25 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
+        .unicode = U_EURO_SIGN,
+        .max_coord = COORD(+1,+7,0,0),
+        .line_step = LS_UPPER,
+        .draw = STROKE(
+            Q(I, (+1, +7, 0, 0), ( 0,+5, 0, 0)),
+            Q(R, (+1, +3, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0, -7, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0, -7, 0, 0), (-2,-3, 0, 0)),
+            Q(S, (+1, +3, 0, 0), (-2,-3, 0, 0)),
+            Q(O, (+1, +7, 0, 0), ( 0,-2, 0, 0)),
+            Q(B, ( 0,-10, 0, 0), (-1,-3,+6,35)),
+            Q(E, ( 0, +5, 0, 0), (-1,-3,+6,35)),
+            Q(B, ( 0,-10, 0, 0), (+1,-3,+6,25)),
+            Q(E, ( 0, +3, 0, 0), (+1,-3,+6,25)),
+        ),
+    },
+    {
         .unicode = U_AMPERSAND,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -801,29 +913,29 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COMMERCIAL_AT,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = STROKE(
-            Q(B, ( 0,-4, 0, 0), ( 0,+2, 0, 0)),
-            Q(L, ( 0,+4, 0, 0), ( 0,+2, 0, 0)),
-            Q(P, ( 0,+4, 0, 0), ( 0,-2, 0, 0)),
-            Q(R, ( 0,-4, 0, 0), ( 0,-2, 0, 0)),
-            Q(R, ( 0,-4, 0, 0), ( 0, 0, 0, 0)),
-            Q(E, ( 0,+4, 0, 0), ( 0, 0, 0, 0)),
+            Q(B, ( 0, -4, 0, 0), ( 0,+2, 0, 0)),
+            Q(L, ( 0, +4, 0, 0), ( 0,+2, 0, 0)),
+            Q(P, ( 0, +4, 0, 0), ( 0,-2, 0, 0)),
+            Q(R, ( 0, -4, 0, 0), ( 0,-2, 0, 0)),
+            Q(R, ( 0, -4, 0, 0), ( 0, 0, 0, 0)),
+            Q(E, ( 0, +4, 0, 0), ( 0, 0, 0, 0)),
 
-            Q(B, ( 0,+4, 0, 0), ( 0,-2, 0, 0)),
-            Q(S, ( 0,+9, 0, 0), ( 0,-2, 0, 0)),
-            Q(P, ( 0,+9, 0, 0), ( 0, 0, 0, 0)),
-            Q(G, ( 0,+9, 0, 0), ( 0,+5,+4,30)),
-            Q(G, ( 0,-9, 0, 0), ( 0,+5,+4,30)),
-            Q(G, ( 0,-9, 0, 0), ( 0,-4, 0, 0)),
-            Q(E, ( 0,+1, 0, 0), ( 0,-4, 0, 0)),
+            Q(B, ( 0, +4, 0, 0), ( 0,-2, 0, 0)),
+            Q(S, ( 0,+10, 0, 0), ( 0,-2, 0, 0)),
+            Q(P, ( 0,+10, 0, 0), ( 0, 0, 0, 0)),
+            Q(G, ( 0,+10, 0, 0), ( 0,+5, 0, 0)),
+            Q(G, ( 0,-10, 0, 0), ( 0,+5, 0, 0)),
+            Q(G, ( 0,-10, 0, 0), ( 0,-4,-5,30)),
+            Q(E, ( 0, +1, 0, 0), ( 0,-4,-5,30)),
         ),
     },
 
     /* fractions */
     {
         .unicode = U_FRACTION_SLASH,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = STROKE(
             Q(B, ( 0,+6, 0, 0), ( 0,+6, 0, 0)),
             Q(E, ( 0,-6, 0, 0), ( 0,-3, 0, 0)),
@@ -831,7 +943,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_PERCENT_SIGN,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ZERO)),
@@ -840,7 +952,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_HALF,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -849,7 +961,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_THIRD,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -858,7 +970,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_TWO_THIRDS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_TWO)),
@@ -867,7 +979,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_QUARTER,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -876,7 +988,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_QUARTERS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_THREE)),
@@ -885,7 +997,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_FIFTH,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -894,7 +1006,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_TWO_FIFTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_TWO)),
@@ -903,7 +1015,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_FIFTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_THREE)),
@@ -912,7 +1024,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_FOUR_FIFTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_FOUR)),
@@ -921,7 +1033,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_SIXTH,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -930,7 +1042,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_FIVE_SIXTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
@@ -939,7 +1051,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_SEVENTH,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -948,7 +1060,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_EIGHTH,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_ONE)),
@@ -957,7 +1069,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_EIGHTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_THREE)),
@@ -966,7 +1078,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_FIVE_EIGHTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_FIVE)),
@@ -975,7 +1087,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_VULGAR_FRACTION_SEVEN_EIGHTHS,
-        .line_step = 2,
+        .line_step = LS_THIN,
         .draw = COMPOSE(
             REF(U_FRACTION_SLASH),
             XFORM(frac_left1,  REF(U_DIGIT_SEVEN)),
@@ -1047,6 +1159,31 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
+        .unicode = U_DIVISION_SIGN,
+        .draw = STROKE(
+            Q(B, ( 0,+8, 0, 0), ( 0,-3,+4,30)),
+            Q(E, ( 0,-8, 0, 0), ( 0,-3,+4,30)),
+
+            Q(B, ( 0, 0, 0, 0), (-3,-3,+4,30, -60)),
+            Q(E, ( 0, 0, 0, 0), (-3,-3,+4,30, -120)),
+
+            Q(B, ( 0, 0, 0, 0), (+3,-3,+4,30, +60)),
+            Q(E, ( 0, 0, 0, 0), (+3,-3,+4,30, +120)),
+        ),
+    },
+    {
+        .unicode = U_MULTIPLICATION_SIGN,
+        .draw = COMPOSE(
+          WIDTH(U_MINUS_SIGN),
+          STROKE(
+            Q(I, (-2,+8, 0, 0), (-2,+4, 0, 0)),
+            Q(O, (-2,-8, 0, 0), (-2,-3, 0, 0)),
+            Q(I, (-2,+8, 0, 0), (-2,-3, 0, 0)),
+            Q(O, (-2,-8, 0, 0), (-2,+4, 0, 0)),
+          )
+        ),
+    },
+    {
         .unicode = U_EQUALS_SIGN,
         .draw = STROKE(
             Q(B, ( 0,+8, 0, 0), ( 0,+2,+2, 0)),
@@ -1102,17 +1239,17 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_TILDE,
         .draw = STROKE(
-            Q(I, ( 0,+8, 0, 0), ( 0,-3,+4,35)),
-            Q(L, ( 0,+8,-8,20), ( 0,-3,+4,20)),
-            Q(L, ( 0,-8,+8,20), ( 0,-3,+4,40)),
-            Q(O, ( 0,-8, 0, 0), ( 0,-3,+4,25)),
+            Q(I, ( 0,+8, 0, 0), ( 0,-3,+4,37)),
+            Q(L, ( 0,+8,-8,20), ( 0,-3,+4,15)),
+            Q(L, ( 0,-8,+8,20), ( 0,-3,+4,45)),
+            Q(O, ( 0,-8, 0, 0), ( 0,-3,+4,23)),
         ),
     },
 
     /* digits */
     {
         .unicode = U_DIGIT_ZERO,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = STROKE(
             Q(L, ( 0,+6, 0, 0), (-2,+6, 0, 0)),
             Q(L, ( 0,-6, 0, 0), (-2,+6, 0, 0)),
@@ -1122,7 +1259,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_ONE,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1134,7 +1271,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_TWO,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1150,7 +1287,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_THREE,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1168,7 +1305,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_FOUR,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1183,7 +1320,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_FIVE,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1199,7 +1336,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_SIX,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1215,7 +1352,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_SEVEN,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1230,7 +1367,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_EIGHT,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1250,7 +1387,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DIGIT_NINE,
-        .line_step = 1,
+        .line_step = LS_DIGIT,
         .draw = COMPOSE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
@@ -1266,7 +1403,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_OPEN_E,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(I, (+1,-7, 0, 0), ( 0,+5, 0, 0)),
             Q(S, (+1,-3, 0, 0), (-2,+6, 0, 0)),
@@ -1281,14 +1418,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_REVERSED_OPEN_E,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = XFORM(swap_x, REF(U_LATIN_CAPITAL_LETTER_OPEN_E)),
     },
 
     /* latin capital letters */
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,-3, 0, 0)),
             Q(C, ( 0,-7, 0, 0), (-1,+6, 0, 0)),
@@ -1301,7 +1438,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_B,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(P, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1315,7 +1452,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C,
         .max_coord = COORD(+1,+7,0,0),
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(I, (+1,+7, 0, 0), ( 0,+5, 0, 0)),
             Q(R, (+1,+3, 0, 0), (-2,+6, 0, 0)),
@@ -1327,7 +1464,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_D,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(H, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1337,7 +1474,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1350,7 +1487,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_F,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1362,7 +1499,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(I, (+1,+7, 0, 0), ( 0,+5, 0, 0)),
             Q(R, (+1,+3, 0, 0), (-2,+6, 0, 0)),
@@ -1377,7 +1514,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
@@ -1389,7 +1526,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -1398,7 +1535,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_J,
         .min_coord = COORD(0,-3,0,0),
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
             Q(H, ( 0, 0, 0, 0), (-2,-6, 0, 0)),
@@ -1408,7 +1545,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_K,
         .max_coord = COORD(+2,+5,0,0),
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(E, ( 0,-7, 0, 0), ( 0,-3, 0, 0)),
@@ -1424,7 +1561,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
@@ -1435,7 +1572,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* capital small m like for n */
         .unicode = U_LATIN_CAPITAL_LETTER_M,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, (-1,+9, 0, 0), ( 0,-3, 0, 0)),
             Q(H, (-1,+9, 0, 0), (-2,+6, 0, 0)),
@@ -1451,7 +1588,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* dent, no further vertical line in the middle */
         .unicode = U_LATIN_CAPITAL_LETTER_M,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, (+2,-8, 0, 0), ( 0,-3, 0, 0)),
             Q(P, (+2,-8, 0, 0), (-2,+6, 0, 0)),
@@ -1466,7 +1603,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* chamfer + vertical line in the middle */
         .unicode = U_LATIN_CAPITAL_LETTER_M,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-9, 0, 0), ( 0,-3, 0, 0)),
             Q(P, ( 0,-9, 0, 0), (-2,+6, 0, 0)),
@@ -1484,7 +1621,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* standard backslashy middle: difficult, very pointed */
         .unicode = U_LATIN_CAPITAL_LETTER_N,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, (+3,+7, 0, 0), ( 0,+6, 0, 0)),
             Q(P, (+3,+7, 0, 0), (-2,-3, 0, 0)),
@@ -1498,7 +1635,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* alternative: capital small n */
         .unicode = U_LATIN_CAPITAL_LETTER_N,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,+7, 0, 0), ( 0,-3, 0, 0)),
             Q(H, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
@@ -1509,7 +1646,7 @@ static font_def_glyph_t f1_a_glyph[] = {
 #endif
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(H, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
             Q(H, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1519,7 +1656,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Q,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = COMPOSE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             STROKE(
@@ -1530,7 +1667,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_P,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0, 1, 0, 0)),
             Q(H, ( 0,+7, 0, 0), ( 0, 1, 0, 0)),
@@ -1541,7 +1678,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_R,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,+7, 0, 0), ( 0,-3, 0, 0)),
             Q(T, ( 0,+7, 0, 0), (+1,-3,+6,30)),
@@ -1554,7 +1691,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(I, (+1,+7, 0, 0), ( 0,+5, 0, 0)),
             Q(R, ( 0,+3, 0, 0), (-2,+6, 0, 0)),
@@ -1568,7 +1705,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,+6, 0, 0)),
@@ -1578,7 +1715,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(H, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
@@ -1588,7 +1725,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_V,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(C, ( 0,-7, 0, 0), (-1,-3, 0, 0)),
@@ -1599,7 +1736,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-9, 0, 0), ( 0,+6, 0, 0)),
             Q(L, ( 0,-9, 0, 0), (-2,-3, 0, 0)),
@@ -1617,7 +1754,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_X,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(C, ( 0,-7, 0, 0), ( 0,+6,-3,30)),
@@ -1634,7 +1771,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(H, ( 0,-7, 0, 0), (-1,+1, 0, 0)),
@@ -1646,7 +1783,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Z,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, (+2,+7, 0, 0), (-2,-3, 0, 0)),
             Q(P, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
@@ -1931,6 +2068,156 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
+        .unicode = U_LATIN_SMALL_LETTER_AE,
+        .draw = STROKE(
+            Q(B, ( 0,-9, 0, 0), (-2,+3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,+3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,-3, 0, 0)),
+            Q(R, ( 0,-9, 0, 0), (-2,-3, 0, 0)),
+            Q(R, ( 0,-9, 0, 0), ( 0, 0, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0, 0, 0, 0)),
+
+            Q(B, ( 0,+9, 0, 0), (-2,-3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,-3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,+3, 0, 0)),
+            Q(S, ( 0,+9, 0, 0), (-2,+3, 0, 0)),
+            Q(L, ( 0,+9, 0, 0), ( 0, 0, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0, 0, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LIGATURE_OE,
+        .draw = STROKE(
+            Q(H, ( 0,-9, 0, 0), (-2,+3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,+3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,-3, 0, 0)),
+            Q(H, ( 0,-9, 0, 0), (-2,-3, 0, 0)),
+
+            Q(N, ( 0, 0, 0, 0), ( 0, 0, 0, 0)),
+
+            Q(B, ( 0,+9, 0, 0), (-2,-3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,-3, 0, 0)),
+            Q(T, ( 0, 0, 0, 0), (-2,+3, 0, 0)),
+            Q(S, ( 0,+9, 0, 0), (-2,+3, 0, 0)),
+            Q(L, ( 0,+9, 0, 0), ( 0, 0, 0, 0)),
+            Q(E, ( 0, 0, 0, 0), ( 0, 0, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_AE,
+        .line_step = LS_UPPER,
+        .draw = STROKE(
+            Q(B, ( 0, -9, 0, 0), ( 0,-3, 0, 0)),
+            Q(C, ( 0, -9, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0, -9, 0,30), (-2,+6, 0, 0)),
+            Q(E, ( 0,  0, 0, 0), (-2,+6, 0, 0)),
+
+            Q(B, ( 0, -9, 0, 0), ( 0, 0,+3,10)),
+            Q(E, ( 0,  0, 0, 0), ( 0, 0,+3,10)),
+
+            Q(B, ( 0,+10, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,  0, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,  0, 0, 0), (-2,-3, 0, 0)),
+            Q(E, ( 0,+10, 0, 0), (-2,-3, 0, 0)),
+
+            Q(B, ( 0,  0, 0, 0), ( 0,+2, 0, 0)),
+            Q(E, ( 0, +9, 0, 0), ( 0,+2, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LIGATURE_OE,
+        .line_step = LS_UPPER,
+        .draw = STROKE(
+            Q(B, ( 0,+10, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,  0, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,  0, 0, 0), (-2,-3, 0, 0)),
+            Q(E, ( 0,+10, 0, 0), (-2,-3, 0, 0)),
+
+            Q(B, ( 0,  0, 0, 0), ( 0,+2, 0, 0)),
+            Q(E, ( 0, +9, 0, 0), ( 0,+2, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_O_WITH_STROKE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_O),
+            XFORM(ls_thin,
+                STROKE(
+                    Q(I, ( 0,+5, 0, 0), ( 0,+3,+6,20)),
+                    Q(O, ( 0,-5, 0, 0), ( 0,-3,-6,20)),
+                )
+            ),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_STROKE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            XFORM(ls_thin,
+                STROKE(
+                    Q(I, ( 0,+7, 0, 0), ( 0,+6,+10,20)),
+                    Q(O, ( 0,-7, 0, 0), ( 0,-3,-6,20)),
+                )
+            ),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_ETH,
+        .min_coord = COORD(+3,-8,0,0),
+        .line_step = LS_UPPER,
+        .draw = STROKE(
+            Q(H, ( 0,+7, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
+            Q(P, ( 0,-7, 0, 0), (-2,-3, 0, 0)),
+            Q(H, ( 0,+7, 0, 0), (-2,-3, 0, 0)),
+
+            Q(N, (0), (0)),
+
+            Q(B, ( 0,-10, 0, 0), ( 0,-3,+6,30)),
+            Q(E, ( 0,  0, 0, 0), ( 0,-3,+6,30)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_ETH,
+        .draw = COMPOSE(
+            STROKE(
+                Q(I, ( 0,-2, 0, 0), ( 0,+7, 0, 0)),
+                Q(P, ( 0,+5, 0, 0), (+5,+2,+3,30)),
+                Q(P, ( 0,+5, 0, 0), ( 0,+2,+3,30)),
+                Q(L, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
+                Q(L, ( 0,-5, 0, 0), (-2,-3, 0, 0)),
+                Q(L, ( 0,-5, 0, 0), (-2,+2,+3,30)),
+                Q(E, ( 0,+5, 0, 0), (-2,+2,+3,30)),
+            ),
+            XFORM(ls_thinner,
+                STROKE(
+                    Q(I, ( 0,+4,+5,30), ( 0,+7, 0, 0)),
+                    Q(O, ( 0,-3, 0, 0), ( 0,+4, 0,0)),
+                )
+            ),
+        )
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_STROKE,
+        .min_coord = COORD(+3,-8,0,0),
+        .draw = REF(U_LATIN_CAPITAL_LETTER_ETH),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_D_WITH_STROKE,
+        .max_coord = COORD(+3,+5,0,0),
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_D),
+            XFORM(ls_thinner,
+                STROKE(
+                    Q(B, ( 0, 0, 0, 0), ( 0, +5, 0, 0)),
+                    Q(E, (+2,+8, 0, 0), ( 0, +5, 0, 0)),
+                )
+            ),
+        ),
+    },
+
+    /* special letters */
+    {
         .unicode = U_LATIN_SMALL_LETTER_DOTLESS_I,
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
@@ -1948,7 +2235,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_SHARP_S,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,-3, 0, 0)),
             Q(H, ( 0,-7, 0, 0), (-2,+6, 0, 0)),
@@ -1988,7 +2275,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_THORN,
-        .line_step = 1,
+        .line_step = LS_UPPER,
         .draw = STROKE(
             Q(B, ( 0,-7, 0, 0), (-2,+6,+3,40)),
             Q(H, ( 0,+7, 0, 0), (-2,+6,+3,40)),
@@ -2005,8 +2292,8 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(B, ( 0,-5, 0, 0), ( 0,-6, 0, 0)),
             Q(E, ( 0,-5, 0, 0), ( 0,+6, 0, 0)),
             Q(B, ( 0,-5, 0, 0), (-2,+3, 0, 0)),
-            Q(R, ( 0,+5, 0, 0), (-2,+3, 0, 0)),
-            Q(R, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
+            Q(L, ( 0,+5, 0, 0), (-2,+3, 0, 0)),
+            Q(L, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
             Q(E, ( 0,-5, 0, 0), (-2,-3, 0, 0)),
         ),
     },
@@ -2020,102 +2307,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
 
 
-    {
-        .unicode = U_COMBINING_DOT_ABOVE,
-        .draw = STROKE(
-            Q(B, ( 0, 0, 0, 0), ( 0,+6,+5,20)),
-            Q(E, ( 0, 0, 0, 0), ( 0,+6,+5,20, -60)),
-        ),
-    },
-    {
-        .unicode = U_DOT_ABOVE,
-        .draw = REF(U_COMBINING_DOT_ABOVE),
-    },
-
-    {
-        .unicode = U_COMBINING_DIAERESIS,
-        .draw = STROKE(
-            Q(B, ( 0,-4, 0, 0), ( 0,+6,+5,20)),
-            Q(E, ( 0,-4, 0, 0), ( 0,+6,+5,20, -60)),
-            Q(B, ( 0,+4, 0, 0), ( 0,+6,+5,20)),
-            Q(E, ( 0,+4, 0, 0), ( 0,+6,+5,20, -60)),
-        ),
-    },
-    {
-        .unicode = U_DIAERESIS,
-        .draw = REF(U_COMBINING_DIAERESIS),
-    },
-
-    {
-        .unicode = U_COMBINING_ACUTE_ACCENT,
-        .draw = STROKE(
-            Q(I, ( 0,+5, 0, 0), ( 0,+7, 0, 0)),
-            Q(O, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
-        ),
-    },
-    {
-        .unicode = U_ACUTE_ACCENT,
-        .max_coord = COORD(0,+6, 0, 0),
-        .draw = STROKE(
-            Q(I, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
-            Q(O, ( 0,+6, 0, 0), (-1,+6, 0, 0)),
-        ),
-    },
-
-    {
-        .unicode = U_COMBINING_GRAVE_ACCENT,
-        .draw = STROKE(
-            Q(I, ( 0,-5, 0, 0), ( 0,+7, 0, 0)),
-            Q(O, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
-        ),
-    },
-    {
-        .unicode = U_GRAVE_ACCENT,
-        .min_coord = COORD(0,-6, 0, 0),
-        .draw = STROKE(
-            Q(I, ( 0,-6, 0, 0), (-1,+6, 0, 0)),
-            Q(O, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
-        ),
-    },
-
-    {
-        .unicode = U_COMBINING_CARON,
-        .draw = STROKE(
-            Q(I, ( 0,-5, 0, 0), ( 0,+7, 0, 0)),
-            Q(P, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
-            Q(O, ( 0,+5, 0, 0), ( 0,+7, 0, 0)),
-        ),
-    },
-    {
-        .unicode = U_CARON,
-        .min_coord = COORD(0,-6, 0, 0),
-        .max_coord = COORD(0,+6, 0, 0),
-        .draw = STROKE(
-            Q(I, ( 0,-6, 0, 0), (-1,+6, 0, 0)),
-            Q(P, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
-            Q(O, ( 0,+6, 0, 0), (-1,+6, 0, 0)),
-        ),
-    },
-
-    {
-        .unicode = U_COMBINING_CIRCUMFLEX_ACCENT,
-        .draw = STROKE(
-            Q(I, ( 0,-5, 0, 0), ( 0,+5, 0, 0)),
-            Q(P, ( 0, 0, 0, 0), ( 0,+7, 0, 0)),
-            Q(O, ( 0,+5, 0, 0), ( 0,+5, 0, 0)),
-        ),
-    },
-    {
-        .unicode = U_CIRCUMFLEX_ACCENT,
-        .min_coord = COORD(0,-6, 0, 0),
-        .max_coord = COORD(0,+6, 0, 0),
-        .draw = STROKE(
-            Q(I, ( 0,-6, 0, 0), ( 0,+3, 0, 0)),
-            Q(P, ( 0, 0, 0, 0), (-1,+6, 0, 0)),
-            Q(O, ( 0,+6, 0, 0), ( 0,+3, 0, 0)),
-        ),
-    },
-
+    /* combined letters */
     {
         .unicode = U_LATIN_SMALL_LETTER_I,
         .draw = COMPOSE(
@@ -2129,6 +2321,26 @@ static font_def_glyph_t f1_a_glyph[] = {
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_COMBINING_DOT_ABOVE),
+        ),
+    },
+
+    /* dot above */
+    {
+        .unicode = U_COMBINING_DOT_ABOVE,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+6,+5,20)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+6,+5,20, -60)),
+        ),
+    },
+    {
+        .unicode = U_DOT_ABOVE,
+        .draw = REF(U_COMBINING_DOT_ABOVE),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_DOT_ABOVE,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,+8,+7,30)),
+            Q(E, ( 0, 0, 0, 0), ( 0,+8,+7,30, +60)),
         ),
     },
 
@@ -2155,15 +2367,6 @@ static font_def_glyph_t f1_a_glyph[] = {
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
-#if 0
-    {
-        .unicode = U_LATIN_SMALL_LETTER_D_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_D),
-            REF(U_COMBINING_DOT_ABOVE),
-        ),
-    },
-#endif
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_DOT_ABOVE,
         .draw = COMPOSE(
@@ -2171,15 +2374,6 @@ static font_def_glyph_t f1_a_glyph[] = {
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
-#if 0
-    {
-        .unicode = U_LATIN_SMALL_LETTER_F_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_F),
-            REF(U_COMBINING_DOT_ABOVE),
-        ),
-    },
-#endif
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_DOT_ABOVE,
         .draw = COMPOSE(
@@ -2187,15 +2381,6 @@ static font_def_glyph_t f1_a_glyph[] = {
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
-#if 0
-    {
-        .unicode = U_LATIN_SMALL_LETTER_H_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_H),
-            REF(U_COMBINING_DOT_ABOVE),
-        ),
-    },
-#endif
     {
         .unicode = U_LATIN_SMALL_LETTER_M_WITH_DOT_ABOVE,
         .draw = COMPOSE(
@@ -2238,15 +2423,6 @@ static font_def_glyph_t f1_a_glyph[] = {
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
-#if 0
-    {
-        .unicode = U_LATIN_SMALL_LETTER_T_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_T),
-            REF(U_COMBINING_DOT_ABOVE),
-        ),
-    },
-#endif
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_DOT_ABOVE,
         .draw = COMPOSE(
@@ -2275,25 +2451,229 @@ static font_def_glyph_t f1_a_glyph[] = {
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
-#if 0
     {
         .unicode = U_LATIN_SMALL_LETTER_LONG_S_WITH_DOT_ABOVE,
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_LONG_S),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_C),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Z),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_B_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_B),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_D),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_F_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_F),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_M_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_M),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_P_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_P),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_R),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_S),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_T),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_W),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_X_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_X),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_F_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_F),
+            REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
+        ),
+    },
+    /* MISSING */
+#if 0
+    {
+        .unicode = U_LATIN_SMALL_LETTER_D_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_D),
+            REF(U_COMBINING_DOT_ABOVE),
+        ),
+    },
+#endif
+#if 0
+    {
+        .unicode = U_LATIN_SMALL_LETTER_H_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            REF(U_COMBINING_DOT_ABOVE),
+        ),
+    },
+#endif
+#if 0
+    {
+        .unicode = U_LATIN_SMALL_LETTER_T_WITH_DOT_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_T),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
 #endif
 
-/*
-U_LATIN_SMALL_LETTER_H_WITH_DIAERESIS
-U_LATIN_SMALL_LETTER_T_WITH_DIAERESIS
-*/
+    /* diaeresis */
+    {
+        .unicode = U_COMBINING_DIAERESIS,
+        .draw = STROKE(
+            Q(B, ( 0,-4, 0, 0), ( 0,+6,+5,20)),
+            Q(E, ( 0,-4, 0, 0), ( 0,+6,+5,20, -60)),
+            Q(B, ( 0,+4, 0, 0), ( 0,+6,+5,20)),
+            Q(E, ( 0,+4, 0, 0), ( 0,+6,+5,20, -60)),
+        ),
+    },
+    {
+        .unicode = U_DIAERESIS,
+        .draw = REF(U_COMBINING_DIAERESIS),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_DIAERESIS,
+        .draw = STROKE(
+            Q(B, ( 0,-4, 0, 0), ( 0,+8,+7,30)),
+            Q(E, ( 0,-4, 0, 0), ( 0,+8,+7,30, +60)),
+            Q(B, ( 0,+4, 0, 0), ( 0,+8,+7,30)),
+            Q(E, ( 0,+4, 0, 0), ( 0,+8,+7,30, +60)),
+        ),
+    },
+
+    /*
+    MISSING:
+    U_LATIN_SMALL_LETTER_T_WITH_DIAERESIS
+    */
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_DIAERESIS,
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_H_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
@@ -2345,16 +2725,124 @@ U_LATIN_SMALL_LETTER_T_WITH_DIAERESIS
             REF(U_COMBINING_DIAERESIS),
         ),
     },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_N_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_N),
+            REF(U_COMBINING_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_W),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_X_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_X),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_DIAERESIS,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_DIAERESIS),
+        ),
+    },
 
-/*
-U_LATIN_SMALL_LETTER_L_WITH_ACUTE
-U_LATIN_SMALL_LETTER_AE_WITH_ACUTE
-*/
+    /* acute */
+    {
+        .unicode = U_COMBINING_ACUTE_ACCENT,
+        .draw = STROKE(
+            Q(I, ( 0,+4, 0, 0), ( 0,+7, 0, 0)),
+            Q(O, ( 0,-1, 0, 0), ( 0,+5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_ACUTE_ACCENT,
+        .max_coord = COORD(0,+6, 0, 0),
+        .draw = STROKE(
+            Q(I, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
+            Q(O, ( 0,+6, 0, 0), (-1,+6, 0, 0)),
+        ),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_ACUTE,
+        .draw = STROKE(
+            Q(I, ( 0,+5, 0, 0), ( 0,+10, 0, 0)),
+            Q(O, ( 0,-2, 0, 0), ( 0,+8, 0, 0)),
+        ),
+    },
+    /*
+    MISSING:
+    U_LATIN_SMALL_LETTER_AE_WITH_ACUTE
+    01FC;LATIN CAPITAL LETTER AE WITH ACUTE
+    */
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_ACUTE,
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_ACUTE_ACCENT),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_L_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_L),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
@@ -2462,6 +2950,148 @@ U_LATIN_SMALL_LETTER_AE_WITH_ACUTE
             REF(U_COMBINING_ACUTE_ACCENT),
         ),
     },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_AE_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_AE),
+            REF(U_COMBINING_ACUTE_ACCENT),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_C),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_L),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_R),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_S),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Z),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_K_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_K),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_M_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_M),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_P_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_P),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_ACUTE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_W),
+            REF(UX_COMBINING_CAPITAL_ACUTE),
+        ),
+    },
+
+
+    /* grave */
+    {
+        .unicode = U_COMBINING_GRAVE_ACCENT,
+        .draw = XFORM(swap_x, REF(U_COMBINING_ACUTE_ACCENT)),
+    },
+    {
+        .unicode = U_GRAVE_ACCENT,
+        .min_coord = COORD(0,-6, 0, 0),
+        .draw = XFORM(swap_x, REF(U_ACUTE_ACCENT)),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_GRAVE,
+        .draw = XFORM(swap_x, REF(UX_COMBINING_CAPITAL_ACUTE)),
+    },
 
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_GRAVE,
@@ -2520,16 +3150,90 @@ U_LATIN_SMALL_LETTER_AE_WITH_ACUTE
         ),
     },
 
-/*
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_W),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_GRAVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_GRAVE),
+        ),
+    },
 
-LATIN SMALL LETTER D WITH CARON
-LATIN SMALL LETTER H WITH CARON
-LATIN SMALL LETTER L WITH CARON
-LATIN SMALL LETTER T WITH CARON
-LATIN SMALL LETTER DZ WITH CARON
-LATIN SMALL LETTER K WITH CARON
-LATIN SMALL LETTER EZH WITH CARON
-*/
+    /* caron / hacek */
+    {
+        .unicode = U_COMBINING_CARON,
+        .draw = STROKE(
+            Q(I, ( 0,-5, 0, 0), ( 0,+7, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+5, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0,+7, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_CARON,
+        .min_coord = COORD(0,-6, 0, 0),
+        .max_coord = COORD(0,+6, 0, 0),
+        .draw = STROKE(
+            Q(I, ( 0,-6, 0, 0), (-1,+6, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
+            Q(O, ( 0,+6, 0, 0), (-1,+6, 0, 0)),
+        ),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_CARON,
+        .draw = STROKE(
+            Q(I, ( 0,-5, 0, 0), ( 0,+10, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+8, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0,+10, 0, 0)),
+        ),
+    },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_CARON,
         .draw = COMPOSE(
@@ -2614,9 +3318,162 @@ LATIN SMALL LETTER EZH WITH CARON
             REF(U_COMBINING_CARON),
         ),
     },
-/*
-LATIN SMALL LETTER H WITH CIRCUMFLEX
-*/
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_C),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_D),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_R),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_S),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_T),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Z),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_K_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_K),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_H_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_K_WITH_CARON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_K),
+            REF(UX_COMBINING_CAPITAL_CARON),
+        ),
+    },
+    /* MISSING: */
+    /* 013D;LATIN CAPITAL LETTER L WITH CARON (display with comma, not hacek) */
+    /* 010F;LATIN SMALL LETTER D WITH CARON   (display with comma, not hacek)*/
+    /* 013E;LATIN SMALL LETTER L WITH CARON   (display with comma, not hacek)*/
+    /* 0165;LATIN SMALL LETTER T WITH CARON   (display with comma, not hacek)*/
+    /* 01C4;LATIN CAPITAL LETTER DZ WITH CARON */
+    /* 01EE;LATIN CAPITAL LETTER EZH WITH CARON */
+    /* 01C6;LATIN SMALL LETTER DZ WITH CARON */
+    /* 01EF;LATIN SMALL LETTER EZH WITH CARON */
+
+    /* circumflex */
+    {
+        .unicode = U_COMBINING_CIRCUMFLEX_ACCENT,
+        .draw = STROKE(
+            Q(I, ( 0,-5, 0, 0), ( 0,+5, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+7, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0,+5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_CIRCUMFLEX_ACCENT,
+        .min_coord = COORD(0,-6, 0, 0),
+        .max_coord = COORD(0,+6, 0, 0),
+        .draw = STROKE(
+            Q(I, ( 0,-6, 0, 0), ( 0,+3, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), (-1,+6, 0, 0)),
+            Q(O, ( 0,+6, 0, 0), ( 0,+3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_CIRCUMFLEX,
+        .draw = STROKE(
+            Q(I, ( 0,-5, 0, 0), ( 0, +8, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,+10, 0, 0)),
+            Q(O, ( 0,+5, 0, 0), ( 0, +8, 0, 0)),
+        ),
+    },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_CIRCUMFLEX,
         .draw = COMPOSE(
@@ -2636,6 +3493,13 @@ LATIN SMALL LETTER H WITH CIRCUMFLEX
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_H_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
@@ -2701,6 +3565,597 @@ LATIN SMALL LETTER H WITH CIRCUMFLEX
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_C),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_H),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_J_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_J),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_S),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_W),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_CIRCUMFLEX,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Z),
+            REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
+        ),
+    },
+
+    /* tilde */
+    {
+        .unicode = U_COMBINING_TILDE,
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(I, ( 0,+6, 0, 0), ( 0,+5,+6, 60)),
+            Q(L, ( 0,+6,-6,20), ( 0,+5,+6,-20)),
+            Q(L, ( 0,-6,+6,20), ( 0,+5,+6, 80)),
+            Q(O, ( 0,-6, 0, 0), ( 0,+5,+6,  0)),
+        ),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_TILDE,
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(I, ( 0,+6, 0, 0), ( 0,+8,+10, 60)),
+            Q(L, ( 0,+6,-6,20), ( 0,+8,+10,-20)),
+            Q(L, ( 0,-6,+6,20), ( 0,+8,+10, 80)),
+            Q(O, ( 0,-6, 0, 0), ( 0,+8,+10,  0)),
+        ),
+    },
+
+    {
+        .unicode = U_LATIN_SMALL_LETTER_E_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_E),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_A_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_A),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_N_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_N),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_O_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_O),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_I_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_U_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_U),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_V_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_V),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_Y_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_Y),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_V_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_V),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_G_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_G),
+            REF(U_COMBINING_TILDE),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_G_WITH_TILDE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_TILDE),
+        ),
+    },
+
+    /* ring above */
+    {
+        .unicode = U_COMBINING_RING_ABOVE,
+        .line_step = LS_THINNER,
+        .draw = STROKE(
+            Q(L, ( 0,-3, 0, 0), (+2,+4, 0, 0)),
+            Q(L, ( 0,-3, 0, 0), ( 0,+7,+6,30)),
+            Q(L, ( 0,+3, 0, 0), ( 0,+7,+6,30)),
+            Q(L, ( 0,+3, 0, 0), (+2,+4, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_RING_ABOVE,
+        .line_step = LS_THINNER,
+        .draw = REF(U_COMBINING_RING_ABOVE),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_RING_ABOVE,
+        .line_step = LS_THINNER,
+        .draw = STROKE(
+            Q(L, ( 0,-4,-3,60), (-2,+6,  0, 0)),
+            Q(L, ( 0,-4,-3,60), ( 0,+9,+10,10)),
+            Q(L, ( 0,+4,+3,60), ( 0,+9,+10,10)),
+            Q(L, ( 0,+4,+3,60), (-2,+6,  0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_A_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_A),
+            REF(U_COMBINING_RING_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_U_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_U),
+            REF(U_COMBINING_RING_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_W_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_W),
+            REF(U_COMBINING_RING_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_Y_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_Y),
+            REF(U_COMBINING_RING_ABOVE),
+        ),
+    },
+
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_RING_ABOVE),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_RING_ABOVE,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_RING_ABOVE),
+        ),
+    },
+
+    /* cedilla */
+    {
+        .unicode = U_COMBINING_CEDILLA,
+        .draw = STROKE(
+            Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
+            Q(P, ( 0, 0, 0, 0), ( 0,-3,-4,20)),
+            Q(S, ( 0,+3, 0, 0), ( 0,-4, 0, 0)),
+            Q(S, ( 0,+3, 0, 0), (-1,-6, 0, 0)),
+            Q(E, ( 0,-3, 0, 0), (-1,-6, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_CEDILLA,
+        .draw = REF(U_COMBINING_CEDILLA),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_C_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_C),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_S_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_S),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_T_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_T),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_E_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_E),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_O_WITH_REAL_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_O),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_C),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_S),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_T),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_O_WITH_REAL_CEDILLA,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(U_COMBINING_CEDILLA),
+        ),
+    },
+    /* 1E29;LATIN SMALL LETTER H WITH CEDILLA */
+    /* 1E28;LATIN CAPITAL LETTER H WITH CEDILLA */
+    /* note: Marshalese needs real cedilla with L, M, N (and O) */
+    /* 0123;LATIN SMALL LETTER G WITH CEDILLA    misnomer: should be 'INVERTED COMMA ABOVE' (Latvian) */
+    /* 1E11;LATIN SMALL LETTER D WITH CEDILLA    misnomer: should be 'COMMA' (Livonian)*/
+    /* 0137;LATIN SMALL LETTER K WITH CEDILLA    misnomer: should be 'COMMA' (Latvian) */
+    /* 013C;LATIN SMALL LETTER L WITH CEDILLA    misnomer: should be 'COMMA' (Latvian) */
+    /* 0146;LATIN SMALL LETTER N WITH CEDILLA    misnomer: should be 'COMMA' (Latvian) */
+    /* 0157;LATIN SMALL LETTER R WITH CEDILLA    misnomer: should be 'COMMA' (Latvian) */
+    /* 0122;LATIN CAPITAL LETTER G WITH CEDILLA  misnomer: should be 'COMMA' (Latvian) */
+    /* 1E10;LATIN CAPITAL LETTER D WITH CEDILLA  misnomer: should be 'COMMA' (Livonian) */
+    /* 0136;LATIN CAPITAL LETTER K WITH CEDILLA  misnomer: should be 'COMMA' (Latvian) */
+    /* 013B;LATIN CAPITAL LETTER L WITH CEDILLA  misnomer: should be 'COMMA' (Latvian) */
+    /* 0145;LATIN CAPITAL LETTER N WITH CEDILLA  misnomer: should be 'COMMA' (Latvian) */
+    /* 0156;LATIN CAPITAL LETTER R WITH CEDILLA  misnomer: should be 'COMMA' (Latvian) */
+
+
+    /* macron */
+    {
+        .unicode = U_COMBINING_MACRON,
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(B, ( 0,-5,-4,30), (+2,+5, 0, 0)),
+            Q(E, ( 0,+5,+4,30), (+2,+5, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_MACRON,
+        .draw = REF(U_COMBINING_MACRON),
+    },
+    {
+        .unicode = UX_COMBINING_CAPITAL_MACRON,
+        .line_step = LS_THIN,
+        .draw = STROKE(
+            Q(B, ( 0,-5,-4,30), (+2,+8, 0, 0)),
+            Q(E, ( 0,+5,+4,30), (+2,+8, 0, 0)),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_A_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_A),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_E_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_E),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_I_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_O_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_O),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_U_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_U),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_AE_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_AE),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_Y_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_Y),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_SMALL_LETTER_G_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_G),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_M_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_M),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_P_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_P),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_N_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_SMALL_LETTER_N),
+            REF(U_COMBINING_MACRON),
+        ),
+    },
+
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_A),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_E),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_I),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_O),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_U),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_AE_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_AE),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_Y),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_G),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_M),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_P_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_P),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_MACRON,
+        .draw = COMPOSE(
+            REF(U_LATIN_CAPITAL_LETTER_N),
+            REF(UX_COMBINING_CAPITAL_MACRON),
+        ),
+    },
+
+
 };
 
 /*
@@ -2718,10 +4173,12 @@ static font_def_t f1_font_book = {
     .family_name = FAMILY_NAME,
     .box = {
         .lo = { .x = -14, .y = -9 },
-        .hi = { .x = +14, .y = +9 },
+        .hi = { .x = +14, .y = +12 },
     },
     .base_y = -3,
-    .line_width = { 4, 4.4, 3.5 },
+    .top_y = +10,
+    .bottom_y = -9,
+    .line_width = { 4, 4.4, 3.5, 3.0 },
     .slant = 0,
     .radius = { 4, 8, 12, 24 }, // SMALL, LARGE, HUGE, GIANT
     .angle = { 5, 8 },          // TIGHT, ANGLED
@@ -2733,8 +4190,8 @@ static font_def_t f1_font_book = {
         -32,0,-16, 0,-5,-0., 6,10,12,14,18,22,26,29,32,35,38,42,46,50,52,54,58,64,69, 0,80, 0,96
     })),
     .coord_y = VEC(((double const []){
-    /* -9  -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7 +8 +9 */
-       -0., 0, 0, 8,12,16,20,25,29,33,37,41,46,49,52,58,61,64,66,
+    /* -9  -8 -7 -6 -5 -4 -3 -2 -1  0 +1 +2 +3 +4 +5 +6 +7 +8 +9+10+11+12 */
+       -0., 0, 0, 8,12,16,20,25,29,33,37,41,46,49,52,58,61,64,66,70,74,78
     })),
     .highlight_y = VEC(((int const []) {
        /* baseline */
@@ -2778,12 +4235,38 @@ static font_def_t f1_font_book = {
 };
 
 /* ********************************************************************** */
+
+typedef CP_ARR_T(unicode_t) font_a_unicode_t;
+
+typedef struct {
+    char const *name;
+    char const *abbrev;
+    size_t have_cnt;
+    double have_ratio;
+    font_a_unicode_t cp;
+} unicode_set_t;
+
+#include "unisets.inc"
+
+/* ********************************************************************** */
 /* from this point, UNICODE() just returns the number */
 
 #undef UNICODE
 #define UNICODE(X,Y) (X)
 
 /* ********************************************************************** */
+
+static void ls_thin(font_t const *font, font_gc_t *gc)
+{
+    gc->line_width_defined = true;
+    gc->line_width = font->def->line_width[LS_THIN];
+}
+
+static void ls_thinner(font_t const *font, font_gc_t *gc)
+{
+    gc->line_width_defined = true;
+    gc->line_width = font->def->line_width[LS_THINNER];
+}
 
 static void swap_x(font_t const *font CP_UNUSED, font_gc_t *gc)
 {
@@ -3625,10 +5108,20 @@ static font_glyph_t *find_glyph(
     return gj;
 }
 
+static double line_width(
+    font_def_t const *def,
+    double step)
+{
+    double lo = def->line_width[lrint(floor(step))];
+    double hi = def->line_width[lrint(ceil(step))];
+    double fr = step - floor(step);
+    return cp_lerp(lo, hi, fr);
+}
+
 static void get_glyph_ref(
     font_v_vertex_t *vo,
     font_glyph_t *out,
-    font_gc_t const *gc,
+    font_gc_t const *ogc,
     font_draw_t const *_vi)
 {
     font_draw_ref_t const *vi = font_draw_cast(*vi, _vi);
@@ -3645,8 +5138,13 @@ static void get_glyph_ref(
         out->line_step_of = gj;
     }
 
+    font_gc_t gn = *ogc;
+    if (!gn.line_width_defined) {
+        gn.line_width_defined = is_defined(gj->def->line_step);
+        gn.line_width = line_width(out->font->def, gj->def->line_step);
+    }
     font_glyph_t *width_of = out->width_of;
-    get_glyph(vo, out, gc, gj->def->draw);
+    get_glyph(vo, out, &gn, gj->def->draw);
     out->width_of = width_of;
 }
 
@@ -3745,7 +5243,8 @@ static font_draw_poly_t *convert_draw(
 
     font_gc_t gc = {0};
     cp_mat2w_unit(&gc.xform);
-    gc.line_width = def->line_width[dglyph->line_step];
+    gc.line_width_defined = is_defined(dglyph->line_step);
+    gc.line_width = line_width(def, dglyph->line_step);
 
     get_glyph(&vertex, out, &gc, in);
 
@@ -3775,26 +5274,22 @@ static void convert_glyph(
         out->line_step_of = out;
     }
 
+    double lw = line_width(out->font->def, out->line_step_of->def->line_step);
     if (out->def->min_coord != NULL) {
-        double lw = out->font->def->line_width[out->line_step_of->def->line_step];
         out->box.min.x = get_x(out, out->font, out->def->min_coord, false, lw);
     }
     if (out->def->max_coord != NULL) {
-        double lw = out->font->def->line_width[out->line_step_of->def->line_step];
         out->box.max.x = get_x(out, out->font, out->def->max_coord, false, lw);
     }
 
     if (out->def->min_coord_from_y != NULL) {
-        double lw = out->font->def->line_width[out->line_step_of->def->line_step];
         out->box.min.x = get_y(out, out->font, out->def->min_coord_from_y, false, lw);
     }
     if (out->def->max_coord_from_y != NULL) {
-        double lw = out->font->def->line_width[out->line_step_of->def->line_step];
         out->box.max.x = get_y(out, out->font, out->def->max_coord_from_y, false, lw);
     }
 
     if (out->def->center_coord != NULL) {
-        double lw = out->font->def->line_width[out->line_step_of->def->line_step];
         if (out->box.min.x > out->box.max.x) {
             die(out, out->font, "center_coord without defined X min/max");
         }
@@ -3972,6 +5467,8 @@ static font_t *convert_font(
     font->box_max.max.x = coord_x(NULL, font, def->box.hi.x) +lw2;
     font->box_max.min.y = coord_y(NULL, font, def->box.lo.y);
     font->box_max.max.y = coord_y(NULL, font, def->box.hi.y);
+    font->top_y    = coord_y(NULL, font, def->top_y);
+    font->bottom_y = coord_y(NULL, font, def->bottom_y);
 
     font->box = (cp_vec2_minmax_t)CP_VEC2_MINMAX_EMPTY;
 
@@ -4610,31 +6107,35 @@ static void ps_proof_sheet(
     ps_begin_font(ps, font, 14);
     double yy = 0;
     (void)ps_write_str7(ps, font, 0, yy, "The quick brown fox jumps over the lazy dog.");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str7(ps, font, 0, yy, "Cwm fjord bank glyphs vext quiz.");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str32(ps, font, 0, yy,
         U"Fix, Schwyz! qu\u00E4kt J\u00FCrgen bl\u00F6d vom Pa\u00DF.");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str7(ps, font, 0, yy, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str7(ps, font, 0, yy, "abcdefghijklmnopqrstuvwxyz");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str7(ps, font, 0, yy, "0123456789 .:x;!? 5/8 fox-like b=(1+*a) x||y");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str32(ps, font, 0, yy,
         U"a[k] foo_bar __LINE__ hsn{xy} x*(y+5)<78 a\u2212b\u00b1c");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+    yy -= font->top_y - font->bottom_y;
 
     (void)ps_write_str32(ps, font, 0, yy,
-        U"#define TE \"ta\"#5 '$45' S$s 50% ~g &a o<a @a");
-    yy -= font->box_max.max.y - font->box_max.min.y;
+        U"#define TE \"ta\"#5 '$45' S$s 50% +~g &a o<a X@x");
+    yy -= font->top_y - font->bottom_y;
+
+    (void)ps_write_str32(ps, font, 0, yy,
+        U"50\x20aC 50$");
+    yy -= font->top_y - font->bottom_y;
 
     ps_end_font(ps);
     fprintf(ps->f, "restore\n");
@@ -4817,7 +6318,7 @@ static void ps_font_family(cp_v_font_p_t const *vfont)
     ps_t ps[1];
 
     /* print chart document */
-    cp_vchar_printf(fn, "out-font/%s.ps", font0->filename.data);
+    cp_vchar_printf(fn, "out-font/%s-family.ps", font0->filename.data);
     f = fopen_or_fail(cp_vchar_cstr(fn), "wt");
     ps_doc_begin(ps, f);
 
@@ -4832,12 +6333,145 @@ static void ps_font_family(cp_v_font_p_t const *vfont)
 
 /* ********************************************************************** */
 
+static int cmp_cp_set_by_coverage(void const *_a, void const *_b)
+{
+    unicode_set_t const *a = _a;
+    unicode_set_t const *b = _b;
+    int i = cp_cmp(rint(100 * b->have_ratio), rint(100 * a->have_ratio));
+    if (i != 0) {
+        return i;
+    }
+    return strcmp(a->name, b->name);
+}
+
+static void doc_coverage(
+    font_t *font0)
+{
+    /* count glyphs */
+    for (cp_arr_each(i, cp_set)) {
+        unicode_set_t *s = &cp_set[i];
+        assert(s->cp.size > 0);
+        s->have_cnt = 0;
+        for (cp_v_each(j, &s->cp)) {
+            if (find_glyph0(font0, cp_v_nth(&s->cp, j).codepoint) != NULL) {
+                s->have_cnt++;
+            }
+        }
+        s->have_ratio = cp_f(s->have_cnt) / cp_f(s->cp.size);
+
+        /* coverage below 50% is counted as 0.  This helps sorting. */
+        if (cp_lt(s->have_ratio, 0.5)) {
+            s->have_ratio = 0;
+        }
+    }
+
+    /* sort by coverage */
+    qsort(cp_set, cp_countof(cp_set), sizeof(cp_set[0]), cmp_cp_set_by_coverage);
+
+    /* output font */
+    cp_vchar_t fn[1] = {0};
+    FILE *f;
+
+    /* print chart document */
+    cp_vchar_printf(fn, "out-font/%s-coverage.tex", font0->filename.data);
+    f = fopen_or_fail(cp_vchar_cstr(fn), "wt");
+    fprintf(f, "\\documentclass[12pt,a4paper]{article}\n");
+    fprintf(f, "\\usepackage{a4wide}\n");
+    fprintf(f, "\\usepackage{longtable}\n");
+    fprintf(f, "\\parindent0pt\n");
+    fprintf(f, "\\parskip1ex\n");
+    fprintf(f, "\\begin{document}\n");
+    fprintf(f, "\\sloppy\n");
+    fprintf(f, "\\section*{%s}\n", font0->family_name);
+
+    /* fully covered */
+    char const *sep = NULL;
+    for (cp_arr_each(i, cp_set)) {
+        unicode_set_t const *s = &cp_set[i];
+        if (cp_eq(s->have_ratio, 1)) {
+            if (sep == NULL) {
+                fprintf(f, "\\subsection*{Fully Covered}\n");
+                sep = "";
+            }
+            fprintf(f, "%s%s", sep, s->name);
+            sep = ",\n";
+        }
+    }
+    if (sep != NULL) {
+        fprintf(f, ".\n\n");
+    }
+
+    /* low coverage */
+    sep = NULL;
+    for (cp_arr_each(i, cp_set)) {
+        unicode_set_t const *s = &cp_set[i];
+        if (cp_eq(s->have_ratio, 0)) {
+            if (sep == NULL) {
+                fprintf(f, "\\subsection*{Coverage Below 50\\%%}\n");
+                sep = "";
+            }
+            fprintf(f, "%s%s", sep, s->name);
+            sep = ",\n";
+        }
+    }
+    if (sep != NULL) {
+        fprintf(f, ".\n\n");
+    }
+
+    fprintf(f, "\\subsection*{Almost Covered (Max. 5 Code Points Missing)}\n");
+    fprintf(f, "\\begin{longtable}[l]{lrrr}\n");
+    for (cp_arr_each(i, cp_set)) {
+        unicode_set_t const *s = &cp_set[i];
+        if (cp_eq(s->have_ratio, 1)) {
+            continue;
+        }
+        if (cp_eq(s->have_ratio, 0)) {
+            continue;
+        }
+        if ((s->cp.size - s->have_cnt) <= 5) {
+            fprintf(f, "%s\\\\\n", s->name);
+            for (cp_v_each(j, &s->cp)) {
+                unicode_t const *u = &cp_v_nth(&s->cp, j);
+                if (find_glyph0(font0, u->codepoint) == NULL) {
+                    fprintf(f, "\\qquad{%s}\\\\\n", u->name);
+                }
+            }
+        }
+    }
+    fprintf(f, "\\end{longtable}\n");
+
+    fprintf(f, "\\subsection*{Partially Covered}\n");
+    fprintf(f, "\\begin{longtable}[l]{lrrr}\n");
+    fprintf(f, "\\textbf{Set}&\\textbf{Coverage}&\\textbf{Missing}&\\textbf{Glyph Count}\\\\\n");
+    for (cp_arr_each(i, cp_set)) {
+        unicode_set_t const *s = &cp_set[i];
+        if (cp_eq(s->have_ratio, 1)) {
+            continue;
+        }
+        if (cp_eq(s->have_ratio, 0)) {
+            continue;
+        }
+        if ((s->cp.size - s->have_cnt) <= 5) {
+            continue;
+        }
+        fprintf(f, "%s & %3.0f\\%% & %"CP_Z"u & %"CP_Z"u\\\\\n",
+            s->name, 100*s->have_ratio, s->cp.size - s->have_cnt, s->cp.size);
+    }
+    fprintf(f, "\\end{longtable}\n");
+
+    fprintf(f, "\\end{document}\n");
+    fclose(f);
+}
+
+/* ********************************************************************** */
+
 int main(void)
 {
     cp_v_font_p_t vfont = {0};
 
     font_def_t *def = &f1_font_book;
     sort_font_def(&def->glyph);
+    printf("%s: %"CP_Z"u glyphs\n", def->family_name, def->glyph.size);
 
     convert_family(&vfont, def);
 
@@ -4848,6 +6482,9 @@ int main(void)
 
     /* overview document */
     ps_font_family(&vfont);
+
+    /* coverage document */
+    doc_coverage(cp_v_nth(&vfont, 0));
 
     exit(EXIT_SUCCESS);
 }

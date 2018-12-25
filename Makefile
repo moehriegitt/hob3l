@@ -568,6 +568,8 @@ font: out-font/.stamp
 out-font/.stamp: fontgen.exe
 	mkdir -p out-font
 	./fontgen.exe
+	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
+	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
 
 ######################################################################
 # installation, the usual ceremony.
