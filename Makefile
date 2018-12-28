@@ -245,7 +245,8 @@ MOD_C.libhob3l.a := \
     csg2-2js.c \
     csg2-2ps.c \
     ps.c \
-    gc.c
+    gc.c \
+    font.c
 
 MOD_O.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.o))
 MOD_D.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.d))
@@ -368,8 +369,8 @@ hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a
 cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
-fontgen.exe: $(MOD_O.fontgen.exe)
-	$(CC) -o $@ $(MOD_O.fontgen.exe) -L. -lhob3lbase $(LIBS) -lm $(CFLAGS)
+fontgen.exe: $(MOD_O.fontgen.exe) libhob3lbase.a libhob3l.a
+	$(CC) -o $@ $(MOD_O.fontgen.exe) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
 
 out/%: script/%.in
 	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
