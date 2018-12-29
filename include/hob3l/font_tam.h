@@ -149,9 +149,18 @@ typedef struct {
     unsigned result : 20;
 } __attribute__((__aligned__(8))) cp_font_map_t;
 
+/**
+ * Language codes in OpenType format (specificaly, not
+ * ISO-639-(1,2,3) -- see OpenType list).
+ */
+typedef struct {
+    /* Three or four upper case characters. */
+    char id[4];
+} cp_font_lang_t;
+
 typedef CP_VEC_T(cp_font_glyph_t) cp_v_font_glyph_t;
 typedef CP_VEC_T(cp_font_map_t) cp_v_font_map_t;
-typedef CP_VEC_T(char const *) cp_v_char_const_p_t;
+typedef CP_VEC_T(cp_font_lang_t) cp_v_font_lang_t;
 typedef CP_VEC_T(uint32_t) cp_v_uint32_t;
 
 typedef struct {
@@ -243,7 +252,7 @@ typedef struct {
 
     /**
      * A map of language tags */
-    cp_v_char_const_p_t lang_tab;
+    cp_v_font_lang_t lang_tab;
 
     /**
      * Unconditional composition; cp_font_compose_t::second is a glyph ID. */

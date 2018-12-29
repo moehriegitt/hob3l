@@ -15,6 +15,8 @@ my %alt_def = ();
 my %cnt = ();
 my %name = ();
 my %alt_name = ();
+my %priv_def = ();
+my %priv_name = ();
 
 sub name($)
 {
@@ -46,6 +48,29 @@ while (<$f>) {
 }
 close $f;
 
+my $fn = 'privatecodes.txt';
+open(my $g, '<', $fn) or
+    die "Error: Unable to open '$fn' for reading: $@\n";
+my $priv_code = 0xf0002;
+while (<$g>) {
+    s/#.*//;
+    s/^\s+//;
+    s/\s+$//;
+    s/\s+/ /g;
+    next if /^$/;
+    my $name = $_;
+    my $c_name = $name;
+    $c_name =~ s/[-\s+_]+/_/g;
+    if ($have{$c_name}) {
+        die "Error: Private code point name already exists: $name\n";
+    }
+    $have{$c_name} = 1;
+    $priv_def{$c_name} = $priv_code;
+    $priv_name{$priv_code} = $name;
+    $priv_code++;
+}
+close $g;
+
 my %have_hex = ();
 for my $c_name(sort keys %have) {
     if ($def{$c_name} && ($cnt{$c_name} == 1)) {
@@ -53,6 +78,10 @@ for my $c_name(sort keys %have) {
         print  "#define U_$c_name UNICODE(0x$hex,\"".name(hex($hex))."\")\n";
         printf "#define U_%04X U_$c_name\n", hex($hex);
         $have_hex{hex($hex)} = 1;
+    }
+    if (my $code = $priv_def{$c_name}) {
+        my $hex = sprintf("%04X", $code);
+        print  "#define UX_$c_name UNICODE(0x$hex,\"PRIVATE $priv_name{$code}\")\n";
     }
 }
 
