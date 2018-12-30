@@ -136,6 +136,8 @@ ifeq ($(WERROR),1)
 CFLAGS_WARN   += -Werror
 endif
 
+CFLAGS_WARN   += -fmax-errors=10
+
 ######################################################################
 
 all:

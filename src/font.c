@@ -5,6 +5,8 @@
 #include <hob3l/font.h>
 #include <hob3l/csg2.h>
 
+#define ZWJ 0x200d
+
 static void cp_font_draw_path(
     cp_csg2_poly_t *poly,
     cp_font_gc_t *gc,
@@ -80,6 +82,35 @@ static int cmp_glyph(
     unsigned a = *glyph_id;
     unsigned b = glyph->id;
     return a < b ? -1 : a > b ? +1 : 0;
+}
+
+static int cmp_map2(
+    unsigned const (*a)[2],
+    cp_font_map_t const *b,
+    void *user CP_UNUSED)
+{
+    if ((*a)[0] != b->first) {
+        return (*a)[0] < b->first ? -1 : +1;
+    }
+    if ((*a)[1] != b->second) {
+        return (*a)[1] < b->second ? -1 : +1;
+    }
+    return 0;
+}
+
+static bool glyph_replace(
+    cp_v_font_map_t const *map,
+    unsigned *result,
+    unsigned first,
+    unsigned second)
+{
+    unsigned key[2] = { first, second };
+    size_t i = cp_v_bsearch(&key, map, cmp_map2, NULL);
+    if (i >= map->size) {
+        return false;
+    }
+    *result = cp_v_nth(map, i).result;
+    return true;
 }
 
 /* ********************************************************************** */
@@ -211,27 +242,93 @@ extern void cp_font_gc_set_font(
  * with anything else.
  */
 extern void cp_font_print1(
-   cp_v_obj_p_t *out,
-   cp_font_gc_t *gc,
-   unsigned glyph_id)
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned glyph_id)
 {
-   cp_font_glyph_t const *glyph = cp_font_find_glyph(gc->font, glyph_id);
-   if (glyph == NULL) {
-       glyph = gc->replacement;
-       if (glyph == NULL) {
-           return;
-       }
-   }
-   assert(glyph != NULL);
+    cp_font_glyph_t const *glyph = cp_font_find_glyph(gc->font, glyph_id);
+    if (glyph == NULL) {
+        glyph = gc->replacement;
+        if (glyph == NULL) {
+            return;
+        }
+    }
+    assert(glyph != NULL);
 
-   if (glyph->flags & CP_FONT_GF_DECOMPOSE) {
-       cp_font_print1(out, gc, glyph->first);
-       cp_font_print1(out, gc, glyph->second);
-       return;
-   }
+    if (glyph->flags & CP_FONT_GF_DECOMPOSE) {
+        cp_font_print1(out, gc, glyph->first);
+        cp_font_print1(out, gc, glyph->second);
+        return;
+    }
 
-   cp_font_draw_poly(out, gc,
-       (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
-       glyph->second);
-   gc->state.last_cp = glyph_id;
+    cp_font_draw_poly(out, gc,
+        (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
+        glyph->second);
+    gc->state.last_cp = glyph_id;
+}
+
+/**
+ * Prints a string.
+ *
+ * This is like cp_font_print1, but prints until next() returns a NUL
+ * characters.
+ *
+ * Because this handles a sequence, this does more than cp_font_print1:
+ *
+ * This handles equivalence and ligature composition of glyphs, including
+ * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ */
+extern void cp_font_print(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned (*next)(void *user),
+    void *user)
+{
+    unsigned c1 = next(user);
+    while (c1 != 0) {
+        unsigned c2 = next(user);
+        if (c2 != 0) {
+        try_combine:
+            if (glyph_replace(&gc->font->combine, &c1, c1, c2)) {
+                continue;
+            }
+            if (c2 == ZWJ) {
+                /* font has no special mapping for X+ZWJ */
+                /* get next char that is not a ZWJ */
+                do {
+                    c2 = next(user);
+                } while (c2 == ZWJ);
+
+                /* try to replace ZWJ+Y */
+                if (c2 != 0) {
+                    (void)glyph_replace(&gc->font->combine, &c2, ZWJ, c2);
+                    goto try_combine;
+                }
+            }
+        }
+        cp_font_print1(out, gc, c1);
+        c1 = c2;
+    }
+}
+
+/**
+ * Read one character from a UTF32 string.
+ */
+extern unsigned cp_font_read_str_utf32(void *user)
+{
+    unsigned const **s = user;
+    unsigned r = **s;
+    (*s)++;
+    return r;
+}
+
+/**
+ * Read one character from an ISO-8859-1 (including US-ASCII) string.
+ */
+extern unsigned cp_font_read_str_latin1(void *user)
+{
+    unsigned char const **s = user;
+    unsigned r = **s;
+    (*s)++;
+    return r;
 }

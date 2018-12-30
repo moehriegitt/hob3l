@@ -104,6 +104,8 @@ extern void cp_font_gc_set_font(
  * automatic line breaking, and then revert to a previous state
  * (by reverting gc->state).
  *
+ * This only appends objects of type cp_csg2_poly_t to \p out.
+ *
  * To reset the gc for a newline, gc->state need to be zeroed.
  *
  * If the glyph is not available, this will render a replacement
@@ -118,8 +120,55 @@ extern void cp_font_gc_set_font(
  * with anything else.
  */
 extern void cp_font_print1(
-   cp_v_obj_p_t *out,
-   cp_font_gc_t *gc,
-   unsigned glyph_id);
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned glyph_id);
+
+/**
+ * Prints a string.
+ *
+ * This is like cp_font_print1, but prints until next() returns a NUL
+ * characters.
+ *
+ * Because this handles a sequence, this does more than cp_font_print1:
+ *
+ * This handles equivalence and ligature composition of glyphs, including
+ * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ */
+extern void cp_font_print(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned (*next)(void *user),
+    void *user);
+
+/**
+ * Read one character from a UTF32 string.
+ */
+extern unsigned cp_font_read_str_utf32(void *user);
+
+/**
+ * Read one character from an ISO-8859-1 (including US-ASCII) string.
+ */
+extern unsigned cp_font_read_str_latin1(void *user);
+
+/**
+ * Like cp_font_print, but from an ISO-8859-1 character string */
+static inline void cp_font_print_str_latin1(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    char const *s)
+{
+    cp_font_print(out, gc, cp_font_read_str_latin1, &s);
+}
+
+/**
+ * Like cp_font_print, but from an UTF32 string */
+static inline void cp_font_print_str32(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned const *s)
+{
+    cp_font_print(out, gc, cp_font_read_str_utf32, &s);
+}
 
 #endif /* CP_FONT_H_ */

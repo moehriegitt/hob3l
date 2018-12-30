@@ -9,5 +9,9 @@ unisets.inc: mkset dummy
 	./mkset > $@.new
 	mv $@.new $@
 
+unicomp.inc: compdecomp dummy
+	./compdecomp > $@.new
+	mv $@.new $@
+
 .PHONY: dummy
 dummy:

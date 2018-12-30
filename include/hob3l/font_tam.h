@@ -254,16 +254,12 @@ typedef struct {
      * A map of language tags */
     cp_v_font_lang_t lang_tab;
 
-    /**
-     * Unconditional composition; cp_font_compose_t::second is a glyph ID. */
-    cp_v_font_map_t compose;
+    /** Unconditional combination; cp_font_map_t::second is a glyph ID. */
+    cp_v_font_map_t combine;
 
     /**
-     * Ligature composition; cp_font_compose_t::second is a glyph ID. */
-    cp_v_font_map_t liga_compose;
-
-    /**
-     * Language specific mapping; cp_font_compose_t::second is a language index into lang_tab. */
+     * Language specific mapping; cp_font_map_t::second is a language
+     * index into lang_tab.  idx 0 is the default language. */
     cp_v_font_map_t lang_map;
 } cp_font_t;
 
@@ -302,8 +298,10 @@ typedef struct {
     /** Replacement glyph.  NULL if none is available. */
     cp_font_glyph_t const *replacement;
 
-    /** Language */
-    char const *lang;
+    /**
+     * Language ID (index into lang_map array); idx 0 is the default language
+     * for the font. */
+    unsigned lang;
 
     /** Text direction is right to lefT? */
     bool right2left;
