@@ -1,5 +1,5 @@
 all:
-	cd .. && $(MAKE) font
+	cd .. && $(MAKE) font-doc
 
 uniname.h: mkuniname dummy
 	./mkuniname > $@.new

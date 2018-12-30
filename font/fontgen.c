@@ -315,8 +315,10 @@ typedef enum {
     /** compose ligature a+b into the glyph where this is found (language specific or not) */
     MAP_TYPE_LIGATURE,
     /** join a+b into the glyph where this is found (language specific or not) */
-    MAP_TYPE_JOIN,
+    MAP_TYPE_JOINING,
     /** if the preceeding glyph is a, apply this amount of kerning (globally) */
+    MAP_TYPE_OPTIONAL,
+    /** like LIGATURE or JOINING, but is off by default an needs to be enabled using ZWJ */
     MAP_TYPE_KERNING,
     /** if the preceeding glyph is a, replace current glyph by b (globally) */
     MAP_TYPE_CONTEXT,
@@ -453,6 +455,8 @@ typedef struct {
     uint8_t min_size, max_size;
 
     font_box_t box;
+    font_coord_t cap_y;
+    font_coord_t xhi_y;
     font_coord_t base_y;
     font_coord_t top_y;
     font_coord_t bottom_y;
@@ -479,12 +483,30 @@ typedef struct {
     font_a_def_glyph_const_t glyph;
 } font_def_t;
 
+/**
+ * Auto-kerning works by defining discrete layers where
+ * collisions are detected.
+ *
+ * Number of layers for auto kerning:
+ *   3: one each at base, cap, and xhi
+ *   3 above cap
+ *   3 below base
+ *   3 between cap and xhi
+ *   4 between base and xhi
+ *  --
+ *  16
+ */
+#define AUTO_KERN_LAYER_COUNT 16
+
 struct font {
     char const *family_name;
     cp_vchar_t style_name;
     cp_vchar_t name;
     cp_vchar_t filename;
     cp_vec2_minmax_t box_max;
+    cp_vec2_minmax_t coll_box_y[AUTO_KERN_LAYER_COUNT-1];
+    double cap_y;
+    double xhi_y;
     double base_y;
     double top_y;
     double bottom_y;
@@ -550,7 +572,9 @@ typedef struct {
 #define LS_THINNER 3
 #define LS_LOWER   -0.0 /* usually just uses the default, but this is for overriding REF() */
 
-#define PAD_SCRIPT 2.0
+#define PAD_FRACTION 1.0
+#define PAD_SCRIPT   2.0
+#define PAD_DEFAULT  3.5
 
 #define VEC(x) {{ .data = (x), .size = cp_countof(x) }}
 
@@ -602,15 +626,37 @@ typedef struct {
 #define MAP(...) VEC(((font_def_map_t[]){ __VA_ARGS__ }))
 
 #define PAIR(A,B)     { .type=MAP_TYPE_COMBINE,  .a=A, .b=B }
-#define JOIN(A,B)     { .type=MAP_TYPE_JOIN,     .a=A, .b=B }
+#define JOIN(A,B)     { .type=MAP_TYPE_JOINING,  .a=A, .b=B }
 #define LIGA(A,B)     { .type=MAP_TYPE_LIGATURE, .a=A, .b=B }
+#define OPT(A,B)      { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
 #define CONTEXT(A,B)  { .type=MAP_TYPE_CONTEXT,  .a=A, .b=B }
 #define KERN(A,B)     { .type=MAP_TYPE_KERNING,  .a=A, .amount=B }
 
-#define LANG_PAIR(L,A,B)  { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }
-#define LANG_JOIN(L,A,B)  { .type=MAP_TYPE_JOIN,     .a=A, .b=B, .lang=L }
-#define LANG_LIGA(L,A,B)  { .type=MAP_TYPE_LIGATURE, .a=A, .b=B, .lang=L }
-#define LANG_REPLACE(L,A) { .type=MAP_TYPE_REPLACE,  .a=A,       .lang=L }
+/*
+ * LANG_OPT is are currently not used
+ */
+#define LANG_ONLY_PAIR(L,A,B)  { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }
+#define LANG_ONLY_JOIN(L,A,B)  { .type=MAP_TYPE_JOINING,  .a=A, .b=B, .lang=L }
+#define LANG_ONLY_LIGA(L,A,B)  { .type=MAP_TYPE_LIGATURE, .a=A, .b=B, .lang=L }
+#define LANG_REPLACE(L,A)      { .type=MAP_TYPE_REPLACE,  .a=A,       .lang=L }
+
+/* By default, all lang specific ligatures/joinings/pairs will get an optional
+ * entry in the global table.
+ * We cannot invoke macros from LANG_PAIR etc, because the parameters must not
+ * be macro expanded because the , within {} would cause errors...  Weird C
+ * syntax...
+ */
+#define LANG_PAIR(L,A,B) \
+    { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }, \
+    { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
+
+#define LANG_JOIN(L,A,B) \
+    { .type=MAP_TYPE_JOINING,  .a=A, .b=B, .lang=L }, \
+    { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
+
+#define LANG_LIGA(L,A,B) \
+    { .type=MAP_TYPE_LIGATURE, .a=A, .b=B, .lang=L }, \
+    { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
 
 #define Q_2_(P,X,Y) { .type = (P), .x = COORD_ X, .y = COORD_ Y }
 #define Q_1_(P,X,Y) Q_2_(P,X,Y)
@@ -1398,8 +1444,8 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = UX_NARROW_FRACTION_SLASH,
         .min_coord = COORD(-2,0,0,0),
         .max_coord = COORD(+2,0,0,0),
-        .lpad_abs = 1.0,
-        .rpad_abs = 1.0,
+        .lpad_abs = PAD_FRACTION,
+        .rpad_abs = PAD_FRACTION,
         .line_step = LS_THIN,
         .draw = REF(U_FRACTION_SLASH),
     },
@@ -6512,6 +6558,8 @@ static font_def_t f1_font_book = {
         .lo = { .x = -14, .y = -9 },
         .hi = { .x = +14, .y = +12 },
     },
+    .cap_y =  +6,
+    .xhi_y = +3,
     .base_y = -3,
     .top_y = +10,
     .bottom_y = -9,
@@ -6566,8 +6614,8 @@ static font_def_t f1_font_book = {
 #endif
     },
 
-    .lpad_default = 3.5,
-    .rpad_default = 3.5,
+    .lpad_default = PAD_DEFAULT,
+    .rpad_default = PAD_DEFAULT,
 
     .glyph = VEC(f1_a_glyph),
 };
@@ -6844,6 +6892,16 @@ static void die_(
 
 #define die(out, font, ...) die_(__FILE__, __LINE__, out, font, __VA_ARGS__)
 
+static unsigned my_signbit(double d)
+{
+    union {
+        double d;
+        int64_t i;
+    } u;
+    u.d = d;
+    return u.i < 0;
+}
+
 /**
  * Is it positive zero?
  *
@@ -6852,12 +6910,12 @@ static void die_(
  */
 static bool is_pos0(double x)
 {
-    return cp_eq(x,0) && (signbit(x) == 0);
+    return cp_eq(x,0) && (my_signbit(x) == 0);
 }
 
 static bool is_defined(double x)
 {
-    return !isnan(x) && !is_pos0(x);
+    return !is_pos0(x);
 }
 
 static double coord_x(
@@ -7326,7 +7384,7 @@ static font_corner_type_t get_corner_type(
         case +1: return FONT_TOP_RIGHT;
         }
     }
-    assert(0);
+    CP_DIE();
 }
 
 static font_vertex_type_t resolve_vertex_type(
@@ -7478,7 +7536,7 @@ static void convert_draw_vertex_arr(
         }
         vi->type = FONT_VERTEX_POINTED;
         size_t p = cp_wrap_sub1(i, sz);
-        size_t n = cp_wrap_add1(i, sz);
+        size_t n CP_UNUSED = cp_wrap_add1(i, sz);
         if (cp_vec2_eq(&wn[p], &wp[i])) {
             vi->coord = wp[i] = wn[i];
         }
@@ -7797,7 +7855,7 @@ static font_draw_poly_t *convert_draw(
 static void convert_glyph(
     font_glyph_t *out)
 {
-    font_def_glyph_t const *in = out->def;
+    font_def_glyph_t const *in CP_UNUSED = out->def;
     assert(in->unicode.codepoint == out->unicode.codepoint);
 
     if ((out->def->draw != NULL) &&
@@ -7979,7 +8037,6 @@ static void normalise_filename(
     for (cp_v_each(i, s)) {
         char c = cp_v_nth(s, i);
         c = (char)tolower((unsigned char)c);
-
         if (c == '-') {
             continue;
         }
@@ -7990,6 +8047,22 @@ static void normalise_filename(
     }
     *t = 0;
     s->size = CP_PTRDIFF(t, s->data);
+}
+
+static void normalise_c_name_lc(
+    cp_vchar_t *s)
+{
+    normalise_filename(s);
+}
+
+static void normalise_c_name_uc(
+    cp_vchar_t *s)
+{
+    normalise_c_name_lc(s);
+    for (cp_v_each(i, s)) {
+        char *c = cp_v_nth_ptr(s, i);
+        *c = (char)toupper((unsigned char)*c);
+    }
 }
 
 /**
@@ -8039,6 +8112,8 @@ static font_t *convert_font(
 
     /* font parameters */
     font->base_y = coord_y(NULL, font, def->base_y, NULL);
+    font->cap_y  = coord_y(NULL, font, def->cap_y,  NULL);
+    font->xhi_y  = coord_y(NULL, font, def->xhi_y,  NULL);
 
     size_t cxm = INTV_SIZE(def->box.lo.x, def->box.hi.x);
     size_t cym = INTV_SIZE(def->box.lo.y, def->box.hi.y);
@@ -8277,11 +8352,14 @@ static unsigned cp_flags_from_type(
     unsigned type)
 {
     switch (type) {
-    case MAP_TYPE_JOIN:
+    case MAP_TYPE_JOINING:
         return CP_FONT_MCF_JOINING;
 
     case MAP_TYPE_LIGATURE:
         return CP_FONT_MCF_LIGATURE;
+
+    case MAP_TYPE_OPTIONAL:
+        return CP_FONT_MCF_OPTIONAL;
 
     default:
         return 0;
@@ -8354,11 +8432,13 @@ static void finalise_font(
 
     /* dimensions */
     c->center_x = rasterize_x(&ram, 0);
-    c->em_x = rasterize_x(&ram, f->em + box.min.x);
-    c->em_y = rasterize_y(&ram, f->em + box.min.y);
-    c->top_y = rasterize_y(&ram, f->top_y);
+    c->em_x     = rasterize_x(&ram, f->em + box.min.x);
+    c->em_y     = rasterize_y(&ram, f->em + box.min.y);
+    c->top_y    = rasterize_y(&ram, f->top_y);
     c->bottom_y = rasterize_y(&ram, f->bottom_y);
-    c->base_y = rasterize_y(&ram, f->base_y);
+    c->base_y   = rasterize_y(&ram, f->base_y);
+    c->cap_y    = rasterize_y(&ram, f->cap_y);
+    c->xhi_y    = rasterize_y(&ram, f->xhi_y);
 
     /* glyphs */
     cp_v_init0(&c->glyph, f->glyph.size);
@@ -8402,8 +8482,9 @@ static void finalise_font(
             assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
             switch (comp->type) {
             case MAP_TYPE_COMBINE:
-            case MAP_TYPE_JOIN:
+            case MAP_TYPE_JOINING:
             case MAP_TYPE_LIGATURE:
+            case MAP_TYPE_OPTIONAL:
                 if (comp->lang == NULL) { // global
                     assert(comp->a.codepoint <= CP_FONT_ID_MASK);
                     assert(comp->b.codepoint <= CP_FONT_ID_MASK);
@@ -8509,8 +8590,9 @@ static void finalise_font(
 
         switch (comp->type) {
             case MAP_TYPE_COMBINE:
-            case MAP_TYPE_JOIN:
-            case MAP_TYPE_LIGATURE: {
+            case MAP_TYPE_JOINING:
+            case MAP_TYPE_LIGATURE:
+            case MAP_TYPE_OPTIONAL: {
                 assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
                 assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
                 assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
@@ -9160,7 +9242,8 @@ static void ps_proof_sheet(
     yy -= PS_MM(2);
     fprintf(ps->f, "save %g %g translate\n", x, y);
     ps_writeln_str7(ps, font, 14, &yy, "The quick brown fox jumps over the lazy dog.");
-    ps_writeln_str7(ps, font, 14, &yy, "Cwm fjord bank glyphs vext quiz.");
+    ps_writeln_str32(ps, font, 14, &yy,
+        U"Cwm fjord bank glyphs vext quiz. pr\x30ci\x301s\x30cti\x301 Svi\x301\xfejo\x301\xf0");
 
     ps_writeln_str32(ps, font, 14, &yy,
         U"\x201e""Fix, Schwyz!\x201c qu\u00E4kt J\u00FCrgen bl\u00F6d vom Pa\u00DF. "
@@ -9174,7 +9257,7 @@ static void ps_proof_sheet(
         cp_v_obj_p_t out = {0};
         cp_font_gc_t gc = {0};
         cp_font_gc_set_font(&gc, font, 14, 1.0);
-        cp_font_print_str32(&out, &gc, U"\x1f2u d\x327 ");
+        cp_font_print_str32(&out, &gc, U"\x1f2ud\x327 ");
 
         cp_font_gc_set_lang(&gc, "MAH");
         cp_font_print_str32(&out, &gc, U"M\x327""ajel\x327 ");
@@ -9187,11 +9270,14 @@ static void ps_proof_sheet(
 
         gc.tracking = 2.0;
         cp_font_gc_set_lang(&gc, "NDL");
-        cp_font_print_str32(&out, &gc, U"IJssel fijn ");
+        cp_font_print_str32(&out, &gc, U"IJssel fijn i\x200cj");
 
+        cp_font_gc_enable_ligature(&gc, false);
+        cp_font_print_str32(&out, &gc, U"iji\x200dj");
+
+        cp_font_gc_enable_ligature(&gc, true);
         cp_font_gc_set_lang(&gc, "DEU");
-        cp_font_print_str32(&out, &gc, U"dreija\x308hrig fiel");
-
+        cp_font_print_str32(&out, &gc, U"i\x200dj dreija\x308hrig fiel");
 
         ps_render_v_poly(ps, 0, yy, &out);
 
@@ -9552,6 +9638,250 @@ static void doc_coverage(
 }
 
 /* ********************************************************************** */
+/* save font family as C data structure file */
+
+static void save_c_head(
+    FILE *f)
+{
+    fprintf(f,
+        "/* -*- Mode: C -*- */\n"
+        "/* Automatically generated by Hob3l fontgen; DO NOT EDIT */\n"
+        "/* Copyright (C) 2018 by Henrik Theiling, Licence: GPLv3, see LICENSE file */\n"
+        "\n");
+}
+
+static void save_h_head(
+    FILE *f,
+    char const *filename)
+{
+    save_c_head(f);
+    fprintf(f,
+        "#ifndef CP_FONT_%s_H_\n"
+        "#define CP_FONT_%s_H_\n\n",
+        filename, filename);
+}
+
+static void save_h_tail(
+    FILE *f,
+    char const *filename)
+{
+    fprintf(f,
+        "\n"
+        "#endif /* CP_FONT_%s_H_ */\n",
+        filename);
+}
+
+static void save_c_family(
+    cp_v_font_p_t const *vfont)
+{
+    cp_font_t const *font0 = cp_v_nth(vfont,0);
+
+    cp_vchar_t c_name_uc = {0};
+    cp_vchar_printf(&c_name_uc, "%s", font0->family_name);
+    normalise_c_name_uc(&c_name_uc);
+
+    cp_vchar_t h_name = {0};
+    cp_vchar_printf(&h_name, "%s", font0->family_name);
+    normalise_filename(&h_name);
+
+    /* header */
+    cp_vchar_t fn[1] = {0};
+    cp_vchar_printf(fn, "include/hob3l/font-%s.h", h_name.data);
+    FILE *f = fopen_or_fail(cp_vchar_cstr(fn), "wt");
+    save_h_head(f, c_name_uc.data);
+    fprintf(f, "#include <hob3l/font_tam.h>\n\n");
+    for (cp_v_each(i, vfont)) {
+        cp_font_t const *font = cp_v_nth(vfont, i);
+
+        cp_vchar_t c_name_lc = {0};
+        cp_vchar_printf(&c_name_lc, "%s", font->name);
+        normalise_c_name_lc(&c_name_lc);
+
+        fprintf(f, "extern cp_font_t const cp_font_%s;\n", c_name_lc.data);
+    }
+    save_h_tail(f, c_name_uc.data);
+    fclose(f);
+
+    /* implementation */
+    for (cp_v_each(i, vfont)) {
+        cp_font_t const *font = cp_v_nth(vfont, i);
+
+        cp_vchar_t c_name = {0};
+        cp_vchar_printf(&c_name, "%s", font->name);
+        normalise_filename(&c_name);
+
+        cp_vchar_clear(fn);
+        cp_vchar_printf(fn, "src/font-%s.c", c_name.data);
+        f = fopen_or_fail(cp_vchar_cstr(fn), "wt");
+        save_c_head(f);
+        fprintf(f, "#include <hob3l/font-%s.h>\n", h_name.data);
+
+        cp_vchar_t c_name_lc = {0};
+        cp_vchar_printf(&c_name_lc, "cp_font_%s", font->name);
+        normalise_c_name_lc(&c_name_lc);
+
+        /* glyph array */
+        if (font->glyph.size > 0) {
+            fprintf(f, "\ncp_font_glyph_t %s_glyph[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->glyph.size);
+            for (cp_v_each(j, &font->glyph)) {
+                cp_font_glyph_t const *g = cp_v_nth_ptr(&font->glyph, j);
+                fprintf(f, "{%u,%u,%u,%u},\n",
+                    g->id, g->flags, g->first, g->second);
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* path array */
+        if (font->path.size > 0) {
+            fprintf(f, "\nuint32_t %s_path[%"CP_Z"u] = {",
+                c_name_lc.data, font->path.size);
+            for (cp_v_each(j, &font->path)) {
+                unsigned u = cp_v_nth(&font->path, j);
+                if ((j % 8) == 0) {
+                    fprintf(f, "\n");
+                }
+                fprintf(f, "%u,", u);
+            }
+            fprintf(f, "\n};\n");
+        }
+
+        /* coord array */
+        if (font->coord.size > 0) {
+            fprintf(f, "\ncp_font_xy_t %s_coord[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->coord.size);
+            for (cp_v_each(j, &font->coord)) {
+                cp_font_xy_t *g = cp_v_nth_ptr(&font->coord, j);
+                fprintf(f, "{%u,%u},\n", g->x, g->y);
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* combine array */
+        if (font->combine.size > 0) {
+            fprintf(f, "\ncp_font_map_t %s_combine[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->combine.size);
+            for (cp_v_each(j, &font->combine)) {
+                cp_font_map_t *g = cp_v_nth_ptr(&font->combine, j);
+                fprintf(f, "{%u,%u,%u,%u},\n",
+                    g->first, g->flags, g->second, g->result);
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* context array */
+        if (font->context.size > 0) {
+            fprintf(f, "\ncp_font_map_t %s_context[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->context.size);
+            for (cp_v_each(j, &font->context)) {
+                cp_font_map_t *g = cp_v_nth_ptr(&font->context, j);
+                fprintf(f, "{%u,%u,%u,%u},\n",
+                    g->first, g->flags, g->second, g->result);
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* lang array */
+        if (font->lang.size > 0) {
+            for (cp_v_each(k, &font->lang)) {
+                cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
+                if (lang->combine.size > 0) {
+                    fprintf(f, "\ncp_font_map_t %s_%s_combine[%"CP_Z"u] = {\n",
+                        c_name_lc.data, lang->id, lang->combine.size);
+                    for (cp_v_each(j, &lang->combine)) {
+                        cp_font_map_t *g = cp_v_nth_ptr(&lang->combine, j);
+                        fprintf(f, "{%u,%u,%u,%u},\n",
+                            g->first, g->flags, g->second, g->result);
+                    }
+                    fprintf(f, "};\n");
+                }
+                if (lang->one2one.size > 0) {
+                    fprintf(f, "\ncp_font_map_t %s_%s_one2one[%"CP_Z"u] = {\n",
+                        c_name_lc.data, lang->id, lang->one2one.size);
+                    for (cp_v_each(j, &lang->one2one)) {
+                        cp_font_map_t *g = cp_v_nth_ptr(&lang->one2one, j);
+                        fprintf(f, "{%u,%u,0,%u},\n",
+                            g->first, g->flags, g->result);
+                    }
+                    fprintf(f, "};\n");
+                }
+            }
+
+            fprintf(f, "\ncp_font_lang_t %s_lang[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->lang.size);
+            for (cp_v_each(k, &font->lang)) {
+                cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
+                fprintf(f, "    {\n");
+                fprintf(f, "        .id = \"%s\",\n", lang->id);
+                if (lang->combine.size > 0) {
+                    fprintf(f, "        .combine = { .data = %s_%s_combine, .size = %"CP_Z"u },\n",
+                        c_name_lc.data, lang->id, lang->combine.size);
+                }
+                if (lang->one2one.size > 0) {
+                    fprintf(f, "        .one2one = { .data = %s_%s_one2one, .size = %"CP_Z"u },\n",
+                        c_name_lc.data, lang->id, lang->one2one.size);
+                }
+                fprintf(f, "    },\n");
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* main structure */
+        fprintf(f, "\ncp_font_t const %s = {\n", c_name_lc.data);
+        fprintf(f, "    .name = \"%s\",\n", font->name);
+        fprintf(f, "    .family_name = \"%s\",\n", font->family_name);
+        fprintf(f, "    .weight_name = \"%s\",\n", font->weight_name);
+        fprintf(f, "    .slope_name = \"%s\",\n", font->slope_name);
+        fprintf(f, "    .stretch_name = \"%s\",\n", font->stretch_name);
+        fprintf(f, "    .size_name = \"%s\",\n", font->size_name);
+        fprintf(f, "    .em_x = %u,\n", font->em_x);
+        fprintf(f, "    .em_y = %u,\n", font->em_y);
+        fprintf(f, "    .top_y = %u,\n", font->top_y);
+        fprintf(f, "    .bottom_y = %u,\n", font->bottom_y);
+        fprintf(f, "    .base_y = %u,\n", font->base_y);
+        fprintf(f, "    .cap_y = %u,\n", font->cap_y);
+        fprintf(f, "    .xhi_y = %u,\n", font->xhi_y);
+        fprintf(f, "    .center_x = %u,\n", font->center_x);
+        fprintf(f, "    .flags = 0x%x,\n", font->flags);
+        fprintf(f, "    .weight = %u,\n", font->weight);
+        fprintf(f, "    .slope = %u,\n", font->slope);
+        fprintf(f, "    .stretch = %u,\n", font->stretch);
+        fprintf(f, "    .min_size = %u,\n", font->min_size);
+        fprintf(f, "    .max_size = %u,\n", font->max_size);
+
+        if (font->glyph.size > 0) {
+            fprintf(f, "    .glyph = { .data = %s_glyph, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->glyph.size);
+        }
+        if (font->path.size > 0) {
+            fprintf(f, "    .path = { .data = %s_path, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->path.size);
+        }
+        if (font->coord.size > 0) {
+            fprintf(f, "    .coord = { .data = %s_coord, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->coord.size);
+        }
+        if (font->combine.size > 0) {
+            fprintf(f, "    .combine = { .data = %s_combine, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->combine.size);
+        }
+        if (font->context.size > 0) {
+            fprintf(f, "    .context = { .data = %s_context, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->context.size);
+        }
+        if (font->lang.size > 0) {
+            fprintf(f, "    .lang = { .data = %s_lang, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->lang.size);
+        }
+
+        fprintf(f, "};\n");
+
+        fclose(f);
+    }
+}
+
+
+/* ********************************************************************** */
 
 int main(void)
 {
@@ -9572,6 +9902,9 @@ int main(void)
     /* convert from intermediate to final form */
     cp_v_font_p_t cpfont = {0};
     finalise_family(&cpfont, &vfont);
+
+    /* save font family */
+    save_c_family(&cpfont);
 
     /* overview document */
     ps_font_family(&cpfont);

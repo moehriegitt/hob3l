@@ -253,6 +253,23 @@ MOD_C.libhob3l.a := \
 MOD_O.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.o))
 MOD_D.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.d))
 
+# Font library:
+# libhob3lfont.a:
+MOD_C.libhob3lfont.a := \
+    font-nozzl3_sans.c \
+    font-nozzl3_sans_black.c \
+    font-nozzl3_sans_black_oblique.c \
+    font-nozzl3_sans_bold.c \
+    font-nozzl3_sans_bold_oblique.c \
+    font-nozzl3_sans_light.c \
+    font-nozzl3_sans_light_oblique.c \
+    font-nozzl3_sans_medium.c \
+    font-nozzl3_sans_medium_oblique.c \
+    font-nozzl3_sans_oblique.c
+
+MOD_O.libhob3lfont.a := $(addprefix out/,$(MOD_C.libhob3lfont.a:.c=.o))
+MOD_D.libhob3lfont.a := $(addprefix out/,$(MOD_C.libhob3lfont.a:.c=.d))
+
 # Tests:
 # libcptest.a:
 MOD_C.libcptest.a := \
@@ -310,7 +327,8 @@ bin: \
 
 lib: \
     libhob3l.a \
-    libhob3lbase.a
+    libhob3lbase.a \
+    libhob3lfont.a
 
 data: \
     $(addprefix out/,$(OUT_DATA))
@@ -360,13 +378,18 @@ libhob3lbase.a: $(MOD_O.libhob3lbase.a)
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
+libhob3lfont.a: $(MOD_O.libhob3lfont.a)
+	$(AR) cr $@.new.a $+
+	$(RANLIB) $@.new.a
+	mv $@.new.a $@
+
 libcptest.a: $(MOD_O.libcptest.a)
 	$(AR) cr $@.new.a $+
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
-hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a
-	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
+hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a libhob3lfont.a
+	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. -lhob3l -lhob3lbase -lhob3lfont $(LIBS) -lm $(CFLAGS)
 
 cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
@@ -568,11 +591,15 @@ PS2PDF := ps2pdf
 .PHONY: font
 font: out-font/.stamp
 
+.PHONY: font-doc
+font-doc: font
+	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
+	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
+	cd out-font && $(PS2PDF) nozzl3_sans-family.ps nozzl3_sans-family.pdf
+
 out-font/.stamp: fontgen.exe
 	mkdir -p out-font
 	./fontgen.exe
-	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
-	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
 
 ######################################################################
 # installation, the usual ceremony.
@@ -614,6 +641,7 @@ install-data: installdirs-data
 
 install-lib: installdirs-lib
 	$(NORMAL_INSTALL)
+	$(INSTALL_DATA) libhob3lfont.a $(DESTDIR)$(libdir)/$(LIB_)hob3lfont(_LIB)
 	$(INSTALL_DATA) libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(INSTALL_DATA) libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 

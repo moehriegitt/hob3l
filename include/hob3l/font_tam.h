@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 #include <hob3lbase/vec_tam.h>
+#include <hob3lbase/err_tam.h>
 
 /* typical font weight values */
 #define CP_FONT_WEIGHT_ULTRA_THIN    28
@@ -48,6 +49,15 @@
  * The composition joins two glyphs and is, thus, globally optional based on the
  * font_gc_t::mcf_disable bits. */
 #define CP_FONT_MCF_JOINING    0x02
+
+/**
+ * An optional ligature: if set, they are inhibited unless ZWJ is used. */
+#define CP_FONT_MCF_OPTIONAL   0x03
+
+/**
+ * Mask to retrieve type of combinatino */
+#define CP_FONT_MCF_TYPE_MASK  0x03
+
 #define CP_FONT_MCF_RESERVED2_ 0x04
 #define CP_FONT_MCF_RESERVED3_ 0x08
 
@@ -260,6 +270,20 @@ typedef struct {
     uint16_t base_y;
 
     /**
+     * Capital height glyph coordinate.
+     * The coordinates are normalised across the font, so this is the
+     * same for all glyphs.
+     */
+    uint16_t cap_y;
+
+    /**
+     * Small x height glyph coordinate.
+     * The coordinates are normalised across the font, so this is the
+     * same for all glyphs.
+     */
+    uint16_t xhi_y;
+
+    /**
      * Center X glyph coordinate.
      * This is the original 0 coordinate around which glyphs are usually
      * designed.  This may be used for fallback heuristic modifier horizontal
@@ -412,8 +436,18 @@ typedef struct {
 
     /**
      * Inhibit combinations by default if any of thse CP_FONT_MCF_* bits
-     * are set. */
+     * are set.
+     * This contains 1 << _MCF_ bits values, i.e., a bitmask of possible
+     * combination types.
+     */
     unsigned mcf_disable;
+
+    /**
+     * Switch on these MCF by default.
+     * This contains 1 << _MCF_ bits values, i.e., a bitmask of possible
+     * combination types.
+     */
+    unsigned mcf_enable;
 
     /** Print state, updated by printing routines. */
     cp_font_state_t state;

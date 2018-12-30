@@ -25,7 +25,7 @@ static int interval_cmp(void const *_a, void const *_b)
         return -1;
     }
     if (*a > b->hi) {
-        return -1;
+        return +1;
     }
     return 0;
 }
@@ -142,7 +142,7 @@ static bool glyph_replace(
         return false;
     }
     cp_font_map_t const *m = cp_v_nth_ptr(map, i);
-    if ((m->flags & disabled_if) != 0) {
+    if (((1U << (m->flags & CP_FONT_MCF_TYPE_MASK)) & disabled_if) != 0) {
         return false;
     }
     if (flags != NULL) {
@@ -410,9 +410,14 @@ extern void cp_font_print(
     void *user)
 {
     unsigned c1 = next(user);
+
+    unsigned gc_mcf_disable =
+        gc->mcf_disable |
+        ((~gc->mcf_enable) & (1 << CP_FONT_MCF_OPTIONAL));
+
     while (c1 != 0) {
         unsigned c2 = next(user);
-        unsigned mcf_disable = gc->mcf_disable;
+        unsigned mcf_disable = gc_mcf_disable;
         if (c2 != 0) {
         try_combine:
             if ((gc->lang != NULL) &&

@@ -125,7 +125,9 @@ sub learn_c($)
 }
 
 for my $fn (@ARGV) {
-    learn_c($fn);
+    unless ($fn =~ /nozzl3/) {
+        learn_c($fn);
+    }
 }
 
 MODULE: for my $module_name (sort keys %module) {

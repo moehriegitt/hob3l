@@ -198,4 +198,34 @@ static inline void cp_font_print_str32(
     cp_font_print(out, gc, cp_font_read_str_utf32, &s);
 }
 
+/**
+ * Enable/disable ligatures */
+static inline void cp_font_gc_enable_ligature(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mcf_disable |= (1 << CP_FONT_MCF_LIGATURE);
+    gc->mcf_disable ^= enable ? (1 << CP_FONT_MCF_LIGATURE) : 0;
+}
+
+/**
+ * Enable/disable joining */
+static inline void cp_font_gc_enable_joining(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mcf_disable |= (1 << CP_FONT_MCF_JOINING);
+    gc->mcf_disable ^= enable ? (1 << CP_FONT_MCF_JOINING) : 0;
+}
+
+/**
+ * Enable/disable joining */
+static inline void cp_font_gc_enable_optional(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mcf_enable |= (1 << CP_FONT_MCF_OPTIONAL);
+    gc->mcf_enable ^= enable ? 0 : (1 << CP_FONT_MCF_OPTIONAL);
+}
+
 #endif /* CP_FONT_H_ */
