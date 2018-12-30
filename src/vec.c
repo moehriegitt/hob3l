@@ -412,7 +412,7 @@ extern void cp_v_qsort_(
     size_t esz,
     /** [IN] start position of sort */
     size_t pos,
-    /** [IN] end position of sort, CP_SIZE_MAX for up to end */
+    /** [IN] number of positions to sort, CP_SIZE_MAX for up to end */
     size_t size,
     /** [IN] comparison function.
      *  This receives two pointers to elements (not the elements
@@ -426,7 +426,9 @@ extern void cp_v_qsort_(
     if (size > vec->size - pos) {
         size = vec->size - pos;
     }
-    cp_qsort_r(cp_v_nth_elem_(vec->data, pos, esz), size, esz, cmp, user);
+    if (size > 0) {
+        cp_qsort_r(cp_v_nth_elem_(vec->data, pos, esz), size, esz, cmp, user);
+    }
 }
 
 /**

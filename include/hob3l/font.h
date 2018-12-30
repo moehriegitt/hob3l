@@ -43,6 +43,18 @@ extern void cp_font_gc_set_font(
     double ratio_x);
 
 /**
+ * Set a given language.
+ *
+ * name=NULL resets.  Also, if a language is not found, this resets
+ * the name setting, which can be seen by checking gc->lang, which
+ * will be NULL if the language is reset, or non-NULL if one was found
+ * and selected.
+ */
+extern void cp_font_gc_set_lang(
+    cp_font_gc_t *gc,
+    char const *name);
+
+/**
  * Render a single glyph.
  *
  * The rendered polygons will be added to \p out.
@@ -60,9 +72,9 @@ extern void cp_font_gc_set_font(
  *
  * [This handles right2left glyph replacement (e.g. to swap parentheses).]
  *
- * [This handles language based glyph replacement.]
+ * [This handles language specific glyph replacement.]
  *
- * [This handles feature based glyph replacement.]
+ * [This handles feature specific glyph replacement.]
  *
  * This handles compatibility decomposition, i.e, this may render multiple
  * glyphs if the given glyph ID decomposes.
@@ -118,6 +130,19 @@ extern void cp_font_gc_set_font(
  * tolerated here.  But this means that the resulting polygons should
  * always be passed through the CSG2 bool algorithm before continuing
  * with anything else.
+ *
+ * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * kerning is applied across such characters and tracking is only
+ * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * kern T+o normally and will insert tracking only once.
+ *
+ * However, to be able to separate kerning pairs, ZWSP (U+200B) and
+ * ZWNBSP (U+FEFF) do inhibit kerning and contextual glyph selection.
+ * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
+ * not kern T+o, but tracking will still only be inserted once.
+ *
+ * gc->state.glyph_cnt is incremented exactly each time tracking
+ * is inserted.
  */
 extern void cp_font_print1(
     cp_v_obj_p_t *out,
@@ -134,6 +159,8 @@ extern void cp_font_print1(
  *
  * This handles equivalence and ligature composition of glyphs, including
  * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ *
+ * This handles language specific ligature composition.
  */
 extern void cp_font_print(
     cp_v_obj_p_t *out,

@@ -5,7 +5,37 @@
 #include <hob3l/font.h>
 #include <hob3l/csg2.h>
 
-#define ZWJ 0x200d
+#define ZWJ     0x200D
+#define ZWSP    0x200B
+#define ZWNBSP  0xFEFF
+
+typedef struct {
+    unsigned lo,hi;
+} interval_t;
+
+static interval_t uni_def_ign[] = {
+#include "unidefign.inc"
+};
+
+static int interval_cmp(void const *_a, void const *_b)
+{
+    unsigned const *a = _a;
+    interval_t const *b = _b;
+    if (*a < b->lo) {
+        return -1;
+    }
+    if (*a > b->hi) {
+        return -1;
+    }
+    return 0;
+}
+
+static bool default_ignorable(unsigned x)
+{
+    return bsearch(&x, uni_def_ign,
+        cp_countof(uni_def_ign), sizeof(uni_def_ign[0]),
+        interval_cmp) != NULL;
+}
 
 static void cp_font_draw_path(
     cp_csg2_poly_t *poly,
@@ -100,6 +130,8 @@ static int cmp_map2(
 
 static bool glyph_replace(
     cp_v_font_map_t const *map,
+    unsigned disabled_if,
+    unsigned *flags,
     unsigned *result,
     unsigned first,
     unsigned second)
@@ -109,8 +141,48 @@ static bool glyph_replace(
     if (i >= map->size) {
         return false;
     }
-    *result = cp_v_nth(map, i).result;
+    cp_font_map_t const *m = cp_v_nth_ptr(map, i);
+    if ((m->flags & disabled_if) != 0) {
+        return false;
+    }
+    if (flags != NULL) {
+        *flags = m->flags;
+    }
+    *result = m->result;
     return true;
+}
+
+static void cp_font_print1_aux(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    unsigned glyph_id)
+{
+    cp_font_glyph_t const *glyph = cp_font_find_glyph(gc->font, glyph_id);
+    if (glyph == NULL) {
+        glyph = gc->replacement;
+        if (glyph == NULL) {
+            return;
+        }
+    }
+    assert(glyph != NULL);
+
+    if (glyph->flags & CP_FONT_GF_DECOMPOSE) {
+        cp_font_print1_aux(out, gc, glyph->first);
+        cp_font_print1_aux(out, gc, glyph->second);
+        return;
+    }
+
+    cp_font_draw_poly(out, gc,
+        (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
+        glyph->second);
+}
+
+static int cmp_lang_name(
+    char const *name,
+    cp_font_lang_t const *lang,
+    void *user CP_UNUSED)
+{
+    return strcmp(name, lang->id);
 }
 
 /* ********************************************************************** */
@@ -165,6 +237,29 @@ extern void cp_font_gc_set_font(
 }
 
 /**
+ * Set a given language.
+ *
+ * name=NULL resets.  Also, if a language is not found, this resets
+ * the name setting, which can be seen by checking gc->lang, which
+ * will be NULL if the language is reset, or non-NULL if one was found
+ * and selected.
+ */
+extern void cp_font_gc_set_lang(
+    cp_font_gc_t *gc,
+    char const *name)
+{
+    gc->lang = NULL;
+    if (name == NULL) {
+        return;
+    }
+    size_t i = cp_v_bsearch(name, &gc->font->lang, cmp_lang_name, NULL);
+    if (i >= gc->font->lang.size) {
+        return;
+    }
+    gc->lang = cp_v_nth_ptr(&gc->font->lang, i);
+}
+
+/**
  * Render a single glyph.
  *
  * The rendered polygons will be added to \p out.
@@ -182,9 +277,9 @@ extern void cp_font_gc_set_font(
  *
  * [This handles right2left glyph replacement (e.g. to swap parentheses).]
  *
- * [This handles language based glyph replacement.]
+ * [This handles language specific glyph replacement.]
  *
- * [This handles feature based glyph replacement.]
+ * [This handles feature specific glyph replacement.]
  *
  * This handles compatibility decomposition, i.e, this may render multiple
  * glyphs if the given glyph ID decomposes.
@@ -240,31 +335,59 @@ extern void cp_font_gc_set_font(
  * tolerated here.  But this means that the resulting polygons should
  * always be passed through the CSG2 bool algorithm before continuing
  * with anything else.
+ *
+ * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * kerning is applied across such characters and tracking is only
+ * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * kern T+o normally and will insert tracking only once.
+ *
+ * However, to be able to separate kerning pairs, ZWSP (U+200B) and
+ * ZWNBSP (U+FEFF) do inhibit kerning and contextual glyph selection.
+ * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
+ * not kern T+o, but tracking will still only be inserted once.
+ *
+ * gc->state.glyph_cnt is incremented exactly each time tracking
+ * is inserted.
  */
 extern void cp_font_print1(
     cp_v_obj_p_t *out,
     cp_font_gc_t *gc,
     unsigned glyph_id)
 {
-    cp_font_glyph_t const *glyph = cp_font_find_glyph(gc->font, glyph_id);
-    if (glyph == NULL) {
-        glyph = gc->replacement;
-        if (glyph == NULL) {
-            return;
+    /* ignore */
+    if (default_ignorable(glyph_id)) {
+        if ((glyph_id == ZWSP) || (glyph_id == ZWNBSP)) {
+            /* inhibit kerning and alternative glyph selection */
+            gc->state.last_cp = 0;
         }
-    }
-    assert(glyph != NULL);
-
-    if (glyph->flags & CP_FONT_GF_DECOMPOSE) {
-        cp_font_print1(out, gc, glyph->first);
-        cp_font_print1(out, gc, glyph->second);
         return;
     }
 
-    cp_font_draw_poly(out, gc,
-        (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
-        glyph->second);
+    /* language specific glyph replacement */
+    if (gc->lang != NULL) {
+        (void)glyph_replace(&gc->lang->one2one, 0, NULL, &glyph_id, glyph_id, 0);
+    }
+
+    /* kerning and contextual forms */
+    unsigned flags, result;
+    if (glyph_replace(&gc->font->context, 0, &flags, &result, glyph_id, gc->state.last_cp)) {
+        if (flags & CP_FONT_MXF_KERNING) {
+            unsigned cnt = (sizeof(int)*8) - CP_FONT_ID_WIDTH;
+            int kern = ((int)(result << cnt)) >> cnt; /* sign-extend */
+            gc->state.cur_x += kern * gc->scale_x;
+        }
+        else {
+            glyph_id = result;
+        }
+    }
+
+    /* print */
+    cp_font_print1_aux(out, gc, glyph_id);
+
+    /* update state */
     gc->state.last_cp = glyph_id;
+    gc->state.cur_x += (gc->right2left ? -1 : +1) * gc->tracking;
+    gc->state.glyph_cnt++;
 }
 
 /**
@@ -277,6 +400,8 @@ extern void cp_font_print1(
  *
  * This handles equivalence and ligature composition of glyphs, including
  * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ *
+ * This handles language specific ligature composition.
  */
 extern void cp_font_print(
     cp_v_obj_p_t *out,
@@ -287,9 +412,15 @@ extern void cp_font_print(
     unsigned c1 = next(user);
     while (c1 != 0) {
         unsigned c2 = next(user);
+        unsigned mcf_disable = gc->mcf_disable;
         if (c2 != 0) {
         try_combine:
-            if (glyph_replace(&gc->font->combine, &c1, c1, c2)) {
+            if ((gc->lang != NULL) &&
+                glyph_replace(&gc->lang->combine, mcf_disable, NULL, &c1, c1, c2))
+            {
+                continue;
+            }
+            if (glyph_replace(&gc->font->combine, mcf_disable, NULL, &c1, c1, c2)) {
                 continue;
             }
             if (c2 == ZWJ) {
@@ -301,7 +432,13 @@ extern void cp_font_print(
 
                 /* try to replace ZWJ+Y */
                 if (c2 != 0) {
-                    (void)glyph_replace(&gc->font->combine, &c2, ZWJ, c2);
+                    if (gc->lang != NULL) {
+                        (void)glyph_replace(&gc->lang->combine, 0, NULL, &c2, ZWJ, c2);
+                    }
+                    (void)glyph_replace(&gc->font->combine, 0, NULL, &c2, ZWJ, c2);
+
+                    /* disable any glyph combination prohibitions */
+                    mcf_disable = 0;
                     goto try_combine;
                 }
             }

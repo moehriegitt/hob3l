@@ -761,7 +761,7 @@ extern void cp_v_qsort_(
     size_t esz,
     /** [IN] start position of sort */
     size_t pos,
-    /** [IN] end position of sort, CP_SIZE_MAX for up to end */
+    /** [IN] number of positions to sort, CP_SIZE_MAX for up to end */
     size_t size,
     /** [IN] comparison function.
      *  This receives two pointers to elements (not the elements

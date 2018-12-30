@@ -309,12 +309,32 @@ union font_draw {
     FONT_DRAW_OBJ_
 };
 
-typedef struct {
-    unicode_t first;
-    unicode_t second;
-} font_def_combine_t;
+typedef enum {
+    /** canonically compose a+b into the glyph where this is found (language specific or not) */
+    MAP_TYPE_COMBINE,
+    /** compose ligature a+b into the glyph where this is found (language specific or not) */
+    MAP_TYPE_LIGATURE,
+    /** join a+b into the glyph where this is found (language specific or not) */
+    MAP_TYPE_JOIN,
+    /** if the preceeding glyph is a, apply this amount of kerning (globally) */
+    MAP_TYPE_KERNING,
+    /** if the preceeding glyph is a, replace current glyph by b (globally) */
+    MAP_TYPE_CONTEXT,
+    /** replace this glyph by a (language specific) */
+    MAP_TYPE_REPLACE
+} font_def_map_type_t;
 
-typedef CP_ARR_T(font_def_combine_t) font_a_def_combine_t;
+typedef struct {
+    font_def_map_type_t type;
+    font_glyph_t const *glyph; /* used internally -- not specified in glyph data */
+    unicode_t a;
+    unicode_t b;
+    double amount;
+    char const *lang;
+} font_def_map_t;
+
+typedef CP_ARR_T(font_def_map_t) font_a_def_map_t;
+typedef CP_VEC_T(font_def_map_t) font_v_def_map_t;
 
 typedef struct {
     unicode_t unicode;
@@ -355,7 +375,7 @@ typedef struct {
     double line_step;
 
     /** Composition data */
-    font_a_def_combine_t combine;
+    font_a_def_map_t map;
 
     /** draw tree (may be NULL (for white space)) */
     font_draw_t const *draw;
@@ -579,15 +599,28 @@ typedef struct {
 
 #define COORD_(...) { __VA_ARGS__ }
 
-#define COMBINE(...) VEC(((font_def_combine_t[]){ __VA_ARGS__ }))
+#define MAP(...) VEC(((font_def_map_t[]){ __VA_ARGS__ }))
 
-#define PAIR(A,B) { A, B }
+#define PAIR(A,B)     { .type=MAP_TYPE_COMBINE,  .a=A, .b=B }
+#define JOIN(A,B)     { .type=MAP_TYPE_JOIN,     .a=A, .b=B }
+#define LIGA(A,B)     { .type=MAP_TYPE_LIGATURE, .a=A, .b=B }
+#define CONTEXT(A,B)  { .type=MAP_TYPE_CONTEXT,  .a=A, .b=B }
+#define KERN(A,B)     { .type=MAP_TYPE_KERNING,  .a=A, .amount=B }
+
+#define LANG_PAIR(L,A,B)  { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }
+#define LANG_JOIN(L,A,B)  { .type=MAP_TYPE_JOIN,     .a=A, .b=B, .lang=L }
+#define LANG_LIGA(L,A,B)  { .type=MAP_TYPE_LIGATURE, .a=A, .b=B, .lang=L }
+#define LANG_REPLACE(L,A) { .type=MAP_TYPE_REPLACE,  .a=A,       .lang=L }
 
 #define Q_2_(P,X,Y) { .type = (P), .x = COORD_ X, .y = COORD_ Y }
 #define Q_1_(P,X,Y) Q_2_(P,X,Y)
 #define Q(P,X,Y)    Q_1_(P,X,Y)
 
 #define RATIO_EM 0.7
+
+#define lang_MAH  "MAH"
+#define lang_NDL  "NDL"
+#define lang_LIV  "LIV" /* ISO-639-3 code, no OpenType code found */
 
 static void swap_x         (font_t const *, font_gc_t *, font_draw_xform_t const *);
 static void slant1         (font_t const *, font_gc_t *, font_draw_xform_t const *);
@@ -3280,7 +3313,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_DOTLESS_J,
-        .min_coord = COORD(0, -3, 0, 0),
+        .min_coord = COORD(-3,0,0,0),
         .draw = STROKE(
             Q(B, ( 0,-6, 0, 0), (-2,-6, 0, 0)),
             Q(R, ( 0, 0, 0, 0), (-2,-6, 0, 0)),
@@ -3386,8 +3419,8 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_J,
-        .min_coord = COORD(0, -3, 0, 0),
         .draw = COMPOSE(
+            WIDTH(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_COMBINING_DOT_ABOVE),
         ),
@@ -3795,7 +3828,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_DIAERESIS,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_DIAERESIS
@@ -3871,7 +3904,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_DIAERESIS,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_DIAERESIS
@@ -4695,7 +4728,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_M_WITH_CIRCUMFLEX,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_M,
                U_COMBINING_CIRCUMFLEX_ACCENT
@@ -4708,7 +4741,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_CIRCUMFLEX,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_CIRCUMFLEX_ACCENT
@@ -4812,7 +4845,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_CIRCUMFLEX,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_M,
                U_COMBINING_CIRCUMFLEX_ACCENT
@@ -4825,7 +4858,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_CIRCUMFLEX,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_CIRCUMFLEX_ACCENT
@@ -4977,7 +5010,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_G_WITH_TILDE,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_G,
                U_COMBINING_TILDE
@@ -4990,7 +5023,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_G_WITH_TILDE,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_G,
                U_COMBINING_TILDE
@@ -5141,7 +5174,13 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = UX_LATIN_SMALL_LETTER_O_WITH_REAL_CEDILLA,
+        .unicode = UX_LATIN_SMALL_LETTER_O_WITH_CEDILLA,
+        .map = MAP(
+            PAIR(
+                U_LATIN_SMALL_LETTER_O,
+                U_COMBINING_CEDILLA
+            )
+        ),
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_CEDILLA),
@@ -5192,7 +5231,13 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = UX_LATIN_CAPITAL_LETTER_O_WITH_REAL_CEDILLA,
+        .unicode = UX_LATIN_CAPITAL_LETTER_O_WITH_CEDILLA,
+        .map = MAP(
+            PAIR(
+                U_LATIN_CAPITAL_LETTER_O,
+                U_COMBINING_CEDILLA
+            )
+        ),
         .draw = COMPOSE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(U_COMBINING_CEDILLA),
@@ -5207,7 +5252,9 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_D_WITH_CEDILLA,
-        /* .lang = liv (Livonian) -> UX_LATIN_SMALL_LETTER_D_WITH_COMMA_BELOW */
+        .map = MAP(
+            LANG_REPLACE(lang_LIV, UX_LATIN_SMALL_LETTER_D_WITH_COMMA_BELOW),
+        ),
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_D),
             REF(U_COMBINING_CEDILLA),
@@ -5224,7 +5271,10 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         /* misnomer: this is comma below, not cedilla */
-        /* .lang = Marshallese => UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA */
+        .map = MAP(
+            /* in Marshallese, not a misnomer, but real cedilla */
+            LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA)
+        ),
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_CEDILLA,
         .draw = COMPOSE(
             WIDTH(U_LATIN_SMALL_LETTER_L),
@@ -5242,7 +5292,10 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         /* misnomer: this is comma below, not cedilla */
-        /* .lang = Marshallese => UX_LATIN_SMALL_LETTER_N_WITH_REAL_CEDILLA */
+        .map = MAP(
+            /* in Marshallese, not a misnomer, but real cedilla */
+            LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_N_WITH_REAL_CEDILLA)
+        ),
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_CEDILLA,
         .draw = COMPOSE(
             REF(U_LATIN_SMALL_LETTER_N),
@@ -5258,7 +5311,13 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = UX_LATIN_SMALL_LETTER_M_WITH_REAL_CEDILLA,
+        .unicode = UX_LATIN_SMALL_LETTER_M_WITH_CEDILLA,
+        .map = MAP(
+            PAIR(
+                U_LATIN_SMALL_LETTER_M,
+                U_COMBINING_CEDILLA
+            )
+        ),
         .draw = COMPOSE(
             WIDTH(U_LATIN_SMALL_LETTER_M),
             REF(U_LATIN_SMALL_LETTER_M),
@@ -5266,7 +5325,13 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_REAL_CEDILLA,
+        .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_CEDILLA,
+        .map = MAP(
+            PAIR(
+                U_LATIN_CAPITAL_LETTER_M,
+                U_COMBINING_CEDILLA
+            )
+        ),
         .draw = COMPOSE(
             WIDTH(U_LATIN_CAPITAL_LETTER_M),
             REF(U_LATIN_CAPITAL_LETTER_M),
@@ -5282,8 +5347,11 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        /* .lang = liv (Livonian) -> UX_LATIN_CAPITAL_LETTER_D_WITH_COMMA_BELOW */
         .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_CEDILLA,
+        .map = MAP(
+            /* Livonian wants a comma below glyph. */
+            LANG_REPLACE(lang_LIV, UX_LATIN_CAPITAL_LETTER_D_WITH_COMMA_BELOW),
+        ),
         .draw = COMPOSE(
             REF(U_LATIN_CAPITAL_LETTER_D),
             REF(U_COMBINING_CEDILLA),
@@ -5298,7 +5366,10 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         /* misnomer: this is comma below, not cedilla */
-        /* .lang = Marshallese => UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA */
+        .map = MAP(
+            /* in Marshallese, not a misnomer, but real cedilla */
+            LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA),
+        ),
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_CEDILLA,
         .draw = COMPOSE(
             REF(U_LATIN_CAPITAL_LETTER_L),
@@ -5323,7 +5394,10 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         /* misnomer: this is comma below, not cedilla */
-        /* .lang = Marshallese => UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA */
+        .map = MAP(
+            /* in Marshallese, not a misnomer, but real cedilla */
+            LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA),
+        ),
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_CEDILLA,
         .draw = COMPOSE(
             REF(U_LATIN_CAPITAL_LETTER_N),
@@ -5463,7 +5537,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_M_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_M,
                U_COMBINING_MACRON
@@ -5476,7 +5550,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_P_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_P,
                U_COMBINING_MACRON
@@ -5489,7 +5563,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_MACRON
@@ -5559,7 +5633,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_M,
                U_COMBINING_MACRON
@@ -5572,7 +5646,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_P_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_P,
                U_COMBINING_MACRON
@@ -5585,7 +5659,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_MACRON,
-        .combine = COMBINE(
+        .map = MAP(
             PAIR(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_MACRON
@@ -5890,13 +5964,9 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* other leters */
     {
         .unicode = U_LATIN_SMALL_LETTER_N_PRECEDED_BY_APOSTROPHE,
-        .min_coord = COORD(0,-9,0,0),
-        .draw = COMPOSE(
-          REF(U_LATIN_SMALL_LETTER_N),
-          STROKE(
-            Q(I, (+2, -9, 0, 0), ( 0,+6, 0, 0)),
-            Q(O, (+2,-10, 0, 0), ( 0,+4, 0, 0)),
-          ),
+        .draw = DECOMPOSE(
+          U_APOSTROPHE,
+          U_LATIN_SMALL_LETTER_N
         ),
     },
     {
@@ -5981,31 +6051,28 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LIGATURE_IJ,
-        .line_step = LS_UPPER,
-        .draw = STROKE(
-            Q(B, (+2,-3, 0, 0), ( 0,+6, 0, 0)),
-            Q(E, (+2,-3, 0, 0), ( 0,-3, 0, 0)),
-
-            Q(B, (+2,+4, 0, 0), ( 0,+6, 0, 0)),
-            Q(H, (+2,+4, 0, 0), (-2,-6, 0, 0)),
-            Q(E, ( 0,-2, 0, 0), (-2,-6, 0, 0)),
+        .map = MAP(
+            LANG_LIGA(lang_NDL,
+                U_LATIN_CAPITAL_LETTER_I,
+                U_LATIN_CAPITAL_LETTER_J
+            )
+        ),
+        .draw = DECOMPOSE(
+          U_LATIN_CAPITAL_LETTER_I,
+          U_LATIN_CAPITAL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LIGATURE_IJ,
-        .draw = STROKE(
-            Q(B, ( 0, -3, 0, 0), ( 0,+3, 0, 0)),
-            Q(E, ( 0, -3, 0, 0), ( 0,-3, 0, 0)),
-
-            Q(B, ( 0, -3, 0, 0), ( 0,+6,+5,20)),
-            Q(E, ( 0, -3, 0, 0), ( 0,+6,+5,20, -60)),
-
-            Q(B, ( 0, -3, 0, 0), (-2,-6, 0, 0)),
-            Q(R, ( 0, +4, 0, 0), (-2,-6, 0, 0)),
-            Q(E, ( 0, +4, 0, 0), ( 0,+3, 0, 0)),
-
-            Q(B, ( 0, +4, 0, 0), ( 0,+6,+5,20)),
-            Q(E, ( 0, +4, 0, 0), ( 0,+6,+5,20, -60)),
+        .map = MAP(
+            LANG_LIGA(lang_NDL,
+                U_LATIN_SMALL_LETTER_I,
+                U_LATIN_SMALL_LETTER_J
+            )
+        ),
+        .draw = DECOMPOSE(
+          U_LATIN_SMALL_LETTER_I,
+          U_LATIN_SMALL_LETTER_J
         ),
     },
     {
@@ -8042,10 +8109,15 @@ static void sort_font_def(
 
 /* ********************************************************************** */
 
-static uint16_t rasterize_x(cp_mat2w_t const *ram, double x)
+static long rasterize_x_long(cp_mat2w_t const *ram, double x)
 {
     double r = (x * ram->b.m[0][0]) + ram->w.v[0];
-    long i = lrint(r);
+    return lrint(r);
+}
+
+static uint16_t rasterize_x(cp_mat2w_t const *ram, double x)
+{
+    long i = rasterize_x_long(ram, x);
     assert((i >= 0) && (i <= 0xfffe));
     return (uint16_t)i;
 }
@@ -8092,8 +8164,8 @@ static void finalise_glyph_draw(
     font_glyph_t const *g)
 {
     assert(k->id == g->unicode.codepoint);
-    assert(c->path.size <= CP_FONT_MASK_PATH_IDX);
-    k->first = c->path.size & CP_FONT_MASK_PATH_IDX;
+    assert(c->path.size <= CP_FONT_ID_MASK);
+    k->first = c->path.size & CP_FONT_ID_MASK;
 
     cp_font_path_t *p;
     for (size_t i = 0; i < sizeof(*p)/sizeof(c->path.data[0]); i++) {
@@ -8108,8 +8180,8 @@ static void finalise_glyph_draw(
     size_t path_z = c->path.size;
 
     size_t count = path_z - path_a;
-    assert(count <= CP_FONT_MASK_PATH_IDX);
-    k->second = count & CP_FONT_MASK_PATH_IDX;
+    assert(count <= CP_FONT_ID_MASK);
+    k->second = count & CP_FONT_ID_MASK;
 }
 
 static void finalise_glyph(
@@ -8124,13 +8196,13 @@ static void finalise_glyph_decompose(
     font_glyph_t const *g)
 {
     font_draw_decompose_t const *d = font_draw_cast(*d, g->def->draw);
-    assert(d->first.codepoint  <= CP_FONT_MASK_CODEPOINT);
+    assert(d->first.codepoint  <= CP_FONT_ID_MASK);
     assert(d->first.codepoint  != 0);
-    assert(d->second.codepoint <= CP_FONT_MASK_CODEPOINT);
+    assert(d->second.codepoint <= CP_FONT_ID_MASK);
     if (d->second.codepoint != 0) {
         k->flags |= CP_FONT_GF_DECOMPOSE;
-        k->first =  d->first.codepoint  & CP_FONT_MASK_CODEPOINT;
-        k->second = d->second.codepoint & CP_FONT_MASK_CODEPOINT;
+        k->first =  d->first.codepoint  & CP_FONT_ID_MASK;
+        k->second = d->second.codepoint & CP_FONT_ID_MASK;
         return;
     }
 
@@ -8152,8 +8224,8 @@ static void finalise_glyph(
     if (k->id != 0) {
         return;
     }
-    assert(g->unicode.codepoint <= CP_FONT_MASK_CODEPOINT);
-    k->id = (g->unicode.codepoint & CP_FONT_MASK_CODEPOINT);
+    assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
+    k->id = (g->unicode.codepoint & CP_FONT_ID_MASK);
 
     if ((g->draw == NULL) &&
         (g->def->draw != NULL) &&
@@ -8179,6 +8251,41 @@ static int cmp_font_map2(
         return a->second < b->second ? -1 : +1;
     }
     return 0;
+}
+
+static int cmp_per_lang(
+    font_def_map_t const *a,
+    font_def_map_t const *b,
+    void *u CP_UNUSED)
+{
+    assert(a->lang != NULL);
+    assert(b->lang != NULL);
+    int i = strcmp(a->lang, b->lang);
+    if (i != 0) {
+        return i;
+    }
+    if (a->a.codepoint != b->a.codepoint) {
+        return a->a.codepoint < b->a.codepoint ? -1 : +1;
+    }
+    if (a->b.codepoint != b->b.codepoint) {
+        return a->b.codepoint < b->b.codepoint ? -1 : +1;
+    }
+    return 0;
+}
+
+static unsigned cp_flags_from_type(
+    unsigned type)
+{
+    switch (type) {
+    case MAP_TYPE_JOIN:
+        return CP_FONT_MCF_JOINING;
+
+    case MAP_TYPE_LIGATURE:
+        return CP_FONT_MCF_LIGATURE;
+
+    default:
+        return 0;
+    }
 }
 
 static void finalise_font(
@@ -8266,31 +8373,89 @@ static void finalise_font(
     for (cp_arr_each(i, unicode_comp_equiv)) {
         unsigned const *comp = unicode_comp_equiv[i];
         assert(comp[0] <= 2);
+        /* Only consider 1:2 mappings here.  There are only 3 1:1 mappings
+         * in Unicode 11.0, which need to be handled manually (they map
+         * quad to space and Ohm to Omega).  Also, any compat mappings are
+         * ignored here.  They may be implemented inside the font if there is
+         * need for it (usually, they map the other way around, using DECOMPOSE,
+         * e.g. [Dz]->[D]+[z] etc.). */
         if (comp[0] == 2) {
             if (find_glyph0(f, comp[1]) != 0) {
                 cp_font_map_t *m = cp_v_push0(&c->combine);
-                assert(comp[2] <= CP_FONT_MASK_CODEPOINT);
-                assert(comp[3] <= CP_FONT_MASK_CODEPOINT);
-                assert(comp[1] <= CP_FONT_MASK_CODEPOINT);
-                m->first =  comp[2] & CP_FONT_MASK_CODEPOINT;
-                m->second = comp[3] & CP_FONT_MASK_CODEPOINT;
-                m->result = comp[1] & CP_FONT_MASK_CODEPOINT;
+                assert(comp[2] <= CP_FONT_ID_MASK);
+                assert(comp[3] <= CP_FONT_ID_MASK);
+                assert(comp[1] <= CP_FONT_ID_MASK);
+                m->first =  comp[2] & CP_FONT_ID_MASK;
+                m->second = comp[3] & CP_FONT_ID_MASK;
+                m->result = comp[1] & CP_FONT_ID_MASK;
             }
         }
     }
 
     /* composition from font data */
+    font_v_def_map_t per_lang = {0};
     for (cp_v_each(i, &f->glyph)) {
         font_glyph_t const *g = &cp_v_nth(&f->glyph, i);
-        for (cp_v_each(j, &g->def->combine)) {
-            font_def_combine_t const *comp = cp_v_nth_ptr(&g->def->combine, j);
-            cp_font_map_t *m = cp_v_push0(&c->combine);
-            assert(comp->first.codepoint  <= CP_FONT_MASK_CODEPOINT);
-            assert(comp->second.codepoint <= CP_FONT_MASK_CODEPOINT);
-            assert(g->unicode.codepoint   <= CP_FONT_MASK_CODEPOINT);
-            m->first =  comp->first.codepoint  & CP_FONT_MASK_CODEPOINT;
-            m->second = comp->second.codepoint & CP_FONT_MASK_CODEPOINT;
-            m->result = g->unicode.codepoint   & CP_FONT_MASK_CODEPOINT;
+        for (cp_v_each(j, &g->def->map)) {
+            font_def_map_t *comp = cp_v_nth_ptr(&g->def->map, j);
+            comp->glyph = g;
+            assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
+            switch (comp->type) {
+            case MAP_TYPE_COMBINE:
+            case MAP_TYPE_JOIN:
+            case MAP_TYPE_LIGATURE:
+                if (comp->lang == NULL) { // global
+                    assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                    assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                    cp_font_map_t *m = cp_v_push0(&c->combine);
+                    m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
+                    m->first =  comp->a.codepoint    & CP_FONT_ID_MASK;
+                    m->second = comp->b.codepoint    & CP_FONT_ID_MASK;
+                    m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                }
+                else {
+                    /* lang specific combination */
+                    cp_v_push(&per_lang, *comp);
+                }
+                break;
+
+            case MAP_TYPE_KERNING:{
+                assert((comp->lang == NULL) && "cannot have language specific kerning");
+                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                cp_font_map_t *m = cp_v_push0(&c->context);
+                (void)find_glyph(g, &comp->a);
+                m->flags |= CP_FONT_MXF_KERNING;
+                m->first  = g->unicode.codepoint & CP_FONT_ID_MASK; /* current */
+                m->second = comp->a.codepoint    & CP_FONT_ID_MASK; /* prev */
+                long k =
+                    rasterize_x_long(&ram, comp->amount) -
+                    rasterize_x_long(&ram, 0);
+                long lo = -(1L << (CP_FONT_ID_WIDTH-1));
+                long hi = +(1L << (CP_FONT_ID_WIDTH-1));
+                if ((k < lo) || (k > hi)) {
+                    die (g, g->font, "Kerning out of range: %g becomes %ld, range is %ld..%ld\n",
+                        comp->amount, k, lo, hi);
+                }
+                m->result = ((unsigned)k) & CP_FONT_ID_MASK;
+                break;}
+
+            case MAP_TYPE_CONTEXT:{
+                assert((comp->lang == NULL) && "cannot have lang specific context substitution");
+                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                cp_font_map_t *m = cp_v_push0(&c->context);
+                (void)find_glyph(g, &comp->a);
+                (void)find_glyph(g, &comp->b);
+                m->first = g->unicode.codepoint & CP_FONT_ID_MASK; /* current */
+                m->second = comp->a.codepoint   & CP_FONT_ID_MASK; /* prev */
+                m->result = comp->b.codepoint   & CP_FONT_ID_MASK; /* substitution */
+                break;}
+
+            case MAP_TYPE_REPLACE:
+                assert((comp->lang != NULL) && "cannot have global replacement");
+                cp_v_push(&per_lang, *comp);
+                break;
+            }
         }
     }
 
@@ -8324,6 +8489,56 @@ static void finalise_font(
         c->combine.size = last + 1;
     }
 
+    /* sort language specific stuff */
+    cp_v_qsort(&per_lang, 0, CP_SIZE_MAX, cmp_per_lang, NULL);
+
+    /* process language specific stuff lang by lang (the array is sorted,
+     * so it can be split easily) */
+    char const *cur_lang = "";
+    cp_font_lang_t *lang = NULL;
+    for (cp_v_each(i, &per_lang)) {
+        font_def_map_t *comp = cp_v_nth_ptr(&per_lang, i);
+
+        if (!strequ(comp->lang, cur_lang)) {
+            /* new entry for other language */
+            cur_lang = comp->lang;
+            lang = cp_v_push0(&c->lang);
+            assert(strlen(cur_lang) < (sizeof(lang->id) - 1));
+            strncpy(lang->id, cur_lang, sizeof(lang->id));
+        }
+
+        switch (comp->type) {
+            case MAP_TYPE_COMBINE:
+            case MAP_TYPE_JOIN:
+            case MAP_TYPE_LIGATURE: {
+                assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
+                assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
+                assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
+                (void)find_glyph(comp->glyph, &comp->a);
+                (void)find_glyph(comp->glyph, &comp->b);
+                cp_font_map_t *m = cp_v_push0(&lang->combine);
+                m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
+                m->first =  comp->a.codepoint  & CP_FONT_ID_MASK;
+                m->second = comp->b.codepoint  & CP_FONT_ID_MASK;
+                m->result = comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
+                break;}
+
+            case MAP_TYPE_REPLACE: {
+                assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
+                assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
+                assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
+                (void)find_glyph(comp->glyph, &comp->a);
+                cp_font_map_t *m = cp_v_push0(&lang->one2one);
+                m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
+                m->first =  comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
+                m->result = comp->a.codepoint  & CP_FONT_ID_MASK;
+                break;}
+
+            case MAP_TYPE_KERNING:
+            case MAP_TYPE_CONTEXT:
+                CP_DIE();
+        }
+    }
 }
 
 static void finalise_family(
@@ -8952,17 +9167,42 @@ static void ps_proof_sheet(
          "\x201aN\xe3o.\x2018");
 
     ps_writeln_str32(ps, font, 14, &yy,
-        U"Poj\x10fte! Pe\x165""a a vlk. ve\x13e""k\xfd \x132ssel f\x133n z\x142oty "
+        U"Poj\x10fte! Pe\x165""a ve\x13e""k\xfd fjo\x308r\xf0 segja z\x142oty ['t\x2b0""a:l\x250] "
          "ce\x140la CE\x13fLA");
 
-    ps_writeln_str32(ps, font, 14, &yy,
-        U"\x1f2u ['t\x2b0""a:l\x250]");
+    {
+        cp_v_obj_p_t out = {0};
+        cp_font_gc_t gc = {0};
+        cp_font_gc_set_font(&gc, font, 14, 1.0);
+        cp_font_print_str32(&out, &gc, U"\x1f2u d\x327 ");
+
+        cp_font_gc_set_lang(&gc, "MAH");
+        cp_font_print_str32(&out, &gc, U"M\x327""ajel\x327 ");
+
+        cp_font_gc_set_lang(&gc, "LIV");
+        cp_font_print_str32(&out, &gc, U"ne\x304""d\x327i ");
+
+        cp_font_gc_set_lang(&gc, "LAT");
+        cp_font_print_str32(&out, &gc, U"vil\x327n\x327u ");
+
+        gc.tracking = 2.0;
+        cp_font_gc_set_lang(&gc, "NDL");
+        cp_font_print_str32(&out, &gc, U"IJssel fijn ");
+
+        cp_font_gc_set_lang(&gc, "DEU");
+        cp_font_print_str32(&out, &gc, U"dreija\x308hrig fiel");
+
+
+        ps_render_v_poly(ps, 0, yy, &out);
+
+        yy -= (font->top_y - font->bottom_y) * gc.scale_y;
+    }
 
     ps_writeln_str32(ps, font, 14, &yy,
         U"ABCDEFGHIJKLMNOPQRSTUVWXYZA\x308O\x308U\x308N\x308\x1E9E \xa9""ht");
 
     ps_writeln_str32(ps, font, 14, &yy,
-        U"abcdefghijklmnopqrstuvwxyza\x308o\x308u\x308n\x308\xDF 0123456789");
+        U"abcdefghijklmnopqrstuvwxyza\x308o\x200d\x308u\x308n\x308\xDF\x149 0123456789");
 
     ps_writeln_str32(ps, font, 14, &yy,
         U".:x;!? 5/8 fox-like b=(1+*a) x||y");

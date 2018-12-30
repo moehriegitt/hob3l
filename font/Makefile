@@ -13,5 +13,9 @@ unicomp.inc: compdecomp dummy
 	./compdecomp > $@.new
 	mv $@.new $@
 
+../src/unidefign.inc: mkdefign dummy
+	./mkdefign > $@.new
+	mv $@.new $@
+
 .PHONY: dummy
 dummy:

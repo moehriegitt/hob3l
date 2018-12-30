@@ -39,10 +39,31 @@
 #define CP_FONT_GF_RESERVED2_ 0x04
 #define CP_FONT_GF_RESERVED3_ 0x08
 
-#define CP_FONT_MF_RESERVED0_ 0x01
-#define CP_FONT_MF_RESERVED1_ 0x02
-#define CP_FONT_MF_RESERVED2_ 0x04
-#define CP_FONT_MF_RESERVED3_ 0x08
+/**
+ * The composition is a ligature and, thus, globally optional based on the
+ * font_gc_t::mcf_disable bits. */
+#define CP_FONT_MCF_LIGATURE   0x01
+
+/**
+ * The composition joins two glyphs and is, thus, globally optional based on the
+ * font_gc_t::mcf_disable bits. */
+#define CP_FONT_MCF_JOINING    0x02
+#define CP_FONT_MCF_RESERVED2_ 0x04
+#define CP_FONT_MCF_RESERVED3_ 0x08
+
+/**
+ * This is a kerning value stored as signed integer in glyph coordinates
+ * in cp_font_map_t::second. Otherwise (i.e., bit is not set), this is
+ * a replacement glyph. */
+#define CP_FONT_MXF_KERNING    0x01
+#define CP_FONT_MXF_RESERVED1_ 0x02
+#define CP_FONT_MXF_RESERVED2_ 0x04
+#define CP_FONT_MXF_RESERVED3_ 0x08
+
+#define CP_FONT_MLF_RESERVED0_ 0x01
+#define CP_FONT_MLF_RESERVED1_ 0x02
+#define CP_FONT_MLF_RESERVED2_ 0x04
+#define CP_FONT_MLF_RESERVED3_ 0x08
 
 /**
  * Overlapping paths are XORed, i.e., an even-odd algorithm must be used.
@@ -57,9 +78,11 @@
  * This font format is limited to glyph IDs up to 0xfffff.
  * I.e., Unicode Plane 16 is not usable, and no characters outside Unicode
  * codepoint range can be defined. */
-#define CP_FONT_MASK_CODEPOINT 0xfffff
-#define CP_FONT_MASK_PATH_IDX  0xfffff
-#define CP_FONT_MASK_LANG_IDX  0xfffff
+#define CP_FONT_ID_WIDTH 20
+#define CP_FONT_ID_MASK  (~((~0U) << CP_FONT_ID_WIDTH))
+
+#define CP_FONT_FLAG_WIDTH 4
+#define CP_FONT_FLAG_MASK  (~((~0U) << CP_FONT_FLAG_WIDTH))
 
 /**
  * A coordinate in the glyph coord system.
@@ -113,6 +136,9 @@ typedef struct {
     /**
      * For polygons: index into path heap.
      * For decompositions: first decomposition glyph ID.
+     * Note that decompositions, joining, and ligatures all
+     * disable additional letter spacing locally
+     * (see cp_font_gc_t::letter_spacing).
      */
     unsigned first : 20;
 
@@ -149,17 +175,38 @@ typedef struct {
     unsigned result : 20;
 } __attribute__((__aligned__(8))) cp_font_map_t;
 
+typedef CP_VEC_T(cp_font_glyph_t) cp_v_font_glyph_t;
+typedef CP_VEC_T(cp_font_map_t) cp_v_font_map_t;
+
 /**
  * Language codes in OpenType format (specificaly, not
  * ISO-639-(1,2,3) -- see OpenType list).
  */
 typedef struct {
-    /* Three or four upper case characters. */
-    char id[4];
+    /**
+     * Three or four upper case characters (always NUL terminated)
+     * for the OpenType language tag.
+     * For languages that have no OpenType tag (at the time of writing,
+     * Livonian seemingly had none), it is recommended to use the
+     * ISO-639-3 code.
+     */
+    char id[8];
+
+    /**
+     * This is just like cp_font_t::combine, only language specific.
+     * E.g. in Dutch, [i]+[j] combines into [ij], but normally, it does not.
+     */
+    cp_v_font_map_t combine;
+
+    /**
+     * The map to use for mapping glyphs 1:1.
+     * The is sorted by cp_font_map_t::(first,second).
+     * cp_font_map_t::second is not used and must be 0.
+     * The CP_FONT_MLF_* flags are used.
+     */
+    cp_v_font_map_t one2one;
 } cp_font_lang_t;
 
-typedef CP_VEC_T(cp_font_glyph_t) cp_v_font_glyph_t;
-typedef CP_VEC_T(cp_font_map_t) cp_v_font_map_t;
 typedef CP_VEC_T(cp_font_lang_t) cp_v_font_lang_t;
 typedef CP_VEC_T(uint32_t) cp_v_uint32_t;
 
@@ -251,16 +298,42 @@ typedef struct {
     cp_v_font_xy_t coord;
 
     /**
-     * A map of language tags */
-    cp_v_font_lang_t lang_tab;
-
-    /** Unconditional combination; cp_font_map_t::second is a glyph ID. */
+     * Unconditional combination; cp_font_map_t::second is a glyph ID.
+     * The is sorted be cp_font_map_t::(first,second).
+     * The CP_FONT_MCF_* flags are used.
+     * This is not entirely unconditional: if the CP_FONT_MCF_LIGATURE
+     * bit is set, then this is only done if ligatures are switched on.
+     * Likewise, if CP_FONT_MCF_JOINING is switched on, this is only done
+     * if joining is switched on (the distinction is that 'fi' is a
+     * LIGATURE mapping while Arabic script joining is a JOIN mapping,
+     * and the two can be controlled globally with separate settings).
+     *
+     * ZWNJ may always be used to inhibit any combinations.
+     *
+     * ZWJ by default switches ligature mappings back on, but special
+     * mappings with ZWJ can also be put in this map, e.g. to implement
+     * the Arabic behaviour where LAM+ALEF combine into something
+     * different than LAM+ZWJ+ALEF.
+     */
     cp_v_font_map_t combine;
 
     /**
-     * Language specific mapping; cp_font_map_t::second is a language
-     * index into lang_tab.  idx 0 is the default language. */
-    cp_v_font_map_t lang_map;
+     * Contextual mappings based on preceding glyph, e.g. used for kerning:
+     * The is sorted be cp_font_map_t::(first,second).
+     * cp_font_map_t::second is a glyph ID of the preceding glyph (the last
+     * one that was printed).
+     * The CP_FONT_MXF_* flags are used.
+     * cp_font_map_t::result is either a kerning value (in glyph coordinates,
+     * signed), or a replacement glyph ID, depending on the
+     * CP_FONT_MXF_KERNING bit.
+     */
+    cp_v_font_map_t context;
+
+    /**
+     * Language specific glyph mappings.
+     * This is sorted lexicographically by cp_font_lang_t::id.
+     */
+    cp_v_font_lang_t lang;
 } cp_font_t;
 
 typedef CP_VEC_T(cp_font_t*) cp_v_font_p_t;
@@ -275,6 +348,13 @@ typedef struct {
 
     /** Last glyph relevant for kerning */
     unsigned last_cp;
+
+    /**
+     * Glyph count: the actual number of glyphs rendered, i.e., the
+     * number of indivisible (wrt. tracking) entities rendered.
+     * This does not count default-ignorable characters.
+     */
+    size_t glyph_cnt;
 } cp_font_state_t;
 
 /**
@@ -298,22 +378,53 @@ typedef struct {
     /** Replacement glyph.  NULL if none is available. */
     cp_font_glyph_t const *replacement;
 
-    /**
-     * Language ID (index into lang_map array); idx 0 is the default language
-     * for the font. */
-    unsigned lang;
+    /** Language specific map (NULL if disabled) */
+    cp_font_lang_t const *lang;
 
-    /** Text direction is right to lefT? */
+    /** Text direction is right to left? */
     bool right2left;
+
+    /**
+     * Additional glyph spacing (in final coordinate unit).
+     * This is applied once after drawing a glyph.  If is not applied
+     * inside combinations, ligatures, joining pairs, or after default
+     * ignorable codepoints, and if this is non-0, this does not affect
+     * whether ligatures etc. are searched or how kerning is applied.
+     *
+     * This is also not applied between glyphs that are internally decomposed
+     * to render a glyph, i.e. a font may render a 'IJ' ligature by decomposing
+     * it into two glyphs, I and J, but no additional tracking is added
+     * between I and J in that case if the input stream has a IJ ligature or
+     * if an IJ ligature is automatically combined.
+     *
+     * This is applied additional to kerning.
+     *
+     * This can be set by software for both-side flush rendering by dividing
+     * the free space after dummy rendering by (state.glyph_cnt - 1) and then
+     * rendering again.
+     *
+     * For stretching white space instead of glyph space for flushing, a higher
+     * level rendering algorithm is needed.
+     *
+     * This is not applied at default-ignorable characters.
+     */
+    double tracking;
+
+    /**
+     * Inhibit combinations by default if any of thse CP_FONT_MCF_* bits
+     * are set. */
+    unsigned mcf_disable;
 
     /** Print state, updated by printing routines. */
     cp_font_state_t state;
 
     /*
      * Vertical and horizontal alignment must be done after rendering.
+     *
      * For vertical alignment, a line-breaking algorithm is needed as
      * this only prints single lines.
-     * For horizontal alignment, the 'cur_x' can be used to determine
+     *
+     * For horizontal alignment, 'state.cur_x' can be used to determine
      * the width of the total text printed.
      */
 } cp_font_gc_t;
