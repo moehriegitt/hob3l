@@ -335,7 +335,7 @@ data: \
 
 maintainer-clean: zap
 
-.PHONY: sweep 
+.PHONY: sweep
 sweep:
 	rm -f *~
 	rm -f *.bak
@@ -350,9 +350,16 @@ sweep:
 	rm -f include/hob3l/*~
 	rm -f include/hob3l/*.bak
 
+.PHONY: font-clean
+font-clean: clean
+	rm -f src/font-nozzl3*.c
+
 .PHONY: zap
-zap: sweep clean
-	rm -f mode.d
+zap: sweep clean font-clean
+	rm -f .mode.d
+
+.PHONY: distclean
+distclean: sweep clean
 
 .PHONY: clean-test
 clean-test:
@@ -360,6 +367,7 @@ clean-test:
 
 clean: clean-test
 	rm -rf out
+	rm -rf out-font
 	rm -rf html
 	rm -f *.o
 	rm -f *.d
@@ -367,6 +375,9 @@ clean: clean-test
 	rm -f *.a
 	rm -f *.x
 	rm -f *.exe
+	rm -f core
+	rm -f src/core
+	rm -f font/core
 
 libhob3l.a: $(MOD_O.libhob3l.a)
 	$(AR) cr $@.new.a $+

@@ -202,7 +202,8 @@ generate them:
 
 This only needs to be done once (even when switching compilation
 targets).  The font files are not deleted even with `make distclean`
-or similar, so now the compilation goes on normally:
+or similar (only `make font-clean` and `make zap` remove them), so
+now the compilation goes on normally:
 
 ```
     make clean
