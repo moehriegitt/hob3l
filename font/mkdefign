@@ -39,6 +39,7 @@ close($f);
 
 # write
 
+print "/* -*- Mode: C -*- */\n";
 my $first = undef;
 my $last = undef;
 for my $e (sort { $a <=> $b } keys %{ $prop{default_ignorable_code_point} }) {
