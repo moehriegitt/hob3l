@@ -1,3 +1,4 @@
+/* -*- Mode: C -*- */
 static unicode_t cp_set__darg[] = {
     U_CYRILLIC_CAPITAL_LETTER_A,
     U_CYRILLIC_CAPITAL_LETTER_BE,

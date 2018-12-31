@@ -71,6 +71,7 @@ while (<$g>) {
 }
 close $g;
 
+print "/* -*- Mode: C -*- */\n";
 my %have_hex = ();
 for my $c_name(sort keys %have) {
     if ($def{$c_name} && ($cnt{$c_name} == 1)) {

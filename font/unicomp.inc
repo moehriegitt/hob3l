@@ -1,3 +1,4 @@
+/* -*- Mode: C -*- */
 CP_UNUSED
 static unsigned const *unicode_comp_circle[] = {
     (unsigned const[]){

@@ -36,6 +36,7 @@ sub read_unidata()
 
 read_unidata();
 
+print "/* -*- Mode: C -*- */\n";
 for my $type (sort keys %disass) {
     print "CP_UNUSED\n";
     print "static unsigned const *unicode_comp_$type"."[] = {\n";
