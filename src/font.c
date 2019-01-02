@@ -54,13 +54,23 @@ typedef struct {
  * Anything else must be done by the font's combination mechanisms.
  * If seq_take fails, base will be 0.
  */
-typedef union {
-    struct {
-        unsigned base;
-        unsigned above;
-        unsigned below;
+typedef struct {
+    union {
+        struct {
+            unsigned base;
+            unsigned above;
+            unsigned below;
+        };
+        unsigned code[3]; /* indexed by CP_FONT_CT_* constant */
     };
-    unsigned code[3]; /* indexed by CP_FONT_CT_* constant */
+    union {
+        struct {
+            unsigned _unused;
+            unsigned above_high;
+            unsigned _below_low; /* currently not used */
+        };
+        unsigned alt_code[3]; /* indexed by CP_FONT_CT_* constant */
+    };
 } glyph_t;
 
 /**
@@ -449,11 +459,21 @@ static void render_glyph_comb(
         have |= CP_FONT_MAS_HAVE_BELOW;
     }
     if (have != 0) {
-        (void)map2_lookup1(&gc->font->baserepl, &g->base, g->base, have);
+        (void)map2_lookup1(&gc->font->base_repl, &g->base, g->base, have);
     }
 
-    /* lookup glyphs */
+    /* base glyph */
     size_t base_idx  = find_glyph(gc, g->base);
+
+    /* possibly replace above glyph */
+    if (g->above != 0) {
+        cp_font_glyph_t const *base = cp_v_nth_ptr0(&gc->font->glyph, base_idx);
+        if ((base != NULL) && (base->flags & CP_FONT_GF_TALL)) {
+            g->above = g->above_high;
+        }
+    }
+
+    /* look up other glyph indices */
     size_t above_idx = find_glyph(gc, g->above);
     size_t below_idx = find_glyph(gc, g->below);
 
@@ -477,7 +497,7 @@ static void render_glyph_comb(
     gc->state.cur_x = cx + (m.width[le] - m_above.width[le]) * sx;
     render_glyph_one(out, gc, above_idx);
 
-    gc->state.cur_x = cx + (m.width[le] - m_above.width[le]) * sx;
+    gc->state.cur_x = cx + (m.width[le] - m_below.width[le]) * sx;
     render_glyph_one(out, gc, below_idx);
 
     gc->state.cur_x = cx + (m.width[0] + m.width[1]) * sx;
@@ -604,7 +624,8 @@ static void seq_take(
     size_t i = 0;
     bool complete[3] = {0}; /* indexed by CP_FONT_CT_* */
     for (;;) {
-        unsigned combtype;
+        cp_font_map_t const *comb;
+        unsigned comb_type;
         unsigned next = seq_peek(seq, i);
 
         /* end of text */
@@ -630,16 +651,19 @@ static void seq_take(
         }
 
         /* Get combining type: if we fail here, we're done. */
-        combtype = 0;
-        map1_lookup1(&font->combtype, &combtype, next);
-        assert(combtype < cp_countof(complete));
+        comb_type = 0;
+        comb = map1_lookup(&font->comb_type, next);
+        if (comb != NULL) {
+            comb_type = comb->result;
+        }
+        assert(comb_type < cp_countof(complete));
 
         /* this type of combining character's combining is done => keep and continue */
-        if (complete[combtype]) {
+        if (complete[comb_type]) {
             goto keep_this;
         }
 
-        if (combtype == 0) {
+        if (comb_type == 0) {
             /* try to combine with base character */
             if (map2_lookup1(&font->compose, &g->base, g->base, next)) {
                 goto next_comb;
@@ -647,26 +671,33 @@ static void seq_take(
         }
         else {
             /* is it the first one we want to keep? */
-            if (g->code[combtype] == 0) {
+            if (g->code[comb_type] == 0) {
                 /* try to combine with base char */
                 if (map2_lookup1(&font->compose, &g->base, g->base, next)) {
                     goto next_comb;
                 }
 
                 /* otherwise, store */
-                g->code[combtype] = next;
+                g->code[comb_type] = next;
+                g->alt_code[comb_type] = comb->second;
                 goto next_comb;
             }
 
             /* try to combine with previous modifier of same type */
-            if (map2_lookup1(&font->compose, &g->code[combtype], g->code[combtype], next))
+            if (map2_lookup1(&font->compose, &g->code[comb_type], g->code[comb_type], next))
             {
+                /* look up alternative glyph */
+                g->alt_code[comb_type] = g->code[comb_type];
+                comb = map1_lookup(&font->comb_type, g->code[comb_type]);
+                if (comb != NULL) {
+                    g->alt_code[comb_type] = comb->second;
+                }
                 goto next_comb;
             }
         }
 
         /* no more combining for this type, as this would mess up the order */
-        complete[combtype] = true;
+        complete[comb_type] = true;
 
     keep_this:
         seq_poke(seq, n, next);

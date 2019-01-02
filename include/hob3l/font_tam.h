@@ -47,7 +47,10 @@
 
 /** This is a sequence (if not set: it is a polygon rendering) */
 #define CP_FONT_GF_SEQUENCE   0x01
-#define CP_FONT_GF_RESERVED1_ 0x02
+/** The glyph is tall and occupies space above the x-height so that
+ * diacritics above must be placed higher up.  This causes the
+ * renderer to look up the high alternative diacritic glyph. */
+#define CP_FONT_GF_TALL       0x02
 #define CP_FONT_GF_RESERVED2_ 0x04
 #define CP_FONT_GF_RESERVED3_ 0x08
 
@@ -455,10 +458,11 @@ typedef struct {
      * characters algorithmically in simple (but helpful) cases, so these two
      * classes are distinguished.
      * The is sorted be cp_font_map_t::first.
-     * cp_font_map_t::second is not used.
+     * cp_font_map_t::second is used only for CP_FONT_CT_ABOVE diacritics: it is
+     * the high above glyph used instead if the base glyph has a TALL flag.
      * cp_font_map_t::result is one of the CP_FONT_CT_* constants.
      */
-    cp_v_font_map_t combtype;
+    cp_v_font_map_t comb_type;
 
     /**
      * Kerning table and replacement glyph table, applied after rendering
@@ -488,7 +492,7 @@ typedef struct {
      * supported be the font need to have the undotted base character in this
      * table for the renderer to work.
      */
-    cp_v_font_map_t baserepl;
+    cp_v_font_map_t base_repl;
 
     /**
      * Language specific glyph mappings.
