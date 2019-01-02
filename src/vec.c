@@ -814,6 +814,14 @@ extern macro val cp_v_nth_ptr0(val *vec, size_t i)
 }
 
 /**
+ * An element of the vector, or 0 if index is out of range.
+ */
+extern macro val cp_v_nth0(val *vec, size_t i)
+{
+    ((vec != NULL) && (i < vec->size)) ? vec->data[i] : 0;
+}
+
+/**
  * Pointer to an element of the vector.
  */
 extern macro val cp_v_nth_ptr(val *vec, size_t i)

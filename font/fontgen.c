@@ -40,6 +40,8 @@
 typedef CP_ARR_T(unsigned) cp_a_unsigned_t;
 typedef CP_VEC_T(unsigned) cp_v_unsigned_t;
 
+typedef CP_ARR_T(unsigned const *) cp_a_unsigned_const_p_t;
+
 typedef CP_ARR_T(int const)    cp_a_int_const_t;
 typedef CP_ARR_T(double const) cp_a_double_const_t;
 
@@ -62,8 +64,8 @@ typedef struct {
 } font_box_t;
 
 typedef enum {
-    FONT_DRAW_COMPOSE = 1,
-    FONT_DRAW_DECOMPOSE,
+    FONT_DRAW_MERGE = 1,
+    FONT_DRAW_SEQUENCE,
     FONT_DRAW_STROKE,
     FONT_DRAW_XFORM,
     FONT_DRAW_REF,
@@ -80,8 +82,8 @@ typedef enum {
         font_draw_lpad_t:      FONT_DRAW_LPAD, \
         font_draw_rpad_t:      FONT_DRAW_RPAD, \
         font_draw_xform_t:     FONT_DRAW_XFORM, \
-        font_draw_compose_t:   FONT_DRAW_COMPOSE, \
-        font_draw_decompose_t: FONT_DRAW_DECOMPOSE, \
+        font_draw_merge_t:   FONT_DRAW_MERGE, \
+        font_draw_sequence_t:  FONT_DRAW_SEQUENCE, \
         font_draw_stroke_t:    FONT_DRAW_STROKE)
 
 #define font_draw_new(r)        cp_new_type_(font_draw_typeof, r)
@@ -214,13 +216,13 @@ typedef struct {
 typedef struct {
     FONT_DRAW_OBJ_
     font_a_draw_const_p_const_t child;
-} font_draw_compose_t;
+} font_draw_merge_t;
 
 typedef struct {
     FONT_DRAW_OBJ_
     unicode_t first;
     unicode_t second;
-} font_draw_decompose_t;
+} font_draw_sequence_t;
 
 /**
  * To map coordinates.
@@ -310,20 +312,38 @@ union font_draw {
 };
 
 typedef enum {
-    /** canonically compose a+b into the glyph where this is found (language specific or not) */
-    MAP_TYPE_COMBINE,
-    /** compose ligature a+b into the glyph where this is found (language specific or not) */
+    /** mandatorily ligate a+b into the glyph where this is found (language specific or not) */
+    MAP_TYPE_MANDATORY,
+    /** compose ligate a+b into the glyph where this is found (language specific or not) */
     MAP_TYPE_LIGATURE,
     /** join a+b into the glyph where this is found (language specific or not) */
     MAP_TYPE_JOINING,
     /** if the preceeding glyph is a, apply this amount of kerning (globally) */
     MAP_TYPE_OPTIONAL,
+
+    /** canonically compose a+b into the glyph where this is found (language specific or not) */
+    MAP_TYPE_CANON,
     /** like LIGATURE or JOINING, but is off by default an needs to be enabled using ZWJ */
     MAP_TYPE_KERNING,
     /** if the preceeding glyph is a, replace current glyph by b (globally) */
     MAP_TYPE_CONTEXT,
-    /** replace this glyph by a (language specific) */
-    MAP_TYPE_REPLACE
+    /** replace this glyph by a (language specific) alternative glyph */
+    MAP_TYPE_REPLACE,
+
+    /** replace this glyph if it is combined with something above and/or below */
+    MAP_TYPE_BASE_REPLACE,
+
+    /** flag to mark to keep second glyph */
+    MAP_FLAG_KEEP = 0x100,
+
+    /** like MANDATORY,but replace only the first glyph (mandatory), keep the second */
+    MAP_TYPE_MANDATORY_KEEP = MAP_TYPE_MANDATORY | MAP_FLAG_KEEP,
+    /** like LIGATURE,but replace only the first glyph (mandatory), keep the second */
+    MAP_TYPE_LIGATURE_KEEP  = MAP_TYPE_LIGATURE | MAP_FLAG_KEEP,
+    /** like JOINING,but replace only the first glyph (mandatory), keep the second */
+    MAP_TYPE_JOINING_KEEP = MAP_TYPE_JOINING | MAP_FLAG_KEEP,
+    /** like OPTIONAL,but replace only the first glyph (mandatory), keep the second */
+    MAP_TYPE_OPTIONAL_KEEP = MAP_TYPE_OPTIONAL | MAP_FLAG_KEEP,
 } font_def_map_type_t;
 
 typedef struct {
@@ -331,6 +351,7 @@ typedef struct {
     font_glyph_t const *glyph; /* used internally -- not specified in glyph data */
     unicode_t a;
     unicode_t b;
+    unsigned value;
     double amount;
     char const *lang;
 } font_def_map_t;
@@ -340,6 +361,9 @@ typedef CP_VEC_T(font_def_map_t) font_v_def_map_t;
 
 typedef struct {
     unicode_t unicode;
+
+    /** combining type (CP_FONT_CT_* constant) */
+    unsigned combining;
 
     /** final width scaling factor */
     double width_mul;
@@ -483,28 +507,13 @@ typedef struct {
     font_a_def_glyph_const_t glyph;
 } font_def_t;
 
-/**
- * Auto-kerning works by defining discrete layers where
- * collisions are detected.
- *
- * Number of layers for auto kerning:
- *   3: one each at base, cap, and xhi
- *   3 above cap
- *   3 below base
- *   3 between cap and xhi
- *   4 between base and xhi
- *  --
- *  16
- */
-#define AUTO_KERN_LAYER_COUNT 16
-
 struct font {
     char const *family_name;
     cp_vchar_t style_name;
     cp_vchar_t name;
     cp_vchar_t filename;
     cp_vec2_minmax_t box_max;
-    cp_vec2_minmax_t coll_box_y[AUTO_KERN_LAYER_COUNT-1];
+    cp_vec2_minmax_t coll_box_y[CP_FONT_GLYPH_LAYER_COUNT - 1];
     double cap_y;
     double xhi_y;
     double base_y;
@@ -608,14 +617,14 @@ typedef struct {
 #define XFORM2(xform, A, B, draw) \
     DRAW(font_draw_xform_t, xform, draw, .a=A, .b=B)
 
-#define COMPOSE(...) \
-    DRAW(font_draw_compose_t, VEC(((font_draw_t const *const[]){ __VA_ARGS__ })))
+#define MERGE(...) \
+    DRAW(font_draw_merge_t, VEC(((font_draw_t const *const[]){ __VA_ARGS__ })))
 
-#define DECOMPOSE(A,B) \
-    DRAW(font_draw_decompose_t, .first=A, .second=B)
+#define SEQ(A,B) \
+    DRAW(font_draw_sequence_t, .first=A, .second=B)
 
 #define SAME(A) \
-    DRAW(font_draw_decompose_t, .first=A, .second=U_NULL)
+    DRAW(font_draw_sequence_t, .first=A, .second=U_NULL)
 
 #define UNICODE(X,Y) { .codepoint = X, .name = Y }
 
@@ -625,30 +634,36 @@ typedef struct {
 
 #define MAP(...) VEC(((font_def_map_t[]){ __VA_ARGS__ }))
 
-#define PAIR(A,B)     { .type=MAP_TYPE_COMBINE,  .a=A, .b=B }
-#define JOIN(A,B)     { .type=MAP_TYPE_JOINING,  .a=A, .b=B }
-#define LIGA(A,B)     { .type=MAP_TYPE_LIGATURE, .a=A, .b=B }
-#define OPT(A,B)      { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
+#define CANON(A,B)    { .type=MAP_TYPE_CANON,  .a=A, .b=B }
+
+#define MAND(A,B)     { .type=MAP_TYPE_MANDATORY, .a=A, .b=B }
+#define JOIN(A,B)     { .type=MAP_TYPE_JOINING,   .a=A, .b=B }
+#define LIGA(A,B)     { .type=MAP_TYPE_LIGATURE,  .a=A, .b=B }
+#define OPT(A,B)      { .type=MAP_TYPE_OPTIONAL,  .a=A, .b=B }
+
+#define WITH_ABOVE(A) { .type=MAP_TYPE_BASE_REPLACE, .a=A, .value=CP_FONT_MAS_HAVE_ABOVE }
+#define WITH_BELOW(A) { .type=MAP_TYPE_BASE_REPLACE, .a=A, .value=CP_FONT_MAS_HAVE_BELOW }
+#define WITH_BOTH(A)  { .type=MAP_TYPE_BASE_REPLACE, .a=A, .value=CP_FONT_MAS_HAVE_BOTH  }
+
 #define CONTEXT(A,B)  { .type=MAP_TYPE_CONTEXT,  .a=A, .b=B }
 #define KERN(A,B)     { .type=MAP_TYPE_KERNING,  .a=A, .amount=B }
 
-/*
- * LANG_OPT is are currently not used
- */
-#define LANG_ONLY_PAIR(L,A,B)  { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }
-#define LANG_ONLY_JOIN(L,A,B)  { .type=MAP_TYPE_JOINING,  .a=A, .b=B, .lang=L }
-#define LANG_ONLY_LIGA(L,A,B)  { .type=MAP_TYPE_LIGATURE, .a=A, .b=B, .lang=L }
-#define LANG_REPLACE(L,A)      { .type=MAP_TYPE_REPLACE,  .a=A,       .lang=L }
+#define LANG_ONLY_MAND(L,A,B)  { .type=MAP_TYPE_MANDATORY, .a=A, .b=B, .lang=L }
+#define LANG_ONLY_JOIN(L,A,B)  { .type=MAP_TYPE_JOINING,   .a=A, .b=B, .lang=L }
+#define LANG_ONLY_LIGA(L,A,B)  { .type=MAP_TYPE_LIGATURE,  .a=A, .b=B, .lang=L }
+#define LANG_ONLY_OPT(L,A,B)   { .type=MAP_TYPE_OPTIONAL,  .a=A, .b=B, .lang=L }
+
+#define LANG_REPLACE(L,A)      { .type=MAP_TYPE_REPLACE,   .a=A,       .lang=L }
 
 /* By default, all lang specific ligatures/joinings/pairs will get an optional
  * entry in the global table.
- * We cannot invoke macros from LANG_PAIR etc, because the parameters must not
+ * We cannot invoke macros from LANG_ONLY_* etc, because the parameters must not
  * be macro expanded because the , within {} would cause errors...  Weird C
  * syntax...
  */
-#define LANG_PAIR(L,A,B) \
-    { .type=MAP_TYPE_COMBINE,  .a=A, .b=B, .lang=L }, \
-    { .type=MAP_TYPE_OPTIONAL, .a=A, .b=B }
+#define LANG_MAND(L,A,B) \
+    { .type=MAP_TYPE_MANDATORY, .a=A, .b=B, .lang=L }, \
+    { .type=MAP_TYPE_OPTIONAL,  .a=A, .b=B }
 
 #define LANG_JOIN(L,A,B) \
     { .type=MAP_TYPE_JOINING,  .a=A, .b=B, .lang=L }, \
@@ -810,7 +825,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_FIGURE_DASH,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(B, (+3,-6,0,0), ( 0,-3,+3,30)),
@@ -820,7 +835,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_HORIZONTAL_BAR,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_EM_SPACE),
           STROKE(
             Q(B, (0,0,0,0,.olen={-3,+6,+(int)((30/RATIO_EM)+0.999)}), ( 0,-3,+3,30)),
@@ -830,7 +845,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_EM_DASH,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_EM_SPACE),
           STROKE(
             Q(B, (0,0,0,0,-40,.olen={-3,+6,+(int)((30/RATIO_EM)+0.999)}), ( 0,-3,+3,30)),
@@ -840,7 +855,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_EN_DASH,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_EN_SPACE),
           STROKE(
             Q(B, (0,0,0,0,-40,.olen={-3,+6,+(int)((15/RATIO_EM)+0.999)}), ( 0,-3,+3,30)),
@@ -1141,7 +1156,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_MASCULINE_ORDINAL_INDICATOR,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript_lc, REF(U_LATIN_SMALL_LETTER_O)),
             STROKE(
               Q(B, ( 0,-5, 0, 0), ( 0, 0, 0, 0)),
@@ -1151,7 +1166,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_FEMININE_ORDINAL_INDICATOR,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript_lc, REF(U_LATIN_SMALL_LETTER_A)),
             STROKE(
               Q(B, ( 0,-5, 0, 0), ( 0, 0, 0, 0)),
@@ -1211,7 +1226,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_TRADE_MARK_SIGN,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_MODIFIER_LETTER_CAPITAL_T,
             U_MODIFIER_LETTER_CAPITAL_M
         ),
@@ -1256,7 +1271,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_YEN_SIGN,
         .line_step = LS_THIN,
-        .draw = COMPOSE(
+        .draw = MERGE(
           STROKE(
             Q(B, ( 0,-7, 0, 0), ( 0,+6, 0, 0)),
             Q(A, ( 0,-7, 0, 0), (+2,+2, 0, 0)),
@@ -1278,7 +1293,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_CENT_SIGN,
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_SMALL_LETTER_C),
           XFORM(ls_thinner,
             STROKE(
@@ -1346,7 +1361,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = U_OHM_SIGN,
+        .unicode = U_GREEK_CAPITAL_LETTER_OMEGA, // = OHM SIGN
         .draw = STROKE(
             Q(B, (+3,-7, 0, 0), (-2,-3, 0, 0)),
             Q(P, (+2,-2, 0, 0), (-2,-3, 0, 0)),
@@ -1387,7 +1402,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COPYRIGHT_SIGN,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(enclosed,
                 REF(U_LATIN_CAPITAL_LETTER_C)
             ),
@@ -1396,7 +1411,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_REGISTERED_SIGN,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(enclosed,
                 REF(U_LATIN_CAPITAL_LETTER_R)
             ),
@@ -1451,238 +1466,238 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_FRACTION_ZERO,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_ZERO
         ),
     },
     {
         .unicode = UX_FRACTION_ONE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_ONE
         ),
     },
     {
         .unicode = UX_FRACTION_TWO,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_TWO
         ),
     },
     {
         .unicode = UX_FRACTION_THREE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_THREE
         ),
     },
     {
         .unicode = UX_FRACTION_FOUR,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_FOUR
         ),
     },
     {
         .unicode = UX_FRACTION_FIVE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_FIVE
         ),
     },
     {
         .unicode = UX_FRACTION_SIX,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_SIX
         ),
     },
     {
         .unicode = UX_FRACTION_SEVEN,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_SEVEN
         ),
     },
     {
         .unicode = UX_FRACTION_EIGHT,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_EIGHT
         ),
     },
     {
         .unicode = UX_FRACTION_NINE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_NARROW_FRACTION_SLASH,
             U_SUBSCRIPT_NINE
         ),
     },
     {
         .unicode = U_PERCENT_SIGN,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ZERO,
             UX_FRACTION_ZERO
         ),
     },
     {
         .unicode = U_PER_MILLE_SIGN,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_PERCENT_SIGN,
             U_SUBSCRIPT_ZERO
         ),
     },
     {
         .unicode = U_PER_TEN_THOUSAND_SIGN,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_PER_MILLE_SIGN,
             U_SUBSCRIPT_ZERO
         ),
     },
     {
         .unicode = U_FRACTION_NUMERATOR_ONE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_NARROW_FRACTION_SLASH
         ),
     },
     {
         .unicode = UX_VULGAR_FRACTION_ONE_WHOLE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_ONE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_HALF,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_TWO
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_THIRD,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_THREE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ZERO_THIRDS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ZERO,
             UX_FRACTION_THREE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_TWO_THIRDS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_TWO,
             UX_FRACTION_THREE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_QUARTER,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_FOUR
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_QUARTERS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_THREE,
             UX_FRACTION_FOUR
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_FIFTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_FIVE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_TWO_FIFTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_TWO,
             UX_FRACTION_FIVE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_FIFTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_THREE,
             UX_FRACTION_FIVE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_FOUR_FIFTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_FOUR,
             UX_FRACTION_FIVE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_SIXTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_SIX
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_FIVE_SIXTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_FIVE,
             UX_FRACTION_SIX
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_SEVENTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_SEVEN
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_NINTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_NINE
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_TENTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             UX_VULGAR_FRACTION_ONE_WHOLE,
             U_SUBSCRIPT_ZERO
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_ONE_EIGHTH,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_ONE,
             UX_FRACTION_EIGHT
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_THREE_EIGHTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_THREE,
             UX_FRACTION_EIGHT
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_FIVE_EIGHTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_FIVE,
             UX_FRACTION_EIGHT
         ),
     },
     {
         .unicode = U_VULGAR_FRACTION_SEVEN_EIGHTHS,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
             U_SUPERSCRIPT_SEVEN,
             UX_FRACTION_EIGHT
         ),
@@ -1693,7 +1708,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_ZERO,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_DIGIT_ZERO)),
         ),
     },
@@ -1701,63 +1716,63 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_ONE,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_ONE)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_TWO,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_TWO)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_THREE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_THREE)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_FOUR,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_FOUR)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_FIVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_FIVE)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_SIX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_SIX)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_SEVEN,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_SEVEN)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_EIGHT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_EIGHT)),
         ),
     },
     {
         .unicode = U_SUPERSCRIPT_NINE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(superscript, REF(U_DIGIT_NINE)),
         ),
@@ -1766,7 +1781,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_PLUS_SIGN,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_PLUS_SIGN)),
         ),
     },
@@ -1774,7 +1789,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_MINUS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_MINUS_SIGN)),
         ),
     },
@@ -1782,7 +1797,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_EQUALS_SIGN,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_EQUALS_SIGN)),
         ),
     },
@@ -1790,7 +1805,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_LEFT_PARENTHESIS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LEFT_PARENTHESIS)),
         ),
     },
@@ -1798,7 +1813,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_RIGHT_PARENTHESIS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_RIGHT_PARENTHESIS)),
         ),
     },
@@ -1806,7 +1821,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_LATIN_SMALL_LETTER_I,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_SMALL_LETTER_I)),
         ),
     },
@@ -1814,7 +1829,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUPERSCRIPT_LATIN_SMALL_LETTER_N,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_SMALL_LETTER_N)),
         ),
     },
@@ -1822,7 +1837,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_A,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_A)),
         ),
     },
@@ -1830,7 +1845,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_AE,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_AE)),
         ),
     },
@@ -1838,7 +1853,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_B,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_B)),
         ),
     },
@@ -1846,7 +1861,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_D,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_D)),
         ),
     },
@@ -1854,7 +1869,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_E,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_E)),
         ),
     },
@@ -1862,7 +1877,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_G,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_G)),
         ),
     },
@@ -1870,7 +1885,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_H,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_H)),
         ),
     },
@@ -1878,7 +1893,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_I,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_I)),
         ),
     },
@@ -1886,7 +1901,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_J,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_J)),
         ),
     },
@@ -1894,7 +1909,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_K,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_K)),
         ),
     },
@@ -1902,7 +1917,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_L,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_L)),
         ),
     },
@@ -1910,7 +1925,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_M,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_M)),
         ),
     },
@@ -1918,7 +1933,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_N,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_N)),
         ),
     },
@@ -1926,7 +1941,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_O,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_O)),
         ),
     },
@@ -1934,7 +1949,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_P,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_P)),
         ),
     },
@@ -1942,7 +1957,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_R,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_R)),
         ),
     },
@@ -1950,7 +1965,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_T,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_T)),
         ),
     },
@@ -1958,7 +1973,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_U,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_U)),
         ),
     },
@@ -1966,7 +1981,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_W,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_W)),
         ),
     },
@@ -1974,7 +1989,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_CAPITAL_V,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_CAPITAL_LETTER_V)),
         ),
     },
@@ -1982,7 +1997,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_SMALL_H,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_SMALL_LETTER_H)),
         ),
     },
@@ -1990,7 +2005,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_SMALL_J,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_SMALL_LETTER_J)),
         ),
     },
@@ -1998,7 +2013,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_MODIFIER_LETTER_SMALL_W,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(superscript, REF(U_LATIN_SMALL_LETTER_W)),
         ),
     },
@@ -2076,70 +2091,70 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* subscript */
     {
         .unicode = U_SUBSCRIPT_ZERO,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUPERSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_ZERO)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_ONE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_ONE)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_TWO,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_TWO)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_THREE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_THREE)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_FOUR,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_FOUR)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_FIVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_FIVE)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_SIX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_SIX)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_SEVEN,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_SEVEN)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_EIGHT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_EIGHT)),
         ),
     },
     {
         .unicode = U_SUBSCRIPT_NINE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_SUBSCRIPT_ZERO),
             XFORM(subscript, REF(U_DIGIT_NINE)),
         ),
@@ -2148,7 +2163,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUBSCRIPT_PLUS_SIGN,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(subscript, REF(U_PLUS_SIGN)),
         ),
     },
@@ -2156,7 +2171,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUBSCRIPT_MINUS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(subscript, REF(U_MINUS_SIGN)),
         ),
     },
@@ -2164,7 +2179,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUBSCRIPT_EQUALS_SIGN,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(subscript, REF(U_EQUALS_SIGN)),
         ),
     },
@@ -2172,7 +2187,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUBSCRIPT_LEFT_PARENTHESIS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(subscript, REF(U_LEFT_PARENTHESIS)),
         ),
     },
@@ -2180,7 +2195,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_SUBSCRIPT_RIGHT_PARENTHESIS,
         .lpad_abs = PAD_SCRIPT,
         .rpad_abs = PAD_SCRIPT,
-        .draw = COMPOSE(
+        .draw = MERGE(
             XFORM(subscript, REF(U_RIGHT_PARENTHESIS)),
         ),
     },
@@ -2250,7 +2265,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_NOT_SIGN,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_MINUS_SIGN),
           STROKE(
             Q(B, ( 0,-8, 0, 0), ( 0,+1, 0, 0)),
@@ -2274,7 +2289,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_MULTIPLICATION_SIGN,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_MINUS_SIGN),
           STROKE(
             Q(I, (-2,+8, 0, 0), (-2,+4, 0, 0)),
@@ -2361,7 +2376,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_ONE,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -2376,7 +2391,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_TWO,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, (+1,-6, 0, 0), ( 0,+5, 0, 0)),
@@ -2392,7 +2407,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_THREE,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, (+1,-6, 0, 0), ( 0,+5, 0, 0)),
@@ -2410,7 +2425,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_FOUR,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, ( 0,+6, 0, 0), ( 0,-3, 0, 0)),
@@ -2425,7 +2440,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_FIVE,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, (+2,+6, 0, 0), (-2,+6, 0, 0)),
@@ -2441,7 +2456,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_SIX,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, ( 0,+6, 0, 0), ( 0,+5, 0, 0)),
@@ -2457,7 +2472,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_SEVEN,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, (+2,-6, 0, 0), (-2,+6, 0, 0)),
@@ -2472,7 +2487,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_EIGHT,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(L, (-1,+6, 0, 0), (-2,+6, 0, 0)),
@@ -2492,7 +2507,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_DIGIT_NINE,
         .line_step = LS_DIGIT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_DIGIT_ZERO),
           STROKE(
             Q(I, ( 0,-6, 0, 0), ( 0,-2, 0, 0)),
@@ -2772,7 +2787,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Q,
         .line_step = LS_UPPER,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             STROKE(
                 Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -3273,7 +3288,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             XFORM(ls_thin,
                 STROKE(
@@ -3285,7 +3300,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             XFORM(ls_thin,
                 STROKE(
@@ -3313,7 +3328,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_ETH,
-        .draw = COMPOSE(
+        .draw = MERGE(
             STROKE(
                 Q(I, ( 0,-2, 0, 0), ( 0,+7, 0, 0)),
                 Q(P, ( 0,+5, 0, 0), (+5,+2,+3,30)),
@@ -3338,7 +3353,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_SMALL_LETTER_D_WITH_STROKE,
         .max_coord = COORD(+3,+5,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_D),
             XFORM(ls_thinner,
                 STROKE(
@@ -3352,6 +3367,9 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* special letters */
     {
         .unicode = U_LATIN_SMALL_LETTER_DOTLESS_I,
+        .map = MAP(
+            WITH_ABOVE(U_LATIN_SMALL_LETTER_I),
+        ),
         .draw = STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,+3, 0, 0)),
             Q(E, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -3359,6 +3377,9 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_DOTLESS_J,
+        .map = MAP(
+            WITH_ABOVE(U_LATIN_SMALL_LETTER_J),
+        ),
         .min_coord = COORD(-3,0,0,0),
         .draw = STROKE(
             Q(B, ( 0,-6, 0, 0), (-2,-6, 0, 0)),
@@ -3458,14 +3479,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* combined letters */
     {
         .unicode = U_LATIN_SMALL_LETTER_I,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_J,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_COMBINING_DOT_ABOVE),
@@ -3494,7 +3515,7 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_DOT_ABOVE),
         ),
@@ -3503,7 +3524,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* MISSING */
     {
         .unicode = U_LATIN_SMALL_LETTER_B_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_B),
             REF(U_COMBINING_DOT_ABOVE),
         ),
@@ -3511,266 +3532,266 @@ static font_def_glyph_t f1_a_glyph[] = {
 #endif
     {
         .unicode = U_LATIN_SMALL_LETTER_C_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_C),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_M_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_M),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_P_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_P),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_R_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_R),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_S_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_S),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_W),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_X_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_X),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Z_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Z),
             REF(U_COMBINING_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_LONG_S_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_LONG_S),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_C),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Z),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_B_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_B),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_D),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_F_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_F),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_M_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_M),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_P_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_P),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_R),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_T),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_W),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_X_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_X),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_F_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_F),
             REF(UX_COMBINING_CAPITAL_DOT_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_D_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_D),
             XFORM2(xlat_relx, 0,-1, REF(U_COMBINING_DOT_ABOVE)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_H),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_DOT_ABOVE)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_DOT_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_T),
             XFORM2(xlat, 0,7, REF(U_COMBINING_DOT_ABOVE)),
         ),
@@ -3804,70 +3825,70 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_W),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_X_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_X),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_T),
             XFORM2(xlat, 0,7, REF(U_COMBINING_DIAERESIS)),
         ),
@@ -3875,75 +3896,75 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_DIAERESIS,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_DIAERESIS
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_W),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_X_WITH_DIAERESIS,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_X),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
@@ -3951,12 +3972,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_DIAERESIS,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_DIAERESIS
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_DIAERESIS),
         ),
@@ -3965,6 +3986,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* acute */
     {
         .unicode = U_COMBINING_ACUTE_ACCENT,
+        .combining = CP_FONT_CT_ABOVE,
         .line_step = LS_THIN,
         .draw = STROKE(
             Q(I, ( 0,+4, 0, 0), ( 0,+7, 0, 0)),
@@ -3988,253 +4010,134 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = U_LATIN_SMALL_LETTER_I_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_L),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
-        .unicode = U_LATIN_SMALL_LETTER_E_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_E),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_A_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_A),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_O_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_O),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_U_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_U),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_Y_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_Y),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_N_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_N),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_C_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_C),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_S_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_S),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_Z_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_Z),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_K_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_K),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_R_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_R),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_G_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_G),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_M_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_M),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_P_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_P),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_W_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_W),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_AE_WITH_ACUTE,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_AE),
-            REF(U_COMBINING_ACUTE_ACCENT),
-        ),
-    },
-    {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_C),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_L),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_R),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Z),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_K_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_K),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_M_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_M),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_P_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_P),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_W),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_AE_WITH_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_AE),
             REF(UX_COMBINING_CAPITAL_ACUTE),
         ),
@@ -4260,56 +4163,56 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_W),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_GRAVE_ACCENT),
         ),
@@ -4317,56 +4220,56 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_W),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_GRAVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_GRAVE),
         ),
@@ -4375,6 +4278,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* caron / hacek */
     {
         .unicode = U_COMBINING_CARON,
+        .combining = CP_FONT_CT_ABOVE,
         .line_step = LS_THIN,
         .draw = STROKE(
             Q(I, ( 0,-4, 0, 0), ( 0,+7,+6,30)),
@@ -4402,204 +4306,190 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
     {
-        .unicode = U_LATIN_SMALL_LETTER_I_WITH_CARON,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
-            REF(U_COMBINING_CARON),
-        ),
-    },
-    {
-        .unicode = U_LATIN_SMALL_LETTER_J_WITH_CARON,
-        .draw = COMPOSE(
-            REF(U_LATIN_SMALL_LETTER_DOTLESS_J),
-            REF(U_COMBINING_CARON),
-        ),
-    },
-    {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_C_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_C),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_R_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_R),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_S_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_S),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Z_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Z),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_C),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_D),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_R),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_T),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Z),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_K_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_K),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_K_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_K),
             REF(UX_COMBINING_CAPITAL_CARON),
         ),
@@ -4607,7 +4497,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_SMALL_LETTER_D_WITH_CARON,
         .max_coord = COORD(+2,+9,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_SMALL_LETTER_D),
           STROKE(
             Q(I, (+2,+10, 0, 0), ( 0,+6, 0, 0)),
@@ -4617,7 +4507,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LATIN_SMALL_LETTER_T),
           REF(U_LATIN_SMALL_LETTER_T),
           STROKE(
@@ -4629,7 +4519,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_CARON,
         .max_coord = COORD(0,+5,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_SMALL_LETTER_L),
           STROKE(
             Q(I, (+2,+7, 0, 0), ( 0,+6, 0, 0)),
@@ -4639,7 +4529,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_CARON,
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_CAPITAL_LETTER_L),
           STROKE(
             Q(I, (+2,+3, 0, 0), ( 0,+6, 0, 0)),
@@ -4683,91 +4573,91 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_J_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_J),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_C_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_C),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_S_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_S),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_W),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Z_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Z),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
@@ -4775,12 +4665,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_M_WITH_CIRCUMFLEX,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_M,
                U_COMBINING_CIRCUMFLEX_ACCENT
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_M),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
@@ -4788,103 +4678,103 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_CIRCUMFLEX,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_CIRCUMFLEX_ACCENT
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_CIRCUMFLEX_ACCENT),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_C),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_H),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_J_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_J),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_W_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_W),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Z_WITH_CIRCUMFLEX,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Z),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
@@ -4892,12 +4782,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_CIRCUMFLEX,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_M,
                U_COMBINING_CIRCUMFLEX_ACCENT
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_M),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
@@ -4905,12 +4795,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_CIRCUMFLEX,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_CIRCUMFLEX_ACCENT
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_CIRCUMFLEX),
         ),
@@ -4944,112 +4834,112 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_V_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_V),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_V_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_V),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_TILDE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
@@ -5057,12 +4947,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_G_WITH_TILDE,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_G,
                U_COMBINING_TILDE
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_TILDE),
         ),
@@ -5070,12 +4960,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_G_WITH_TILDE,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_G,
                U_COMBINING_TILDE
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_TILDE),
         ),
@@ -5108,28 +4998,28 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_RING_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_RING_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_W_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_W),
             REF(U_COMBINING_RING_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_RING_ABOVE),
         ),
@@ -5137,14 +5027,14 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_RING_ABOVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_RING_ABOVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_RING_ABOVE),
         ),
@@ -5184,14 +5074,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_C_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_C),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_S_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_S),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5199,14 +5089,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_CEDILLA,
         .max_coord = COORD(0,+4,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_T),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_CEDILLA)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_H),
             REF(U_LATIN_SMALL_LETTER_H),
             XFORM2(xlat_relx, 0,-5, REF(U_COMBINING_CEDILLA)),
@@ -5214,7 +5104,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5222,19 +5112,19 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_O_WITH_CEDILLA,
         .map = MAP(
-            PAIR(
+            CANON(
                 U_LATIN_SMALL_LETTER_O,
                 U_COMBINING_CEDILLA
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_C_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_C),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5242,7 +5132,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_CEDILLA,
         .min_coord = COORD(+3,-7,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_H),
             XFORM2(xlat_relx, 0,-7, REF(U_COMBINING_CEDILLA)),
         ),
@@ -5250,28 +5140,28 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_REAL_CEDILLA,
         .min_coord = COORD(+3,-7,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             XFORM2(xlat_relx, 0,-7, REF(U_COMBINING_CEDILLA)),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_T),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5279,19 +5169,19 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_O_WITH_CEDILLA,
         .map = MAP(
-            PAIR(
+            CANON(
                 U_LATIN_CAPITAL_LETTER_O,
                 U_COMBINING_CEDILLA
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_D_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_D),
             REF(U_COMBINING_COMMA_BELOW),
         ),
@@ -5301,7 +5191,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .map = MAP(
             LANG_REPLACE(lang_LIV, UX_LATIN_SMALL_LETTER_D_WITH_COMMA_BELOW),
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_D),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5309,7 +5199,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is comma below, not cedilla */
         .unicode = U_LATIN_SMALL_LETTER_K_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_K),
             REF(U_LATIN_SMALL_LETTER_K),
             XFORM2(xlat_relx, 0,-1, REF(U_COMBINING_COMMA_BELOW)),
@@ -5322,7 +5212,7 @@ static font_def_glyph_t f1_a_glyph[] = {
             LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA)
         ),
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_L),
             REF(U_LATIN_SMALL_LETTER_L),
             REF(U_COMBINING_COMMA_BELOW),
@@ -5330,7 +5220,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_L),
             REF(U_LATIN_SMALL_LETTER_L),
             XFORM2(xlat_relx, 0,+2, REF(U_COMBINING_CEDILLA)),
@@ -5343,14 +5233,14 @@ static font_def_glyph_t f1_a_glyph[] = {
             LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_N_WITH_REAL_CEDILLA)
         ),
         .unicode = U_LATIN_SMALL_LETTER_N_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_COMMA_BELOW),
         ),
     },
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_REAL_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_N),
             REF(U_LATIN_SMALL_LETTER_N),
             XFORM2(xlat_relx, 0,-5, REF(U_COMBINING_CEDILLA)),
@@ -5359,12 +5249,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_M_WITH_CEDILLA,
         .map = MAP(
-            PAIR(
+            CANON(
                 U_LATIN_SMALL_LETTER_M,
                 U_COMBINING_CEDILLA
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_M),
             REF(U_LATIN_SMALL_LETTER_M),
             XFORM2(xlat_relx, 0,-8, REF(U_COMBINING_CEDILLA)),
@@ -5373,12 +5263,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_CEDILLA,
         .map = MAP(
-            PAIR(
+            CANON(
                 U_LATIN_CAPITAL_LETTER_M,
                 U_COMBINING_CEDILLA
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_CAPITAL_LETTER_M),
             REF(U_LATIN_CAPITAL_LETTER_M),
             XFORM2(xlat_relx, 0,-8.7, REF(U_COMBINING_CEDILLA)),
@@ -5387,7 +5277,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is comma below, not cedilla */
         .unicode = U_LATIN_SMALL_LETTER_R_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_R),
             XFORM2(xlat_relx, 0,-2, REF(U_COMBINING_COMMA_BELOW)),
         ),
@@ -5398,14 +5288,14 @@ static font_def_glyph_t f1_a_glyph[] = {
             /* Livonian wants a comma below glyph. */
             LANG_REPLACE(lang_LIV, UX_LATIN_CAPITAL_LETTER_D_WITH_COMMA_BELOW),
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_D),
             REF(U_COMBINING_CEDILLA),
         ),
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_D_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_D),
             REF(U_COMBINING_COMMA_BELOW),
         ),
@@ -5417,14 +5307,14 @@ static font_def_glyph_t f1_a_glyph[] = {
             LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA),
         ),
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_L),
             REF(U_COMBINING_COMMA_BELOW),
         ),
     },
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_L_WITH_REAL_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_L),
             REF(U_COMBINING_CEDILLA),
         ),
@@ -5432,7 +5322,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is comma below, not cedilla */
         .unicode = U_LATIN_CAPITAL_LETTER_K_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_CAPITAL_LETTER_K),
             REF(U_LATIN_CAPITAL_LETTER_K),
             XFORM2(xlat_relx, 0,-1, REF(U_COMBINING_COMMA_BELOW)),
@@ -5445,7 +5335,7 @@ static font_def_glyph_t f1_a_glyph[] = {
             LANG_REPLACE(lang_MAH, UX_LATIN_SMALL_LETTER_L_WITH_REAL_CEDILLA),
         ),
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(U_COMBINING_COMMA_BELOW),
         ),
@@ -5453,21 +5343,21 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is comma below, not cedilla */
         .unicode = U_LATIN_CAPITAL_LETTER_R_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_R),
             REF(U_COMBINING_COMMA_BELOW),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_S_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_S),
             REF(U_COMBINING_COMMA_BELOW),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_T),
             REF(U_LATIN_SMALL_LETTER_T),
             REF(U_COMBINING_COMMA_BELOW),
@@ -5475,14 +5365,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_S_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_S),
             REF(U_COMBINING_COMMA_BELOW),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_COMMA_BELOW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_T),
             REF(U_COMBINING_COMMA_BELOW),
         ),
@@ -5490,7 +5380,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is comma below, not cedilla */
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(U_COMBINING_COMMA_BELOW),
         ),
@@ -5498,7 +5388,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         /* misnomer: this is turned comma above, not a cedilla */
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_CEDILLA,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_TURNED_COMMA_ABOVE)),
         ),
@@ -5527,56 +5417,56 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_AE_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_AE),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_Y_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_Y),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_MACRON),
         ),
@@ -5584,12 +5474,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_M_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_M,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_M),
             REF(U_COMBINING_MACRON),
         ),
@@ -5597,12 +5487,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_P_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_P,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_P),
             REF(U_COMBINING_MACRON),
         ),
@@ -5610,12 +5500,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_SMALL_LETTER_N_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_SMALL_LETTER_N,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_N),
             REF(U_COMBINING_MACRON),
         ),
@@ -5623,56 +5513,56 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_AE_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_AE),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_Y_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_Y),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
@@ -5680,12 +5570,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_M_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_M,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_M),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
@@ -5693,12 +5583,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_P_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_P,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_P),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
@@ -5706,12 +5596,12 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = UX_LATIN_CAPITAL_LETTER_N_WITH_MACRON,
         .map = MAP(
-            PAIR(
+            CANON(
                U_LATIN_CAPITAL_LETTER_N,
                U_COMBINING_MACRON
             )
         ),
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_N),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
@@ -5761,84 +5651,84 @@ static font_def_glyph_t f1_a_glyph[] = {
 
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_G_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_G),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_DOTLESS_I),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_A),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_G_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_G),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_BREVE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_BREVE),
         ),
@@ -5861,70 +5751,70 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_I_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_I),
             REF(U_COMBINING_OGONEK),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_U),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_E_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_E),
             XFORM2(xlat_relx, 0,+1.5, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_A_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_A),
             XFORM2(xlat_relx, +3,+7, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_I_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_I),
             REF(U_COMBINING_OGONEK),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_E_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_E),
             XFORM2(xlat_relx, +3,+7, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_U),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O),
             XFORM2(xlat_relx, 0,+1, REF(U_COMBINING_OGONEK)),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_A_WITH_OGONEK,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_CAPITAL_LETTER_A),
             REF(U_LATIN_CAPITAL_LETTER_A),
             XFORM2(xlat_relx, 0,+6, REF(U_COMBINING_OGONEK)),
@@ -5932,14 +5822,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_OGONEK_AND_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_SMALL_LETTER_O_WITH_OGONEK),
             REF(U_COMBINING_MACRON),
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_OGONEK_AND_MACRON,
-        .draw = COMPOSE(
+        .draw = MERGE(
             REF(U_LATIN_CAPITAL_LETTER_O_WITH_OGONEK),
             REF(UX_COMBINING_CAPITAL_MACRON),
         ),
@@ -5976,7 +5866,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_U_WITH_DOUBLE_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_U),
             REF(U_LATIN_SMALL_LETTER_U),
             REF(U_COMBINING_DOUBLE_ACUTE_ACCENT),
@@ -5984,7 +5874,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_O_WITH_DOUBLE_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_SMALL_LETTER_O),
             REF(U_LATIN_SMALL_LETTER_O),
             REF(U_COMBINING_DOUBLE_ACUTE_ACCENT),
@@ -5992,7 +5882,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_U_WITH_DOUBLE_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_CAPITAL_LETTER_U),
             REF(U_LATIN_CAPITAL_LETTER_U),
             REF(UX_COMBINING_CAPITAL_DOUBLE_ACUTE),
@@ -6000,7 +5890,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_O_WITH_DOUBLE_ACUTE,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LATIN_CAPITAL_LETTER_O),
             REF(U_LATIN_CAPITAL_LETTER_O),
             REF(UX_COMBINING_CAPITAL_DOUBLE_ACUTE),
@@ -6010,7 +5900,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     /* other leters */
     {
         .unicode = U_LATIN_SMALL_LETTER_N_PRECEDED_BY_APOSTROPHE,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_APOSTROPHE,
           U_LATIN_SMALL_LETTER_N
         ),
@@ -6019,7 +5909,7 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_STROKE,
         .min_coord = COORD(+1,-3,0,0),
         .max_coord = COORD(+1,+3,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_SMALL_LETTER_L),
           XFORM(ls_thin, STROKE(
             Q(I, (+3, -4, 0, 0), ( 0, 0, 0, 0)),
@@ -6030,7 +5920,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_STROKE,
         .min_coord = COORD(+1,-9,0,0),
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_CAPITAL_LETTER_L),
           XFORM(ls_thin, STROKE(
             Q(I, (+3,-10, 0, 0), ( 0, 0, 0, 0)),
@@ -6040,7 +5930,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_H_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_SMALL_LETTER_H),
           XFORM(ls_thinner, STROKE(
             Q(I, (+1, -9, 0, 0), (+2,+4,+5,30)),
@@ -6050,7 +5940,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_H_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LATIN_CAPITAL_LETTER_H),
           REF(U_LATIN_CAPITAL_LETTER_H),
           STROKE(
@@ -6061,7 +5951,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_T_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LATIN_SMALL_LETTER_T),
           REF(U_LATIN_SMALL_LETTER_T),
           STROKE(
@@ -6072,7 +5962,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_T_WITH_STROKE,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LATIN_CAPITAL_LETTER_T),
           REF(U_LATIN_CAPITAL_LETTER_T),
           XFORM(ls_thin, STROKE(
@@ -6083,14 +5973,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_L_WITH_MIDDLE_DOT,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_L,
           U_MIDDLE_DOT
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_MIDDLE_DOT,
-        .draw = COMPOSE(
+        .draw = MERGE(
           REF(U_LATIN_CAPITAL_LETTER_L),
           XFORM2(xlat_relx, 0,+3, REF(U_MIDDLE_DOT))
         ),
@@ -6103,7 +5993,7 @@ static font_def_glyph_t f1_a_glyph[] = {
                 U_LATIN_CAPITAL_LETTER_J
             )
         ),
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_I,
           U_LATIN_CAPITAL_LETTER_J
         ),
@@ -6116,91 +6006,91 @@ static font_def_glyph_t f1_a_glyph[] = {
                 U_LATIN_SMALL_LETTER_J
             )
         ),
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_I,
           U_LATIN_SMALL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_DZ_WITH_CARON,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_D,
           U_LATIN_SMALL_LETTER_Z_WITH_CARON
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_DZ_WITH_CARON,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_D,
           U_LATIN_CAPITAL_LETTER_Z_WITH_CARON
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_SMALL_LETTER_Z_WITH_CARON,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_D,
           U_LATIN_SMALL_LETTER_Z_WITH_CARON
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_DZ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_D,
           U_LATIN_SMALL_LETTER_Z
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_DZ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_D,
           U_LATIN_CAPITAL_LETTER_Z
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_D_WITH_SMALL_LETTER_Z,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_D,
           U_LATIN_SMALL_LETTER_Z
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_LJ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_L,
           U_LATIN_SMALL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_LJ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_L,
           U_LATIN_CAPITAL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_L_WITH_SMALL_LETTER_J,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_L,
           U_LATIN_SMALL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_SMALL_LETTER_NJ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_SMALL_LETTER_N,
           U_LATIN_SMALL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_NJ,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_N,
           U_LATIN_CAPITAL_LETTER_J
         ),
     },
     {
         .unicode = U_LATIN_CAPITAL_LETTER_N_WITH_SMALL_LETTER_J,
-        .draw = DECOMPOSE(
+        .draw = SEQ(
           U_LATIN_CAPITAL_LETTER_N,
           U_LATIN_SMALL_LETTER_J
         ),
@@ -6489,14 +6379,14 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_RIGHTWARDS_ARROW,
-        .draw = COMPOSE(
+        .draw = MERGE(
             WIDTH(U_LEFTWARDS_ARROW),
             XFORM(swap_x, REF(U_LEFTWARDS_ARROW))
         ),
     },
     {
         .unicode = U_UPWARDS_ARROW,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LEFTWARDS_ARROW),
           STROKE(
             Q(B, ( 0, 0, 0, 0), ( 0,-3, 0, 0)),
@@ -6509,7 +6399,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_DOWNWARDS_ARROW,
-        .draw = COMPOSE(
+        .draw = MERGE(
           WIDTH(U_LEFTWARDS_ARROW),
           XFORM(invert_uc,REF(U_UPWARDS_ARROW))
         ),
@@ -7591,13 +7481,13 @@ static void get_glyph_rec(
     font_gc_t const *gc,
     font_draw_t const *vi);
 
-static void get_glyph_compose(
+static void get_glyph_merge(
     font_v_vertex_t *vo,
     font_glyph_t *out,
     font_gc_t const *gc,
     font_draw_t const *_vi)
 {
-    font_draw_compose_t const *vi = font_draw_cast(*vi, _vi);
+    font_draw_merge_t const *vi = font_draw_cast(*vi, _vi);
     for (cp_v_each(i, &vi->child)) {
         font_draw_t const *ii = cp_v_nth(&vi->child, i);
         get_glyph(vo, out, gc, ii);
@@ -7761,8 +7651,8 @@ static void get_glyph_aux(
     font_draw_t const *vi)
 {
     switch (vi->type) {
-    case FONT_DRAW_COMPOSE:
-        return get_glyph_compose(vo, out, gc, vi);
+    case FONT_DRAW_MERGE:
+        return get_glyph_merge(vo, out, gc, vi);
     case FONT_DRAW_XFORM:
         return get_glyph_xform(vo, out, gc, vi);
     case FONT_DRAW_REF:
@@ -7775,7 +7665,7 @@ static void get_glyph_aux(
         return get_glyph_rpad(out, vi);
     case FONT_DRAW_STROKE:
         return get_glyph_stroke(vo, out, gc, vi);
-    case FONT_DRAW_DECOMPOSE:
+    case FONT_DRAW_SEQUENCE:
         CP_DIE();
     }
     CP_DIE();
@@ -7808,15 +7698,15 @@ static void get_glyph_rec(
     if (vi == NULL) {
         return;
     }
-    if (vi->type != FONT_DRAW_DECOMPOSE) {
+    if (vi->type != FONT_DRAW_SEQUENCE) {
         get_glyph(vo, out, gc, vi);
         return;
     }
 
-    font_draw_decompose_t const *dec = font_draw_cast(*dec,vi);
+    font_draw_sequence_t const *dec = font_draw_cast(*dec,vi);
     if (dec->second.codepoint != 0) {
        die(out, out->font,
-           "recursive reference to decomposed glyph is currently not supported");
+           "recursive reference to sequenced glyph is currently not supported");
     }
     font_glyph_t const *gj = find_glyph(out, &dec->first);
     font_gc_t gn = *gc;
@@ -7859,7 +7749,7 @@ static void convert_glyph(
     assert(in->unicode.codepoint == out->unicode.codepoint);
 
     if ((out->def->draw != NULL) &&
-        (out->def->draw->type == FONT_DRAW_DECOMPOSE))
+        (out->def->draw->type == FONT_DRAW_SEQUENCE))
     {
         return; /* handled later */
     }
@@ -7904,11 +7794,11 @@ static void convert_glyph(
 static void compute_glyph_width(
     font_glyph_t *out);
 
-static void compute_glyph_width_decompose(
+static void compute_glyph_width_sequence(
     font_glyph_t *out,
     font_draw_t const *draw)
 {
-    font_draw_decompose_t const *d = font_draw_cast(*d, draw);
+    font_draw_sequence_t const *d = font_draw_cast(*d, draw);
     font_glyph_t *first = find_glyph(out, &d->first);
     compute_glyph_width(first);
 
@@ -7920,7 +7810,7 @@ static void compute_glyph_width_decompose(
         font_glyph_t *second = find_glyph(out, &d->second);
         compute_glyph_width(second);
 
-        /* combine Y */
+        /* merge Y */
         out->box.min.y = cp_min(first->box.min.y, second->box.min.y);
         out->box.max.y = cp_max(first->box.max.y, second->box.max.y);
         out->dim.min.y = cp_min(first->dim.min.y, second->dim.min.y);
@@ -7944,11 +7834,11 @@ static void compute_glyph_width(
         return;
     }
 
-    /* decomposition: do nothing, the finalisation step will handle this */
+    /* sequence: do nothing, the finalisation step will handle this */
     if ((out->def->draw != NULL) &&
-        (out->def->draw->type == FONT_DRAW_DECOMPOSE))
+        (out->def->draw->type == FONT_DRAW_SEQUENCE))
     {
-        compute_glyph_width_decompose(out, out->def->draw);
+        compute_glyph_width_sequence(out, out->def->draw);
 
         double mid = coord_x_abs(out->font->def, 0);
         double w = out->dim.max.x - out->dim.min.x;
@@ -8264,20 +8154,22 @@ static void finalise_glyph(
     cp_mat2w_t const *ram,
     font_glyph_t const *g);
 
-static void finalise_glyph_decompose(
+static void finalise_glyph_sequence(
     cp_font_glyph_t *k,
     cp_font_t *c,
     cp_mat2w_t const *ram,
     font_glyph_t const *g)
 {
-    font_draw_decompose_t const *d = font_draw_cast(*d, g->def->draw);
+    font_draw_sequence_t const *d = font_draw_cast(*d, g->def->draw);
     assert(d->first.codepoint  <= CP_FONT_ID_MASK);
     assert(d->first.codepoint  != 0);
     assert(d->second.codepoint <= CP_FONT_ID_MASK);
     if (d->second.codepoint != 0) {
-        k->flags |= CP_FONT_GF_DECOMPOSE;
-        k->first =  d->first.codepoint  & CP_FONT_ID_MASK;
-        k->second = d->second.codepoint & CP_FONT_ID_MASK;
+        k->flags |= CP_FONT_GF_SEQUENCE;
+        font_glyph_t *first  = find_glyph(g, &d->first);
+        font_glyph_t *second = find_glyph(g, &d->second);
+        k->first =  cp_v_idx(&g->font->glyph, first)  & CP_FONT_ID_MASK;
+        k->second = cp_v_idx(&g->font->glyph, second) & CP_FONT_ID_MASK;
         return;
     }
 
@@ -8304,14 +8196,26 @@ static void finalise_glyph(
 
     if ((g->draw == NULL) &&
         (g->def->draw != NULL) &&
-        (g->def->draw->type == FONT_DRAW_DECOMPOSE))
+        (g->def->draw->type == FONT_DRAW_SEQUENCE))
     {
-        finalise_glyph_decompose(k, c, ram, g);
+        finalise_glyph_sequence(k, c, ram, g);
         return;
     }
 
     assert(g->draw != NULL);
     finalise_glyph_draw(k, c, ram, g);
+}
+
+CP_UNUSED
+static int cmp_font_map1(
+    cp_font_map_t const *a,
+    cp_font_map_t const *b,
+    void *u CP_UNUSED)
+{
+    if (a->first != b->first) {
+        return a->first < b->first ? -1 : +1;
+    }
+    return 0;
 }
 
 static int cmp_font_map2(
@@ -8348,22 +8252,108 @@ static int cmp_per_lang(
     return 0;
 }
 
-static unsigned cp_flags_from_type(
+static unsigned mof_flags_from_type(
     unsigned type)
 {
     switch (type) {
-    case MAP_TYPE_JOINING:
-        return CP_FONT_MCF_JOINING;
-
-    case MAP_TYPE_LIGATURE:
-        return CP_FONT_MCF_LIGATURE;
-
-    case MAP_TYPE_OPTIONAL:
-        return CP_FONT_MCF_OPTIONAL;
+    case MAP_TYPE_MANDATORY:      return CP_FONT_MOF_MANDATORY;
+    case MAP_TYPE_LIGATURE:       return CP_FONT_MOF_LIGATURE;
+    case MAP_TYPE_JOINING:        return CP_FONT_MOF_JOINING;
+    case MAP_TYPE_OPTIONAL:       return CP_FONT_MOF_OPTIONAL;
+    case MAP_TYPE_MANDATORY_KEEP: return CP_FONT_MOF_MANDATORY | CP_FONT_MOF_KEEP_SECOND;
+    case MAP_TYPE_LIGATURE_KEEP:  return CP_FONT_MOF_LIGATURE  | CP_FONT_MOF_KEEP_SECOND;
+    case MAP_TYPE_JOINING_KEEP:   return CP_FONT_MOF_JOINING   | CP_FONT_MOF_KEEP_SECOND;
+    case MAP_TYPE_OPTIONAL_KEEP:  return CP_FONT_MOF_OPTIONAL  | CP_FONT_MOF_KEEP_SECOND;
 
     default:
+        CP_DIE("Unexpected type for MOF table.");
+    }
+}
+
+static int cmp_comp_equiv1(
+    unsigned const *_a,
+    unsigned const *const *_b,
+    void *u CP_UNUSED)
+{
+    unsigned a = *_a;
+    unsigned b = (*_b)[1];
+    if (a != b) {
+        return a < b ? -1 : +1;
+    }
+    return 0;
+}
+
+static unsigned equiv_decompose(
+    unsigned const **seq,
+    unsigned cp)
+{
+    cp_a_unsigned_const_p_t a =
+        CP_A_INIT_WITH(unicode_comp_equiv, cp_countof(unicode_comp_equiv));
+    size_t i = cp_v_bsearch(&cp, &a, cmp_comp_equiv1, NULL);
+    unsigned const *c = cp_v_nth0(&a, i);
+    if (c == NULL) {
         return 0;
     }
+    assert(c[1] == cp);
+    assert(c[0] >= 1);
+    assert(c[0] <= 2);
+    *seq = &c[2];
+    return c[0];
+}
+
+static bool have_glyph_aux(
+    font_t *f,
+    unsigned cp,
+    bool combining)
+{
+    font_glyph_t const *g = find_glyph0(f, cp);
+    if (g != NULL) {
+        if (combining && (g->def->combining == 0)) {
+            return false;
+        }
+        return true;
+    }
+
+    unsigned const *seq;
+    unsigned cnt = equiv_decompose(&seq, cp);
+    if (cnt == 0) {
+        return false;
+    }
+    if (!have_glyph_aux(f, seq[0], combining)) {
+        return false;
+    }
+    for (size_t j = 1; j < cnt; j++) {
+        if (!have_glyph_aux(f, seq[j], true)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Checks whether the glyph is either present or can be automatically
+ * combined by the combining above/below mechanism.  This will check that
+ * all glyphs of the equivalence decomposition exist in the font, and that
+ * all but the first have a combining class set, which indicates that the
+ * font assumes that it can handle the diacritic generically.
+ *
+ * FIXME (MAYBE): This is currently overly optimistic for multi-diacritic stuff,
+ * which, for working properly, would require the font to define a combined
+ * diacritic as the composer can only handle a single diacritic above and
+ * below.  E.g. for 'S WITH ACUTE AND DOT ABOVE', even if ACUTE and DOT ABOVE
+ * are supported, this only works if the font has a combined
+ * 'ACUTE WITH DOT ABOVE' diacritic.
+ * Well, this is only used for building the decomposition table, where it is
+ * OK if more is decomposed than what actually works, and for the coverage
+ * tables, which now might look optimistic.  There are a few cases where we
+ * need to check this manually and try to fulfil what is claimed (e.g.,
+ * Vietnamese).
+ */
+static bool have_glyph(
+    font_t *f,
+    unsigned cp)
+{
+    return have_glyph_aux(f, cp, false);
 }
 
 static void finalise_font(
@@ -8431,7 +8421,7 @@ static void finalise_font(
     assert(rasterize_y(&ram, box.max.y) == 0xfffe);
 
     /* dimensions */
-    c->center_x = rasterize_x(&ram, 0);
+    c->center_x = rasterize_x(&ram, coord_x_abs(f->def, 0));
     c->em_x     = rasterize_x(&ram, f->em + box.min.x);
     c->em_y     = rasterize_y(&ram, f->em + box.min.y);
     c->top_y    = rasterize_y(&ram, f->top_y);
@@ -8449,25 +8439,48 @@ static void finalise_font(
         finalise_glyph(c, &ram, &cp_v_nth(&f->glyph, i));
     }
 
-    /* compositions from unicodedata */
+    /* (1) Equivalencs compositions for composed glyphs that the font has.
+     * (2) Equivalence decompositions for glyphs that the font does not have,
+     *     but for which it has all the components. */
     for (cp_arr_each(i, unicode_comp_equiv)) {
         unsigned const *comp = unicode_comp_equiv[i];
         assert(comp[0] <= 2);
-        /* Only consider 1:2 mappings here.  There are only 3 1:1 mappings
-         * in Unicode 11.0, which need to be handled manually (they map
-         * quad to space and Ohm to Omega).  Also, any compat mappings are
-         * ignored here.  They may be implemented inside the font if there is
-         * need for it (usually, they map the other way around, using DECOMPOSE,
-         * e.g. [Dz]->[D]+[z] etc.). */
-        if (comp[0] == 2) {
-            if (find_glyph0(f, comp[1]) != 0) {
-                cp_font_map_t *m = cp_v_push0(&c->combine);
-                assert(comp[2] <= CP_FONT_ID_MASK);
-                assert(comp[3] <= CP_FONT_ID_MASK);
-                assert(comp[1] <= CP_FONT_ID_MASK);
+        /* Only 1:2 mappings are handled in compositions. */
+        /* 1:1 mappings are handled as decompositions. */
+        font_glyph_t *g = find_glyph0(f, comp[1]);
+        if (g != NULL) {
+            assert(comp[2] <= CP_FONT_ID_MASK);
+            assert(comp[3] <= CP_FONT_ID_MASK);
+            assert(comp[1] <= CP_FONT_ID_MASK);
+            if (comp[0] == 2) {
+                /* have glyph => compose */
+                cp_font_map_t *m = cp_v_push0(&c->compose);
                 m->first =  comp[2] & CP_FONT_ID_MASK;
                 m->second = comp[3] & CP_FONT_ID_MASK;
                 m->result = comp[1] & CP_FONT_ID_MASK;
+            }
+            else
+            if (find_glyph0(f, comp[2]) == NULL) {
+                /* warn that an easy opportunity to have a glyph is missed */
+                die(g, f,
+                    "decomposes into U+%04X; font has former but not latter.\n",
+                    comp[2]);
+            }
+        }
+        else
+        if (have_glyph(f, comp[2])) {
+            if (comp[0] == 1) {
+                cp_font_map_t *m = cp_v_push0(&c->decompose);
+                m->first =  comp[1] & CP_FONT_ID_MASK;
+                m->result = comp[2] & CP_FONT_ID_MASK;
+            }
+            else
+            if (have_glyph(f, comp[3])) {
+                /* have components => decompose */
+                cp_font_map_t *m = cp_v_push0(&c->decompose);
+                m->first =  comp[1] & CP_FONT_ID_MASK;
+                m->result = comp[2] & CP_FONT_ID_MASK;
+                m->second = comp[3] & CP_FONT_ID_MASK;
             }
         }
     }
@@ -8476,20 +8489,54 @@ static void finalise_font(
     font_v_def_map_t per_lang = {0};
     for (cp_v_each(i, &f->glyph)) {
         font_glyph_t const *g = &cp_v_nth(&f->glyph, i);
+        assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
+
+        if (g->def->combining != 0) {
+            cp_font_map_t *m = cp_v_push0(&c->combtype);
+            m->first = g->unicode.codepoint & CP_FONT_ID_MASK;
+            m->result = g->def->combining & CP_FONT_ID_MASK;
+        }
+
         for (cp_v_each(j, &g->def->map)) {
             font_def_map_t *comp = cp_v_nth_ptr(&g->def->map, j);
             comp->glyph = g;
-            assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
             switch (comp->type) {
-            case MAP_TYPE_COMBINE:
+            case MAP_TYPE_CANON:{
+                if (comp->lang != NULL) {
+                    die(g, g->font, "No language specific canonical replacement is possible");
+                }
+                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                cp_font_map_t *m = cp_v_push0(&c->compose);
+                m->first =  comp->a.codepoint    & CP_FONT_ID_MASK;
+                m->second = comp->b.codepoint    & CP_FONT_ID_MASK;
+                m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                break;}
+
+            case MAP_TYPE_BASE_REPLACE:{
+                if (comp->lang != NULL) {
+                    die(g, g->font, "No language specific base replacement is possible");
+                }
+                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                cp_font_map_t *m = cp_v_push0(&c->baserepl);
+                m->first =  comp->a.codepoint & CP_FONT_ID_MASK;
+                m->second = comp->value & CP_FONT_ID_MASK;
+                m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                break;}
+
+            case MAP_TYPE_MANDATORY:
             case MAP_TYPE_JOINING:
             case MAP_TYPE_LIGATURE:
             case MAP_TYPE_OPTIONAL:
+            case MAP_TYPE_MANDATORY_KEEP:
+            case MAP_TYPE_JOINING_KEEP:
+            case MAP_TYPE_LIGATURE_KEEP:
+            case MAP_TYPE_OPTIONAL_KEEP:
                 if (comp->lang == NULL) { // global
                     assert(comp->a.codepoint <= CP_FONT_ID_MASK);
                     assert(comp->b.codepoint <= CP_FONT_ID_MASK);
-                    cp_font_map_t *m = cp_v_push0(&c->combine);
-                    m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
+                    cp_font_map_t *m = cp_v_push0(&c->optional);
+                    m->flags = mof_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
                     m->first =  comp->a.codepoint    & CP_FONT_ID_MASK;
                     m->second = comp->b.codepoint    & CP_FONT_ID_MASK;
                     m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
@@ -8540,18 +8587,26 @@ static void finalise_font(
         }
     }
 
-    /* sort composition */
-    cp_v_qsort(&c->combine, 0, CP_SIZE_MAX, cmp_font_map2, NULL);
+    /* sort decomposition: probably redundant */
+    cp_v_qsort(&c->decompose, 0, CP_SIZE_MAX, cmp_font_map1, NULL);
 
-    /* Make combine entries unique the composition map in case entries are
+#if 0
+    /* Make decompose entries unique...  Currently not needed because
+     * we have no manually defined decompositions. */
+#endif
+
+    /* sort decomposition */
+    cp_v_qsort(&c->compose, 0, CP_SIZE_MAX, cmp_font_map2, NULL);
+
+    /* Make compose entries unique the composition map in case entries are
      * redundantly given in unicodedata and font data or duplicate in font
      * data.  Also check that there are no contradictions. */
-    if (c->combine.size > 0) {
+    if (c->compose.size > 0) {
         size_t last = 0;
-        for (cp_v_each(i, &c->combine, 1)) {
+        for (cp_v_each(i, &c->compose, 1)) {
             assert(last != i);
-            cp_font_map_t *a = cp_v_nth_ptr(&c->combine, last);
-            cp_font_map_t *b = cp_v_nth_ptr(&c->combine, i);
+            cp_font_map_t *a = cp_v_nth_ptr(&c->compose, last);
+            cp_font_map_t *b = cp_v_nth_ptr(&c->compose, i);
             if (cmp_font_map2(a, b, NULL) != 0) {
                 last++;
             }
@@ -8567,7 +8622,7 @@ static void finalise_font(
                 }
             }
         }
-        c->combine.size = last + 1;
+        c->compose.size = last + 1;
     }
 
     /* sort language specific stuff */
@@ -8589,17 +8644,21 @@ static void finalise_font(
         }
 
         switch (comp->type) {
-            case MAP_TYPE_COMBINE:
+            case MAP_TYPE_MANDATORY:
             case MAP_TYPE_JOINING:
             case MAP_TYPE_LIGATURE:
-            case MAP_TYPE_OPTIONAL: {
+            case MAP_TYPE_OPTIONAL:
+            case MAP_TYPE_MANDATORY_KEEP:
+            case MAP_TYPE_JOINING_KEEP:
+            case MAP_TYPE_LIGATURE_KEEP:
+            case MAP_TYPE_OPTIONAL_KEEP: {
                 assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
                 assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
                 assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
                 (void)find_glyph(comp->glyph, &comp->a);
                 (void)find_glyph(comp->glyph, &comp->b);
-                cp_font_map_t *m = cp_v_push0(&lang->combine);
-                m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
+                cp_font_map_t *m = cp_v_push0(&lang->optional);
+                m->flags = mof_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
                 m->first =  comp->a.codepoint  & CP_FONT_ID_MASK;
                 m->second = comp->b.codepoint  & CP_FONT_ID_MASK;
                 m->result = comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
@@ -8611,13 +8670,14 @@ static void finalise_font(
                 assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
                 (void)find_glyph(comp->glyph, &comp->a);
                 cp_font_map_t *m = cp_v_push0(&lang->one2one);
-                m->flags = cp_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
                 m->first =  comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
                 m->result = comp->a.codepoint  & CP_FONT_ID_MASK;
                 break;}
 
+            case MAP_TYPE_CANON:
             case MAP_TYPE_KERNING:
             case MAP_TYPE_CONTEXT:
+            case MAP_TYPE_BASE_REPLACE:
                 CP_DIE();
         }
     }
@@ -8735,14 +8795,14 @@ static void ps_glyph_draw(
     double y,
     font_glyph_t const *glyph);
 
-static void ps_glyph_decompose(
+static void ps_glyph_sequence(
     ps_t *ps,
     double x,
     double y,
     font_glyph_t const *glyph,
     font_draw_t const *draw)
 {
-    font_draw_decompose_t const *d = font_draw_cast(*d, draw);
+    font_draw_sequence_t const *d = font_draw_cast(*d, draw);
 
     font_glyph_t const *first = find_glyph(glyph, &d->first);
     if (d->second.codepoint == 0) {
@@ -8770,9 +8830,9 @@ static void ps_glyph_draw(
 
     if ((draw == NULL) &&
         (glyph->def->draw != NULL) &&
-        (glyph->def->draw->type == FONT_DRAW_DECOMPOSE))
+        (glyph->def->draw->type == FONT_DRAW_SEQUENCE))
     {
-        ps_glyph_decompose(ps, x, y, glyph, glyph->def->draw);
+        ps_glyph_sequence(ps, x, y, glyph, glyph->def->draw);
         return;
     }
     assert(draw != NULL);
@@ -9203,9 +9263,7 @@ static void ps_writeln_str7(
     cp_v_obj_p_t out = {0};
     cp_font_gc_t gc = {0};
     cp_font_gc_set_font(&gc, font, pt_size, 1.0);
-    for (; *s != 0; s++) {
-        cp_font_print1(&out, &gc, (unsigned char)*s);
-    }
+    cp_font_print_str_latin1(&out, &gc, s);
     ps_render_v_poly(ps, 0, *y, &out);
     *y -= (font->top_y - font->bottom_y) * gc.scale_y;
 }
@@ -9252,12 +9310,12 @@ static void ps_proof_sheet(
     ps_writeln_str32(ps, font, 14, &yy,
         U"Poj\x10fte! Pe\x165""a ve\x13e""k\xfd fjo\x308r\xf0 segja z\x142oty ['t\x2b0""a:l\x250] "
          "ce\x140la CE\x13fLA");
-
     {
         cp_v_obj_p_t out = {0};
         cp_font_gc_t gc = {0};
         cp_font_gc_set_font(&gc, font, 14, 1.0);
-        cp_font_print_str32(&out, &gc, U"\x1f2ud\x327 ");
+        cp_font_print_str32(&out, &gc, U"\x1f2u");
+        cp_font_print_str32(&out, &gc, U"d\x327 ");
 
         cp_font_gc_set_lang(&gc, "MAH");
         cp_font_print_str32(&out, &gc, U"M\x327""ajel\x327 ");
@@ -9270,15 +9328,15 @@ static void ps_proof_sheet(
 
         gc.tracking = 2.0;
         cp_font_gc_set_lang(&gc, "NDL");
-        cp_font_print_str32(&out, &gc, U"IJssel fijn i\x200cj");
+        cp_font_print_str32(&out, &gc, U"IJssel ij\x30cq\x30c");
+        cp_font_print_str32(&out, &gc, U"i\x200cjiji\x200bj");
 
         cp_font_gc_enable_ligature(&gc, false);
-        cp_font_print_str32(&out, &gc, U"iji\x200dj");
+        cp_font_print_str32(&out, &gc, U"i\x200djij");
 
         cp_font_gc_enable_ligature(&gc, true);
         cp_font_gc_set_lang(&gc, "DEU");
-        cp_font_print_str32(&out, &gc, U"i\x200dj dreija\x308hrig fiel");
-
+        cp_font_print_str32(&out, &gc, U"i\x200dj bijektiv fiel");
         ps_render_v_poly(ps, 0, yy, &out);
 
         yy -= (font->top_y - font->bottom_y) * gc.scale_y;
@@ -9300,9 +9358,8 @@ static void ps_proof_sheet(
         U"#define TE \"ta\"#5 '$45' S$s 50% \xb7+~g &a o<a X@x");
 
     ps_writeln_str32(ps, font, 14, &yy,
-        U"50\x20aC 50$ \x2039o\x203a \xabo\xbb \x00B2\x2154\x2083 3x\xb2+4x $\xa4 10\xb5""F "
-         "5\xaa 6\xba 20\xB0""C");
-
+        U"5\x20aC 6$ \x2039o\x203a\xabo\xbb \x00B2\x2154\x2083 3x\xb2+4x $\xa4 1\xb5""F 2k\x2126 "
+         "5\xaa 6\xba 2\xB0""C 0\x212a");
     fprintf(ps->f, "restore\n");
 
     ps_page_end(ps);
@@ -9527,7 +9584,7 @@ static void doc_coverage(
         assert(s->cp.size > 0);
         s->have_cnt = 0;
         for (cp_v_each(j, &s->cp)) {
-            if (find_glyph0(font0, cp_v_nth(&s->cp, j).codepoint) != NULL) {
+            if (have_glyph(font0, cp_v_nth(&s->cp, j).codepoint)) {
                 s->have_cnt++;
             }
         }
@@ -9606,7 +9663,7 @@ static void doc_coverage(
             fprintf(f, "%s\\\\\n", s->name);
             for (cp_v_each(j, &s->cp)) {
                 unicode_t const *u = &cp_v_nth(&s->cp, j);
-                if (find_glyph0(font0, u->codepoint) == NULL) {
+                if (!have_glyph(font0, u->codepoint)) {
                     fprintf(f, "\\qquad{\\small U+%04X %s}\\\\\n", u->codepoint, u->name);
                 }
             }
@@ -9733,6 +9790,16 @@ static void save_c_family(
         }
 
         /* path array */
+        /* There is a type cast from entries in this array to cp_font_path_t
+         * because that type ends in an open array of path start indices.
+         * Emit a static assert to see that the font generator has the same
+         * notion of size for cp_font_path_t object as the C compiler that
+         * reads the font. */
+        fprintf(f,
+            "\n"
+            "CP_STATIC_ASSERT(sizeof(cp_font_path_t) == %"CP_Z"u);\n"
+            "CP_STATIC_ASSERT(cp_alignof(cp_font_path_t) == %"CP_Z"u);\n",
+            sizeof(cp_font_path_t), cp_alignof(cp_font_path_t));
         if (font->path.size > 0) {
             fprintf(f, "\nuint32_t %s_path[%"CP_Z"u] = {",
                 c_name_lc.data, font->path.size);
@@ -9757,12 +9824,24 @@ static void save_c_family(
             fprintf(f, "};\n");
         }
 
-        /* combine array */
-        if (font->combine.size > 0) {
-            fprintf(f, "\ncp_font_map_t %s_combine[%"CP_Z"u] = {\n",
-                c_name_lc.data, font->combine.size);
-            for (cp_v_each(j, &font->combine)) {
-                cp_font_map_t *g = cp_v_nth_ptr(&font->combine, j);
+        /* compose array */
+        if (font->compose.size > 0) {
+            fprintf(f, "\ncp_font_map_t %s_compose[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->compose.size);
+            for (cp_v_each(j, &font->compose)) {
+                cp_font_map_t *g = cp_v_nth_ptr(&font->compose, j);
+                fprintf(f, "{%u,%u,%u,%u},\n",
+                    g->first, g->flags, g->second, g->result);
+            }
+            fprintf(f, "};\n");
+        }
+
+        /* optional array */
+        if (font->optional.size > 0) {
+            fprintf(f, "\ncp_font_map_t %s_optional[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->optional.size);
+            for (cp_v_each(j, &font->optional)) {
+                cp_font_map_t *g = cp_v_nth_ptr(&font->optional, j);
                 fprintf(f, "{%u,%u,%u,%u},\n",
                     g->first, g->flags, g->second, g->result);
             }
@@ -9781,15 +9860,27 @@ static void save_c_family(
             fprintf(f, "};\n");
         }
 
+        /* baserepl array */
+        if (font->baserepl.size > 0) {
+            fprintf(f, "\ncp_font_map_t %s_baserepl[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->baserepl.size);
+            for (cp_v_each(j, &font->baserepl)) {
+                cp_font_map_t *g = cp_v_nth_ptr(&font->baserepl, j);
+                fprintf(f, "{%u,%u,%u,%u},\n",
+                    g->first, g->flags, g->second, g->result);
+            }
+            fprintf(f, "};\n");
+        }
+
         /* lang array */
         if (font->lang.size > 0) {
             for (cp_v_each(k, &font->lang)) {
                 cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
-                if (lang->combine.size > 0) {
-                    fprintf(f, "\ncp_font_map_t %s_%s_combine[%"CP_Z"u] = {\n",
-                        c_name_lc.data, lang->id, lang->combine.size);
-                    for (cp_v_each(j, &lang->combine)) {
-                        cp_font_map_t *g = cp_v_nth_ptr(&lang->combine, j);
+                if (lang->optional.size > 0) {
+                    fprintf(f, "\ncp_font_map_t %s_%s_optional[%"CP_Z"u] = {\n",
+                        c_name_lc.data, lang->id, lang->optional.size);
+                    for (cp_v_each(j, &lang->optional)) {
+                        cp_font_map_t *g = cp_v_nth_ptr(&lang->optional, j);
                         fprintf(f, "{%u,%u,%u,%u},\n",
                             g->first, g->flags, g->second, g->result);
                     }
@@ -9813,9 +9904,9 @@ static void save_c_family(
                 cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
                 fprintf(f, "    {\n");
                 fprintf(f, "        .id = \"%s\",\n", lang->id);
-                if (lang->combine.size > 0) {
-                    fprintf(f, "        .combine = { .data = %s_%s_combine, .size = %"CP_Z"u },\n",
-                        c_name_lc.data, lang->id, lang->combine.size);
+                if (lang->optional.size > 0) {
+                    fprintf(f, "        .optional = { .data = %s_%s_optional, .size = %"CP_Z"u },\n",
+                        c_name_lc.data, lang->id, lang->optional.size);
                 }
                 if (lang->one2one.size > 0) {
                     fprintf(f, "        .one2one = { .data = %s_%s_one2one, .size = %"CP_Z"u },\n",
@@ -9861,13 +9952,21 @@ static void save_c_family(
             fprintf(f, "    .coord = { .data = %s_coord, .size = %"CP_Z"u },\n",
                 c_name_lc.data, font->coord.size);
         }
-        if (font->combine.size > 0) {
-            fprintf(f, "    .combine = { .data = %s_combine, .size = %"CP_Z"u },\n",
-                c_name_lc.data, font->combine.size);
+        if (font->compose.size > 0) {
+            fprintf(f, "    .compose = { .data = %s_compose, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->compose.size);
+        }
+        if (font->optional.size > 0) {
+            fprintf(f, "    .optional = { .data = %s_optional, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->optional.size);
         }
         if (font->context.size > 0) {
             fprintf(f, "    .context = { .data = %s_context, .size = %"CP_Z"u },\n",
                 c_name_lc.data, font->context.size);
+        }
+        if (font->baserepl.size > 0) {
+            fprintf(f, "    .baserepl = { .data = %s_baserepl, .size = %"CP_Z"u },\n",
+                c_name_lc.data, font->baserepl.size);
         }
         if (font->lang.size > 0) {
             fprintf(f, "    .lang = { .data = %s_lang, .size = %"CP_Z"u },\n",

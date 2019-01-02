@@ -1,0 +1,194 @@
+#! /usr/bin/perl
+
+use strict;
+use warnings;
+
+# Generate a derived property from several inputs of the Unicode data base.
+
+my %prop = ();
+my %how = ();
+
+sub read_prop($)
+{
+    my ($basefn) = @_;
+
+    my $UNICODE = $ENV{UNICODE};
+
+    my $fn;
+    $fn = $basefn;
+    unless (-f $fn) {
+        die "Error: Expected $UNICODE directory containing '$basefn' not set.\n".
+           "    Possibly download from www.unicode.org and set enviroment variable.\n"
+            unless $UNICODE;
+        $fn = "$UNICODE/$basefn";
+        $fn = "$UNICODE/".lc($basefn) unless -f $fn;
+    }
+
+    open (my $f, '<', $fn) or
+        die "Error: Unable to open '$fn': $@\n";
+    LINE: while (<$f>) {
+        s/#.*//;
+        s/^\s+//;
+        s/\s+$//;
+        next LINE if /^$/;
+        if (/^([0-9A-Fa-f]+)(?:\s*\.\.\s*([0-9A-Fa-f]+))?\s*;\s*(\S+)$/) {
+            my ($first, $last, $name) = ($1,$2,$3);
+            for my $c (hex($first)..hex($last // $first)) {
+                $prop{$name}{$c} = 1;
+            }
+        }
+        else {
+            die "Error: In '$fn': Unable to parse line: $_\n";
+        }
+    }
+    close($f);
+}
+
+sub read_unidata_gc()
+{
+    my $UNIDATA = $ENV{UNIDATA};
+    unless (defined $UNIDATA) {
+        die "Error: Expected \$UNIDATA to point to UnicodeData.txt database.  Please download\n".
+            "    from www.unicode.org and point \$UNIDATA to it before running this.\n";
+    }
+    open(my $f, '<', $UNIDATA) or
+        die "Error: Unable to open '$UNIDATA' for reading: $@\n";
+    my $first = undef;
+    LINE: while (<$f>) {
+        my @d = split /;/;
+        my $code = hex($d[0]);
+        my $name = $d[1];
+        if ($d[1] =~ /,\s*First>$/) {
+            $first = $code;
+            next LINE;
+        }
+
+        my $gc = $d[2];
+        for my $c (($first // $code) .. $code) {
+            $prop{$gc}{$c} = 1;
+        }
+        for my $c (($first // $code) .. $code) {
+            $prop{Assigned}{$c} = 1;
+        }
+
+        $first = undef;
+    }
+    close $f;
+}
+
+sub find_prop($)
+{
+    my ($name) = @_;
+    my $prop = $prop{$name};
+    if ($prop) {
+        return $prop;
+    }
+    if ($name eq 'Cn') { # this takes a while to generate, so only have it on demand.
+        for my $c (0x0..0x10ffff) {
+            unless ($prop{Assigned}{$c}) {
+                $prop{Cn}{$c} = 1;
+            }
+        }
+        return $prop{Cn};
+    }
+    if ($name =~ /^[A-F0-9]{4,6}$/) {
+        return { hex($name) => 1 };
+    }
+    if ($name =~ /^([A-F0-9]{4,6})..([A-F0-9]{4,6})$/) {
+        return { map { $_ => 1 } hex($1)..hex($2) };
+    }
+    die "Error: Unknown property or unrecognised character range (upper case): '$name'\n";
+}
+
+sub include($$)
+{
+    my ($to, $from) = @_;
+    for my $c (keys %$from) {
+        $to->{$c} = 1;
+    }
+}
+
+sub exclude($$)
+{
+    my ($to, $from) = @_;
+    for my $c (keys %$from) {
+        delete $to->{$c};
+    }
+}
+
+sub how($)
+{
+    my ($n) = @_;
+    if (my $s = $how{$n}) {
+        return "($s)";
+    }
+    return $n;
+}
+
+# read
+
+read_prop("PropList.txt");
+read_prop("DerivedCoreProperties.txt");
+read_unidata_gc();
+
+# process command line to derive property
+
+my $name = undef;
+my $set = {};
+my $how = '';
+for my $arg (@ARGV) {
+    if ($arg =~ /^[+](.*)/) {
+        my $n = $1;
+        $how = $how ? "$how + ".how($n) : how($n);
+        include($set, find_prop($n));
+        $name = undef;
+    }
+    elsif ($arg =~ /^[-](.*)/) {
+        my $n = $1;
+        die "Error: Cannot subtract from nothing: $arg\n" unless $how;
+        $how .= " - ".how($n);
+        exclude($set, find_prop($n));
+        $name = undef;
+    }
+    elsif ($arg =~ /^[=](.*)/) {
+        $name = $1;
+        die "Error: '$name' is already defined.\n" if $prop{$name};
+        $prop{$name} = $set;
+        $how{$name} = $how;
+        $set = {};
+        $how = '';
+    }
+    else {
+        read_prop($arg);
+    }
+}
+
+# write
+if ($name) {
+    $set = find_prop($name);
+}
+else {
+    $name = 'Result';
+    $how{$name} = $how;
+}
+
+print "# Derived Property: $name\n";
+print "# Generated From: $how{$name}\n\n";
+
+my $first = undef;
+my $last = undef;
+my $cnt = 0;
+for my $e ((sort { $a <=> $b } keys %$set), undef) {
+    if (!defined $e || (defined $last && ($e != ($last + 1)))) {
+        $cnt += $last - $first + 1;
+        printf "%-13s ; $name\n",
+            ($first == $last ?
+                sprintf("%04X", $first)
+             :  sprintf("%04X..%04X", $first, $last));
+        $first = $last = $e;
+    }
+    $first = $e unless defined $first;
+    $last = $e;
+}
+
+print "\n# Total code points: $cnt\n";

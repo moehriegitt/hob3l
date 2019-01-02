@@ -8,13 +8,6 @@
 #include <hob3l/font_tam.h>
 
 /**
- * Find a glyph in a font.
- */
-extern cp_font_glyph_t const *cp_font_find_glyph(
-    cp_font_t const *font,
-    unsigned glyph_id);
-
-/**
  * Set the font in the gc.
  *
  * This resets the font, scale_x/y, base_y, and replacement.
@@ -55,16 +48,17 @@ extern void cp_font_gc_set_lang(
     char const *name);
 
 /**
- * Render a single glyph.
+ * Renders a string into a set of polygons.
  *
  * The rendered polygons will be added to \p out.
  *
  * This appends to out.  No other operation is done on \p out, i.e.,
  * no deeper structures are modified.
  *
- * This updates gc->state (i.e., cur_x and last_cp).
+ * This updates gc->state.
  *
- * Text in [] lists what is planned, but not yet implemented.
+ * In the following, text in [] lists what is planned, but not yet
+ * implemented.
  *
  * [This handles kerning, which is applied before rendering a glyph
  * based on gc->state.last_cp.  This includes handling zero-width space
@@ -72,18 +66,27 @@ extern void cp_font_gc_set_lang(
  *
  * [This handles right2left glyph replacement (e.g. to swap parentheses).]
  *
- * [This handles language specific glyph replacement.]
+ * This handles canonical, ligature, joining, and optional composition
+ * of glyphs, including ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ *
+ * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * kerning is applied across such characters and tracking is only
+ * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * kern T+o normally and will insert tracking only once.
+ *
+ * However, to be able to separate kerning pairs, ZWSP (U+200B) and
+ * ZWNBSP (U+FEFF) inhibit kerning and contextual glyph selection.
+ * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
+ * not kern T+o, but tracking will still only be inserted once.
+ *
+ * gc->state.glyph_cnt is incremented exactly each time tracking
+ * is inserted.
  *
  * [This handles feature specific glyph replacement.]
  *
- * This handles compatibility decomposition, i.e, this may render multiple
- * glyphs if the given glyph ID decomposes.
+ * This handles language specific glyph replacement.
  *
- * This does not handle glyph composition of multiple glyphs into a single
- * one, but this must be done by higher layers of printing.
- *
- * This does not handle ligature composition, nor zero-width non-joiner
- * and stuff like that, but this must be done at a higher software layer.
+ * This handles language specific ligature composition.
  *
  * This does not handle text direction changes -- that must be done
  * by a higher software layer.  If the right2left flag is switched while
@@ -98,29 +101,18 @@ extern void cp_font_gc_set_lang(
  * text that is both left and right flush, a higher software layers must
  * print word-wise and adjust the words the white space.
  *
- * Since glyph composition is applied by higher layers, while decomposition
- * is applied by this function, no combining characters will compose
- * with decomposed characters.  E.g. [Lj] + [^] will not render
- * [L][j with circumflex], because the [Lj] ligature is decomposed only after
- * trying to compose with [^].  This only works properly if the font has
- * a dedicated composition for [Lj] + [^] (which is unlikely).
- *
- * Any zero width character that is passed to this function inhibits
- * kerning, even if it is not supposed to (like zero-width non-joiner).
- * This function does not expect to see those control characters,
- * because they belong to the glyph composition layer that should not
- * pass them down.
- *
  * This is guaranteed to only append to \p out, so higher layers can try
  * to print something to see whether it becomes too wide, e.g. for
  * automatic line breaking, and then revert to a previous state
  * (by reverting gc->state).
  *
- * This only appends objects of type cp_csg2_poly_t to \p out.
+ * To reset the gc for a newline, gc->state can be zeroed.
  *
- * To reset the gc for a newline, gc->state need to be zeroed.
+ * Combining characters are not combined across calls to this function,
+ * i.e., if the string starts with combining characters, they are
+ * rendered as spacing characters.
  *
- * If the glyph is not available, this will render a replacement
+ * If a glyph is not available, this will render a replacement
  * character (gc->replacement) if one is available, otherwise, it will
  * render nothing.
  *
@@ -131,36 +123,23 @@ extern void cp_font_gc_set_lang(
  * always be passed through the CSG2 bool algorithm before continuing
  * with anything else.
  *
- * This algorithm generally ignores default-ignorable codepoints, i.e.,
- * kerning is applied across such characters and tracking is only
- * applied after non-default-ignorable codepoints: T+ZWNJ+o will
- * kern T+o normally and will insert tracking only once.
+ * At a lower level, this handles compatibility decomposition, i.e,
+ * this may render multiple subglyphs if the given glyph ID
+ * decomposes.  However, such decompositions are completely internal
+ * and count as a single glyph, e.g. wrt. tracking.
  *
- * However, to be able to separate kerning pairs, ZWSP (U+200B) and
- * ZWNBSP (U+FEFF) do inhibit kerning and contextual glyph selection.
- * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
- * not kern T+o, but tracking will still only be inserted once.
- *
- * gc->state.glyph_cnt is incremented exactly each time tracking
- * is inserted.
- */
-extern void cp_font_print1(
-    cp_v_obj_p_t *out,
-    cp_font_gc_t *gc,
-    unsigned glyph_id);
-
-/**
- * Prints a string.
- *
- * This is like cp_font_print1, but prints until next() returns a NUL
- * characters.
- *
- * Because this handles a sequence, this does more than cp_font_print1:
- *
- * This handles equivalence and ligature composition of glyphs, including
- * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
- *
- * This handles language specific ligature composition.
+ * At a lower level, this handles the simple internal fallback
+ * low-level heuristic rendering of combining glyphs.  This mechanism
+ * is not the Unicode canonical composition, which is handled by upper
+ * layers (e.g. cp_font_print()).  Instead, this low-level combining
+ * glyph rendering allows max. two combining glyphs: one above, one
+ * below.  More complex situations need to be handled by the font,
+ * e.g. by either providing a composes, or by composing multiple
+ * combining glyphs into a single one that has both diacritics
+ * (e.g. diaeresis above + macron above).  This function handles the
+ * placement of diacritics above on tall characters by trying to find
+ * a replacement glyph for the diacritic for tall characters, i.e., no
+ * magic, but again, a look-up step in the font.
  */
 extern void cp_font_print(
     cp_v_obj_p_t *out,
@@ -204,8 +183,8 @@ static inline void cp_font_gc_enable_ligature(
     cp_font_gc_t *gc,
     bool enable)
 {
-    gc->mcf_disable |= (1 << CP_FONT_MCF_LIGATURE);
-    gc->mcf_disable ^= enable ? (1 << CP_FONT_MCF_LIGATURE) : 0;
+    gc->mof_disable |= (1 << CP_FONT_MOF_LIGATURE);
+    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_LIGATURE) : 0;
 }
 
 /**
@@ -214,8 +193,8 @@ static inline void cp_font_gc_enable_joining(
     cp_font_gc_t *gc,
     bool enable)
 {
-    gc->mcf_disable |= (1 << CP_FONT_MCF_JOINING);
-    gc->mcf_disable ^= enable ? (1 << CP_FONT_MCF_JOINING) : 0;
+    gc->mof_disable |= (1 << CP_FONT_MOF_JOINING);
+    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_JOINING) : 0;
 }
 
 /**
@@ -224,8 +203,8 @@ static inline void cp_font_gc_enable_optional(
     cp_font_gc_t *gc,
     bool enable)
 {
-    gc->mcf_enable |= (1 << CP_FONT_MCF_OPTIONAL);
-    gc->mcf_enable ^= enable ? 0 : (1 << CP_FONT_MCF_OPTIONAL);
+    gc->mof_enable |= (1 << CP_FONT_MOF_OPTIONAL);
+    gc->mof_enable ^= enable ? 0 : (1 << CP_FONT_MOF_OPTIONAL);
 }
 
 #endif /* CP_FONT_H_ */

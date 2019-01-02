@@ -5,17 +5,250 @@
 #include <hob3l/font.h>
 #include <hob3l/csg2.h>
 
+#define ZWNJ    0x200C
 #define ZWJ     0x200D
 #define ZWSP    0x200B
 #define ZWNBSP  0xFEFF
 
+#define G_OTHER  0
+#define G_BASE   1
+#define G_EXTEND 2
+
+#define INTERVAL
+
 typedef struct {
-    unsigned lo,hi;
+    unsigned lo, hi;
 } interval_t;
 
 static interval_t uni_def_ign[] = {
 #include "unidefign.inc"
 };
+
+typedef struct {
+    unsigned lo, hi;
+    unsigned value;
+} interval_plus_t;
+
+static interval_plus_t uni_grapheme[] = {
+#include "unigrapheme.inc"
+};
+
+/**
+ * A codepoint sequence reader.
+ *
+ * When combining and handling ligatures, reading the input stream
+ * of characters is a bit complex, so we'll encapsulate this into
+ * a data structure to make life a bit easiert. */
+typedef struct {
+    unsigned data[32];
+    size_t size;
+    bool eot;
+    unsigned (*next)(void *user);
+    void *user;
+    cp_font_t const *font;
+} seq_t;
+
+/**
+ * A glyph that is rendered by the main algorithm.  Currently,
+ * this can do algorithmically base glyph + above + below.
+ * Anything else must be done by the font's combination mechanisms.
+ * If seq_take fails, base will be 0.
+ */
+typedef union {
+    struct {
+        unsigned base;
+        unsigned above;
+        unsigned below;
+    };
+    unsigned code[3]; /* indexed by CP_FONT_CT_* constant */
+} glyph_t;
+
+/**
+ * Metric of a glyph in one axis.
+ * This returns: the size of the middle section, the width of
+ * the left section, the size of the left section.
+ */
+typedef struct {
+    int middle;
+    int width[2];
+} metric_t;
+
+static int cmp_glyph(
+    unsigned const *glyph_id,
+    cp_font_glyph_t const *glyph,
+    void *user CP_UNUSED)
+{
+    unsigned a = *glyph_id;
+    unsigned b = glyph->id;
+    return a < b ? -1 : a > b ? +1 : 0;
+}
+
+static int cmp_map1(
+    unsigned const *a,
+    cp_font_map_t const *b,
+    void *user CP_UNUSED)
+{
+    if (*a != b->first) {
+        return *a < b->first ? -1 : +1;
+    }
+    return 0;
+}
+
+static cp_font_map_t *map1_lookup(
+    cp_v_font_map_t const *map,
+    unsigned first)
+{
+    size_t i = cp_v_bsearch(&first, map, cmp_map1, NULL);
+    return cp_v_nth_ptr0(map, i);
+}
+
+static bool map1_lookup1(
+    cp_v_font_map_t const *map,
+    unsigned *result,
+    unsigned first)
+{
+    cp_font_map_t *m = map1_lookup(map, first);
+    if (m == NULL) {
+        return false;
+    }
+    *result = m->result;
+    return true;
+}
+
+static int cmp_map2(
+    unsigned const (*a)[2],
+    cp_font_map_t const *b,
+    void *user CP_UNUSED)
+{
+    if ((*a)[0] != b->first) {
+        return (*a)[0] < b->first ? -1 : +1;
+    }
+    if ((*a)[1] != b->second) {
+        return (*a)[1] < b->second ? -1 : +1;
+    }
+    return 0;
+}
+
+static cp_font_map_t *map2_lookup(
+    cp_v_font_map_t const *map,
+    unsigned first,
+    unsigned second)
+{
+    unsigned key[2] = { first, second };
+    size_t i = cp_v_bsearch(&key, map, cmp_map2, NULL);
+    return cp_v_nth_ptr0(map, i);
+}
+
+static bool map2_lookup1(
+    cp_v_font_map_t const *map,
+    unsigned *result,
+    unsigned first,
+    unsigned second)
+{
+    cp_font_map_t *m = map2_lookup(map, first, second);
+    if (m == NULL) {
+        return false;
+    }
+    *result = m->result;
+    return true;
+}
+
+/**
+ * This returns whether the second glyph is merged into the first
+ * (i.e., is ligated).
+ * It does not return whether anything was replaced: this can only
+ * be found indirectly by comparing *first before and after the call.
+ * This is because this function can also be used to find replacement
+ * glyphs based on post-context, in which case only the first glyph
+ * changes, but is not merged into the second.
+ */
+static bool mof_lookup(
+    cp_v_font_map_t const *map,
+    unsigned disabled_if,
+    unsigned *first,
+    unsigned second)
+{
+    cp_font_map_t *m = map2_lookup(map, *first, second);
+    if (m == NULL) {
+        return false;
+    }
+    if (((1U << (m->flags & CP_FONT_MOF_TYPE_MASK)) & disabled_if) != 0) {
+        return false;
+    }
+    *first = m->result;
+    return (m->flags & CP_FONT_MOF_KEEP_SECOND) == 0;
+}
+
+static void seq_init(
+    seq_t *seq,
+    cp_font_t const *font,
+    unsigned (*next)(void *user),
+    void *user)
+{
+    seq->size = 0;
+    seq->eot = false;
+    seq->next = next;
+    seq->user = user;
+    seq->font = font;
+}
+
+static void seq_append(
+    seq_t *seq,
+    unsigned cp)
+{
+    cp_font_map_t *m = map1_lookup(&seq->font->decompose, cp);
+    if (m != NULL) {
+        seq_append(seq, m->result);
+        if (m->second != 0) {
+            seq_append(seq, m->second);
+        }
+        return;
+    }
+    assert(seq->size < cp_countof(seq->data));
+    seq->data[seq->size] = cp;
+    seq->size++;
+}
+
+static unsigned seq_peek(
+    seq_t *seq,
+    size_t pos)
+{
+    while (pos >= seq->size) {
+        if (seq->eot || (pos >= cp_countof(seq->data))) {
+            return 0;
+        }
+        unsigned n = seq->next(seq->user);
+        if (n == 0) {
+            seq->eot = true;
+            return 0;
+        }
+        seq_append(seq, n);
+    }
+    return seq->data[pos];
+}
+
+static void seq_poke(
+    seq_t *seq,
+    size_t pos,
+    unsigned value)
+{
+    assert((pos < seq->size) && "Cannot poke what wasn't peeked");
+    seq->data[pos] = value;
+}
+
+static void seq_remove(
+    seq_t *seq,
+    size_t pos,
+    size_t count)
+{
+    if (count == 0) {
+        return;
+    }
+    assert(((pos + count) <= seq->size) && "Cannot remove what wasn't peeked");
+    assert(seq->size >= count);
+    seq->size -= count;
+    memcpy(&seq->data[pos], &seq->data[pos + count], sizeof(seq->data[0]) * (seq->size - pos));
+}
 
 static int interval_cmp(void const *_a, void const *_b)
 {
@@ -30,11 +263,22 @@ static int interval_cmp(void const *_a, void const *_b)
     return 0;
 }
 
-static bool default_ignorable(unsigned x)
+static bool cp_default_ignorable(unsigned x)
 {
     return bsearch(&x, uni_def_ign,
         cp_countof(uni_def_ign), sizeof(uni_def_ign[0]),
         interval_cmp) != NULL;
+}
+
+static unsigned cp_grapheme(unsigned x)
+{
+    interval_plus_t *p = bsearch(&x, uni_grapheme,
+        cp_countof(uni_grapheme), sizeof(uni_grapheme[0]),
+        interval_cmp);
+    if (p == NULL) {
+        return G_BASE;
+    }
+    return p->value;
 }
 
 static void cp_font_draw_path(
@@ -104,77 +348,139 @@ static void cp_font_draw_poly(
     gc->state.cur_x += path->border_x.side[!gc->right2left] * gc->scale_x;
 }
 
-static int cmp_glyph(
-    unsigned const *glyph_id,
-    cp_font_glyph_t const *glyph,
-    void *user CP_UNUSED)
+static bool valid_glyph_idx(cp_font_t const *font, size_t i)
 {
-    unsigned a = *glyph_id;
-    unsigned b = glyph->id;
-    return a < b ? -1 : a > b ? +1 : 0;
+    return (i < font->glyph.size);
 }
 
-static int cmp_map2(
-    unsigned const (*a)[2],
-    cp_font_map_t const *b,
-    void *user CP_UNUSED)
-{
-    if ((*a)[0] != b->first) {
-        return (*a)[0] < b->first ? -1 : +1;
-    }
-    if ((*a)[1] != b->second) {
-        return (*a)[1] < b->second ? -1 : +1;
-    }
-    return 0;
-}
-
-static bool glyph_replace(
-    cp_v_font_map_t const *map,
-    unsigned disabled_if,
-    unsigned *flags,
-    unsigned *result,
-    unsigned first,
-    unsigned second)
-{
-    unsigned key[2] = { first, second };
-    size_t i = cp_v_bsearch(&key, map, cmp_map2, NULL);
-    if (i >= map->size) {
-        return false;
-    }
-    cp_font_map_t const *m = cp_v_nth_ptr(map, i);
-    if (((1U << (m->flags & CP_FONT_MCF_TYPE_MASK)) & disabled_if) != 0) {
-        return false;
-    }
-    if (flags != NULL) {
-        *flags = m->flags;
-    }
-    *result = m->result;
-    return true;
-}
-
-static void cp_font_print1_aux(
-    cp_v_obj_p_t *out,
+static size_t find_glyph(
     cp_font_gc_t *gc,
     unsigned glyph_id)
 {
-    cp_font_glyph_t const *glyph = cp_font_find_glyph(gc->font, glyph_id);
-    if (glyph == NULL) {
-        glyph = gc->replacement;
-        if (glyph == NULL) {
-            return;
-        }
+    if (glyph_id == 0) {
+        return CP_SIZE_MAX;
     }
-    assert(glyph != NULL);
+    size_t i = cp_v_bsearch(&glyph_id, &gc->font->glyph, cmp_glyph, NULL);
+    if (!valid_glyph_idx(gc->font, i)) {
+        i = gc->replacement_idx;
+    }
+    return i;
+}
 
-    if (glyph->flags & CP_FONT_GF_DECOMPOSE) {
-        cp_font_print1_aux(out, gc, glyph->first);
-        cp_font_print1_aux(out, gc, glyph->second);
+static void render_glyph_one(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    size_t glyph_idx)
+{
+    cp_font_glyph_t const *glyph = cp_v_nth_ptr0(&gc->font->glyph, glyph_idx);
+    if (glyph == NULL) {
         return;
     }
 
+    if (glyph->flags & CP_FONT_GF_SEQUENCE) {
+        render_glyph_one(out, gc, glyph->first);
+        render_glyph_one(out, gc, glyph->second);
+        return;
+    }
+
+    /* FIXME: put on top, not as a sequence */
     cp_font_draw_poly(out, gc,
         (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
         glyph->second);
+}
+
+static void get_metric_x_aux(
+    metric_t *m,
+    cp_font_t const *font,
+    size_t glyph_idx)
+{
+    cp_font_glyph_t const *glyph = cp_v_nth_ptr0(&font->glyph, glyph_idx);
+    if (glyph == NULL) {
+        m->middle = m->width[0] = m->width[1] = 0;
+        return;
+    }
+
+    if (glyph->flags & CP_FONT_GF_SEQUENCE) {
+        metric_t m1, m2;
+        get_metric_x_aux(&m1, font, glyph->first);
+        get_metric_x_aux(&m2, font, glyph->second);
+        m->width[0] = m1.width[0];
+        m->width[1] = m2.width[1];
+        m->middle = m1.middle + m1.width[1] + m2.width[0] + m2.middle;
+        return;
+    }
+
+    cp_font_path_t const *p = (cp_font_path_t const *)cp_v_nth_ptr(&font->path, glyph->first);
+    m->middle = 0;
+    m->width[0] = font->center_x - p->border_x.side[0];
+    m->width[1] = p->border_x.side[1] - font->center_x;
+}
+
+static void get_metric_x(
+    metric_t *m,
+    cp_font_t const *font,
+    size_t glyph_idx)
+{
+    get_metric_x_aux(m, font, glyph_idx);
+    /* recompute to get m->middle = 0 */
+    m->width[0] += m->middle / 2;
+    m->width[1] += (m->middle + 1) / 2;
+    m->middle = 0;
+}
+
+static int int_max3(int a, int b, int c)
+{
+    if (b > a) { a = b; }
+    if (c > a) { a = c; }
+    return a;
+}
+
+static void render_glyph_comb(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    glyph_t *g)
+{
+    /* possibly replace base glyph */
+    unsigned have = 0;
+    if (g->above != 0) {
+        have |= CP_FONT_MAS_HAVE_ABOVE;
+    }
+    if (g->below != 0) {
+        have |= CP_FONT_MAS_HAVE_BELOW;
+    }
+    if (have != 0) {
+        (void)map2_lookup1(&gc->font->baserepl, &g->base, g->base, have);
+    }
+
+    /* lookup glyphs */
+    size_t base_idx  = find_glyph(gc, g->base);
+    size_t above_idx = find_glyph(gc, g->above);
+    size_t below_idx = find_glyph(gc, g->below);
+
+    /* render the three parts */
+    metric_t m_base, m_above, m_below;
+    get_metric_x(&m_base,  gc->font, base_idx);
+    get_metric_x(&m_above, gc->font, above_idx);
+    get_metric_x(&m_below, gc->font, below_idx);
+
+    metric_t m;
+    m.width[0] = int_max3(m_base.width[0], m_above.width[0], m_below.width[0]);
+    m.width[1] = int_max3(m_base.width[1], m_above.width[1], m_below.width[1]);
+
+    unsigned le = gc->right2left;
+    double sx = le ? -gc->scale_x : +gc->scale_x;
+    double cx = gc->state.cur_x;
+
+    gc->state.cur_x = cx + (m.width[le] - m_base.width[le]) * sx;
+    render_glyph_one(out, gc, base_idx);
+
+    gc->state.cur_x = cx + (m.width[le] - m_above.width[le]) * sx;
+    render_glyph_one(out, gc, above_idx);
+
+    gc->state.cur_x = cx + (m.width[le] - m_above.width[le]) * sx;
+    render_glyph_one(out, gc, below_idx);
+
+    gc->state.cur_x = cx + (m.width[0] + m.width[1]) * sx;
 }
 
 static int cmp_lang_name(
@@ -185,21 +491,200 @@ static int cmp_lang_name(
     return strcmp(name, lang->id);
 }
 
-/* ********************************************************************** */
+static bool is_simple(glyph_t const *c)
+{
+    assert(c->base != 0);
+    return (c->above == 0) && (c->below == 0);
+}
 
 /**
- * Find a glyph in a font.
+ * Render a single glyph plus above glyph plus below glyph
+ *
+ * gc->state.glyph_cnt is incremented exactly each time tracking
+ * is inserted.
  */
-extern cp_font_glyph_t const *cp_font_find_glyph(
-    cp_font_t const *font,
-    unsigned glyph_id)
+static void cp_font_render_glyph(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    glyph_t *g)
 {
-    size_t i = cp_v_bsearch(&glyph_id, &font->glyph, cmp_glyph, NULL);
-    if (i >= font->glyph.size) {
-        return NULL;
+    assert(g->base != 0);
+
+    /* language specific base glyph replacement */
+    if (gc->lang != NULL) {
+        (void)map1_lookup1(&gc->lang->one2one, &g->base, g->base);
     }
-    return &cp_v_nth(&font->glyph, i);
+
+    /* kerning and contextual forms of base glyph */
+    cp_font_map_t const *m = map2_lookup(&gc->font->context, g->base, gc->state.last_cp);
+    if (m != NULL) {
+        if (m->flags & CP_FONT_MXF_KERNING) {
+            /* only applied for simple glyph, because we don't know whether kerning
+             * will work with combining characters */
+            if (is_simple(g)) {
+                unsigned bit_cnt = (sizeof(int) * 8) - CP_FONT_ID_WIDTH;
+                int kern = ((int)(m->result << bit_cnt)) >> bit_cnt; /* sign-extend */
+                gc->state.cur_x += kern * gc->scale_x;
+            }
+        }
+        else {
+            g->base = m->result;
+        }
+    }
+
+    /* render */
+    render_glyph_comb(out, gc, g);
+
+    /* update state */
+    gc->state.last_cp = 0;
+    if (is_simple(g)) {
+        gc->state.last_cp = g->base;
+    }
+    gc->state.cur_x += (gc->right2left ? -1 : +1) * gc->tracking;
+    gc->state.glyph_cnt++;
 }
+
+/**
+ * This does all the combining that is possible with the current font and
+ * returns the base, the above, and the below combining characters.  The
+ * sequence contains what will be printed next.  Combining characters
+ * that cannot be combined into the sequence will be kept to be reiterated
+ * as a separate glyph later.
+ *
+ * This returns true iff the sequence was non-empty and a glyph was removed
+ * and can be rendered.
+ *
+ * This does not do language specific stuff and no ligatures, joining, optional
+ * replacement, because those apply to two glyphs extracted using this function.
+ *
+ * E.g., in case the font has a glyph [breve + acute] and [u + horn], then this
+ * should handle correctly a sequence like:
+ *
+ *    u, breve, ZWNJ, dot_below, acute, diaeresis, ZWJ, grave, horn, ZWJ, X, ...
+ *    1  5      3,5   5          8      6          3,7  7      8     3,4
+ *
+ * The numbers below the sequence indicate in which step in the algorithm removes
+ * the character from the sequence, or which one keeps it explicitly.
+ *
+ * The sequence of combining characters may be in any order (provided same type
+ * combining chars (breve+acute) are kept in order), and with any intervening
+ * ZWJ and ZWNJ characters (which are tries to be combined, but are removed
+ * inside the sequence if they fail to combine but a subsequent combination
+ * succeeds).  This should then return:
+ *
+ *    g->base  = [u + horn]
+ *    g->above = [breve + acute]
+ *    g->below = [dot_below]
+ *
+ * And seq should start:
+ *
+ *    diaeresis, grave, ZWJ, X, ...
+ */
+static void seq_take(
+    glyph_t *g,
+    cp_font_t const *font,
+    seq_t *seq)
+{
+    /* base character */
+    g->base = seq_peek(seq, 0);
+    g->above = 0;
+    g->below = 0;
+    if (g->base == 0) {
+        return;
+    }
+    seq_remove(seq, 0, 1); /*1*/
+
+    /* only continue if the character we read is a base character */
+    if (cp_grapheme(g->base) != G_BASE) {
+        return;
+    }
+
+    /* try to find above, below, and combine stuff */
+    size_t n = 0;
+    size_t i = 0;
+    bool complete[3] = {0}; /* indexed by CP_FONT_CT_* */
+    for (;;) {
+        unsigned combtype;
+        unsigned next = seq_peek(seq, i);
+
+        /* end of text */
+        if (next == 0) {
+            return;
+        }
+
+        /* Try to combine ZWJ/ZWNJ with base glyph.  If it works, remove,
+         * otherwise, skip and read on. */
+        if ((next == ZWJ) || (next == ZWNJ)) {
+            if (map2_lookup1(&font->compose, &g->base, g->base, next)) {
+                /* if ZWJ/ZWNJ combines with base, then remove the sequence and continue */
+                goto next_comb;
+            }
+            /* skip ZWJ/ZWNJ for now and search more combining chars behind it */
+            i++;
+            continue;
+        }
+
+        /* If we find anything but a combining character, we stop */
+        if (cp_grapheme(next) != G_EXTEND) {
+            return;
+        }
+
+        /* Get combining type: if we fail here, we're done. */
+        combtype = 0;
+        map1_lookup1(&font->combtype, &combtype, next);
+        assert(combtype < cp_countof(complete));
+
+        /* this type of combining character's combining is done => keep and continue */
+        if (complete[combtype]) {
+            goto keep_this;
+        }
+
+        if (combtype == 0) {
+            /* try to combine with base character */
+            if (map2_lookup1(&font->compose, &g->base, g->base, next)) {
+                goto next_comb;
+            }
+        }
+        else {
+            /* is it the first one we want to keep? */
+            if (g->code[combtype] == 0) {
+                /* try to combine with base char */
+                if (map2_lookup1(&font->compose, &g->base, g->base, next)) {
+                    goto next_comb;
+                }
+
+                /* otherwise, store */
+                g->code[combtype] = next;
+                goto next_comb;
+            }
+
+            /* try to combine with previous modifier of same type */
+            if (map2_lookup1(&font->compose, &g->code[combtype], g->code[combtype], next))
+            {
+                goto next_comb;
+            }
+        }
+
+        /* no more combining for this type, as this would mess up the order */
+        complete[combtype] = true;
+
+    keep_this:
+        seq_poke(seq, n, next);
+        n++;
+
+    next_comb:
+        /* consume all combining characters from n..i and go on to next char */
+        seq_remove(seq, n, i - n + 1);
+        i = n;
+    }
+}
+
+static void clear_kerning(cp_font_state_t *state)
+{
+    state->last_cp = 0;
+}
+
+/* ********************************************************************** */
 
 /**
  * Set the font in the gc.
@@ -229,11 +714,18 @@ extern void cp_font_gc_set_font(
     double pt_size,
     double ratio_x)
 {
+    if (gc->font == font) {
+        return;
+    }
     gc->font = font;
     gc->scale_x = (pt_size / font->em_x) * ratio_x;
     gc->scale_y = pt_size / font->em_y;
     gc->base_y = font->base_y * gc->scale_y;
-    gc->replacement = cp_font_find_glyph(font, 0xFFFD);
+    gc->replacement_idx = CP_SIZE_MAX; /* read by find_glyph => invalidate */
+    gc->replacement_idx = find_glyph(gc, 0xFFFD);
+
+    /* do not try to do contextual replacement or kerning across different fonts */
+    clear_kerning(&gc->state);
 }
 
 /**
@@ -260,16 +752,17 @@ extern void cp_font_gc_set_lang(
 }
 
 /**
- * Render a single glyph.
+ * Renders a string into a set of polygons.
  *
  * The rendered polygons will be added to \p out.
  *
  * This appends to out.  No other operation is done on \p out, i.e.,
  * no deeper structures are modified.
  *
- * This updates gc->state (i.e., cur_x and last_cp).
+ * This updates gc->state.
  *
- * Text in [] lists what is planned, but not yet implemented.
+ * In the following, text in [] lists what is planned, but not yet
+ * implemented.
  *
  * [This handles kerning, which is applied before rendering a glyph
  * based on gc->state.last_cp.  This includes handling zero-width space
@@ -277,18 +770,27 @@ extern void cp_font_gc_set_lang(
  *
  * [This handles right2left glyph replacement (e.g. to swap parentheses).]
  *
- * [This handles language specific glyph replacement.]
+ * This handles canonical, ligature, joining, and optional composition
+ * of glyphs, including ZWJ, ZWNJ, ZWSP to break/combine glyphs.
+ *
+ * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * kerning is applied across such characters and tracking is only
+ * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * kern T+o normally and will insert tracking only once.
+ *
+ * However, to be able to separate kerning pairs, ZWSP (U+200B) and
+ * ZWNBSP (U+FEFF) inhibit kerning and contextual glyph selection.
+ * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
+ * not kern T+o, but tracking will still only be inserted once.
+ *
+ * gc->state.glyph_cnt is incremented exactly each time tracking
+ * is inserted.
  *
  * [This handles feature specific glyph replacement.]
  *
- * This handles compatibility decomposition, i.e, this may render multiple
- * glyphs if the given glyph ID decomposes.
+ * This handles language specific glyph replacement.
  *
- * This does not handle glyph composition of multiple glyphs into a single
- * one, but this must be done by higher layers of printing.
- *
- * This does not handle ligature composition, nor zero-width non-joiner
- * and stuff like that, but this must be done at a higher software layer.
+ * This handles language specific ligature composition.
  *
  * This does not handle text direction changes -- that must be done
  * by a higher software layer.  If the right2left flag is switched while
@@ -303,29 +805,18 @@ extern void cp_font_gc_set_lang(
  * text that is both left and right flush, a higher software layers must
  * print word-wise and adjust the words the white space.
  *
- * Since glyph composition is applied by higher layers, while decomposition
- * is applied by this function, no combining characters will compose
- * with decomposed characters.  E.g. [Lj] + [^] will not render
- * [L][j with circumflex], because the [Lj] ligature is decomposed only after
- * trying to compose with [^].  This only works properly if the font has
- * a dedicated composition for [Lj] + [^] (which is unlikely).
- *
- * Any zero width character that is passed to this function inhibits
- * kerning, even if it is not supposed to (like zero-width non-joiner).
- * This function does not expect to see those control characters,
- * because they belong to the glyph composition layer that should not
- * pass them down.
- *
  * This is guaranteed to only append to \p out, so higher layers can try
  * to print something to see whether it becomes too wide, e.g. for
  * automatic line breaking, and then revert to a previous state
  * (by reverting gc->state).
  *
- * This only appends objects of type cp_csg2_poly_t to \p out.
+ * To reset the gc for a newline, gc->state can be zeroed.
  *
- * To reset the gc for a newline, gc->state need to be zeroed.
+ * Combining characters are not combined across calls to this function,
+ * i.e., if the string starts with combining characters, they are
+ * rendered as spacing characters.
  *
- * If the glyph is not available, this will render a replacement
+ * If a glyph is not available, this will render a replacement
  * character (gc->replacement) if one is available, otherwise, it will
  * render nothing.
  *
@@ -336,72 +827,23 @@ extern void cp_font_gc_set_lang(
  * always be passed through the CSG2 bool algorithm before continuing
  * with anything else.
  *
- * This algorithm generally ignores default-ignorable codepoints, i.e.,
- * kerning is applied across such characters and tracking is only
- * applied after non-default-ignorable codepoints: T+ZWNJ+o will
- * kern T+o normally and will insert tracking only once.
+ * At a lower level, this handles compatibility decomposition, i.e,
+ * this may render multiple subglyphs if the given glyph ID
+ * decomposes.  However, such decompositions are completely internal
+ * and count as a single glyph, e.g. wrt. tracking.
  *
- * However, to be able to separate kerning pairs, ZWSP (U+200B) and
- * ZWNBSP (U+FEFF) do inhibit kerning and contextual glyph selection.
- * Still, tracking is not applied multiple times, i.e., T+ZWSP+o will
- * not kern T+o, but tracking will still only be inserted once.
- *
- * gc->state.glyph_cnt is incremented exactly each time tracking
- * is inserted.
- */
-extern void cp_font_print1(
-    cp_v_obj_p_t *out,
-    cp_font_gc_t *gc,
-    unsigned glyph_id)
-{
-    /* ignore */
-    if (default_ignorable(glyph_id)) {
-        if ((glyph_id == ZWSP) || (glyph_id == ZWNBSP)) {
-            /* inhibit kerning and alternative glyph selection */
-            gc->state.last_cp = 0;
-        }
-        return;
-    }
-
-    /* language specific glyph replacement */
-    if (gc->lang != NULL) {
-        (void)glyph_replace(&gc->lang->one2one, 0, NULL, &glyph_id, glyph_id, 0);
-    }
-
-    /* kerning and contextual forms */
-    unsigned flags, result;
-    if (glyph_replace(&gc->font->context, 0, &flags, &result, glyph_id, gc->state.last_cp)) {
-        if (flags & CP_FONT_MXF_KERNING) {
-            unsigned cnt = (sizeof(int)*8) - CP_FONT_ID_WIDTH;
-            int kern = ((int)(result << cnt)) >> cnt; /* sign-extend */
-            gc->state.cur_x += kern * gc->scale_x;
-        }
-        else {
-            glyph_id = result;
-        }
-    }
-
-    /* print */
-    cp_font_print1_aux(out, gc, glyph_id);
-
-    /* update state */
-    gc->state.last_cp = glyph_id;
-    gc->state.cur_x += (gc->right2left ? -1 : +1) * gc->tracking;
-    gc->state.glyph_cnt++;
-}
-
-/**
- * Prints a string.
- *
- * This is like cp_font_print1, but prints until next() returns a NUL
- * characters.
- *
- * Because this handles a sequence, this does more than cp_font_print1:
- *
- * This handles equivalence and ligature composition of glyphs, including
- * ZWJ, ZWNJ, ZWSP to break/combine glyphs.
- *
- * This handles language specific ligature composition.
+ * At a lower level, this handles the simple internal fallback
+ * low-level heuristic rendering of combining glyphs.  This mechanism
+ * is not the Unicode canonical composition, which is handled by upper
+ * layers (e.g. cp_font_print()).  Instead, this low-level combining
+ * glyph rendering allows max. two combining glyphs: one above, one
+ * below.  More complex situations need to be handled by the font,
+ * e.g. by either providing a composes, or by composing multiple
+ * combining glyphs into a single one that has both diacritics
+ * (e.g. diaeresis above + macron above).  This function handles the
+ * placement of diacritics above on tall characters by trying to find
+ * a replacement glyph for the diacritic for tall characters, i.e., no
+ * magic, but again, a look-up step in the font.
  */
 extern void cp_font_print(
     cp_v_obj_p_t *out,
@@ -409,47 +851,78 @@ extern void cp_font_print(
     unsigned (*next)(void *user),
     void *user)
 {
-    unsigned c1 = next(user);
+    unsigned gc_mof_disable =
+        gc->mof_disable |
+        ((~gc->mof_enable) & (1 << CP_FONT_MOF_OPTIONAL));
 
-    unsigned gc_mcf_disable =
-        gc->mcf_disable |
-        ((~gc->mcf_enable) & (1 << CP_FONT_MCF_OPTIONAL));
+    seq_t seq;
+    seq_init(&seq, gc->font, next, user);
 
-    while (c1 != 0) {
-        unsigned c2 = next(user);
-        unsigned mcf_disable = gc_mcf_disable;
-        if (c2 != 0) {
-        try_combine:
-            if ((gc->lang != NULL) &&
-                glyph_replace(&gc->lang->combine, mcf_disable, NULL, &c1, c1, c2))
-            {
-                continue;
-            }
-            if (glyph_replace(&gc->font->combine, mcf_disable, NULL, &c1, c1, c2)) {
-                continue;
-            }
-            if (c2 == ZWJ) {
-                /* font has no special mapping for X+ZWJ */
-                /* get next char that is not a ZWJ */
-                do {
-                    c2 = next(user);
-                } while (c2 == ZWJ);
+    glyph_t g2;
+    seq_take(&g2, gc->font, &seq);
+    while (g2.base != 0) {
+        glyph_t g1 = g2;
+        g2.base = 0;
 
-                /* try to replace ZWJ+Y */
-                if (c2 != 0) {
-                    if (gc->lang != NULL) {
-                        (void)glyph_replace(&gc->lang->combine, 0, NULL, &c2, ZWJ, c2);
-                    }
-                    (void)glyph_replace(&gc->font->combine, 0, NULL, &c2, ZWJ, c2);
+        /* Try to apply optional, joining, ligature combinations.
+         * Do this only if the glyphs have no combining characters.
+         */
+        seq_take(&g2, gc->font, &seq);
 
-                    /* disable any glyph combination prohibitions */
-                    mcf_disable = 0;
-                    goto try_combine;
+        if (is_simple(&g1)) {
+            unsigned mof_disable = gc_mof_disable;
+            while ((g2.base != 0) && is_simple(&g2)) {
+                /* try to ligate/join based on language */
+                if ((gc->lang != NULL) &&
+                    mof_lookup(&gc->lang->optional, mof_disable, &g1.base, g2.base))
+                {
+                    seq_take(&g2, gc->font, &seq);
+                    continue;
                 }
+
+                /* try to ligate/join */
+                if (mof_lookup(&gc->font->optional, mof_disable, &g1.base, g2.base)) {
+                    seq_take(&g2, gc->font, &seq);
+                    continue;
+                }
+
+                /* stop ligation unless ZWJ is found */
+                if (g2.base != ZWJ) {
+                    break;
+                }
+
+                /* find next non-ZWJ character */
+                do {
+                    seq_take(&g2, gc->font, &seq);
+                } while (g2.base == ZWJ);
+
+                /* combine only simple glyphs */
+                if ((g2.base == 0) || !is_simple(&g2)) {
+                    break;
+                }
+
+                /* try to ligate ZWJ with new glyph */
+                if (gc->lang != NULL) {
+                    (void)map2_lookup1(&gc->lang->optional, &g2.base, ZWJ, g2.base);
+                }
+                (void)map2_lookup1(&gc->font->optional, &g2.base, ZWJ, g2.base);
+
+                /* disable any glyph combination prohibitions and try to ligate again */
+                mof_disable = 0;
             }
         }
-        cp_font_print1(out, gc, c1);
-        c1 = c2;
+
+        /* ignore= */
+        if (cp_default_ignorable(g1.base)) {
+            if ((g1.base == ZWSP) || (g1.base == ZWNBSP)) {
+                /* inhibit kerning and alternative glyph selection */
+                clear_kerning(&gc->state);
+            }
+            continue;
+        }
+
+        /* render (finally) */
+        cp_font_render_glyph(out, gc, &g1);
     }
 }
 

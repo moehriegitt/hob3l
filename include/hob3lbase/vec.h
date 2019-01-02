@@ -512,6 +512,19 @@
     })
 
 /**
+ * An element of the vector, or 0 if index is out of range.
+ */
+#define cp_v_nth0(vec,i) \
+    cp_v_nth0_1_(CP_GENSYM(_iFN), CP_GENSYM(_vecFN), (vec), (i))
+
+#define cp_v_nth0_1_(i,vec,_vec,_i) \
+    ({ \
+        __typeof__(*_vec) *vec = _vec; \
+        size_t i = _i; \
+        ((vec != NULL) && (i < vec->size)) ? vec->data[i] : 0; \
+    })
+
+/**
  * Pointer to an element of the vector.
  */
 #define cp_v_nth_ptr(vec,i) \

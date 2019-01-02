@@ -40,7 +40,7 @@ print "/* -*- Mode: C -*- */\n";
 for my $type (sort keys %disass) {
     print "CP_UNUSED\n";
     print "static unsigned const *unicode_comp_$type"."[] = {\n";
-    for my $d (@{ $disass{$type} }) {
+    for my $d (sort { $a->{code} <=> $b->{code} } @{ $disass{$type} }) {
         print "    (unsigned const[]){\n";
         print "        ".scalar(@{ $d->{disass} }).",\n";
         for my $c ($d->{code}, @{ $d->{disass} }) {
