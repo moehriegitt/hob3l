@@ -3790,7 +3790,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     },
     {
         .unicode = U_COMBINING_TURNED_COMMA_ABOVE,
-        .is_below = true,
+        .is_below = true,  /* FIXME! */
         .line_step = LS_THIN,
         .draw = STROKE(
             Q(I, ( 0,+2,+1,30), ( 0,+6, 0, 0, 0)),

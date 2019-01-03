@@ -1,5 +1,4 @@
 /* -*- Mode: C -*- */
-/* Property: Default_Ignorable_Code_Point */
     { 0x0000AD, 0x0000AD },
     { 0x00034F, 0x00034F },
     { 0x00061C, 0x00061C },

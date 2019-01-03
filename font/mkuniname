@@ -97,6 +97,9 @@ for my $c_name(sort keys %have) {
             $have_hex{hex($hex)} = 1;
         }
     }
+    elsif ($priv_def{$c_name}) {
+        # OK
+    }
     else {
         print "#define U_$c_name /* multiple */\n";
     }

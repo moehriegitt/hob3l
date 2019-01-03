@@ -1,6 +1,13 @@
 all:
 	cd .. && $(MAKE) font-doc
 
+uni: \
+	uniname.h \
+	unisets.inc \
+	unicomp.inc \
+	../src/unidefign.inc \
+	../src/unigrapheme.inc
+
 uniname.h: mkuniname dummy
 	./mkuniname > $@.new
 	mv $@.new $@

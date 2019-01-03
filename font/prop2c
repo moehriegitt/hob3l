@@ -70,7 +70,7 @@ for my $arg (@ARGV) {
                 $set{$c} .= " | $value";
             }
             else {
-                $set{$c} = $value;
+                $set{$c} = $value // 1;
             }
         }
     }
