@@ -83,6 +83,7 @@ static bool func_new_(
         [CP_SCAD_SQUARE]       = sizeof(cp_scad_square_t),
         [CP_SCAD_POLYGON]      = sizeof(cp_scad_polygon_t),
         [CP_SCAD_PROJECTION]   = sizeof(cp_scad_projection_t),
+        [CP_SCAD_TEXT]         = sizeof(cp_scad_text_t),
         [CP_SCAD_COLOR]        = sizeof(cp_scad_color_t),
         [CP_SCAD_LINEXT]       = sizeof(cp_scad_linext_t),
         [CP_SCAD_ROTEXT]       = sizeof(cp_scad_rotext_t),
@@ -1302,7 +1303,7 @@ static bool rotext_from_item(
     cp_scad_rotext_t *r = cp_scad_cast(*r, _r);
     r->angle = 360;
 
-    double _fa;
+    double _fa;        
     double _fs;
     unsigned _convexity;
 
@@ -1492,6 +1493,45 @@ static bool surface_from_item(
     return true;
 }
 
+static bool text_from_item(
+    ctxt_t *t,
+    cp_syn_stmt_item_t *f,
+    cp_scad_t *_q)
+{
+    cp_scad_text_t *q = cp_scad_cast(*q, _q);
+
+    q->font = "Nozzl3 Sans";
+    q->halign = "left";
+    q->valign = "baseline";
+    q->script = "latin";
+    q->language = "en";
+    q->direction = "ltr";
+    q->size = 10.0;
+    q->spacing = 1.0;
+    q->tracking = 0.0;
+
+    if (!GET_ARG(t, f->loc, &f->arg,
+        (
+            PARAM_STR   ("text",      &q->text,      MANDATORY),
+        ),
+        (
+            PARAM_FLOAT ("size",      &q->size,      OPTIONAL),
+            PARAM_STR   ("font",      &q->font,      OPTIONAL),
+            PARAM_STR   ("halign",    &q->halign,    OPTIONAL),
+            PARAM_STR   ("valign",    &q->valign,    OPTIONAL),
+            PARAM_STR   ("direction", &q->direction, OPTIONAL),
+            PARAM_STR   ("language",  &q->language,  OPTIONAL),
+            PARAM_STR   ("script",    &q->script,    OPTIONAL),
+            PARAM_FLOAT ("spacing",   &q->spacing,   OPTIONAL),
+            PARAM_FLOAT ("tracking",  &q->tracking,  OPTIONAL),
+        )))
+    {
+        return false;
+    }
+
+    return true;
+}
+
 static bool projection_from_item(
     ctxt_t *t,
     cp_syn_stmt_item_t *f,
@@ -1655,8 +1695,8 @@ static bool v_scad_from_syn_stmt_item(
         },
         {
            .id = "text",
-           .type = 0,
-           .from = NULL,
+           .type = CP_SCAD_TEXT,
+           .from = text_from_item,
         },
         {
            .id = "translate",

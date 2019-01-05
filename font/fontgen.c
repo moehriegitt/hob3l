@@ -190,7 +190,7 @@ typedef struct {
 } font_def_coord_t;
 
 typedef struct {
-    unsigned codepoint;
+    unsigned code_point;
     char const *name;
 } unicode_t;
 
@@ -630,7 +630,7 @@ typedef struct {
 #define SAME(A) \
     DRAW(font_draw_sequence_t, .first=A, .second=U_NULL)
 
-#define UNICODE(X,Y) { .codepoint = X, .name = Y }
+#define UNICODE(X,Y) { .code_point = X, .name = Y }
 
 #define COORD(...) ((font_def_coord_t const []){{ __VA_ARGS__, ._line = __LINE__ }})
 
@@ -684,7 +684,7 @@ typedef struct {
 #define RATIO_EM 0.7
 
 #define lang_MAH  "MAH"
-#define lang_NDL  "NDL"
+#define lang_NLD  "NLD"
 #define lang_LIV  "LIV" /* ISO-639-3 code, no OpenType code found */
 
 static void swap_x         (font_t const *, font_gc_t *, font_draw_xform_t const *);
@@ -4293,7 +4293,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_CAPITAL_LIGATURE_IJ,
         .map = MAP(
-            LANG_LIGA(lang_NDL,
+            LANG_LIGA(lang_NLD,
                 U_LATIN_CAPITAL_LETTER_I,
                 U_LATIN_CAPITAL_LETTER_J
             )
@@ -4306,7 +4306,7 @@ static font_def_glyph_t f1_a_glyph[] = {
     {
         .unicode = U_LATIN_SMALL_LIGATURE_IJ,
         .map = MAP(
-            LANG_LIGA(lang_NDL,
+            LANG_LIGA(lang_NLD,
                 U_LATIN_SMALL_LETTER_I,
                 U_LATIN_SMALL_LETTER_J
             )
@@ -4834,6 +4834,22 @@ typedef struct {
 #include "unicomp.inc"
 
 /* ********************************************************************** */
+
+typedef struct {
+    char const *ott;
+    char const *iso;
+} lang_name_t;
+
+static lang_name_t lang_name_data[] = {
+#include "langname.inc"
+};
+
+typedef CP_ARR_T(lang_name_t) cp_a_lang_name_t;
+
+static cp_a_lang_name_t lang_name =
+    CP_A_INIT_WITH(lang_name_data, cp_countof(lang_name_data));
+
+/* ********************************************************************** */
 /* from this point, UNICODE() just returns the number */
 
 #undef UNICODE
@@ -5062,7 +5078,7 @@ static void vdie_(
     fprintf(stderr, "%s:%d: Error: ", file, line);
     fprintf(stderr, "font '%s': ", font->name.data);
     if (out != NULL) {
-        fprintf(stderr, "glyph U+%04X '%s': ", out->unicode.codepoint, out->unicode.name);
+        fprintf(stderr, "glyph U+%04X '%s': ", out->unicode.code_point, out->unicode.name);
     }
     vfprintf(stderr, form, va);
     fprintf(stderr, "\n");
@@ -5822,7 +5838,7 @@ static int cmp_glyph_unicode_ref(
     void *u CP_UNUSED)
 {
     unsigned acp = *a;
-    unsigned bcp = b->unicode.codepoint;
+    unsigned bcp = b->unicode.code_point;
     return acp == bcp ? 0 : acp < bcp ? -1 : +1;
 }
 
@@ -5839,10 +5855,10 @@ static font_glyph_t *find_glyph0(
 static font_glyph_t *find_glyph(
     font_glyph_t const *out, unicode_t const *unicode)
 {
-    font_glyph_t *gj = find_glyph0(out->font, unicode->codepoint);
+    font_glyph_t *gj = find_glyph0(out->font, unicode->code_point);
     if (gj == NULL) {
         die(out, out->font, "Referenced glyph U+%04X '%s' not found in font",
-            unicode->codepoint,  unicode->name);
+            unicode->code_point,  unicode->name);
     }
     return gj;
 }
@@ -6009,7 +6025,7 @@ static void get_glyph_rec(
     }
 
     font_draw_sequence_t const *dec = font_draw_cast(*dec,vi);
-    if (dec->second.codepoint != 0) {
+    if (dec->second.code_point != 0) {
        die(out, out->font,
            "recursive reference to sequenced glyph is currently not supported");
     }
@@ -6051,7 +6067,7 @@ static void convert_glyph(
     font_glyph_t *out)
 {
     font_def_glyph_t const *in CP_UNUSED = out->def;
-    assert(in->unicode.codepoint == out->unicode.codepoint);
+    assert(in->unicode.code_point == out->unicode.code_point);
 
     if ((out->def->draw != NULL) &&
         (out->def->draw->type == FONT_DRAW_SEQUENCE))
@@ -6107,7 +6123,7 @@ static void compute_glyph_width_sequence(
     font_glyph_t *first = find_glyph(out, &d->first);
     compute_glyph_width(first);
 
-    if (d->second.codepoint == 0) {
+    if (d->second.code_point == 0) {
         out->box = first->box;
         out->dim = first->dim;
     }
@@ -6366,8 +6382,8 @@ static int cmp_glyph_unicode(
     font_def_glyph_t const *b,
     void *u CP_UNUSED)
 {
-    unsigned acp = a->unicode.codepoint;
-    unsigned bcp = b->unicode.codepoint;
+    unsigned acp = a->unicode.code_point;
+    unsigned bcp = b->unicode.code_point;
     return acp == bcp ? 0 : acp < bcp ? -1 : +1;
 }
 
@@ -6433,7 +6449,7 @@ static void finalise_glyph_draw(
     cp_mat2w_t const *ram,
     font_glyph_t const *g)
 {
-    assert(k->id == g->unicode.codepoint);
+    assert(k->id == g->unicode.code_point);
     assert(c->path.size <= CP_FONT_ID_MASK);
     k->first = c->path.size & CP_FONT_ID_MASK;
 
@@ -6473,10 +6489,10 @@ static void finalise_glyph_sequence(
     font_glyph_t const *g)
 {
     font_draw_sequence_t const *d = font_draw_cast(*d, g->def->draw);
-    assert(d->first.codepoint  <= CP_FONT_ID_MASK);
-    assert(d->first.codepoint  != 0);
-    assert(d->second.codepoint <= CP_FONT_ID_MASK);
-    if (d->second.codepoint != 0) {
+    assert(d->first.code_point  <= CP_FONT_ID_MASK);
+    assert(d->first.code_point  != 0);
+    assert(d->second.code_point <= CP_FONT_ID_MASK);
+    if (d->second.code_point != 0) {
         k->flags |= CP_FONT_GF_SEQUENCE;
         font_glyph_t *first  = find_glyph(g, &d->first);
         font_glyph_t *second = find_glyph(g, &d->second);
@@ -6503,8 +6519,8 @@ static void finalise_glyph(
     if (k->id != 0) {
         return;
     }
-    assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
-    k->id = (g->unicode.codepoint & CP_FONT_ID_MASK);
+    assert(g->unicode.code_point <= CP_FONT_ID_MASK);
+    k->id = (g->unicode.code_point & CP_FONT_ID_MASK);
 
     if ((g->draw == NULL) &&
         (g->def->draw != NULL) &&
@@ -6555,11 +6571,11 @@ static int cmp_per_lang(
     if (i != 0) {
         return i;
     }
-    if (a->a.codepoint != b->a.codepoint) {
-        return a->a.codepoint < b->a.codepoint ? -1 : +1;
+    if (a->a.code_point != b->a.code_point) {
+        return a->a.code_point < b->a.code_point ? -1 : +1;
     }
-    if (a->b.codepoint != b->b.codepoint) {
-        return a->b.codepoint < b->b.codepoint ? -1 : +1;
+    if (a->b.code_point != b->b.code_point) {
+        return a->b.code_point < b->b.code_point ? -1 : +1;
     }
     return 0;
 }
@@ -6621,7 +6637,7 @@ static bool have_glyph_aux(
     font_glyph_t const *g = find_glyph0(f, cp);
     if (g != NULL) {
         if (combining &&
-            (g->def->high_above.codepoint == 0) &&
+            (g->def->high_above.code_point == 0) &&
             (!g->def->is_below))
         {
             return false;
@@ -6669,6 +6685,72 @@ static bool have_glyph(
     unsigned cp)
 {
     return have_glyph_aux(f, cp, false);
+}
+
+static void add_lang_map1(
+    cp_font_t *c,
+    char const *cur_lang,
+    size_t lang_idx)
+{
+    cp_font_lang_map_t *m = cp_v_push0(&c->lang_map);
+
+    assert(strlen(cur_lang) <= sizeof(m->id));
+    strncpy(m->id, cur_lang, sizeof(m->id));
+    assert(lang_idx <= 0x7fffffff);
+    m->lang_idx = lang_idx & 0x7fffffff;
+}
+
+static int cmp_lang_name(
+    char const *a,
+    lang_name_t const *b,
+    void *u CP_UNUSED)
+{
+    return strcmp(a, b->ott);
+}
+
+static void add_lang_map(
+    cp_font_t *c,
+    char const *name,
+    size_t lang_idx)
+{
+    add_lang_map1(c, name, lang_idx);
+
+    size_t i = cp_v_bsearch(name, &lang_name, cmp_lang_name, NULL);
+    if (cp_v_nth_ptr0(&lang_name, i) == NULL) {
+        return;
+    }
+
+    /* find first entry */
+    for (;;) {
+        lang_name_t const *p = cp_v_nth_ptr0(&lang_name, i - 1);
+        if ((p == NULL) || !strequ(p->ott, name)) {
+            break;
+        }
+        i--;
+    }
+
+    /* add each entry until we reach one that is a different language */
+    for (;;) {
+        lang_name_t const *p = cp_v_nth_ptr0(&lang_name, i);
+        if ((p == NULL) || !strequ(p->ott, name)) {
+            break;
+        }
+        add_lang_map1(c, p->iso, lang_idx);
+        i++;
+    }
+}
+
+static int cmp_lang_map2(
+    cp_font_lang_map_t const *a,
+    cp_font_lang_map_t const *b,
+    void *u CP_UNUSED)
+{
+    for (cp_arr_each(i, a->id)) {
+        if (a->id[i] != b->id[i]) {
+            return a->id[i] < b->id[i] ? -1 : +1;
+        }
+    }
+    return 0;
 }
 
 static void finalise_font(
@@ -6806,20 +6888,20 @@ static void finalise_font(
     font_v_def_map_t per_lang = {0};
     for (cp_v_each(i, &f->glyph)) {
         font_glyph_t const *g = &cp_v_nth(&f->glyph, i);
-        assert(g->unicode.codepoint <= CP_FONT_ID_MASK);
+        assert(g->unicode.code_point <= CP_FONT_ID_MASK);
 
-        if (g->def->high_above.codepoint != 0) {
+        if (g->def->high_above.code_point != 0) {
             assert(!g->def->is_below);
-            assert(g->def->high_above.codepoint <= CP_FONT_ID_MASK);
+            assert(g->def->high_above.code_point <= CP_FONT_ID_MASK);
             cp_font_map_t *m = cp_v_push0(&c->comb_type);
-            m->first = g->unicode.codepoint & CP_FONT_ID_MASK;
+            m->first = g->unicode.code_point & CP_FONT_ID_MASK;
             m->result = CP_FONT_CT_ABOVE;
-            m->second = g->def->high_above.codepoint & CP_FONT_ID_MASK;
+            m->second = g->def->high_above.code_point & CP_FONT_ID_MASK;
         }
         if (g->def->is_below) {
-            assert(g->def->high_above.codepoint == 0);
+            assert(g->def->high_above.code_point == 0);
             cp_font_map_t *m = cp_v_push0(&c->comb_type);
-            m->first = g->unicode.codepoint & CP_FONT_ID_MASK;
+            m->first = g->unicode.code_point & CP_FONT_ID_MASK;
             m->result = CP_FONT_CT_BELOW;
         }
 
@@ -6831,23 +6913,23 @@ static void finalise_font(
                 if (comp->lang != NULL) {
                     die(g, g->font, "No language specific canonical replacement is possible");
                 }
-                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
-                assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point <= CP_FONT_ID_MASK);
+                assert(comp->b.code_point <= CP_FONT_ID_MASK);
                 cp_font_map_t *m = cp_v_push0(&c->compose);
-                m->first =  comp->a.codepoint    & CP_FONT_ID_MASK;
-                m->second = comp->b.codepoint    & CP_FONT_ID_MASK;
-                m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                m->first =  comp->a.code_point    & CP_FONT_ID_MASK;
+                m->second = comp->b.code_point    & CP_FONT_ID_MASK;
+                m->result = g->unicode.code_point & CP_FONT_ID_MASK;
                 break;}
 
             case MAP_TYPE_BASE_REPLACE:{
                 if (comp->lang != NULL) {
                     die(g, g->font, "No language specific base replacement is possible");
                 }
-                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point <= CP_FONT_ID_MASK);
                 cp_font_map_t *m = cp_v_push0(&c->base_repl);
-                m->first =  comp->a.codepoint & CP_FONT_ID_MASK;
+                m->first =  comp->a.code_point & CP_FONT_ID_MASK;
                 m->second = comp->value & CP_FONT_ID_MASK;
-                m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                m->result = g->unicode.code_point & CP_FONT_ID_MASK;
                 break;}
 
             case MAP_TYPE_MANDATORY:
@@ -6859,13 +6941,13 @@ static void finalise_font(
             case MAP_TYPE_LIGATURE_KEEP:
             case MAP_TYPE_OPTIONAL_KEEP:
                 if (comp->lang == NULL) { // global
-                    assert(comp->a.codepoint <= CP_FONT_ID_MASK);
-                    assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                    assert(comp->a.code_point <= CP_FONT_ID_MASK);
+                    assert(comp->b.code_point <= CP_FONT_ID_MASK);
                     cp_font_map_t *m = cp_v_push0(&c->optional);
                     m->flags = mof_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
-                    m->first =  comp->a.codepoint    & CP_FONT_ID_MASK;
-                    m->second = comp->b.codepoint    & CP_FONT_ID_MASK;
-                    m->result = g->unicode.codepoint & CP_FONT_ID_MASK;
+                    m->first =  comp->a.code_point    & CP_FONT_ID_MASK;
+                    m->second = comp->b.code_point    & CP_FONT_ID_MASK;
+                    m->result = g->unicode.code_point & CP_FONT_ID_MASK;
                 }
                 else {
                     /* lang specific combination */
@@ -6875,12 +6957,12 @@ static void finalise_font(
 
             case MAP_TYPE_KERNING:{
                 assert((comp->lang == NULL) && "cannot have language specific kerning");
-                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point <= CP_FONT_ID_MASK);
                 cp_font_map_t *m = cp_v_push0(&c->context);
                 (void)find_glyph(g, &comp->a);
                 m->flags |= CP_FONT_MXF_KERNING;
-                m->first  = g->unicode.codepoint & CP_FONT_ID_MASK; /* current */
-                m->second = comp->a.codepoint    & CP_FONT_ID_MASK; /* prev */
+                m->first  = g->unicode.code_point & CP_FONT_ID_MASK; /* current */
+                m->second = comp->a.code_point    & CP_FONT_ID_MASK; /* prev */
                 long k =
                     rasterize_x_long(&ram, comp->amount) -
                     rasterize_x_long(&ram, 0);
@@ -6895,14 +6977,14 @@ static void finalise_font(
 
             case MAP_TYPE_CONTEXT:{
                 assert((comp->lang == NULL) && "cannot have lang specific context substitution");
-                assert(comp->a.codepoint <= CP_FONT_ID_MASK);
-                assert(comp->b.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point <= CP_FONT_ID_MASK);
+                assert(comp->b.code_point <= CP_FONT_ID_MASK);
                 cp_font_map_t *m = cp_v_push0(&c->context);
                 (void)find_glyph(g, &comp->a);
                 (void)find_glyph(g, &comp->b);
-                m->first = g->unicode.codepoint & CP_FONT_ID_MASK; /* current */
-                m->second = comp->a.codepoint   & CP_FONT_ID_MASK; /* prev */
-                m->result = comp->b.codepoint   & CP_FONT_ID_MASK; /* substitution */
+                m->first = g->unicode.code_point & CP_FONT_ID_MASK; /* current */
+                m->second = comp->a.code_point   & CP_FONT_ID_MASK; /* prev */
+                m->result = comp->b.code_point   & CP_FONT_ID_MASK; /* substitution */
                 break;}
 
             case MAP_TYPE_REPLACE:
@@ -6964,9 +7046,11 @@ static void finalise_font(
         if (!strequ(comp->lang, cur_lang)) {
             /* new entry for other language */
             cur_lang = comp->lang;
+
+            size_t lang_idx = c->lang.size;
             lang = cp_v_push0(&c->lang);
-            assert(strlen(cur_lang) < (sizeof(lang->id) - 1));
-            strncpy(lang->id, cur_lang, sizeof(lang->id));
+
+            add_lang_map(c, cur_lang, lang_idx);
         }
 
         switch (comp->type) {
@@ -6978,26 +7062,26 @@ static void finalise_font(
             case MAP_TYPE_JOINING_KEEP:
             case MAP_TYPE_LIGATURE_KEEP:
             case MAP_TYPE_OPTIONAL_KEEP: {
-                assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
-                assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
-                assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point  <= CP_FONT_ID_MASK);
+                assert(comp->b.code_point  <= CP_FONT_ID_MASK);
+                assert(comp->glyph->unicode.code_point <= CP_FONT_ID_MASK);
                 (void)find_glyph(comp->glyph, &comp->a);
                 (void)find_glyph(comp->glyph, &comp->b);
                 cp_font_map_t *m = cp_v_push0(&lang->optional);
                 m->flags = mof_flags_from_type(comp->type) & CP_FONT_FLAG_MASK;
-                m->first =  comp->a.codepoint  & CP_FONT_ID_MASK;
-                m->second = comp->b.codepoint  & CP_FONT_ID_MASK;
-                m->result = comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
+                m->first =  comp->a.code_point  & CP_FONT_ID_MASK;
+                m->second = comp->b.code_point  & CP_FONT_ID_MASK;
+                m->result = comp->glyph->unicode.code_point & CP_FONT_ID_MASK;
                 break;}
 
             case MAP_TYPE_REPLACE: {
-                assert(comp->a.codepoint  <= CP_FONT_ID_MASK);
-                assert(comp->b.codepoint  <= CP_FONT_ID_MASK);
-                assert(comp->glyph->unicode.codepoint <= CP_FONT_ID_MASK);
+                assert(comp->a.code_point  <= CP_FONT_ID_MASK);
+                assert(comp->b.code_point  <= CP_FONT_ID_MASK);
+                assert(comp->glyph->unicode.code_point <= CP_FONT_ID_MASK);
                 (void)find_glyph(comp->glyph, &comp->a);
                 cp_font_map_t *m = cp_v_push0(&lang->one2one);
-                m->first =  comp->glyph->unicode.codepoint & CP_FONT_ID_MASK;
-                m->result = comp->a.codepoint  & CP_FONT_ID_MASK;
+                m->first =  comp->glyph->unicode.code_point & CP_FONT_ID_MASK;
+                m->result = comp->a.code_point  & CP_FONT_ID_MASK;
                 break;}
 
             case MAP_TYPE_CANON:
@@ -7007,6 +7091,10 @@ static void finalise_font(
                 CP_DIE();
         }
     }
+
+    /* sort language map */
+    cp_v_qsort(&c->lang_map, 0, CP_SIZE_MAX, cmp_lang_map2, NULL);
+
 }
 
 static void finalise_family(
@@ -7131,7 +7219,7 @@ static void ps_glyph_sequence(
     font_draw_sequence_t const *d = font_draw_cast(*d, draw);
 
     font_glyph_t const *first = find_glyph(glyph, &d->first);
-    if (d->second.codepoint == 0) {
+    if (d->second.code_point == 0) {
         ps_glyph_draw(ps, x, y, first);
         return;
     }
@@ -7291,6 +7379,12 @@ static void ps_chart_font(
 {
     unsigned prev_page = ~0U;
     for (unsigned cp = 0; cp <= 0x10ffff; cp++) {
+         /* skip huge block of unassigned characters (once this
+          * starts being assignned, we'll notice...) */
+         if ((cp >= 0x30000) && (cp < 0xe0000)) {
+             /* spare ~3s of runtime... */
+             continue;
+         }
          if (!have_glyph(font, cp)) {
              continue;
          }
@@ -7548,12 +7642,12 @@ static void ps_detail_font(
          font_glyph_t const *glyph = cp_v_nth_ptr(&font->glyph, i);
 
          char label[20];
-         snprintf(label, sizeof(label), "%04X", glyph->unicode.codepoint);
+         snprintf(label, sizeof(label), "%04X", glyph->unicode.code_point);
          ps_page_begin(ps, label);
 
          char long_label[80];
          snprintf(long_label, sizeof(long_label), "U+%04X %s",
-             glyph->unicode.codepoint,
+             glyph->unicode.code_point,
              glyph->unicode.name);
 
          fprintf(ps->f, "/Helvetica findfont 14 scalefont setfont\n");
@@ -7647,7 +7741,7 @@ static void ps_proof_sheet(
         cp_font_print_str32(&out, &gc, U"\x1f2u");
         cp_font_print_str32(&out, &gc, U"d\x327 ");
 
-        cp_font_gc_set_lang(&gc, "MAH");
+        cp_font_gc_set_lang(&gc, "Mah");
         cp_font_print_str32(&out, &gc, U"M\x327""ajel\x327 ");
 
         cp_font_gc_set_lang(&gc, "LIV");
@@ -7657,7 +7751,7 @@ static void ps_proof_sheet(
         cp_font_print_str32(&out, &gc, U"vil\x327n\x327u ");
 
         gc.tracking = 2.0;
-        cp_font_gc_set_lang(&gc, "NDL");
+        cp_font_gc_set_lang(&gc, "nl");
         cp_font_print_str32(&out, &gc, U"IJssel ij\x30cq\x30c");
         cp_font_print_str32(&out, &gc, U"i\x200cjiji\x200bj");
 
@@ -7914,7 +8008,7 @@ static void doc_coverage(
         assert(s->cp.size > 0);
         s->have_cnt = 0;
         for (cp_v_each(j, &s->cp)) {
-            if (have_glyph(font0, cp_v_nth(&s->cp, j).codepoint)) {
+            if (have_glyph(font0, cp_v_nth(&s->cp, j).code_point)) {
                 s->have_cnt++;
             }
         }
@@ -7993,8 +8087,8 @@ static void doc_coverage(
             fprintf(f, "%s\\\\\n", s->name);
             for (cp_v_each(j, &s->cp)) {
                 unicode_t const *u = &cp_v_nth(&s->cp, j);
-                if (!have_glyph(font0, u->codepoint)) {
-                    fprintf(f, "\\qquad{\\small U+%04X %s}\\\\\n", u->codepoint, u->name);
+                if (!have_glyph(font0, u->code_point)) {
+                    fprintf(f, "\\qquad{\\small U+%04X %s}\\\\\n", u->code_point, u->name);
                 }
             }
         }
@@ -8231,8 +8325,8 @@ static void save_c_family(
             for (cp_v_each(k, &font->lang)) {
                 cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
                 if (lang->optional.size > 0) {
-                    fprintf(f, "\ncp_font_map_t %s_%s_optional[%"CP_Z"u] = {\n",
-                        c_name_lc.data, lang->id, lang->optional.size);
+                    fprintf(f, "\ncp_font_map_t %s_%"CP_Z"u_optional[%"CP_Z"u] = {\n",
+                        c_name_lc.data, k, lang->optional.size);
                     for (cp_v_each(j, &lang->optional)) {
                         cp_font_map_t *g = cp_v_nth_ptr(&lang->optional, j);
                         fprintf(f, "{%u,%u,%u,%u},\n",
@@ -8241,8 +8335,8 @@ static void save_c_family(
                     fprintf(f, "};\n");
                 }
                 if (lang->one2one.size > 0) {
-                    fprintf(f, "\ncp_font_map_t %s_%s_one2one[%"CP_Z"u] = {\n",
-                        c_name_lc.data, lang->id, lang->one2one.size);
+                    fprintf(f, "\ncp_font_map_t %s_%"CP_Z"u_one2one[%"CP_Z"u] = {\n",
+                        c_name_lc.data, k, lang->one2one.size);
                     for (cp_v_each(j, &lang->one2one)) {
                         cp_font_map_t *g = cp_v_nth_ptr(&lang->one2one, j);
                         fprintf(f, "{%u,%u,0,%u},\n",
@@ -8257,16 +8351,25 @@ static void save_c_family(
             for (cp_v_each(k, &font->lang)) {
                 cp_font_lang_t *lang = cp_v_nth_ptr(&font->lang, k);
                 fprintf(f, "    {\n");
-                fprintf(f, "        .id = \"%s\",\n", lang->id);
                 if (lang->optional.size > 0) {
-                    fprintf(f, "        .optional = { .data = %s_%s_optional, .size = %"CP_Z"u },\n",
-                        c_name_lc.data, lang->id, lang->optional.size);
+                    fprintf(f, "        .optional = { .data = %s_%"CP_Z"u_optional, .size = %"CP_Z"u },\n",
+                        c_name_lc.data, k, lang->optional.size);
                 }
                 if (lang->one2one.size > 0) {
-                    fprintf(f, "        .one2one = { .data = %s_%s_one2one, .size = %"CP_Z"u },\n",
-                        c_name_lc.data, lang->id, lang->one2one.size);
+                    fprintf(f, "        .one2one = { .data = %s_%"CP_Z"u_one2one, .size = %"CP_Z"u },\n",
+                        c_name_lc.data, k, lang->one2one.size);
                 }
                 fprintf(f, "    },\n");
+            }
+            fprintf(f, "};\n");
+
+            fprintf(f, "\ncp_font_lang_map_t %s_lang_map[%"CP_Z"u] = {\n",
+                c_name_lc.data, font->lang_map.size);
+            for (cp_v_each(k, &font->lang_map)) {
+                cp_font_lang_map_t *lang = cp_v_nth_ptr(&font->lang_map, k);
+                fprintf(f, "{\"%.*s\", %u },\n",
+                    (int)sizeof(lang->id), lang->id,
+                    lang->lang_idx);
             }
             fprintf(f, "};\n");
         }

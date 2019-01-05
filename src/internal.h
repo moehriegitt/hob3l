@@ -33,6 +33,9 @@ typedef struct {
 extern int cp_trace_level(int add);
 
 #ifdef PSTRACE
+
+#define IFPSTRACE(...) __VA_ARGS__
+
 extern FILE *cp_debug_ps_file;
 extern cp_stream_t *cp_debug_ps;
 extern size_t cp_debug_ps_page_cnt;
@@ -69,9 +72,15 @@ static inline double three_steps(size_t i)
     }
 }
 
+#else
+
+#define IFPSTRACE(...) ((void)0)
+
 #endif /* PSTRACE */
 
 #if defined(DEBUG) && DEBUG
+
+#define IFDEBUG(...) __VA_ARGS__
 
 #define LOG(...)  fprintf(stderr, __VA_ARGS__)
 #define VLOG(...) vfprintf(stderr, __VA_ARGS__)
@@ -107,9 +116,10 @@ static void trace_func_leave(trace_func_t *t)
 
 #else /* !DEBUG */
 
-#define TRACE(...) ((void)0)
-#define LOG(...)   ((void)0)
-#define VLOG(...)  ((void)0)
+#define TRACE(...)   ((void)0)
+#define LOG(...)     ((void)0)
+#define VLOG(...)    ((void)0)
+#define IFDEBUG(...) ((void)0)
 
 #endif
 

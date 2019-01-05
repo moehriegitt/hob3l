@@ -281,15 +281,6 @@ typedef CP_VEC_T(cp_font_map_t) cp_v_font_map_t;
  */
 typedef struct {
     /**
-     * Three or four upper case characters (always NUL terminated)
-     * for the OpenType language tag.
-     * For languages that have no OpenType tag (at the time of writing,
-     * Livonian seemingly had none), it is recommended to use the
-     * ISO-639-3 code.
-     */
-    char id[8];
-
-    /**
      * This is just like cp_font_t::optional table, only language specific.
      * E.g. in Dutch, [i]+[j] combines into [ij], but normally, it does not.
      */
@@ -304,7 +295,25 @@ typedef struct {
     cp_v_font_map_t one2one;
 } cp_font_lang_t;
 
+typedef struct {
+    /**
+     * Three or four upper case characters (may not be NUL terminated)
+     * for the OpenType language tag.  ISO-639-(1,3) 2 letter and 3 letter
+     * names may also be used.
+     * For languages that have no OpenType tag (at the time of writing,
+     * Livonian seemingly had none), it is recommended to use the
+     * ISO-639-3 code.
+     */
+    char id[4];
+
+    /**
+     * Index into lang array */
+    unsigned lang_idx;
+} cp_font_lang_map_t;
+
 typedef CP_VEC_T(cp_font_lang_t) cp_v_font_lang_t;
+typedef CP_VEC_T(cp_font_lang_map_t) cp_v_font_lang_map_t;
+
 typedef CP_VEC_T(uint32_t) cp_v_uint32_t;
 
 typedef struct {
@@ -495,10 +504,20 @@ typedef struct {
     cp_v_font_map_t base_repl;
 
     /**
-     * Language specific glyph mappings.
-     * This is sorted lexicographically by cp_font_lang_t::id.
+     * List of language entries.  Indexed by lang_map.
      */
     cp_v_font_lang_t lang;
+
+    /**
+     * Language specific glyph mappings.
+     * This is sorted lexicographically by cp_font_lang_t::id.
+     * This may have multiple entries mapping to the same map.  All unique
+     * OpenType names, ISO-639-1 names (2 letter) and ISO-638-3 (3 letter)
+     * names should be listed, as the library has currently no logic to resolve
+     * language names.  Indexing must be done with only capital latin
+     * letters A-Z.
+     */
+    cp_v_font_lang_map_t lang_map;
 } cp_font_t;
 
 typedef CP_VEC_T(cp_font_t*) cp_v_font_p_t;
@@ -534,6 +553,14 @@ typedef struct {
     /** Font to use */
     cp_font_t const *font;
 
+    /**
+     * Font nominal size (width/height of an em in the unit of the output
+     * coordinate system). */
+    double em;
+
+    /** The ratio of scaling in X direction wrt. Y direction. */
+    double ratio_x;
+
     /** Font scaling */
     double scale_x, scale_y;
 
@@ -552,7 +579,7 @@ typedef struct {
     bool right2left;
 
     /**
-     * Additional glyph spacing (in final coordinate unit).
+     * Additional glyph spacing (in final coordinate unit, i.e., in 'pt').
      * This is applied once after drawing a glyph.  If is not applied
      * inside combinations, ligatures, joining pairs, or after default
      * ignorable codepoints, and if this is non-0, this does not affect
@@ -576,6 +603,23 @@ typedef struct {
      * This is not applied at default-ignorable characters.
      */
     double tracking;
+
+    /**
+     * Spacing, something OpenSCAD defines for unknown purposes: make all
+     * glyphs by this ratio larger by filling in space.  I.e., this is
+     * tracking relative to the glyph width, which  makes the next look
+     * totally awkward for any values other than 0.  E.g., for a value
+     * of 1, insert the width of the glyph of space, e.g. for a 'W',
+     * insert a large amount of space, for an 'i', insert a small amount
+     * of space.
+     *
+     * This is applied before tracking, i.e., tracking is added on top
+     * (but is not multipled by this).
+     *
+     * This is the ratio of the additional width, i.e., the origin is 0 here,
+     * not 1 (the setter function uses an origin of 1 just like OpenSCAD).
+     */
+    double spacing;
 
     /**
      * Inhibit combinations by default if any of thse CP_FONT_MCF_* bits

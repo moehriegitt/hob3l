@@ -383,6 +383,20 @@ static void debug_print_s(
 #ifdef PSTRACE
     /* output to postscript */
     if (cp_debug_ps_page_begin()) {
+        /* compute values for --debug-ps-xlat-x,y to center at \p es */
+        if (es != NULL) {
+            double x = CP_PS_X(es->p->v.coord.x) - (CP_PS_PAPER_X/2);
+            double y = CP_PS_Y(es->p->v.coord.y) - (CP_PS_PAPER_Y/2);
+            cp_printf(cp_debug_ps,
+                "%g 10 moveto "
+                "(center: %g %g) dup "
+                "stringwidth pop neg 0 rmoveto "
+                "show\n",
+                CP_PS_PAPER_X - 15.0,
+                cp_debug_ps_xlat_x - (x / cp_debug_ps_xform.mul_x),
+                cp_debug_ps_xlat_y - (y / cp_debug_ps_xform.mul_y));
+        }
+
         /* print info */
         cp_printf(cp_debug_ps, "30 30 moveto (CSG: ");
         va_start(va, ene);
@@ -516,6 +530,20 @@ static void end_insert(
     (void)cp_dict_insert(&e->node_end, &c->end, pt_cmp_end_d, NULL, +1);
 }
 
+static bool q_contains(
+    ctxt_t *c,
+    event_t *e)
+{
+    return cp_dict_maybe_member_of(&e->node_q, c->q);
+}
+
+static bool s_contains(
+    ctxt_t *c,
+    event_t *e)
+{
+    return cp_dict_maybe_member_of(&e->node_s, c->s);
+}
+
 /**
  * Add an edge to the output edge.  Only right events are added.
  */
@@ -530,10 +558,10 @@ static void chain_add(
     /* the event should left and neither point should be s or q */
     assert(!e->left);
     assert(pt_cmp(e->p, o->p) >= 0);
-    assert(!cp_dict_is_member(&e->node_s));
-    assert(!cp_dict_is_member(&e->node_q));
-    assert(!cp_dict_is_member(&o->node_s));
-    assert(!cp_dict_is_member(&o->node_q));
+    assert(!s_contains(c, e));
+    assert(!q_contains(c, e));
+    assert(!s_contains(c, o));
+    assert(!q_contains(c, o));
 
     /*
      * This algorithm combines output edges into a polygon ring.  Because
@@ -1122,6 +1150,7 @@ static void q_insert(
     ctxt_t *c,
     event_t *e)
 {
+    assert(!q_contains(c, e));
     assert((pt_cmp(e->p, e->other->p) < 0) == e->left);
     cp_dict_insert(&e->node_q, &c->q, ev_cmp_q, NULL, 1);
 }
@@ -1130,6 +1159,7 @@ static void q_remove(
     ctxt_t *c,
     event_t *e)
 {
+    assert(q_contains(c, e));
     cp_dict_remove(&e->node_q, &c->q);
 }
 
@@ -1142,6 +1172,8 @@ static void s_insert(
     ctxt_t *c,
     event_t *e)
 {
+    assert(!s_contains(c, e));
+    assert(e->left);
     cp_dict_t *o CP_UNUSED = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
     assert(o == NULL);
 }
@@ -1150,7 +1182,29 @@ static void s_remove(
     ctxt_t *c,
     event_t *e)
 {
+    assert(s_contains(c, e));
     cp_dict_remove(&e->node_s, &c->s);
+    assert ((c->s == NULL) || (CP_BOX_OF(c->s, event_t, node_s)->left));
+}
+
+static void set_slope(
+    event_t *e1)
+{
+    event_t *e2 = e1->other;
+
+    cp_vec2_t d;
+    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
+    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
+    e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
+    e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
+    e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
+    assert(cp_le(e1->line.a, +1));
+    assert(cp_ge(e1->line.a, -1) ||
+        CONFESS("a=%g (%g,%g--%g,%g)",
+            e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
+
+    /* other direction edge is on the same line */
+    e2->line = e1->line;
 }
 
 CP_UNUSED
@@ -1186,24 +1240,13 @@ static void q_add_orig(
     e1->other = e2;
 
     if (pt_cmp(e1->p, e2->p) > 0) {
+        assert(!s_contains(c, e1));
+        assert(!s_contains(c, e2));
         e1->left = false;
         e2->left = true;
     }
 
-    /* compute origin and slope */
-    cp_vec2_t d;
-    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
-    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
-    e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
-    e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
-    e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
-    assert(cp_le(e1->line.a, +1));
-    assert(cp_ge(e1->line.a, -1) ||
-        CONFESS("a=%g (%g,%g--%g,%g)",
-            e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
-
-    /* other direction edge is on the same line */
-    e2->line = e1->line;
+    set_slope(e1);
 
 #ifndef NDEBUG
     /* check computation */
@@ -1238,7 +1281,7 @@ static void divide_segment_(
     assert(e->left);
     event_t *o = e->other;
 
-    assert(!cp_dict_is_member(&o->node_s));
+    assert(!s_contains(c, o));
 
     /*
      * Split an edge at a point p on that edge (we assume that p is correct -- no
@@ -1274,6 +1317,8 @@ static void divide_segment_(
         /* for the unprocessed part, we can fix the anomality by swapping. */
         o->left = true;
         l->left = false;
+        assert(!s_contains(c, o));
+        assert(!s_contains(c, l));
     }
 
     /* For e--r, if we encounter the same corner case, remove the edges from S
@@ -1282,34 +1327,22 @@ static void divide_segment_(
     if (ev_cmp(e, r) > 0) {
         r->left = true;
         e->left = false;
-        if (cp_dict_is_member(&e->node_s)) {
+        if (s_contains(c, e)) {
             s_remove(c, e);
             q_insert(c, e);
         }
+        assert(!s_contains(c, r));
+        assert(!s_contains(c, e));
     }
+
+    /* unfortunately, reset slope -- it seems impossible to cope with
+     * corner cases otherwise */
+    set_slope(l);
+    set_slope(r);
 
     /* handle new events later */
     q_insert(c, l);
     q_insert(c, r);
-}
-
-static void intersection_add_ev(
-    event_t **sev,
-    size_t *sev_cnt,
-    event_t *e1,
-    event_t *e2)
-{
-    if (e1->p == e2->p) {
-        sev[(*sev_cnt)++] = NULL;
-    }
-    else if (ev_cmp(e1, e2) > 0) {
-        sev[(*sev_cnt)++] = e2;
-        sev[(*sev_cnt)++] = e1;
-    }
-    else {
-        sev[(*sev_cnt)++] = e1;
-        sev[(*sev_cnt)++] = e2;
-    }
 }
 
 static void intersection_point(
@@ -1523,18 +1556,75 @@ static void ev_ignore(
 {
     assert(e->in.owner == 0);
     assert(e->other->in.owner == 0);
-    if (cp_dict_is_member(&e->node_s)) {
+    if (s_contains(c, e)) {
         s_remove(c, e);
     }
-    if (cp_dict_is_member(&e->other->node_s)) {
+    if (s_contains(c, e->other)) {
         s_remove(c, e->other);
     }
-    if (cp_dict_is_member(&e->node_q)) {
+    if (q_contains(c, e)) {
         q_remove(c, e);
     }
-    if (cp_dict_is_member(&e->other->node_q)) {
+    if (q_contains(c, e->other)) {
         q_remove(c, e->other);
     }
+}
+
+static inline event_t *s_next(
+    event_t *e)
+{
+    if (e == NULL) {
+        return NULL;
+    }
+    return CP_BOX0_OF(cp_dict_next(&e->node_s), event_t, node_s);
+}
+
+static inline event_t *s_prev(
+    event_t *e)
+{
+    if (e == NULL) {
+        return NULL;
+    }
+    return CP_BOX0_OF(cp_dict_prev(&e->node_s), event_t, node_s);
+}
+
+static void redo_q_from_s(
+    ctxt_t *c,
+    event_t *el,
+    point_t *ip)
+{
+    do {
+        event_t *elp = s_prev(el);
+        s_remove(c, el);
+        q_insert(c, el);
+        assert((elp == NULL) || elp->left);
+        el = elp;
+    } while ((el != NULL) && (el->p == ip));
+}
+
+CP_UNUSED
+static double pt_sqr_dist(point_t const *a, point_t const *b)
+{
+    return cp_vec2_sqr_dist(&a->v.coord, &b->v.coord);
+}
+
+static event_t **add_sev(
+    event_t **sev,
+    event_t *el,
+    event_t *eh)
+{
+    if (el->p == eh->p) {
+        *(sev++) = NULL;
+    }
+    else if (ev_cmp(el, eh) > 0) {
+        *(sev++) = eh;
+        *(sev++) = el;
+    }
+    else {
+        *(sev++) = el;
+        *(sev++) = eh;
+    }
+    return sev;
 }
 
 /**
@@ -1552,12 +1642,12 @@ static char const *check_intersection(
     event_t *oh = eh->other;
     assert( el->left);
     assert( eh->left);
-    assert( cp_dict_is_member(&el->node_s));
-    assert( cp_dict_is_member(&eh->node_s));
+    assert( s_contains(c, el));
+    assert( s_contains(c, eh));
     assert(!ol->left);
     assert(!oh->left);
-    assert(!cp_dict_is_member(&ol->node_s));
-    assert(!cp_dict_is_member(&oh->node_s));
+    assert(!s_contains(c, ol));
+    assert(!s_contains(c, oh));
 
     /* A simple comparison of line.a to decide about overlap will not work, i.e.,
      * because the criterion needs to be consistent with point coordinate comparison,
@@ -1653,28 +1743,31 @@ static char const *check_intersection(
                 return "shared end";
             }
 
+            char const *what = NULL;
             if (ip == el->p) {
                 /* This means that we need to reclassify the upper line again (which
                  * we thought was below, but due to rounding, it now turns out to be
                  * completely above).  The easiest is to remove it again from S
                  * and throw it back into Q to try again later. */
-                s_remove(c, el);
-                q_insert(c, el);
+                IFPSTRACE(what = "single intersection, redo below");
+                redo_q_from_s(c, el, ip);
             }
             else if (ip != ol->p) {
                 divide_segment(c, el, ip);
             }
 
             if (ip == eh->p) {
-                /* Same corder case as above: we may have classified eh too early. */
-                s_remove(c, eh);
-                q_insert(c, eh);
+                /* Same corner case as above: we may have classified eh too early. */
+                redo_q_from_s(c, eh, ip);
+                IFPSTRACE(what = what ? "single intersection, redo both"
+                                      : "single intersection, redo above");
             }
             else if (ip != oh->p) {
                 divide_segment(c, eh, ip);
             }
 
-            return "single intersection";
+            IFPSTRACE(what = what ? what : "single intersection");
+            return what;
         }
 
         /* collinear means parallel here, i.e., no intersection */
@@ -1690,11 +1783,14 @@ static char const *check_intersection(
     assert(pt_cmp(ol->p, eh->p) >= 0);
     assert(pt_cmp(oh->p, el->p) >= 0);
 
+    LOG("overlap: %s with %s\n", ev_str(el), ev_str(eh));
+
     /* overlap */
     event_t *sev[4];
-    size_t sev_cnt = 0;
-    intersection_add_ev(sev, &sev_cnt, el, eh);
-    intersection_add_ev(sev, &sev_cnt, ol, oh);
+    event_t **sev_ptr = sev;
+    sev_ptr = add_sev(sev_ptr, el, eh);
+    sev_ptr = add_sev(sev_ptr, ol, oh);
+    size_t sev_cnt = CP_PTRDIFF(sev_ptr, sev);
     assert(sev_cnt >= 2);
     assert(sev_cnt <= cp_countof(sev));
 
@@ -1828,30 +1924,12 @@ static char const *check_intersection(
     return "inner overlap";
 }
 
-static inline event_t *s_next(
-    event_t *e)
-{
-    if (e == NULL) {
-        return NULL;
-    }
-    return CP_BOX0_OF(cp_dict_next(&e->node_s), event_t, node_s);
-}
-
-static inline event_t *s_prev(
-    event_t *e)
-{
-    if (e == NULL) {
-        return NULL;
-    }
-    return CP_BOX0_OF(cp_dict_prev(&e->node_s), event_t, node_s);
-}
-
 static void ev_left(
     ctxt_t *c,
     event_t *e)
 {
-    assert(!cp_dict_is_member(&e->node_s));
-    assert(!cp_dict_is_member(&e->other->node_s));
+    assert(!s_contains(c, e));
+    assert(!s_contains(c, e->other));
     LOG("insert_s: %p (%p)\n", e, e->other);
     s_insert(c, e);
 
@@ -1871,16 +1949,53 @@ static void ev_left(
 
     debug_print_s(c, "left after insert", e, prev, next);
 
+    /* FIXME: Hack: some intersections change the order of segments in S,
+     * which is bad, so if we dequeue misordered stuff, we redo it.
+     * It may be better to check this when the intersection occurs.
+     * In the case that triggered this fix (test43.scad), an overlap was
+     * detected that moved a line across another one and due to ev_cmp()
+     * of the line segments, the order changed.
+     * This problem is due to rounding (in this case, during the decision
+     * of what is overlapping).  It could have been fixed also by using not
+     * the new segment's right point, but next segment's.  But whether this
+     * fixes the problem for good is currently unexamined.
+     */
+    if ((prev != NULL) && (seg_cmp(prev, e) > 0)) {
+        s_remove(c, e);
+        q_insert(c, e);
+        s_remove(c, prev);
+        q_insert(c, prev);
+        LOG("wrong order of cur and prev, redoing");
+        return;
+    }
+    if ((next != NULL) && (seg_cmp(e, next) > 0)) {
+        s_remove(c, e);
+        q_insert(c, e);
+        s_remove(c, next);
+        q_insert(c, next);
+        LOG("wrong order of cur and next, redoing");
+        return;
+    }
+
+    assert((prev == NULL) || seg_cmp(prev, e) < 0);
+    assert((next == NULL) || seg_cmp(e, next) < 0);
+
     char const *ni CP_UNUSED = "NULL";
     if (next != NULL) {
         ni = check_intersection(c, e, next, NULL);
     }
+
     /* The previous 'check_intersection' may have kicked out 'e' from S due
      * to rounding, so check that e is still in S before trying to intersect.
      * If not, it is back in Q and we'll handle this later. */
     char const *pi CP_UNUSED = "NULL";
-    if ((prev != NULL) && cp_dict_is_member(&e->node_s)) {
-        pi = check_intersection(c, prev, e, NULL);
+    if (prev != NULL) {
+        if (s_contains(c, e)) {
+            pi = check_intersection(c, prev, e, NULL);
+        }
+        else {
+            pi = "new edge collapsed into next";
+        }
     }
 
     debug_print_s(c, "left after intersect (n=%s, p=%s)", e, prev, next, ni, pi);
@@ -1908,8 +2023,8 @@ static void ev_right(
     /* first remove from s */
     LOG("remove_s: %p (%p)\n", e->other, e);
     s_remove(c, sli);
-    assert(!cp_dict_is_member(&e->node_s));
-    assert(!cp_dict_is_member(&e->other->node_s));
+    assert(!s_contains(c, e));
+    assert(!s_contains(c, e->other));
 
     /* now add to out */
     bool below_in = op_bitmap_get(c, sli->in.below);

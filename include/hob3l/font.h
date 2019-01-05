@@ -10,7 +10,8 @@
 /**
  * Set the font in the gc.
  *
- * This resets the font, scale_x/y, base_y, and replacement.
+ * This resets the font, em, ratio_x, scale_x/y, base_y,
+ * replacement, tracking, spacing, and kerning state.
  *
  * Font scaling is set up so that 1em scales as \p size.
  * If the output devices uses a pt scale, then size=12
@@ -158,6 +159,38 @@ extern unsigned cp_font_read_str_utf32(void *user);
 extern unsigned cp_font_read_str_latin1(void *user);
 
 /**
+ * Enable/disable ligatures */
+extern void cp_font_gc_enable_ligature(
+    cp_font_gc_t *gc,
+    bool enable);
+
+/**
+ * Enable/disable joining */
+extern void cp_font_gc_enable_joining(
+    cp_font_gc_t *gc,
+    bool enable);
+
+/**
+ * Enable/disable joining */
+extern void cp_font_gc_enable_optional(
+    cp_font_gc_t *gc,
+    bool enable);
+
+/**
+ * Set amount of tracking.
+ * Tracking is set in 'pt' (i.e., the output unit).
+ */
+extern void cp_font_gc_set_tracking(
+    cp_font_gc_t *gc,
+    double amount);
+
+/**
+ * Set amount of spacing compatibly with OpenSCAD. */
+extern void cp_font_gc_set_spacing(
+    cp_font_gc_t *gc,
+    double amount);
+
+/**
  * Like cp_font_print, but from an ISO-8859-1 character string */
 static inline void cp_font_print_str_latin1(
     cp_v_obj_p_t *out,
@@ -175,36 +208,6 @@ static inline void cp_font_print_str32(
     unsigned const *s)
 {
     cp_font_print(out, gc, cp_font_read_str_utf32, &s);
-}
-
-/**
- * Enable/disable ligatures */
-static inline void cp_font_gc_enable_ligature(
-    cp_font_gc_t *gc,
-    bool enable)
-{
-    gc->mof_disable |= (1 << CP_FONT_MOF_LIGATURE);
-    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_LIGATURE) : 0;
-}
-
-/**
- * Enable/disable joining */
-static inline void cp_font_gc_enable_joining(
-    cp_font_gc_t *gc,
-    bool enable)
-{
-    gc->mof_disable |= (1 << CP_FONT_MOF_JOINING);
-    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_JOINING) : 0;
-}
-
-/**
- * Enable/disable joining */
-static inline void cp_font_gc_enable_optional(
-    cp_font_gc_t *gc,
-    bool enable)
-{
-    gc->mof_enable |= (1 << CP_FONT_MOF_OPTIONAL);
-    gc->mof_enable ^= enable ? 0 : (1 << CP_FONT_MOF_OPTIONAL);
 }
 
 #endif /* CP_FONT_H_ */

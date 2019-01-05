@@ -219,7 +219,8 @@ MOD_C.libhob3lbase.a := \
     vchar.c \
     panic.c \
     internal.c \
-    qsort.c
+    qsort.c \
+    utf8.c
 
 MOD_O.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.o))
 MOD_D.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.d))

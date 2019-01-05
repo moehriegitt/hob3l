@@ -1,7 +1,9 @@
 /* -*- Mode: C -*- */
 /* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
+#include <ctype.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lbase/mat.h>
 #include <hob3l/font.h>
 #include <hob3l/csg2.h>
 
@@ -34,7 +36,7 @@ static interval_plus_t uni_grapheme[] = {
 };
 
 /**
- * A codepoint sequence reader.
+ * A code point sequence reader.
  *
  * When combining and handling ligatures, reading the input stream
  * of characters is a bit complex, so we'll encapsulate this into
@@ -503,14 +505,6 @@ static void render_glyph_comb(
     gc->state.cur_x = cx + (m.width[0] + m.width[1]) * sx;
 }
 
-static int cmp_lang_name(
-    char const *name,
-    cp_font_lang_t const *lang,
-    void *user CP_UNUSED)
-{
-    return strcmp(name, lang->id);
-}
-
 static bool is_simple(glyph_t const *c)
 {
     assert(c->base != 0);
@@ -552,6 +546,9 @@ static void cp_font_render_glyph(
         }
     }
 
+    /* remember old position to infer spacing amount */
+    double old_x = gc->state.cur_x;
+
     /* render */
     render_glyph_comb(out, gc, g);
 
@@ -560,6 +557,7 @@ static void cp_font_render_glyph(
     if (is_simple(g)) {
         gc->state.last_cp = g->base;
     }
+    gc->state.cur_x += (gc->state.cur_x - old_x) * gc->spacing;
     gc->state.cur_x += (gc->right2left ? -1 : +1) * gc->tracking;
     gc->state.glyph_cnt++;
 }
@@ -720,7 +718,8 @@ static void clear_kerning(cp_font_state_t *state)
 /**
  * Set the font in the gc.
  *
- * This resets the font, scale_x/y, base_y, and replacement.
+ * This resets the font, em, ratio_x, scale_x/y, base_y,
+ * replacement, tracking, spacing, and kerning state.
  *
  * Font scaling is set up so that 1em scales as \p size.
  * If the output devices uses a pt scale, then size=12
@@ -749,6 +748,10 @@ extern void cp_font_gc_set_font(
         return;
     }
     gc->font = font;
+    gc->em = pt_size;
+    gc->ratio_x = ratio_x;
+    gc->spacing = 0;
+    gc->tracking = 0;
     gc->scale_x = (pt_size / font->em_x) * ratio_x;
     gc->scale_y = pt_size / font->em_y;
     gc->base_y = font->base_y * gc->scale_y;
@@ -757,6 +760,25 @@ extern void cp_font_gc_set_font(
 
     /* do not try to do contextual replacement or kerning across different fonts */
     clear_kerning(&gc->state);
+}
+
+static int cmp_lang_name(
+    char const *name,
+    cp_font_lang_map_t const *lang,
+    void *user CP_UNUSED)
+{
+    size_t n = sizeof(lang->id);
+    for (size_t i = 0; i < n; i++) {
+        unsigned a = (unsigned char)toupper((unsigned char)name[i]);
+        unsigned b = (unsigned char)toupper((unsigned char)lang->id[i]);
+        if (a != b) {
+            return a < b ? -1 : +1;
+        }
+        if (a == 0) {
+            return 0;
+        }
+    }
+    return name[n] == 0 ? 0 : +1;
 }
 
 /**
@@ -775,11 +797,11 @@ extern void cp_font_gc_set_lang(
     if (name == NULL) {
         return;
     }
-    size_t i = cp_v_bsearch(name, &gc->font->lang, cmp_lang_name, NULL);
-    if (i >= gc->font->lang.size) {
-        return;
+    size_t i = cp_v_bsearch(name, &gc->font->lang_map, cmp_lang_name, NULL);
+    cp_font_lang_map_t const *m = cp_v_nth_ptr0(&gc->font->lang_map, i);
+    if (m != NULL) {
+        gc->lang = cp_v_nth_ptr0(&gc->font->lang, m->lang_idx);
     }
-    gc->lang = cp_v_nth_ptr(&gc->font->lang, i);
 }
 
 /**
@@ -804,9 +826,9 @@ extern void cp_font_gc_set_lang(
  * This handles canonical, ligature, joining, and optional composition
  * of glyphs, including ZWJ, ZWNJ, ZWSP to break/combine glyphs.
  *
- * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * This algorithm generally ignores default-ignorable code points, i.e.,
  * kerning is applied across such characters and tracking is only
- * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * applied after non-default-ignorable code points: T+ZWNJ+o will
  * kern T+o normally and will insert tracking only once.
  *
  * However, to be able to separate kerning pairs, ZWSP (U+200B) and
@@ -977,4 +999,57 @@ extern unsigned cp_font_read_str_latin1(void *user)
     unsigned r = **s;
     (*s)++;
     return r;
+}
+
+/**
+ * Enable/disable ligatures */
+extern void cp_font_gc_enable_ligature(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mof_disable |= (1 << CP_FONT_MOF_LIGATURE);
+    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_LIGATURE) : 0;
+}
+
+/**
+ * Enable/disable joining */
+extern void cp_font_gc_enable_joining(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mof_disable |= (1 << CP_FONT_MOF_JOINING);
+    gc->mof_disable ^= enable ? (1 << CP_FONT_MOF_JOINING) : 0;
+}
+
+/**
+ * Enable/disable joining */
+extern void cp_font_gc_enable_optional(
+    cp_font_gc_t *gc,
+    bool enable)
+{
+    gc->mof_enable |= (1 << CP_FONT_MOF_OPTIONAL);
+    gc->mof_enable ^= enable ? 0 : (1 << CP_FONT_MOF_OPTIONAL);
+}
+
+/**
+ * Set amount of tracking.
+ * Tracking is set in 'pt' (i.e., the output unit).
+ */
+extern void cp_font_gc_set_tracking(
+    cp_font_gc_t *gc,
+    double amount)
+{
+    gc->tracking = amount;
+}
+
+/**
+ * Set amount of spacing compatibly with OpenSCAD. */
+extern void cp_font_gc_set_spacing(
+    cp_font_gc_t *gc,
+    double amount)
+{
+    gc->spacing = amount - 1;
+    if (cp_eq(gc->spacing, 0)) {
+        gc->spacing = 0;
+    }
 }

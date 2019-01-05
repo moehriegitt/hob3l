@@ -131,6 +131,17 @@ static void surface_put_scad(
         r->file_tok, r->center?"true":"false");
 }
 
+static void text_put_scad(
+    cp_stream_t *s,
+    cp_scad_text_t const *r)
+{
+    cp_printf(s,
+        "text(text=\"%s\",size=%g,font=\"%s\",halign=\"%s\",valign=\"%s\","
+        "spacing=%g,direction=\"%s\",language=\"%s\",script=\"%s\",$fn=%u);\n",
+        r->text, r->size, r->font, r->halign, r->valign,
+        r->spacing, r->direction, r->language, r->script, r->_fn);
+}
+
 static void projection_put_scad(
     cp_stream_t *s,
     int d,
@@ -337,6 +348,10 @@ static void scad_put_scad(
 
     case CP_SCAD_SURFACE:
         surface_put_scad(s, cp_scad_cast(cp_scad_surface_t, r));
+        return;
+
+    case CP_SCAD_TEXT:
+        text_put_scad(s, cp_scad_cast(cp_scad_text_t, r));
         return;
 
     case CP_SCAD_CIRCLE:

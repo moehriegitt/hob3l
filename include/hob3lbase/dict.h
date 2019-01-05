@@ -505,6 +505,12 @@ static inline bool cp_dict_is_root(
  * Note that each node is actually its own 1-element dictionary, so
  * this function returns 'true' only in the non-trivial case whether
  * at least one other element is in the tree.
+ *
+ * For a full check, there is cp_dict_is_member_of(), which is
+ * precise, but slower.  There is also cp_dict_maybe_member_of(), which
+ * is also O(1), but has fewer false negatives than this.
+ *
+ * Runtime: O(1)
  */
 static inline bool cp_dict_is_member(
     cp_dict_t *n)
@@ -516,6 +522,37 @@ static inline bool cp_dict_is_member(
             (n->edge[0] != NULL) ||
             (n->edge[1] != NULL)
         );
+}
+
+/**
+ * Whether the node is in the given dictionary.
+ *
+ * This is a little better than cp_dict_is_member() wrt. false negatives:
+ * if n is a single member of a tree, then this function checks whether
+ * it is actually the root, in which case, this returns true, too.
+ *
+ * For a full check, there is cp_dict_is_member_of(), which is
+ * precise, but slower.
+ *
+ * Runtime: O(1)
+ */
+static inline bool cp_dict_maybe_member_of(
+    cp_dict_t *n,
+    cp_dict_t *root)
+{
+    return (n != NULL) && (root != NULL) && ((n == root) || cp_dict_is_member(n));
+}
+
+/**
+ * Whether the node is a member of the given dictionary.
+ *
+ * Runtime: O(log n)
+ */
+static inline bool cp_dict_is_member_of(
+    cp_dict_t *n,
+    cp_dict_t *root)
+{
+    return (n != NULL) && (root != NULL) && (cp_dict_root(n) == root);
 }
 
 #endif /* CSG_SET_H_ */

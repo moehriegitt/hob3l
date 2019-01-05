@@ -38,6 +38,7 @@
         cp_scad_projection_t:   CP_SCAD_PROJECTION, \
         cp_scad_linext_t:       CP_SCAD_LINEXT, \
         cp_scad_rotext_t:       CP_SCAD_ROTEXT, \
+        cp_scad_text_t:         CP_SCAD_TEXT, \
         cp_scad_hull_t:         CP_SCAD_HULL, \
         cp_scad_color_t:        CP_SCAD_COLOR)
 
@@ -65,6 +66,7 @@ typedef enum {
     CP_SCAD_SQUARE,
     CP_SCAD_POLYGON,
     CP_SCAD_PROJECTION,
+    CP_SCAD_TEXT,
 
     CP_SCAD_LINEXT,
     CP_SCAD_ROTEXT,
@@ -260,6 +262,21 @@ typedef struct {
 
 typedef struct {
     CP_SCAD_GROUP_
+    char const *text;
+    cp_f_t size;
+    char const *font;
+    char const *halign;
+    char const *valign;
+    cp_f_t spacing;
+    cp_f_t tracking;
+    char const *direction;
+    char const *language;
+    char const *script;
+    unsigned _fn;
+} cp_scad_text_t;
+
+typedef struct {
+    CP_SCAD_GROUP_
 } cp_scad_hull_t;
 
 struct cp_scad { CP_SCAD_ };
@@ -294,49 +311,5 @@ typedef struct {
      */
     cp_scad_t *root;
 } cp_scad_tree_t;
-
-/*
- * UNSUPPORTED:
- *
- * use
- * include
- * import
- *
- * linear_extrude (w/ limited settings, maybe)
- * offset
- * render
- * children
- *
- * rotate_extrude
- * function
- * module
- * var = value
- *
- * text
- *
- * for
- * intersection_for
- * echo
- * if
- *
- * Any functions (sin, cos, *, concat, ...).
- *
- * $fa        minimum angle
- * $fs        minimum size
- * $fn        number of fragments
- * $t         animation step
- * $vpr       viewport rotation angles in degrees
- * $vpt       viewport translation
- * $vpd       viewport camera distance
- * $children  number of module children
- *
- * LIKELY NEVER SUPPORTED:
- *
- * hull
- * minkowski
- * resize
- * surface
- * projection
- */
 
 #endif /* CP_SCAD_TAM_H_ */

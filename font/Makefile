@@ -5,8 +5,13 @@ uni: \
 	uniname.h \
 	unisets.inc \
 	unicomp.inc \
+	langname.inc \
 	../src/unidefign.inc \
 	../src/unigrapheme.inc
+
+langname.inc: mklangmap dummy
+	./mklangmap > $@.new
+	mv $@.new $@
 
 uniname.h: mkuniname dummy
 	./mkuniname > $@.new

@@ -198,7 +198,7 @@ extern void cp_syn_format_loc(
     (void)cp_vchar_cstr(post);
 
     cp_syn_get_loc_src_aux(pre, post, tree, token, "");
-    if (token2 != NULL) {
+    if ((token2 != NULL) && (token2 != token)) {
         cp_vchar_t post2;
         cp_vchar_init(&post2);
         cp_syn_get_loc_src_aux(post, &post2, tree, token2, "Info: See also here.\n");

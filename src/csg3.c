@@ -5,6 +5,7 @@
 #include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
 #include <hob3lbase/obj.h>
+#include <hob3lbase/utf8.h>
 #include <hob3l/gc.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
@@ -14,6 +15,8 @@
 #include <hob3l/syn.h>
 #include <hob3l/syn-msg.h>
 #include <hob3l/stl-parse.h>
+#include <hob3l/font-nozzl3_sans.h>
+#include <hob3l/font.h>
 #include "internal.h"
 
 /* contexts for ctxt_t->context */
@@ -1249,6 +1252,131 @@ static bool csg3_from_surface(
     return false;
 }
 
+static bool csg3_from_text(
+    bool *no,
+    cp_v_obj_p_t *r,
+    ctxt_t *c,
+    mat_ctxt_t const *mo,
+    cp_scad_text_t const *s)
+{
+    if (c->context != IN2D) {
+        return msg(c, c->opt->err_outside_2d, s->loc, NULL,
+            "'text' found outside 2D context.");
+    }
+    *no = true;
+
+    cp_font_gc_t gc = {0};
+
+    cp_font_t const *font = &cp_font_nozzl3_sans;
+    /* FIXME: add a more proper parser for the ":style=" part. */
+    char const *fstyle = strstr(s->font, ":style=");
+    if (fstyle != NULL) {
+        if (strstr(fstyle, "Oblique") || strstr(fstyle, "Italic")) {
+            font = &cp_font_nozzl3_sans_oblique;
+            if (strstr(fstyle, "Bold")) { font = &cp_font_nozzl3_sans_bold_oblique; }
+            else
+            if (strstr(fstyle, "Medium")) { font = &cp_font_nozzl3_sans_medium_oblique; }
+            else
+            if (strstr(fstyle, "Black")) { font = &cp_font_nozzl3_sans_black_oblique; }
+            else
+            if (strstr(fstyle, "Light")) { font = &cp_font_nozzl3_sans_light_oblique; }
+        }
+        else {
+            if (strstr(fstyle, "Bold")) { font = &cp_font_nozzl3_sans_bold; }
+            else
+            if (strstr(fstyle, "Medium")) { font = &cp_font_nozzl3_sans_medium; }
+            else
+            if (strstr(fstyle, "Black")) { font = &cp_font_nozzl3_sans_black; }
+            else
+            if (strstr(fstyle, "Light")) { font = &cp_font_nozzl3_sans_light; }
+        }
+    }
+
+    /* For some reason, OpenSCAD's pt seems to be 1.39mm */
+    cp_font_gc_set_font(&gc, font, s->size * 1.39, 1);
+
+    if (s->language != NULL) {
+        cp_font_gc_set_lang(&gc, s->language);
+    }
+    cp_font_gc_set_spacing (&gc, s->spacing);
+    cp_font_gc_set_tracking(&gc, s->tracking);
+
+    cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
+
+    cp_utf8_iterator_t iter = {0};
+    iter.data = s->text;
+    iter.size = CP_SIZE_MAX;
+    cp_font_print(&rc, &gc, cp_utf8_escaped_next, &iter);
+
+    if (iter.error_pos != NULL) {
+        return msg(c, CP_ERR_FAIL, iter.error_pos, NULL,
+            "'text' decoding error: %s", iter.error_msg);
+    }
+
+    /* positioning */
+    cp_mat3wi_t *m = mat_new(c->tree);
+
+    /* horizontal alignment based on cur_x */
+    if (strequ(s->halign, "right")) {
+        m->n.w.v[0] -= gc.state.cur_x;
+    }
+    if (strequ(s->halign, "center")) {
+        m->n.w.v[0] -= gc.state.cur_x/2;
+    }
+
+    /* for vertical alignment, get bounding box */
+    cp_vec2_minmax_t bb = CP_VEC2_MINMAX_EMPTY;
+    for (cp_v_each(i, &rc)) {
+        cp_csg2_poly_t *p = cp_csg2_cast(*p, cp_v_nth(&rc, i));
+        for (cp_v_each(j, &p->point)) {
+            cp_vec2_minmax(&bb, &cp_v_nth(&p->point, j).coord);
+        }
+    }
+    if (!cp_vec2_minmax_valid(&bb)) {
+        return true; /* empty */
+    }
+
+    if (strequ(s->halign, "top")) {
+        m->n.w.v[1] -= bb.max.y;
+    }
+    if (strequ(s->halign, "bottom")) {
+        m->n.w.v[1] -= bb.min.y;
+    }
+
+    /* re-position */
+    cp_mat3wi_mul(m, mo->mat, m);
+    mat_ctxt_t mn = *mo;
+    mn.mat = m;
+
+    /* apply transformation to all points */
+    cp_mat2w_t m2;
+    cp_mat2w_from_mat3w(&m2, &mn.mat->n);
+    for (cp_v_each(i, &rc)) {
+        cp_csg2_poly_t *p = cp_csg2_cast(*p, cp_v_nth(&rc, i));
+        for (cp_v_each(j, &p->point)) {
+            cp_vec2w_xform(&cp_v_nth(&p->point, j).coord, &m2, &cp_v_nth(&p->point, j).coord);
+        }
+    }
+
+    /* make a single polygon */
+    cp_csg2_poly_t *p = cp_csg2_flatten(c->opt, c->tmp, &rc);
+
+    /* sweep */
+    cp_pool_clear(c->tmp);
+    cp_v_fini(&rc);
+
+    /* empty? */
+    if ((p == NULL) || (p->path.size == 0)) {
+        return true;
+    }
+    (void)polygon_make_clockwise(p);
+
+    /* push */
+    cp_v_push(r, cp_obj(p));
+
+    return true;
+}
+
 static void xform_2d(
     mat_ctxt_t const *m,
     cp_csg2_poly_t *o)
@@ -1793,11 +1921,13 @@ static bool csg3_from_linext(
     if ((p == NULL) || (p->path.size == 0)) {
         return true;
     }
+    /* make clockwise (the faces_n_edges algorithm cannot handle other polygons) */
+    (void)polygon_make_clockwise(p);
 
-    bool is_cone = cp_eq(scale.x, 0);
+    bool const is_cone = cp_eq(scale.x, 0);
     assert(cp_eq(scale.y, 0) == is_cone);
 
-    size_t zcnt = is_cone ? s->slices : s->slices+1;
+    size_t const zcnt = is_cone ? s->slices : s->slices+1;
     unsigned tri = TRI_NONE;
     double twist = s->twist;
     if (cp_eq(twist, 0)) {
@@ -1821,31 +1951,22 @@ static bool csg3_from_linext(
     for (cp_v_each(i, &p->path)) {
         cp_csg2_path_t const *q = &cp_v_nth(&p->path, i);
 
-        size_t pcnt = q->point_idx.size;
-        size_t tcnt = (zcnt * pcnt) + is_cone;
+        size_t const pcnt = q->point_idx.size;
+        size_t const tcnt = (zcnt * pcnt) + is_cone;
 
         /* possibly concave faces: handled by faces_n_edge_from_tower. */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
-        if (xo != NULL) {
-            cp_csg_add_t *o2 = cp_csg_new(*o2, s->loc);
-            cp_v_push(&o2->add, cp_obj(o));
-            cp_v_push(xo, o2);
-        }
-        else {
-            cp_v_push(r, cp_obj(o));
-        }
-
         cp_v_init0(&o->point, tcnt);
         for (cp_size_each(k, zcnt)) {
-            double z = cp_dim(k) / cp_dim(s->slices);
+            double const z = cp_dim(k) / cp_dim(s->slices);
             cp_mat2w_t mk = {0};
             cp_mat2w_rot(&mk, CP_SINCOS_DEG(z * -twist));
             cp_mat2w_t mks = {0};
             cp_mat2w_scale(&mks, cp_lerp(1, s->scale.x, z), cp_lerp(1, s->scale.y, z));
             cp_mat2w_mul(&mk, &mks, &mk);
             for (cp_v_each(j, &q->point_idx)) {
-                 size_t jo = cp_v_nth(&q->point_idx, j);
-                 cp_vec2_loc_t *v = &cp_v_nth(&p->point, jo);
+                 size_t const jo = cp_v_nth(&q->point_idx, j);
+                 cp_vec2_loc_t const *v = &cp_v_nth(&p->point, jo);
                  cp_vec3_loc_t *w = &cp_v_nth(&o->point, (k * pcnt) + j);
                  w->coord.z = z;
                  cp_vec2w_xform(&w->coord.b, &mk, &v->coord);
@@ -1864,6 +1985,15 @@ static bool csg3_from_linext(
         if (!faces_n_edges_from_tower(o, c, m, s->loc, pcnt, s->slices + 1, true, tri, true)) {
             return msg(c, CP_ERR_FAIL, NULL, NULL,
                 " Internal Error: 'linear_extrude' polyhedron construction algorithm is broken.\n");
+        }
+
+        if (xo != NULL) {
+            cp_csg_add_t *o2 = cp_csg_new(*o2, s->loc);
+            cp_v_push(&o2->add, cp_obj(o));
+            cp_v_push(xo, o2);
+        }
+        else {
+            cp_v_push(r, cp_obj(o));
         }
     }
 
@@ -2297,6 +2427,7 @@ static bool csg3_from_scad(
         case CP_SCAD_POLYHEDRON:
         case CP_SCAD_IMPORT:
         case CP_SCAD_SURFACE:
+        case CP_SCAD_TEXT:
         case CP_SCAD_CIRCLE:
         case CP_SCAD_SQUARE:
         case CP_SCAD_POLYGON:
@@ -2368,6 +2499,9 @@ static bool csg3_from_scad(
 
     case CP_SCAD_SURFACE:
         return csg3_from_surface(no, r, c, m, cp_scad_cast(cp_scad_surface_t, s));
+
+    case CP_SCAD_TEXT:
+        return csg3_from_text(no, r, c, m, cp_scad_cast(cp_scad_text_t, s));
 
     /* 2D objects */
     case CP_SCAD_CIRCLE:
@@ -2503,11 +2637,11 @@ static void get_bb_cut(
     }
 }
 
-static void get_bb_poly(
+static void get_bb_poly3(
     cp_vec3_minmax_t *bb,
     cp_csg3_poly_t const *r)
 {
-    if ((r->point.size == 0) || (r->face.size < 4)) {
+    if ((r->point.size < 4) || (r->face.size < 4)) {
         return;
     }
     for (cp_v_each(i, &r->point)) {
@@ -2549,7 +2683,7 @@ static void get_bb_csg3(
         return;
 
     case CP_CSG3_POLY:
-        get_bb_poly(bb, cp_csg3_cast(cp_csg3_poly_t, r));
+        get_bb_poly3(bb, cp_csg3_cast(cp_csg3_poly_t, r));
         return;
     }
     CP_NYI();

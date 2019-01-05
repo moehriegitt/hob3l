@@ -72,11 +72,6 @@ stricter than OpenSCAD about mandatory parameters and parameter
 values, because it was felt that error messages are better than
 silently assuming a default, particularly for finding bugs.
 
-Up to now, there are no extensions introduced by Hob3l in the syntax,
-so any file Hob3l reads should also be a valid input for OpenSCAD.
-However, the semantics occasionally has less restrictions than
-OpenSCAD, like mirroring objects using `scale` instead of `mirror`.
-
 This describes OpenSCAD 2015.3 syntax.
 
 ## OpenSCAD CSG Format
@@ -149,8 +144,13 @@ OpenSCAD may still accept it and assume '1'.
     polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
     square(size, center)
+    text(...)
 
     linear_extrude(height, center, slices, twist, scale, $fa, $fs, $fn)
+    rotate_extrude(angle, convexity, $fn, $fa, $fs)
+
+    hull() { ... }           // 2D only
+    projection() { ... }     // cut=true only
 
     multmatrix(m)
     translate(v)
@@ -159,12 +159,6 @@ OpenSCAD may still accept it and assume '1'.
     rotate(a,v)
 
     color(c, alpha)
-```
-
-Some additional items are parsed, but currently ignored:
-
-```
-    text(...)
 ```
 
 ### Broken SCAD Syntax
@@ -182,6 +176,23 @@ The parser of `hob3l` spends quite some effort on determining which
 one is the first non-ignored child of `difference`.  Whether it does
 that in the same way as OpenSCAD, I can only hope for.  I think this
 part of the SCAD syntax is broken.
+
+### Extensions
+
+Hob3l tries to be close to the OpenSCAD syntax and semantics.
+Whenever there are incompatibilites or differences, these are
+documented with the corresponding commands.  This section lists a few
+extensions that Hob3l introduces.
+
+#### Text Tracking
+
+For the `text` command, OpenSCAD's `spacing` parameter is not really a
+typographically sound way of stretching text.  The result of any value
+other than 1 is usually not nice.  Hob3l supports `spacing` for
+compatibility with OpenSCAD.
+
+Hob3l also introduces a parameter `tracking` to insert a given amount
+of space per rendered glyph.  The unit is 'em'.
 
 ## Morphosyntax
 
@@ -1199,7 +1210,84 @@ translate([-.5,-.5,0]) square()`.
 
 ### text
 
-Ignored. (Not yet implemented.)
+Render a 2D object representing the given text.
+
+```
+text(text{,size,font,halign,valign,spacing,tracking,direction,language,script,$fn});
+```
+
+  * `text` :: string in UTF-8 encoding, with escapes.  Only valid Unicode
+    ranges are allowed.  Escapes are the following:
+      * `\\`: a backslash character
+      * `\"`: a double quotation mark
+      * `\'`: a single quotation mark
+      * `\n`: line break
+      * `\r`: carriage return
+      * `\t`: tabulator
+      * `\xHH`: a hexadecimally specified Unicode codepoint in the
+        range U+0001..U+007F
+      * `\uHHHH`: a hexadecimally specified Unicode codepoint in the range
+        U+0001..U+FFFD.
+      * `\UHHHHHH`: a hexadecimally specified Unicode codepoint in the
+        range U+0001..U+10FFFD.
+    Other escape sequences are rejected.
+  * `font` :: string, default="Nozzl3 Sans". The name of the font.
+    The actual name of the font that is specified is ignored by Hob3l,
+    because it always uses the font family `Nozzl3 Sans`.  But Hob3l
+    will switch the font style if keywords are found:
+      * `Oblique`, `Italic`: select the oblique variant
+      * `Bold`, `Medium`, `Light`, `Black`: select alternative font weight
+  * `size` :: float, default=10: the size of the font in `pt`.  The
+    unit of `pt` is about 1.39 output units in OpenSCAD (i.e., usually `mm`).
+    The size is then the width of an `em` of the font in `pt`.  E.g. a 10pt font
+    (which makes the font's `em` 10pt wide and tall) will print an 'EM
+    DASH' as 13.9mm wide.
+  * `spacing` :: float, default=1: the amount of additional space
+    between each rendered glyph to stretch a glyph to this ratio of
+    its original width.  Using any value but 1 usually results in text
+    that is less nice.
+  * `tracking` :: float, default=0: the amount of additional space
+    between each rendered glyph in `pt`.  This is added additional to
+    the amount added by `spacing`.  This is a Hob3l extension to get a
+    real notion of tracking, because `spacing` is not felt to be of
+    much typological use.
+  * `halign` :: string, default="left": one of the values `"left"`,
+    `"center"`, or `"right"`.  The horizontal alignment of the text.
+  * `valign` :: string, default="baseline": one of the values `"top"`,
+    `"baseline"`, or `"bottom"`.  The vertical alignment of the text.
+  * `language` :: string, default `en`: any OpenType language tag
+    or, if uniquely mappable to an OpenType language tag, an ISO-639-1
+    (2 letter) or ISO-639-3 (3 letter) language ID.
+  * `direction` :: string, default `ltr`.  Ignored (only left-to-right
+    is supported).
+  * `script` :: string, ignored
+
+This renders the `text` string as a 2D object.  The text may be an UTF-8
+encoded script containing escape characters for further specification of
+the text.
+
+_Restrictions_:
+
+  * Hob3l renders only a single line (like OpenSCAD), i.e., no line breaks
+    are honoured.
+
+_OpenSCAD Compatibility_:
+
+  * Hob3l uses a different font and its own font renderer, so results will
+    look differentl.
+
+  * Hob3l has only a single font family: 'Nozzl3 Sans' because it does not
+    use fontconfig, but its own renderer to keep Hob3l self-contained without
+    dependencies to other packages.  The family does have style variants.
+    For more information, please refer to the font documentation.
+
+  * Hob3l discourages the use of 'spacing', because the results are not nice.
+    Instead, Hob3l has a 'tracking' parameter to insert a given amount of
+    space per rendered glyph.
+
+  * Hob3l is more picky about the format of the string: any invalid escape
+    sequences are rejected, while OpenSCAD will fallback to drop the backslash
+    and rendering the rest.  Hob3l also rejects illegal UTF-8 sequences.
 
 ### translate
 
