@@ -19,10 +19,13 @@
 #include <hob3lbase/mat.h>
 #include <hob3lbase/obj.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lbase/pool.h>
 #include <hob3l/csg2.h>
 #include <hob3l/font.h>
 
 #include "uniname.h"
+
+#define FLATTEN_POLY 1
 
 #define FAMILY_NAME "Nozzl3 Sans"
 #define DEFAULT_STYLE "Book"
@@ -446,6 +449,7 @@ struct font_glyph {
     font_draw_poly_t *draw;
 
     font_def_glyph_t const *def;
+    cp_csg2_poly_t *final_poly;
     cp_font_glyph_t *final;
 
     font_glyph_t *width_of;
@@ -586,8 +590,8 @@ typedef struct {
 #define LS_LOWER   -0.0 /* usually just uses the default, but this is for overriding REF() */
 
 #define PAD_FRACTION 1.0
-#define PAD_SCRIPT   2.0
-#define PAD_DEFAULT  3.5
+#define PAD_SCRIPT   1.5
+#define PAD_DEFAULT  3
 
 #define VEC(x) {{ .data = (x), .size = cp_countof(x) }}
 
@@ -6416,6 +6420,9 @@ static uint16_t rasterize_y(cp_mat2w_t const *ram, double y)
     return (uint16_t)i;
 }
 
+#if FLATTEN_POLY == 0
+/* 1:1 copy of polygon data */
+
 static void finalise_path(
     cp_font_t *c,
     cp_mat2w_t const *ram,
@@ -6435,13 +6442,122 @@ static void finalise_path(
 static void finalise_poly(
     cp_font_t *c,
     cp_mat2w_t const *ram,
-    font_draw_poly_t const *p)
+    font_glyph_t const *g)
 {
+    font_draw_poly_t const *p = g->draw;
     for (cp_v_each(i, &p->path)) {
         cp_v_push(&c->path, c->coord.size & ~0U);
         finalise_path(c, ram, &cp_v_nth(&p->path, i));
     }
 }
+
+static void finalise_prepare_glyph(
+    cp_vec2_minmax_t *box,
+    font_glyph_t *g)
+{
+    if (g->draw != NULL) {
+        for (cp_v_each(j, &g->draw->path)) {
+            font_draw_path_t const *p = cp_v_nth_ptr(&g->draw->path,j);
+            for (cp_v_each(k, &p->point)) {
+                cp_vec2_minmax(box, cp_v_nth_ptr(&p->point, k));
+            }
+        }
+        cp_vec2_minmax_or(box, box, &g->dim);
+    }
+}
+
+#else /* FLATTEN_POLY == 1 */
+/* flattened polygon data */
+
+static void finalise_path(
+    cp_font_t *c,
+    cp_mat2w_t const *ram,
+    cp_csg2_poly_t const *f,
+    cp_csg2_path_t const *q)
+{
+    for (cp_v_each(j, &q->point_idx)) {
+        size_t i = cp_v_nth(&q->point_idx, j);
+        cp_vec2_loc_t const *v = &cp_v_nth(&f->point, i);
+        cp_font_xy_t *w = cp_v_push0(&c->coord);
+        w->x = rasterize_x(ram, v->coord.x);
+        w->y = rasterize_y(ram, v->coord.y);
+    }
+    cp_font_xy_t *w = cp_v_push0(&c->coord);
+    w->x = CP_FONT_X_SPECIAL;
+    w->y = CP_FONT_Y_END;
+}
+
+static void finalise_poly(
+    cp_font_t *c,
+    cp_mat2w_t const *ram,
+    font_glyph_t const *g)
+{
+    cp_csg2_poly_t *f = g->final_poly;
+    if ((f == NULL) || (f->path.size == 0)) {
+        return;
+    }
+
+    /* construct polygon off of f */
+    for (cp_v_each(i, &f->path)) {
+        cp_v_push(&c->path, c->coord.size & ~0U);
+        finalise_path(c, ram, f, &cp_v_nth(&f->path, i));
+    }
+}
+
+static void finalise_flatten_poly(
+    font_glyph_t *g)
+{
+    font_draw_poly_t const *p = g->draw;
+
+    /* make list of polygons from path data */
+    cp_v_obj_p_t rc = {0};
+    for (cp_v_each(i, &p->path)) {
+        font_draw_path_t const *q = cp_v_nth_ptr(&p->path, i);
+        cp_csg2_poly_t *a = cp_csg2_new(*a, 0);
+        cp_csg2_path_t *b = cp_v_push0(&a->path);
+        for (cp_v_each(j, &q->point)) {
+            cp_v_push(&b->point_idx, a->point.size);
+            cp_vec2_loc_t *v = cp_v_push0(&a->point);
+            v->coord = cp_v_nth(&q->point, j);
+        }
+        cp_v_push(&rc, cp_obj(a));
+    }
+
+    /* flatten */
+    cp_csg_opt_t opt = CP_CSG_OPT_DEFAULT;
+    cp_pool_t tmp = {0};
+
+    g->final_poly = cp_csg2_flatten(&opt, &tmp, &rc);
+
+    cp_pool_fini(&tmp);
+}
+
+static void finalise_prepare_glyph(
+    cp_vec2_minmax_t *box,
+    font_glyph_t *g)
+{
+    if (g->draw == NULL) {
+        return;
+    }
+
+    /* get flattened glyph */
+    finalise_flatten_poly(g);
+
+    /* get bounding box */
+    cp_csg2_poly_t *f = g->final_poly;
+    if (f != NULL) {
+        for (cp_v_each(j, &f->path)) {
+            cp_csg2_path_t const *q = cp_v_nth_ptr(&f->path,j);
+            for (cp_v_each(k, &q->point_idx)) {
+                size_t i = cp_v_nth(&q->point_idx, k);
+                cp_vec2_minmax(box, &cp_v_nth(&f->point, i).coord);
+            }
+        }
+    }
+    cp_vec2_minmax_or(box, box, &g->dim);
+}
+
+#endif
 
 static void finalise_glyph_draw(
     cp_font_glyph_t *k,
@@ -6469,7 +6585,7 @@ static void finalise_glyph_draw(
     }
 
     size_t path_a = c->path.size;
-    finalise_poly(c, ram, g->draw);
+    finalise_poly(c, ram, g);
     size_t path_z = c->path.size;
 
     size_t count = path_z - path_a;
@@ -6791,16 +6907,9 @@ static void finalise_font(
      * glyph so that slanting is considered. */
     cp_vec2_minmax_t box = CP_VEC2_MINMAX_EMPTY;
     for (cp_v_each(i, &f->glyph)) {
-        font_glyph_t const *g = &cp_v_nth(&f->glyph, i);
-        if (g->draw != NULL) {
-            for (cp_v_each(j, &g->draw->path)) {
-                font_draw_path_t const *p = cp_v_nth_ptr(&g->draw->path,j);
-                for (cp_v_each(k, &p->point)) {
-                    cp_vec2_minmax(&box, cp_v_nth_ptr(&p->point, k));
-                }
-            }
-            cp_vec2_minmax_or(&box, &box, &g->dim);
-        }
+        font_glyph_t *g = &cp_v_nth(&f->glyph, i);
+        // fprintf(stderr, "Info: U+%04X...\n", g->unicode.code_point);
+        finalise_prepare_glyph(&box, g);
     }
     cp_vec2_minmax(&box, (cp_vec2_t[]){{{ box.min.x + f->em, f->base_y }}});
     cp_vec2_minmax(&box, (cp_vec2_t[]){{{ 0, f->top_y    }}});
@@ -8462,14 +8571,14 @@ int main(void)
     cp_v_font_p_t cpfont = {0};
     finalise_family(&cpfont, &vfont);
 
+    /* save font family */
+    save_c_family(&cpfont);
+
     /* overview documents */
     for (cp_v_each(i, &vfont)) {
         font_t *font = cp_v_nth(&vfont, i);
         ps_font(font);
     }
-
-    /* save font family */
-    save_c_family(&cpfont);
 
     /* overview document */
     ps_font_family(&cpfont);

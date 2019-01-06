@@ -110,6 +110,19 @@ struct cp_csg { CP_CSG_ };
 #define CP_CSG2_OPT_DEFAULT (CP_CSG2_OPT_SKIP_EMPTY | CP_CSG2_OPT_DROP_COLLINEAR)
 
 /**
+ * The default value for cp_csg_opt_t.
+ * This also needs csg2.h
+ */
+#define CP_CSG_OPT_DEFAULT \
+    { \
+        .layer_gap = -1, \
+        .max_simultaneous = CP_CSG2_MAX_LAZY, \
+        .max_fn = 100, \
+        .optimise = CP_CSG2_OPT_DEFAULT, \
+        .color_rand = 0, \
+    }
+
+/**
  * Options for CSG rendering.
  *
  * Unified for both 2D and 3D parts.

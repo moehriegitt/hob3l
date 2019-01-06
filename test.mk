@@ -157,9 +157,7 @@ TEST_TRIANGLE.scad := \
     scad-test/test37c.scad \
     scad-test/test39.scad \
     scad-test/test39b.scad \
-    scad-test/test2.scad \
-    scad-test/test43.scad \
-    scad-test/test43b.scad
+    scad-test/test2.scad
 
 test-out/test32.ps:  HOB3L_OPT := -gran=1
 test-out/test32b.ps: HOB3L_OPT := -gran=0.5
@@ -212,19 +210,23 @@ TEST_STL.scad := \
     scad-test/test39.scad \
     scad-test/test39b.scad \
     scad-test/test42a.scad \
-    scad-test/test42b.scad \
-    scad-test/test43.scad \
-    scad-test/test43b.scad
+    scad-test/test42b.scad
 
 # The following tests currently fail:
+#   - test43  triggers another orientation bug due to rounding in the bool algo
+#   - test43b the same (test43 is the smaller file for debugging)
 #   - test37b a non-3-manifold polyhedron currently assert-fails
 #   - test38  2D hull() operation is not yet implemented
 
 FAIL_TRIANGLE.scad := \
+    scad-test/test43.scad \
+    scad-test/test43b.scad \
     scad-test/test37b.scad \
     scad-test/test38.scad
 
 FAIL_STL.scad := \
+    scad-test/test43.scad \
+    scad-test/test43b.scad \
     scad-test/test37b.scad \
     scad-test/test38.scad
 

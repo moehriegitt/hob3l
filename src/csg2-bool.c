@@ -1960,25 +1960,27 @@ static void ev_left(
      * the new segment's right point, but next segment's.  But whether this
      * fixes the problem for good is currently unexamined.
      */
-    if ((prev != NULL) && (seg_cmp(prev, e) > 0)) {
+#if 1
+    if ((prev != NULL) && (seg_cmp(e, prev) < 0)) {
         s_remove(c, e);
         q_insert(c, e);
         s_remove(c, prev);
         q_insert(c, prev);
-        LOG("wrong order of cur and prev, redoing");
+        fprintf(stderr, "wrong order of cur and prev:\n  %s\n  %s\n", ev_str(e), ev_str(prev));
         return;
     }
-    if ((next != NULL) && (seg_cmp(e, next) > 0)) {
+    if ((next != NULL) && (seg_cmp(next, e) < 0)) {
         s_remove(c, e);
         q_insert(c, e);
         s_remove(c, next);
         q_insert(c, next);
-        LOG("wrong order of cur and next, redoing");
+        fprintf(stderr, "wrong order of cur and next:\n  %s\n  %s\n", ev_str(e), ev_str(next));
         return;
     }
 
-    assert((prev == NULL) || seg_cmp(prev, e) < 0);
-    assert((next == NULL) || seg_cmp(e, next) < 0);
+    assert((prev == NULL) || seg_cmp(e, prev) > 0);
+    assert((next == NULL) || seg_cmp(next, e) > 0);
+#endif
 
     char const *ni CP_UNUSED = "NULL";
     if (next != NULL) {

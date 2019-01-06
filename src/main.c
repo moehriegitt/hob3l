@@ -552,7 +552,9 @@ int main(int argc, char **argv)
     (void)atexit(my_at_exit);
 
     /* init options */
-    cp_opt_t opt = {0};
+    cp_opt_t opt = {
+        .csg = CP_CSG_OPT_DEFAULT
+    };
     opt.z_step = 0.2;
     opt.z_max = -1;
     cp_mat4_unit(&opt.ps.xform2);
@@ -562,11 +564,6 @@ int main(int argc, char **argv)
     opt.ps.color_vertex = (cp_color_rgb_t){ .rgb = { 255,   0,   0 }};
     opt.ps.color_mark   = (cp_color_rgb_t){ .rgb = {   0,   0, 255 }};
     opt.ps.line_width = 0.4;
-    opt.csg.max_fn = 100;
-    opt.csg.layer_gap = -1;
-    opt.csg.max_simultaneous = CP_CSG2_MAX_LAZY;
-    opt.csg.optimise = CP_CSG2_OPT_DEFAULT;
-    opt.csg.color_rand = 0;
     opt.verbose = 1;
     opt.scad.err_unsupported_functor = CP_ERR_WARN;
     opt.scad.err_unknown_functor = CP_ERR_FAIL;
