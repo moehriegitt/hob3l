@@ -495,6 +495,19 @@ extern size_t cp_v_vec3_loc_ref_yz_idx_(
     cp_vec2_t const *a);
 
 /**
+ * Compute point on line that is closest to a given point.
+ */
+extern void cp_vec2_nearest(
+    /** resulting point on line */
+    cp_vec2_t *r,
+    /** some point on the line */
+    cp_vec2_t const *a,
+    /** direction unit vector of line (must be unit) */
+    cp_vec2_t const *ud,
+    /** point somewhere for which to find the closest point on the line */
+    cp_vec2_t const *p);
+
+/**
  * Port side direction of the vector a-->b (i.e., the non-normalised 'normal')
  */
 static inline void cp_vec2_port(

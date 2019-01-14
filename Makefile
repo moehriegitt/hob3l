@@ -76,7 +76,20 @@ UNINSTALL_DIR := rmdir
 
 CFLAGS_OPT   := -O$(OPT) -g3
 CFLAGS_ARCH  := -march=core2 -mfpmath=sse
-CFLAGS_SAFE  := -fno-delete-null-pointer-checks -fwrapv -fno-strict-overflow
+
+CFLAGS_SAFE  += -pipe
+CFLAGS_SAFE  += -fno-delete-null-pointer-checks
+CFLAGS_SAFE  += -fwrapv
+CFLAGS_SAFE  += -fno-strict-overflow
+
+CPPFLAGS_SAFE += -D_FORTIFY_SOURCE=2
+CFLAGS_SAFE  += -fstack-protector-strong
+#CFLAGS_SAFE  += -fstack-clash-protection
+CFLAGS_SAFE  += -fPIE -pie
+CFLAGS_SAFE  += -Wl,-z,noexecstack
+CFLAGS_SAFE  += -Wl,-z,relro
+CFLAGS_SAFE  += -Wl,-z,now
+CFLAGS_SAFE  += -Wl,-z,defs
 
 ifeq ($(FRAME),0)
 CFLAGS_DEBUG += -fomit-frame-pointer
@@ -157,6 +170,7 @@ CPPFLAGS += $(CPPFLAGS_STD)
 CPPFLAGS += $(CPPFLAGS_DEF)
 CPPFLAGS := $(CPPFLAGS_INC) $(CPPFLAGS)
 CPPFLAGS += $(CPPFLAGS_WARN)
+CPPFLAGS += $(CPPFLAGS_SAFE)
 
 ######################################################################
 

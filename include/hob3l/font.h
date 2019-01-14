@@ -70,9 +70,9 @@ extern void cp_font_gc_set_lang(
  * This handles canonical, ligature, joining, and optional composition
  * of glyphs, including ZWJ, ZWNJ, ZWSP to break/combine glyphs.
  *
- * This algorithm generally ignores default-ignorable codepoints, i.e.,
+ * This algorithm generally ignores default-ignorable code points, i.e.,
  * kerning is applied across such characters and tracking is only
- * applied after non-default-ignorable codepoints: T+ZWNJ+o will
+ * applied after non-default-ignorable code points: T+ZWNJ+o will
  * kern T+o normally and will insert tracking only once.
  *
  * However, to be able to separate kerning pairs, ZWSP (U+200B) and

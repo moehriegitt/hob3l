@@ -51,7 +51,11 @@
  * diacritics above must be placed higher up.  This causes the
  * renderer to look up the high alternative diacritic glyph. */
 #define CP_FONT_GF_TALL       0x02
-#define CP_FONT_GF_RESERVED2_ 0x04
+/** The glyph is monospaced and should not be kerned.  Kerning
+ * info is still stored, if available, so that kerning could
+ * still be done if an override option is set.  This is mainly
+ * meant for numbers/figures. */
+#define CP_FONT_GF_MONO       0x04
 #define CP_FONT_GF_RESERVED3_ 0x08
 
 /* Flags for combinining table */
@@ -166,6 +170,19 @@ typedef struct {
     uint16_t y;
 } cp_font_xy_t;
 
+#define CP_FONT_PROFILE_COUNT     16
+#define CP_FONT_PROFILE(lo,hi)    (((lo) | ((hi) << 4)) & 0xff)
+#define CP_FONT_PROFILE_GET_LO(x) ((x) & 0xf)
+#define CP_FONT_PROFILE_GET_HI(x) (((x) >> 4) & 0xf)
+
+typedef struct {
+    uint8_t x[CP_FONT_GLYPH_LAYER_COUNT];
+} cp_font_prof_t;
+
+typedef struct {
+    int x[CP_FONT_GLYPH_LAYER_COUNT];
+} cp_font_half_profile_t;
+
 typedef CP_VEC_T(cp_font_xy_t) cp_v_font_xy_t;
 
 typedef struct {
@@ -195,16 +212,6 @@ typedef struct {
      * The left space is stored in the high nibble, the right space in the
      * low nibble of each value.
      *
-     * Layers of X width profile data:
-     *
-     *   13,14,15 above cap
-     *   12       at cap
-     *   9,10,11  between xhi and cap
-     *   8        at xhi
-     *   4,5,6,7  between base and xhi
-     *   3        at base
-     *   0,1,2    below base
-     *
      * The layers above cap are used for automatic diacritic placement:
      * if there is anything, the upper case diacritic is used (if available),
      * otherwise, the normal lower case is used.  (I.e., on most lower case
@@ -212,7 +219,7 @@ typedef struct {
      * collision.  Collisions can be avoided by defining more glyphs with
      * combined diacritics, as necessary for, e.g., Vietnamese upper case
      * letters). */
-    uint8_t profile_x[CP_FONT_GLYPH_LAYER_COUNT];
+    cp_font_prof_t profile;
 
     /**
      * List of indices in the coordinate heap of first glyph coordinate
@@ -231,21 +238,19 @@ typedef struct {
     unsigned flags : 4;
 
     /**
-     * For polygons: index into path heap.
-     * For decompositions: first decomposition glyph ID.
-     * Note that decompositions, joining, and ligatures all
-     * disable additional letter spacing locally
-     * (see cp_font_gc_t::letter_spacing).
+     * For polygons: index into path heap to a variable
+     * sized cp_font_path_t structure.
+     * For sequences: index into path heap to a
+     * cp_font_subglyph_t entry.
+     * Note that sequences, neither glyph replacement nor
+     * auto-kerning nor tracking is done.  I.e., a sequence
+     * does define a single glyph.
      */
     unsigned first : 20;
 
     /**
-     * For polygons: data entry count in path heap,
-     * For decompositions: second decomposition glyph ID.
-     *
-     * Note that no 1:1 mappings are needed: if one glyph is
-     * completely equivalent to another, it can just point to
-     * the same path info record.
+     * For polygons:  data entry count in path heap,
+     * For sequences: data entry count in path heap.
      */
     unsigned second : 20;
 } __attribute__((__aligned__(8))) cp_font_glyph_t;
@@ -274,6 +279,28 @@ typedef struct {
 
 typedef CP_VEC_T(cp_font_glyph_t) cp_v_font_glyph_t;
 typedef CP_VEC_T(cp_font_map_t) cp_v_font_map_t;
+
+#define CP_FONT_KERN_EM_BITS (32 - 20 - 1)
+#define CP_FONT_KERN_EM_MASK (~((~0U) << CP_FONT_KERN_EM_BITS))
+
+/**
+ * Sequence entry */
+typedef struct {
+    /** Index into glyph table of sub-glyph */
+    unsigned glyph : 20;
+
+    /**
+     * Kerning to apply before rendering the sub-glyph, in
+     * units of 1/2047th of an em.
+     */
+    unsigned kern_em  : CP_FONT_KERN_EM_BITS;
+
+    /**
+     * If set, subtract kern_em, otherwise, add it. */
+    unsigned kern_sub : 1;
+} cp_font_subglyph_t;
+
+CP_STATIC_ASSERT(sizeof(cp_font_subglyph_t) == sizeof(unsigned));
 
 /**
  * Language codes in OpenType format (specificaly, not
@@ -380,6 +407,13 @@ typedef struct {
     uint16_t xhi_y;
 
     /**
+     * Descender depth glyph coordinate.
+     * The coordinates are normalised across the font, so this is the
+     * same for all glyphs.
+     */
+    uint16_t dec_y;
+
+    /**
      * Center X glyph coordinate.
      * This is the original 0 coordinate around which glyphs are usually
      * designed.  This may be used for fallback heuristic modifier horizontal
@@ -388,8 +422,8 @@ typedef struct {
     uint16_t center_x;
 
     /**
-     * Amount of space at each glyph X profile layer */
-    uint16_t space_x[CP_FONT_GLYPH_LAYER_COUNT];
+     * Amount of space at each glyph X profile step */
+    uint16_t space_x[CP_FONT_PROFILE_COUNT];
 
     /**
      * Font flags, see CP_FONT_FF_* */
@@ -466,7 +500,7 @@ typedef struct {
      * used in the font.  This engine handles above and below combining
      * characters algorithmically in simple (but helpful) cases, so these two
      * classes are distinguished.
-     * The is sorted be cp_font_map_t::first.
+     * The is sorted by cp_font_map_t::first.
      * cp_font_map_t::second is used only for CP_FONT_CT_ABOVE diacritics: it is
      * the high above glyph used instead if the base glyph has a TALL flag.
      * cp_font_map_t::result is one of the CP_FONT_CT_* constants.
@@ -530,8 +564,17 @@ typedef struct {
      */
     double cur_x;
 
-    /** Last glyph relevant for kerning */
-    unsigned last_cp;
+    /** Last simple glyph for finding ligatures */
+    unsigned last_simple_cp;
+
+    /** Whether last kerning profile is valid and can be used */
+    bool last_prof_valid;
+
+    /** Last glyph kerning profile info */
+    cp_font_half_profile_t last_prof;
+
+    /** Last width of glyph */
+    int last_width[2];
 
     /**
      * Glyph count: the actual number of glyphs rendered, i.e., the

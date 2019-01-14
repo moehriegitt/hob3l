@@ -16,6 +16,8 @@
 #define G_BASE   1
 #define G_EXTEND 2
 
+#define PROF_MAX 0x0fffffff
+
 #define INTERVAL
 
 typedef struct {
@@ -360,6 +362,43 @@ static void cp_font_draw_poly(
     gc->state.cur_x += path->border_x.side[!gc->right2left] * gc->scale_x;
 }
 
+static int subglyph_kern(
+    cp_font_t const *font,
+    cp_font_subglyph_t const *sg)
+{
+    return (int)lrint(
+         (sg->kern_sub ? -1 : +1) *
+         (sg->kern_em / cp_f(CP_FONT_KERN_EM_MASK)) *
+         font->em_x);
+}
+
+static void render_glyph_one(
+    cp_v_obj_p_t *out,
+    cp_font_gc_t *gc,
+    size_t glyph_idx)
+{
+    cp_font_glyph_t const *glyph = cp_v_nth_ptr0(&gc->font->glyph, glyph_idx);
+    if (glyph == NULL) {
+        return;
+    }
+
+    if ((glyph->flags & CP_FONT_GF_SEQUENCE) == 0) {
+        cp_font_draw_poly(out, gc,
+            (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
+            glyph->second);
+        return;
+    }
+
+    cp_font_subglyph_t const *sg =
+        (cp_font_subglyph_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first);
+    double sx = gc->right2left ? -gc->scale_x : +gc->scale_x;
+    for (cp_size_each(i, glyph->second)) {
+         gc->state.cur_x += subglyph_kern(gc->font, sg) * sx;
+         render_glyph_one(out, gc, sg->glyph);
+         sg++;
+    }
+}
+
 static bool valid_glyph_idx(cp_font_t const *font, size_t i)
 {
     return (i < font->glyph.size);
@@ -379,26 +418,13 @@ static size_t find_glyph(
     return i;
 }
 
-static void render_glyph_one(
-    cp_v_obj_p_t *out,
-    cp_font_gc_t *gc,
-    size_t glyph_idx)
+static cp_font_path_t const *get_path(
+    cp_font_t const *font,
+    cp_font_glyph_t const *glyph)
 {
-    cp_font_glyph_t const *glyph = cp_v_nth_ptr0(&gc->font->glyph, glyph_idx);
-    if (glyph == NULL) {
-        return;
-    }
-
-    if (glyph->flags & CP_FONT_GF_SEQUENCE) {
-        render_glyph_one(out, gc, glyph->first);
-        render_glyph_one(out, gc, glyph->second);
-        return;
-    }
-
-    /* FIXME: put on top, not as a sequence */
-    cp_font_draw_poly(out, gc,
-        (cp_font_path_t const *)cp_v_nth_ptr(&gc->font->path, glyph->first),
-        glyph->second);
+    assert((glyph->flags & CP_FONT_GF_SEQUENCE) == 0);
+    cp_font_path_t const *p = (cp_font_path_t const *)cp_v_nth_ptr(&font->path, glyph->first);
+    return p;
 }
 
 static void get_metric_x_aux(
@@ -412,20 +438,37 @@ static void get_metric_x_aux(
         return;
     }
 
-    if (glyph->flags & CP_FONT_GF_SEQUENCE) {
-        metric_t m1, m2;
-        get_metric_x_aux(&m1, font, glyph->first);
-        get_metric_x_aux(&m2, font, glyph->second);
-        m->width[0] = m1.width[0];
-        m->width[1] = m2.width[1];
-        m->middle = m1.middle + m1.width[1] + m2.width[0] + m2.middle;
+    if ((glyph->flags & CP_FONT_GF_SEQUENCE) == 0) {
+        cp_font_path_t const *p = get_path(font, glyph);
+        m->middle = 0;
+        m->width[0] = font->center_x - p->border_x.side[0];
+        m->width[1] = p->border_x.side[1] - font->center_x;
         return;
     }
 
-    cp_font_path_t const *p = (cp_font_path_t const *)cp_v_nth_ptr(&font->path, glyph->first);
-    m->middle = 0;
-    m->width[0] = font->center_x - p->border_x.side[0];
-    m->width[1] = p->border_x.side[1] - font->center_x;
+    assert(glyph->second >= 1);
+    cp_font_subglyph_t const *sg =
+        (cp_font_subglyph_t const *)cp_v_nth_ptr(&font->path, glyph->first);
+
+
+    metric_t m1;
+    get_metric_x_aux(&m1, font, sg->glyph);
+    m1.width[0] -= subglyph_kern(font, sg);
+
+    for (cp_size_each(i, glyph->second, 1)) {
+        sg++;
+
+        metric_t m2;
+        get_metric_x_aux(&m2, font, sg->glyph);
+
+        m->width[0] = m1.width[0];
+        m->width[1] = m2.width[1];
+        m->middle = m1.middle + m1.width[1] + m2.width[0] + m2.middle;
+
+        m->middle += subglyph_kern(font, sg);
+
+        m1 = *m;
+    }
 }
 
 static void get_metric_x(
@@ -447,11 +490,107 @@ static int int_max3(int a, int b, int c)
     return a;
 }
 
+static cp_font_glyph_t const *left_glyph(
+    cp_font_t const *font,
+    cp_font_glyph_t const *g)
+{
+    if ((g->flags & CP_FONT_GF_SEQUENCE) == 0) {
+        return g;
+    }
+
+    assert(g->second >= 1);
+    cp_font_subglyph_t const *sg =
+        (cp_font_subglyph_t const *)cp_v_nth_ptr(&font->path, g->first);
+
+    return left_glyph(font, cp_v_nth_ptr(&font->glyph, sg->glyph));
+}
+
+static cp_font_glyph_t const *right_glyph(
+    cp_font_t const *font,
+    cp_font_glyph_t const *g)
+{
+    if ((g->flags & CP_FONT_GF_SEQUENCE) == 0) {
+        return g;
+    }
+    assert(g->second >= 1);
+    size_t idx = g->first;
+    idx += g->second;
+    cp_font_subglyph_t const *sg =
+        (cp_font_subglyph_t const *)cp_v_nth_ptr(&font->path, idx - 1);
+
+    return right_glyph(font, cp_v_nth_ptr(&font->glyph, sg->glyph));
+}
+
+static void get_prof(
+    cp_font_half_profile_t prof[],
+    cp_font_t const *font,
+    size_t glyph_idx,
+    int add0,
+    int add1)
+{
+    assert(add0 >= 0);
+    assert(add1 >= 0);
+    cp_font_glyph_t const *root = cp_v_nth_ptr0(&font->glyph, glyph_idx);
+    if (root == NULL) {
+        return;
+    }
+
+    cp_font_glyph_t const *g[2];
+    g[0] = left_glyph(font, root);
+    g[1] = right_glyph(font, root);
+
+    cp_font_path_t const *p[2];
+    p[0] = get_path(font, g[0]);
+    p[1] = get_path(font, g[1]);
+
+    int w0 = p[0]->border_x.left + p[0]->border_x.right;
+    int w1 = p[1]->border_x.left + p[1]->border_x.right;
+
+    for (cp_arr_each(i, prof->x)) {
+        int d0 = add0 + font->space_x[CP_FONT_PROFILE_GET_LO(p[0]->profile.x[i])];
+        if (d0 > w0) {
+            d0 = w0;
+        }
+        if (prof[0].x[i] > d0) {
+            prof[0].x[i] = d0;
+        }
+
+        int d1 = add1 + font->space_x[CP_FONT_PROFILE_GET_HI(p[1]->profile.x[i])];
+        if (d1 > w1) {
+            d1 = w1;
+        }
+        if (prof[1].x[i] > d1) {
+            prof[1].x[i] = d1;
+        }
+    }
+}
+
+static void prof_dist_min(int *m, int u)
+{
+    if (*m > u) { *m = u; }
+}
+
+static int prof_dist(
+    cp_font_half_profile_t *a,
+    cp_font_half_profile_t *b)
+{
+    int m = PROF_MAX;
+    prof_dist_min(&m, a->x[0] + b->x[0]);
+    for (cp_arr_each(i, a->x, 1)) {
+        prof_dist_min(&m, a->x[i]   + b->x[i]);
+        prof_dist_min(&m, a->x[i]   + b->x[i-1]);
+        prof_dist_min(&m, a->x[i-1] + b->x[i]);
+    }
+    return m;
+}
+
 static void render_glyph_comb(
     cp_v_obj_p_t *out,
     cp_font_gc_t *gc,
     glyph_t *g)
 {
+    cp_font_t const *font = gc->font;
+
     /* possibly replace base glyph */
     unsigned have = 0;
     if (g->above != 0) {
@@ -461,15 +600,15 @@ static void render_glyph_comb(
         have |= CP_FONT_MAS_HAVE_BELOW;
     }
     if (have != 0) {
-        (void)map2_lookup1(&gc->font->base_repl, &g->base, g->base, have);
+        (void)map2_lookup1(&font->base_repl, &g->base, g->base, have);
     }
 
     /* base glyph */
     size_t base_idx  = find_glyph(gc, g->base);
 
     /* possibly replace above glyph */
+    cp_font_glyph_t const *base = cp_v_nth_ptr0(&font->glyph, base_idx);
     if (g->above != 0) {
-        cp_font_glyph_t const *base = cp_v_nth_ptr0(&gc->font->glyph, base_idx);
         if ((base != NULL) && (base->flags & CP_FONT_GF_TALL)) {
             g->above = g->above_high;
         }
@@ -490,8 +629,33 @@ static void render_glyph_comb(
     m.width[1] = int_max3(m_base.width[1], m_above.width[1], m_below.width[1]);
 
     unsigned le = gc->right2left;
+
+    /* auto-kerning */
+    cp_font_half_profile_t prof[2];
+    for (cp_arr_each(i, prof[0].x)) {
+         prof[0].x[i] = prof[1].x[i] = PROF_MAX;
+    }
+    get_prof(prof, font, base_idx,  m.width[0] - m_base.width[0],  m.width[1] - m_base.width[1]);
+    get_prof(prof, font, above_idx, m.width[0] - m_above.width[0], m.width[1] - m_above.width[1]);
+    get_prof(prof, font, below_idx, m.width[0] - m_below.width[0], m.width[1] - m_below.width[1]);
+
+    int kern = 0;
+    bool this_prof_valid = (base->flags & CP_FONT_GF_MONO) == 0;
+    if (gc->state.last_prof_valid && this_prof_valid) {
+        kern = prof_dist(&gc->state.last_prof, &prof[le]);
+        prof_dist_min(&kern, m.width[0] + m.width[1]);
+        prof_dist_min(&kern, gc->state.last_width[0] + gc->state.last_width[1]);
+        prof_dist_min(&kern, gc->state.last_width[!le] + m.width[le]);
+    }
+    assert(kern >= 0);
+    gc->state.last_prof_valid = this_prof_valid;
+    gc->state.last_prof = prof[!le];
+    gc->state.last_width[0] = m.width[0];
+    gc->state.last_width[1] = m.width[1];
+
+    /* rendering */
     double sx = le ? -gc->scale_x : +gc->scale_x;
-    double cx = gc->state.cur_x;
+    double cx = gc->state.cur_x - (kern * sx);
 
     gc->state.cur_x = cx + (m.width[le] - m_base.width[le]) * sx;
     render_glyph_one(out, gc, base_idx);
@@ -530,7 +694,7 @@ static void cp_font_render_glyph(
     }
 
     /* kerning and contextual forms of base glyph */
-    cp_font_map_t const *m = map2_lookup(&gc->font->context, g->base, gc->state.last_cp);
+    cp_font_map_t const *m = map2_lookup(&gc->font->context, g->base, gc->state.last_simple_cp);
     if (m != NULL) {
         if (m->flags & CP_FONT_MXF_KERNING) {
             /* only applied for simple glyph, because we don't know whether kerning
@@ -553,9 +717,9 @@ static void cp_font_render_glyph(
     render_glyph_comb(out, gc, g);
 
     /* update state */
-    gc->state.last_cp = 0;
+    gc->state.last_simple_cp = 0;
     if (is_simple(g)) {
-        gc->state.last_cp = g->base;
+        gc->state.last_simple_cp = g->base;
     }
     gc->state.cur_x += (gc->state.cur_x - old_x) * gc->spacing;
     gc->state.cur_x += (gc->right2left ? -1 : +1) * gc->tracking;
@@ -710,7 +874,11 @@ static void seq_take(
 
 static void clear_kerning(cp_font_state_t *state)
 {
-    state->last_cp = 0;
+    state->last_simple_cp = 0;
+    state->last_prof_valid = false;
+    state->last_width[0] = 0;
+    state->last_width[1] = 0;
+    CP_ZERO(&state->last_prof);
 }
 
 /* ********************************************************************** */

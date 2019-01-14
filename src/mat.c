@@ -940,3 +940,24 @@ extern size_t cp_v_vec3_loc_ref_yz_idx_(
     cp_a_vec3_loc_t const *v = u->user1;
     return cp_v_idx(v, CP_BOX_OF(a, cp_vec3_loc_t const, coord.be));
 }
+
+/**
+ * Compute point on line that is closest to a given point.
+ */
+extern void cp_vec2_nearest(
+    /** resulting point on line */
+    cp_vec2_t *r,
+    /** some point on the line */
+    cp_vec2_t const *a,
+    /** direction unit vector of line (must be unit) */
+    cp_vec2_t const *ud,
+    /** point somewhere for which to find the closest point on the line */
+    cp_vec2_t const *p)
+{
+    assert(cp_eq(cp_vec2_sqr_len(ud), 1));
+    cp_vec2_t w;
+    cp_vec2_sub(&w, p, a);
+    double d = cp_vec2_dot(&w, ud);
+    cp_vec2_mul(&w, ud, d);
+    cp_vec2_add(r, a, &w);
+}

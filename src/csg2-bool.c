@@ -33,6 +33,10 @@
  */
 
 #define DEBUG 0
+#define HACK 0
+
+/** new version of collinearity handling */
+#define NEW_COLLINEAR 0
 
 #include <stdio.h>
 #include <hob3lbase/dict.h>
@@ -157,6 +161,8 @@ struct cp_path_ev {
         double b;
         /** false: use ax+b; true: use ay+b */
         bool swap;
+        /** direction vector of line */
+        cp_vec2_t dir;
     } line;
 
 #ifdef PSTRACE
@@ -1066,19 +1072,79 @@ static int ev_cmp(event_t const *e1, event_t const *e2)
     return pt2_pt_cmp(left(e1), right(e1), e2->other->p);
 }
 
+#if NEW_COLLINEAR
+static bool is_on_line(
+    event_t const *l,
+    point_t const *p)
+{
+    cp_vec2_t np;
+    cp_vec2_nearest(&np, &l->p->v.coord, &l->line.dir, &p->v.coord);
+    return cp_pt_eq(cp_vec2_dist(&np, &p->v.coord), 0);
+}
+
 /**
  * Segment order in S: generally bottom (small) to top (large)
  *
- * This was ported from a C++ Less() comparison, which seems to
- * pass the new element as second argument.  Our data structures
- * pass the new element as first argument, and in some cases,
- * this changes the order of edges (if the left end point of the
- * new edge is on an existing edge).  Therefore, we have
- * seg_cmp_() and seg_cmp() to swap arguments.
- * Well, this essentially means that this function is broken, because
- * it should hold that seg_cmp(a,b) == -seg_cmp(b,a), but it doesn't.
- * Some indications is clearly mapping -1,0,+1 to -1,-1,+1...
+ * This is a bit weird: the seg_cmp() function only works correctly
+ * when inserting into S, but will not correctly compare two elements
+ * in S, because it expects one parameter to be the newly inserted
+ * point defining the new position of the sweep line, i.e., the
+ * reference point is the left point of the newly inserted segment.
+ * This point and the line starting from there is compared to other
+ * lines in S to decide whether the new line is above or below.
+ * The newly inserted line's left point is alway in between left and right
+ * points of lines in S (wrt. pt_cmp).  If the parameters to this
+ * function are swapped, this relationship is not true anymore, and
+ * this function may or may not work correctly -- it is not designed
+ * to work well in that case.
+ *
+ * This was ported from a C++ Less() comparison, which seems to pass
+ * the new element as second argument.  Our data structures pass the
+ * new element as first argument, hence the swap of arguments and
+ * result wrt. seg_cmp vs. seg_cmp_s.
  */
+static int seg_cmp(event_t const *add, event_t const *old)
+{
+    /* only left edges are inserted into S */
+    assert(old->left);
+    assert(add->left);
+    /* a segment cannot be added twice */
+    assert(old != add);
+
+    LOG("seg_cmp: %s vs %s\n", ev_str(old), ev_str(add));
+    /* added point should be inside existing segments wrt. pt_cmp */
+    assert(pt_cmp(add->p, old->p) >= 0);
+    assert(pt_cmp(add->p, old->other->p) <= 0);
+
+    /* first: determine whether add->p is on line */
+    if (!is_on_line(old, add->p)) {
+        int l_cmp = pt2_pt_cmp(old->p, old->other->p, add->p);
+        assert(l_cmp != 0); /* cannot be collinear: we just checked that add->p is not on old */
+        /* non-collinear. left point is above/below.
+         * right point: we do not care here; intersection checking will care later */
+        return -l_cmp;
+    }
+
+    /* second: determine whether a second point is on a line */
+    if (is_on_line(old, add->other->p) ||
+        ((old->other->p != add->p) && is_on_line(add, old->other->p)) ||
+        ((old->p        != add->p) && is_on_line(add, old->p)))
+    {
+        LOG("seg_cmp: overlap: %d %d %d %d\n",
+            is_on_line(old, add->p),
+            is_on_line(old, add->other->p),
+            is_on_line(add, old->p),
+            is_on_line(add, old->other->p));
+        return 0;
+    }
+
+    int r_cmp = pt2_pt_cmp(old->p, old->other->p, add->other->p);
+    assert(r_cmp != 0); /* cannot be collinear: we just checked. */
+    return -r_cmp;
+}
+
+#else /* !NEW_COLLINEAR */
+
 static int seg_cmp_(event_t const *e1, event_t const *e2)
 {
     /* Only left edges are inserted into S */
@@ -1125,6 +1191,8 @@ static int seg_cmp(event_t const *e2, event_t const *e1)
     return -seg_cmp_(e1,e2);
 }
 
+#endif /* !NEW_COLLINEAR */
+
 /** dict version of ev_cmp for node_q */
 static int ev_cmp_q(
     cp_dict_t *_e1,
@@ -1135,6 +1203,7 @@ static int ev_cmp_q(
     event_t *e2 = CP_BOX_OF(_e2, event_t, node_q);
     return ev_cmp(e1, e2);
 }
+
 /** dict version of seg_cmp for node_s */
 static int seg_cmp_s(
     cp_dict_t *_e1,
@@ -1168,14 +1237,25 @@ static inline event_t *q_extract_min(ctxt_t *c)
     return CP_BOX0_OF(cp_dict_extract_min(&c->q), event_t, node_q);
 }
 
-static void s_insert(
+
+/**
+ * The seg_cmp function ultimately determines whether two
+ * lines are collapsing and will compare them equal so that
+ * cp_dict_insert fails and we can handle collapses.
+ */
+static event_t *s_insert(
     ctxt_t *c,
-    event_t *e)
+    event_t *add)
 {
-    assert(!s_contains(c, e));
-    assert(e->left);
-    cp_dict_t *o CP_UNUSED = cp_dict_insert(&e->node_s, &c->s, seg_cmp_s, NULL, 0);
-    assert(o == NULL);
+    assert(!s_contains(c, add));
+    assert(add->left);
+#if NEW_COLLINEAR
+    cp_dict_t *_other = cp_dict_insert(&add->node_s, &c->s, seg_cmp_s, NULL, 0);
+    return CP_BOX0_OF(_other, event_t, node_s);
+#else
+    (void)cp_dict_insert(&add->node_s, &c->s, seg_cmp_s, NULL, +1);
+    return NULL;
+#endif
 }
 
 static void s_remove(
@@ -1190,18 +1270,24 @@ static void s_remove(
 static void set_slope(
     event_t *e1)
 {
+    /* always compute the slope from the left point (this is used by the s_insert
+     * collinearity test to sort the points on a line collapsing from two other lines. */
+    if (!e1->left) {
+        e1 = e1->other;
+        assert(e1->left);
+    }
     event_t *e2 = e1->other;
 
-    cp_vec2_t d;
-    d.x = e2->p->v.coord.x - e1->p->v.coord.x;
-    d.y = e2->p->v.coord.y - e1->p->v.coord.y;
-    e1->line.swap = cp_lt(fabs(d.x), fabs(d.y));
-    e1->line.a = LINE_Y(e1, &d) / LINE_X(e1, &d);
+    cp_vec2_sub(&e1->line.dir, &e2->p->v.coord, &e1->p->v.coord);
+    e1->line.swap = cp_lt(fabs(e1->line.dir.x), fabs(e1->line.dir.y));
+    e1->line.a = LINE_Y(e1, &e1->line.dir) / LINE_X(e1, &e1->line.dir);
     e1->line.b = LINE_Y(e1, &e1->p->v.coord) - (e1->line.a * LINE_X(e1, &e1->p->v.coord));
     assert(cp_le(e1->line.a, +1));
     assert(cp_ge(e1->line.a, -1) ||
         CONFESS("a=%g (%g,%g--%g,%g)",
             e1->line.a, e1->p->v.coord.x, e1->p->v.coord.y, e2->p->v.coord.x, e2->p->v.coord.y));
+
+    cp_vec2_unit(&e1->line.dir, &e1->line.dir);
 
     /* other direction edge is on the same line */
     e2->line = e1->line;
@@ -1304,9 +1390,6 @@ static void divide_segment_(
     r->in = e->in;
     l->in = o->in;
 
-    /* copy edge slope and offset */
-    l->line = r->line = e->line;
-
     /* If the middle point is rounded, the order of l and o may
      * switch.  This must not happen with e--r, because e is already
      * processed, so we'd need to go back in time to fix.
@@ -1335,10 +1418,15 @@ static void divide_segment_(
         assert(!s_contains(c, e));
     }
 
+#if 0
+    /* copy edge slope and offset */
+    l->line = r->line = e->line;
+#else
     /* unfortunately, reset slope -- it seems impossible to cope with
      * corner cases otherwise */
     set_slope(l);
     set_slope(r);
+#endif
 
     /* handle new events later */
     q_insert(c, l);
@@ -1451,6 +1539,7 @@ static point_t *find_intersection(
     return pt_new(c, p0->v.loc, &i, &p0->v.color);
 }
 
+#if !NEW_COLLINEAR
 static bool coord_between(
     cp_vec2_t const *a,
     cp_vec2_t const *b,
@@ -1549,26 +1638,7 @@ static unsigned ev4_overlap(
 
     return result;
 }
-
-static void ev_ignore(
-    ctxt_t *c,
-    event_t *e)
-{
-    assert(e->in.owner == 0);
-    assert(e->other->in.owner == 0);
-    if (s_contains(c, e)) {
-        s_remove(c, e);
-    }
-    if (s_contains(c, e->other)) {
-        s_remove(c, e->other);
-    }
-    if (q_contains(c, e)) {
-        q_remove(c, e);
-    }
-    if (q_contains(c, e->other)) {
-        q_remove(c, e->other);
-    }
-}
+#endif
 
 static inline event_t *s_next(
     event_t *e)
@@ -1602,10 +1672,28 @@ static void redo_q_from_s(
     } while ((el != NULL) && (el->p == ip));
 }
 
-CP_UNUSED
-static double pt_sqr_dist(point_t const *a, point_t const *b)
+static void ev_ignore(
+    ctxt_t *c,
+    event_t *e)
 {
-    return cp_vec2_sqr_dist(&a->v.coord, &b->v.coord);
+    e->in.owner = e->other->in.owner = 0;
+#if NEW_COLLINEAR
+    assert(!s_contains(c, e));
+    assert(!s_contains(c, e->other));
+#else
+    if (s_contains(c, e)) {
+        s_remove(c, e);
+    }
+    if (s_contains(c, e->other)) {
+        s_remove(c, e->other);
+    }
+#endif
+    if (q_contains(c, e)) {
+        q_remove(c, e);
+    }
+    if (q_contains(c, e->other)) {
+        q_remove(c, e->other);
+    }
 }
 
 static event_t **add_sev(
@@ -1668,7 +1756,12 @@ static char const *check_intersection(
      * correctly.
      */
 
+#if NEW_COLLINEAR
+    unsigned u = 0;
+#else
     unsigned u = ev4_overlap(el, ol, eh, oh);
+#endif
+
     if ((u == 2) && (right != NULL) && (eh->p != el->p) && (right->p != el->p)) {
         /* BUG:
          * test32e.scad and test32b.scad trigger this.  This is
@@ -1811,9 +1904,7 @@ static char const *check_intersection(
         eh->in.owner = oh->in.owner = owner;
         eh->in.below = below;
 
-        el->in.owner = ol->in.owner = 0;
         assert(el->in.below == below);
-
         ev_ignore(c, el);
         return "complete overlap";
     }
@@ -1924,6 +2015,113 @@ static char const *check_intersection(
     return "inner overlap";
 }
 
+#if NEW_COLLINEAR
+static double dist_on_line(
+    event_t *e,
+    point_t const *p)
+{
+    cp_vec2_t w;
+    cp_vec2_sub(&w, &p->v.coord, &e->p->v.coord);
+    return cp_vec2_dot(&w, &e->line.dir);
+}
+
+static event_t *left_of(event_t *e)
+{
+    return e->left ? e : e->other;
+}
+
+static char const *collapse_divide(
+    ctxt_t *c,
+    event_t *a1,
+    event_t *b1,
+    char const *what)
+{
+    event_t *a2 = a1->other;
+    a1->in.owner ^= b1->in.owner;
+
+    assert(b1->p != a1->p);
+    assert(b1->p != a2->p);
+    divide_segment(c, left_of(a1), b1->p);
+    ev_ignore(c, b1);
+
+    if (!q_contains(c, a1)) {
+        q_insert(c, a1);
+    }
+    if (!q_contains(c, a2)) {
+        q_insert(c, a2);
+    }
+
+    return what;
+}
+
+/* The cases in this function are documented in doc/collcorner.fig */
+static char const *collapse_edges(
+    ctxt_t *c,
+    event_t *a1,
+    event_t *b1)
+{
+    event_t *a2 = a1->other;
+    event_t *b2 = b1->other;
+    /* will redo: get everything out of S; ends not in Q are added later if needed */
+    assert(!s_contains(c,b1));
+    assert( q_contains(c,a2));
+    assert( q_contains(c,b2));
+    s_remove(c, a1);
+
+    /* check for coincident points => max 2 segments */
+    if (a2->p == b2->p) {
+       if (a1->p == b1->p) {
+           /* one segment */
+           a1->in.owner ^= b1->in.owner;
+           ev_ignore(c, b1);
+           q_insert(c, a1);
+           return "a1b1==a2b2"; /*5b*/
+       }
+       return collapse_divide(c, a2, b1, "a1--b1==a2b2"); /*5a*/
+    }
+
+    if (a2->p == b1->p) {
+        assert(a1->p != b2->p);
+        if (dist_on_line(a1, b2->p) < 0) {
+            return collapse_divide(c, b1, a1, "b2--a1==a2b1"); /*4b*/
+        }
+        return collapse_divide(c, a2, b2, "a1--b2==a2b1"); /*3b*/
+    }
+
+    assert(a1->p != b2->p);
+    if (a1->p == b1->p) {
+        if (dist_on_line(a1, a2->p) < dist_on_line(a1, b2->p)) {
+            return collapse_divide(c, b1, a2, "a1b1==a2--b2"); /*2b*/
+        }
+        return collapse_divide(c, a1, b2, "a1b1==b2--a2"); /*1b*/
+    }
+
+    /* compute positions on unmodified line a */
+    double dol_a2 = dist_on_line(a1, a2->p);
+    double dol_b1 = dist_on_line(a1, b1->p);
+    double dol_b2 = dist_on_line(a1, b2->p);
+
+    /* no coincident points => three new segments => stem 1: split old line */
+    divide_segment(c, a1, b1->p);
+    event_t *a1i = a1->other;
+    event_t *a2i = a2->other;
+
+    if (dol_b2 < 0) {
+        return collapse_divide(c, b1, a1, "b2--a1==b1--a2"); /*4a*/
+    }
+
+    if (dol_b2 < dol_b1) {
+        return collapse_divide(c, a1i, b2, "a1--b2==b1--a2"); /*3a*/
+    }
+
+    if (dol_a2 < dol_b2) {
+        return collapse_divide(c, b1, a2, "a1--b1==a2--b2"); /*2a*/
+    }
+
+    return collapse_divide(c, a2i, b1, "a1--b1==b2--a2"); /*1a*/
+}
+#endif
+
 static void ev_left(
     ctxt_t *c,
     event_t *e)
@@ -1931,7 +2129,18 @@ static void ev_left(
     assert(!s_contains(c, e));
     assert(!s_contains(c, e->other));
     LOG("insert_s: %p (%p)\n", e, e->other);
+#if NEW_COLLINEAR
+    event_t *overlap = s_insert(c, e);
+    if (overlap != NULL) {
+        debug_print_s(c, "left before collapse", e, overlap, NULL);
+        LOG("insert_s: merged edge\n");
+        char const *what CP_UNUSED = collapse_edges(c, overlap, e);
+        debug_print_s(c, "left after collapse: %s", e, overlap, NULL, what);
+        return;
+    }
+#else
     s_insert(c, e);
+#endif
 
     event_t *prev = s_prev(e);
     event_t *next = s_next(e);
@@ -1949,18 +2158,7 @@ static void ev_left(
 
     debug_print_s(c, "left after insert", e, prev, next);
 
-    /* FIXME: Hack: some intersections change the order of segments in S,
-     * which is bad, so if we dequeue misordered stuff, we redo it.
-     * It may be better to check this when the intersection occurs.
-     * In the case that triggered this fix (test43.scad), an overlap was
-     * detected that moved a line across another one and due to ev_cmp()
-     * of the line segments, the order changed.
-     * This problem is due to rounding (in this case, during the decision
-     * of what is overlapping).  It could have been fixed also by using not
-     * the new segment's right point, but next segment's.  But whether this
-     * fixes the problem for good is currently unexamined.
-     */
-#if 1
+#if HACK
     if ((prev != NULL) && (seg_cmp(e, prev) < 0)) {
         s_remove(c, e);
         q_insert(c, e);
@@ -1969,7 +2167,7 @@ static void ev_left(
         fprintf(stderr, "wrong order of cur and prev:\n  %s\n  %s\n", ev_str(e), ev_str(prev));
         return;
     }
-    if ((next != NULL) && (seg_cmp(next, e) < 0)) {
+    if ((next != NULL) && (seg_cmp(e, next) > 0)) {
         s_remove(c, e);
         q_insert(c, e);
         s_remove(c, next);
@@ -1979,7 +2177,7 @@ static void ev_left(
     }
 
     assert((prev == NULL) || seg_cmp(e, prev) > 0);
-    assert((next == NULL) || seg_cmp(next, e) > 0);
+    assert((next == NULL) || seg_cmp(e, next) < 0);
 #endif
 
     char const *ni CP_UNUSED = "NULL";

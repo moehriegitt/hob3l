@@ -116,6 +116,11 @@ static inline size_t cp_min_z_(size_t a, size_t b)
     return a <= b ? a : b;
 }
 
+static inline int cp_min_i(int a, int b)
+{
+    return a <= b ? a : b;
+}
+
 #define cp_min(a,b) \
     (_Generic(a, \
         size_t:  cp_min_z_, \
@@ -135,6 +140,11 @@ static inline cp_f_t cp_max_f_(cp_f_t a, cp_f_t b)
 }
 
 static inline size_t cp_max_z_(size_t a, size_t b)
+{
+    return a >= b ? a : b;
+}
+
+static inline int cp_max_i(int a, int b)
 {
     return a >= b ? a : b;
 }
