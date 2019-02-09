@@ -667,7 +667,7 @@ install-data: installdirs-data
 
 install-lib: installdirs-lib
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) libhob3lfont.a $(DESTDIR)$(libdir)/$(LIB_)hob3lfont(_LIB)
+	$(INSTALL_DATA) libhob3lfont.a $(DESTDIR)$(libdir)/$(LIB_)hob3lfont$(_LIB)
 	$(INSTALL_DATA) libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(INSTALL_DATA) libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 

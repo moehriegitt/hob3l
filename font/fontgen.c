@@ -6,6 +6,8 @@
  */
 
 /* TODO:
+ *   - kerning is broken for oblique fonts, probably because the profile data
+ *     is computed from the wrong x coordinate (=> fix (un)slanting, maybe?)
  *   - have a max. amount of kerning per char (mainly for spaces, dashes, and
  *     brackets). Currently, the glyph width is the only max for kerning.
  *   - have a max relative amount of kerning so that . + ' + - do not kern
@@ -2465,10 +2467,10 @@ static font_def_glyph_t f1_a_glyph[] = {
         .line_step = LS_DIGIT,
         .mono = true,
         .draw = STROKE(
-            Q(L, ( 0,+6, 0, 0), (-2,+6, 0, 0)),
-            Q(L, ( 0,-6, 0, 0), (-2,+6, 0, 0)),
-            Q(L, ( 0,-6, 0, 0), (-2,-3, 0, 0)),
-            Q(L, ( 0,+6, 0, 0), (-2,-3, 0, 0)),
+            Q(H, ( 0,+6, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0,-6, 0, 0), (-2,+6, 0, 0)),
+            Q(H, ( 0,-6, 0, 0), (-2,-3, 0, 0)),
+            Q(H, ( 0,+6, 0, 0), (-2,-3, 0, 0)),
         ),
     },
     {
@@ -3164,7 +3166,7 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(L, ( 0,-3, 0, 0), (-2,+6, 0, 0)),
             Q(E, ( 0,-3, 0, 0), ( 0,-3, 0, 0)),
             Q(B, ( 0,-3, 0, 0), (-3,+3, 0, 0)),
-            Q(E, ( 0,+4, 0, 0), (-3,+3, 0, 0)),
+            Q(E, ( 0,+3, 0, 0), (-3,+3, 0, 0)),
         ),
     },
     {
@@ -3536,18 +3538,40 @@ static font_def_glyph_t f1_a_glyph[] = {
         .unicode = U_LATIN_SMALL_LETTER_ETH,
         .draw = MERGE(
             STROKE(
-                Q(I, ( 0,-2, 0, 0), ( 0,+7, 0, 0)),
-                Q(P, ( 0,+5, 0, 0), (+5,+2,+3,30)),
-                Q(P, ( 0,+5, 0, 0), ( 0,+2,+3,30)),
+                Q(I, ( 0,-4, 0, 0), (-2,+6,+7,60)),
+                Q(S, ( 0,-1, 0, 0), (-2,+6,+7,30)),
+                Q(H, ( 0,+5, 0, 0), (-3,+5,+6,30)),
+                Q(P, ( 0,+5, 0, 0), ( 0,+3, 0, 0)),
                 Q(L, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
                 Q(L, ( 0,-5, 0, 0), (-2,-3, 0, 0)),
-                Q(L, ( 0,-5, 0, 0), (-2,+2,+3,30)),
-                Q(E, ( 0,+5, 0, 0), (-2,+2,+3,30)),
+                Q(L, ( 0,-5, 0, 0), (-3,+3, 0, 0)),
+                Q(E, ( 0,+5, 0, 0), (-3,+3, 0, 0)),
             ),
             XFORM(ls_thinner,
                 STROKE(
-                    Q(I, ( 0,+4,+5,30), ( 0,+7, 0, 0)),
-                    Q(O, ( 0,-3, 0, 0), ( 0,+4, 0,0)),
+                    Q(I, ( 0,-1, 0, 0), ( 0,+4,+5,10)),
+                    Q(O, ( 0,+4, 0, 0), ( 0,+7,+8,30)),
+                )
+            ),
+        )
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_ETH_WITH_VERTICAL_LEFT_STROKE,
+        .draw = MERGE(
+            STROKE(
+                Q(I, ( 0,-4, 0, 0), (-3,+6,+7,30)),
+                Q(S, ( 0,-1, 0, 0), (-3,+6,+7,30)),
+                Q(H, ( 0,+5, 0, 0), (-3,+5,+6,30)),
+                Q(P, ( 0,+5, 0, 0), ( 0,+3, 0, 0)),
+                Q(L, ( 0,+5, 0, 0), (-2,-3, 0, 0)),
+                Q(L, ( 0,-5, 0, 0), (-2,-3, 0, 0)),
+                Q(L, ( 0,-5, 0, 0), (-3,+3, 0, 0)),
+                Q(E, ( 0,+5, 0, 0), (-3,+3, 0, 0)),
+            ),
+            XFORM(ls_thinner,
+                STROKE(
+                    Q(I, ( 0,-1, 0, 0), ( 0,+4, 0, 0)),
+                    Q(O, ( 0,+4, 0, 0), ( 0,+7,+8,20)),
                 )
             ),
         )
@@ -4333,6 +4357,32 @@ static font_def_glyph_t f1_a_glyph[] = {
             Q(E, ( 0,-3, 0, 0), ( 0,-3, 0, 0)),
             Q(B, ( 0,-3, 0, 0), (-3,+3, 0, 0)),
             Q(E, ( 0,+3, 0, 0), (-3,+3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LETTER_F_WITH_LONG_HIGH_TOP_STROKE,
+        .max_coord = COORD(0, +4, 0, 0),
+        .rpad_abs = -PAD_DEFAULT,
+        .draw = STROKE(
+            //Q(B, ( 0,+4,+8, 60), (-3,+6,+7,30)), // linked
+            Q(B, ( 0,+4,+8, 0), (-3,+6,+7,30)),  // not linked
+            Q(H, ( 0,-3, 0, 0), (-3,+6,+7,30)),
+            Q(E, ( 0,-3, 0, 0), ( 0,-3, 0, 0)),
+            Q(B, ( 0,-3, 0, 0), (-3,+3, 0, 0)),
+            Q(E, ( 0,+3, 0, 0), (-3,+3, 0, 0)),
+        ),
+    },
+    {
+        .unicode = UX_LATIN_SMALL_LIGATURE_F_ETH,
+        .map = MAP(
+            LIGA(
+               U_LATIN_SMALL_LETTER_F,
+               U_LATIN_SMALL_LETTER_ETH
+            )
+        ),
+        .draw = SEQ(
+            SUBGLYPH(0,  UX_LATIN_SMALL_LETTER_F_WITH_LONG_HIGH_TOP_STROKE),
+            SUBGLYPH(+1, UX_LATIN_SMALL_LETTER_ETH_WITH_VERTICAL_LEFT_STROKE),
         ),
     },
     {
@@ -7461,6 +7511,87 @@ static font_def_glyph_t f1_a_glyph[] = {
         ),
     },
 
+    /* logos and private stuff */
+    {
+        .unicode = UX_LOGO_HT,
+        .map = MAP(
+            OPT(
+               U_LATIN_SMALL_LETTER_H,
+               U_LATIN_SMALL_LETTER_T
+            )
+        ),
+        .draw = MERGE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            STROKE(
+                Q(B, ( 0, +5, 0, 0), ( 0,-2, 0, 0)),
+                Q(L, ( 0, +5, 0, 0), ( 0,-6, 0, 0)),
+                Q(E, ( 0,+11, 0, 0), ( 0,-6, 0, 0)),
+
+                Q(B, ( 0, +5, 0, 0), ( 0,-1, 0, 0)),
+                Q(E, ( 0,+11, 0, 0), ( 0,-1, 0, 0)),
+            ),
+        ),
+    },
+    {
+        .unicode = UX_LOGO_UT,
+        .map = MAP(
+            OPT(
+               U_LATIN_SMALL_LETTER_U,
+               U_LATIN_SMALL_LETTER_T
+            )
+        ),
+        .draw = MERGE(
+            STROKE(
+                Q(B, ( 0, +5, 0, 0), ( 0, 0, 0, 0)),
+                Q(L, ( 0, +5, 0, 0), ( 0,-5, 0, 0)),
+                Q(E, ( 0,+11, 0, 0), ( 0,-5, 0, 0)),
+            ),
+            XFORM2(xlat_rely, +3,+6,
+              MERGE(
+                STROKE(
+                  Q(B, ( 0, +5, 0, 0), (-2,-3, 0, 0)),
+                  Q(E, ( 0,+11, 0, 0), (-2,-3, 0, 0)),
+                ),
+                XFORM(turn_lc,
+                  REF(U_LATIN_SMALL_LETTER_N)))),
+        ),
+    },
+    {
+        .unicode = UX_LOGO_UH,
+        .map = MAP(
+            OPT(
+               U_LATIN_SMALL_LETTER_U,
+               U_LATIN_SMALL_LETTER_H
+            )
+        ),
+        .draw = MERGE(
+            REF(U_LATIN_SMALL_LETTER_H),
+            XFORM2(xlat_rely, +3,+7,
+                XFORM2(xlat_relx, +5,-5,
+                    XFORM(turn_lc,
+                        REF(U_LATIN_SMALL_LETTER_N)))),
+        ),
+    },
+    {
+        .unicode = UX_LOGO_UHT,
+        .map = MAP(
+            OPT(
+               U_LATIN_SMALL_LETTER_U,
+               UX_LOGO_HT
+            ),
+            OPT(
+               UX_LOGO_UH,
+               U_LATIN_SMALL_LETTER_T
+            )
+        ),
+        .draw = MERGE(
+            REF(UX_LOGO_HT),
+            XFORM2(xlat_rely, +3,+7,
+                XFORM2(xlat_relx, +5,-5,
+                    XFORM(turn_lc,
+                        REF(U_LATIN_SMALL_LETTER_N)))),
+        ),
+    },
 };
 
 /*
@@ -7496,7 +7627,7 @@ static font_def_t f1_font_book = {
     .slant = 0,
     .radius = { 4, 8, 12, 24 }, // SMALL, LARGE, HUGE, GIANT
     .angle = { 5, 8 },          // TIGHT, ANGLED
-    .min_dist = 1,
+    .min_dist = 0.5,
 
     /* integer->float coordinate translations */
     .coord_x = VEC(((double const []){
@@ -10978,10 +11109,10 @@ static void ps_proof_sheet(
          "\x201aN\xe3o.\x2018\x2013\x152uvre\\f\xe6r pTo//.\\");
 
     ps_writeln_str32(ps, font, 14, &yy,
-        U"ABCDEFGHIJKLMNOPQRSTUVWXYZA\x308O\x308U\x308N\x308\x1E9E \xa9""ht "
+        U"ABCDEFGHIJKLMNOPQRSTUVWXYZA\x308O\x308U\x308N\x308\x1E9E \xa9""h\x200Dt "
          "\x2e9\xfeff\x2e9\x2e5\xfeff\x2e9\x2e6\xfeff\x2e9\x2e7\xfeff\x2e9\x2e8\xfeff\x2e9\x2e9"
          "\x17e\x307z\x307\x30cz\x30c\x307\x304\x327"
-         "\x105j");
+         "\x105j attract");
 
     ps_writeln_str32(ps, font, 14, &yy,
         U"abcdefghijklmnopqrstuvwxyza\x308o\x200d\x308u\x308n\x308\xDF\x149 0123456789 "
@@ -10996,6 +11127,8 @@ static void ps_proof_sheet(
         cp_v_obj_p_t out = {0};
         cp_font_gc_t gc = {0};
         cp_font_gc_set_font(&gc, font, 14, 1.0);
+        cp_font_print_str32(&out, &gc, U"hef\xf0i hef\x200c\xf0i ");
+
         cp_font_print_str32(&out, &gc, U"\x1f2u");
         cp_font_print_str32(&out, &gc, U"d\x327 ");
 
