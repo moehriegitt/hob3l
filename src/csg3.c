@@ -692,6 +692,20 @@ static size_t get_fn(
     return fn;
 }
 
+CP_UNUSED
+static double path_idx_cross3_z(
+    cp_csg2_poly_t *p,
+    cp_csg2_path_t *q,
+    size_t k)
+{
+    size_t o = cp_wrap_sub1(k, q->point_idx.size);
+    size_t n = cp_wrap_add1(k, q->point_idx.size);
+    return cp_vec2_right_cross3_z(
+        &cp_v_nth(&p->point, o).coord,
+        &cp_v_nth(&p->point, k).coord,
+        &cp_v_nth(&p->point, n).coord);
+}
+
 /**
  * Ensure that all paths of the polygon run clockwise.
  *
@@ -706,6 +720,32 @@ static bool polygon_make_clockwise(
     for (cp_v_each(i, &p->path)) {
         cp_csg2_path_t *q = &cp_v_nth(&p->path, i);
         double sum = 0;
+#if 0
+        /* FIXME:
+         * This algorithm is supposedly correct in contrast to the
+         * following one, but it triggers a failure in test32. */
+        size_t k = 0;
+        /* find lowest x/y coordinate */
+        for (cp_v_each(j, &q->point_idx, 1)) {
+            size_t tj = cp_v_nth(&q->point_idx, j);
+            size_t tk = cp_v_nth(&q->point_idx, k);
+            if ((cp_vec2_lex_cmp(
+                &cp_v_nth(&p->point, tj).coord,
+                &cp_v_nth(&p->point, tk).coord) < 0) &&
+                !cp_eq(path_idx_cross3_z(p, q, j), 0))
+            {
+                /* It seems we have input that has overlapping edges =>
+                 * skip points that have collinear neighbours. */
+                k = j;
+            }
+        }
+
+        /* Lowest coordinate is on outermost edge => check bend direction. */
+        sum = path_idx_cross3_z(p, q, k);
+#else
+        /* FIXME:
+         * This works surprisingly well given that it is basically wrong.
+         * However, with the 'fixed' algorithm above, I get failed tests. */
         for (cp_v_each(j0, &q->point_idx)) {
             size_t j1 = cp_wrap_add1(j0, q->point_idx.size);
             size_t j2 = cp_wrap_add1(j1, q->point_idx.size);
@@ -717,6 +757,7 @@ static bool polygon_make_clockwise(
                 &cp_v_nth(&p->point, k1).coord,
                 &cp_v_nth(&p->point, k2).coord);
         }
+#endif
         assert(!cp_eq(sum, 0));
         if (sum < 0) {
             rev = true;
