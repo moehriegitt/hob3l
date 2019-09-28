@@ -961,3 +961,80 @@ extern void cp_vec2_nearest(
     cp_vec2_mul(&w, ud, d);
     cp_vec2_add(r, a, &w);
 }
+
+extern bool cp_mat3w_xform_into_zx_2(
+    cp_mat3w_t *into_z2,
+    cp_mat3w_t *from_z,
+    cp_vec3_t const *o,
+    cp_vec3_t const *a,
+    cp_vec3_t const *b)
+{
+    static cp_vec3_t o0 = CP_VEC3(0,0,0);
+    if (o == NULL) {
+        o = &o0;
+    }
+
+    cp_vec3_t z[1];
+    cp_vec3_sub(z, a, o);
+
+    /* rotate into z */
+    cp_mat3w_t into_z[1];
+    bool res = cp_mat3w_rot_into_z(into_z, z);
+
+    /* map o */
+    cp_vec3_t on[1];
+    cp_vec3w_xform(on, into_z, o);
+
+    /* update matrices with offset compensation */
+    into_z->w.v[0] = -on->x;
+    into_z->w.v[1] = -on->y;
+    into_z->w.v[2] = -on->z;
+
+    /* compute inverse so far */
+    if (from_z != NULL) {
+        cp_mat3w_trans(from_z, into_z);
+
+        from_z->w.v[0] = o->x;
+        from_z->w.v[1] = o->y;
+        from_z->w.v[2] = o->z;
+    }
+
+    /* map b */
+    if (b == NULL) {
+    }
+    else
+    if (cp_eq(b->x, o->x) && cp_eq(b->y, o->y)) {
+        res = false;
+    }
+    else {
+        cp_vec3_t bn[1];
+        cp_vec3w_xform(bn, into_z, b);
+
+        /* rotate bn into x axis */
+        if (!cp_eq(bn->y, 0)) {
+            double l = sqrt((bn->x*bn->x) + (bn->y*bn->y));
+            double x = bn->x / l;
+            double y = bn->y / l;
+
+            cp_mat3w_t into_x[1] = {
+                CP_MAT3W(
+                    x,  y,  0, 0,
+                   -y,  x,  0, 0,
+                    0,  0,  1, 0) };
+
+            /* add the Z axis rotation */
+            cp_mat3w_mul(into_z, into_x, into_z);
+            if (from_z != NULL) {
+                cp_mat3w_trans(into_x, into_x);
+                cp_mat3w_mul(from_z, from_z, into_x);
+            }
+        }
+    }
+
+    /* try to return matrix */
+    if (into_z2 != NULL) {
+        *into_z2 = *into_z;
+    }
+
+    return res;
+}

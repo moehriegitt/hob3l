@@ -1050,11 +1050,15 @@ sub gen_rot_into_z_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
     return unless $t->{dimx} == 3;
-    my $p = proto($t, 'void', $elem, r=>$t, v=>$vec3);
+    my $p = proto($t, 'bool', $elem, r=>$t, v=>$vec3);
     my $s = '';
     $s .= "    X_$t->{vecx}{name}_t u;\n";
-    $s .= "    X_$t->{vecx}{name}_unit(&u, v);\n";
+    $s .= "    if (!X_$t->{vecx}{name}_unit(&u, v)) {\n";
+    $s .= "        X_$t->{name}_unit(r);\n";
+    $s .= "        return false;\n";
+    $s .= "    }\n";
     $s .= "    X_$t->{name}_rot_unit_into_z(r, &u);\n";
+    $s .= "    return true;\n";
     publish_extern($oc, $p, $s);
 }
 

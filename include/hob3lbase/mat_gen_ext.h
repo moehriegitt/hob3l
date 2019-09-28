@@ -461,27 +461,27 @@ extern void cp_mat4i_rot_unit_into_z(
     cp_mat4i_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat3_rot_into_z(
+extern bool cp_mat3_rot_into_z(
     cp_mat3_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat3w_rot_into_z(
+extern bool cp_mat3w_rot_into_z(
     cp_mat3w_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat3i_rot_into_z(
+extern bool cp_mat3i_rot_into_z(
     cp_mat3i_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat3wi_rot_into_z(
+extern bool cp_mat3wi_rot_into_z(
     cp_mat3wi_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat4_rot_into_z(
+extern bool cp_mat4_rot_into_z(
     cp_mat4_t * r,
     cp_vec3_t const* v);
 
-extern void cp_mat4i_rot_into_z(
+extern bool cp_mat4i_rot_into_z(
     cp_mat4i_t * r,
     cp_vec3_t const* v);
 

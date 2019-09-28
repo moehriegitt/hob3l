@@ -125,7 +125,6 @@
     var clickOrigY = 0;
     var clickCamRotX = 0;
     var clickCamRotY = 0;
-    var clickMatView;
     var curFocus = 0;
     var ctrlOn = 1;
 
@@ -986,19 +985,35 @@
         clickY = clickOrigY = ev.clientY;
         clickDown = ev.buttons;
         clickShift = ev.shiftKey;
-        clickMatView = mat4.clone(matView);
 
+        if (ev.preventDefault) {
+            ev.preventDefault();
+        }
+        else {
+            ev.returnValue = false;
+        }
         return false;
     }
 
     function mouseup(ev)
     {
         clickDown = 0;
+
+        if (ev.preventDefault) {
+            ev.preventDefault();
+        }
+        else {
+            ev.returnValue = false;
+        }
         return false;
     }
 
     function mousemove(ev)
     {
+        if (!clickDown) {
+            clickDown = ev.buttons;
+            clickShift = ev.shiftkey;
+        }
         if (!clickDown) {
             return;
         }
@@ -1037,6 +1052,13 @@
 
         clickX = ev.clientX;
         clickY = ev.clientY;
+
+        if (ev.preventDefault) {
+            ev.preventDefault();
+        }
+        else {
+            ev.returnValue = false;
+        }
         return false;
     }
 

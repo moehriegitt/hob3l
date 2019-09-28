@@ -116,8 +116,8 @@ struct cp_vec2_arr_ref {
 #define CP_MAT2W(_a,_b,_c, _d,_e,_f) \
     ((cp_mat2w_t){ .b={.v={ _a,_b, _d,_e }}, .w={.v={_c,_f}} })
 
-#define CP_MAT3W(a,b,c,d, e,f,g,h, i,j,k,l) \
-    ((cp_mat3w_t){ .b={.v={ a,b,c, e,f,g, i,j,k }}, .w={.v={d,h,l}} })
+#define CP_MAT3W(_a,_b,_c,_d, _e,_f,_g,_h, _i,_j,_k,_l) \
+    ((cp_mat3w_t){ .b={.v={ _a,_b,_c, _e,_f,_g, _i,_j,_k }}, .w={.v={_d,_h,_l}} })
 
 static inline void cp_mat4_init3(
     cp_mat4_t *m,

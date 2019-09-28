@@ -1075,58 +1075,82 @@ extern void cp_mat4i_rot_unit_into_z(
     r->d = 1;
 }
 
-extern void cp_mat3_rot_into_z(
+extern bool cp_mat3_rot_into_z(
     cp_mat3_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat3_unit(r);
+        return false;
+    }
     cp_mat3_rot_unit_into_z(r, &u);
+    return true;
 }
 
-extern void cp_mat3w_rot_into_z(
+extern bool cp_mat3w_rot_into_z(
     cp_mat3w_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat3w_unit(r);
+        return false;
+    }
     cp_mat3w_rot_unit_into_z(r, &u);
+    return true;
 }
 
-extern void cp_mat3i_rot_into_z(
+extern bool cp_mat3i_rot_into_z(
     cp_mat3i_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat3i_unit(r);
+        return false;
+    }
     cp_mat3i_rot_unit_into_z(r, &u);
+    return true;
 }
 
-extern void cp_mat3wi_rot_into_z(
+extern bool cp_mat3wi_rot_into_z(
     cp_mat3wi_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat3wi_unit(r);
+        return false;
+    }
     cp_mat3wi_rot_unit_into_z(r, &u);
+    return true;
 }
 
-extern void cp_mat4_rot_into_z(
+extern bool cp_mat4_rot_into_z(
     cp_mat4_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat4_unit(r);
+        return false;
+    }
     cp_mat4_rot_unit_into_z(r, &u);
+    return true;
 }
 
-extern void cp_mat4i_rot_into_z(
+extern bool cp_mat4i_rot_into_z(
     cp_mat4i_t * r,
     cp_vec3_t const* v)
 {
     cp_vec3_t u;
-    cp_vec3_unit(&u, v);
+    if (!cp_vec3_unit(&u, v)) {
+        cp_mat4i_unit(r);
+        return false;
+    }
     cp_mat4i_rot_unit_into_z(r, &u);
+    return true;
 }
 
 extern void cp_mat2_rot_ij(

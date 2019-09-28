@@ -4,6 +4,7 @@
 #include <hob3lbase/def.h>
 #include <hob3lbase/arith.h>
 #include <hob3lbase/mat.h>
+#include <hob3lbase/stream.h>
 #include "test.h"
 #include "math-test.h"
 
@@ -15,6 +16,120 @@ static cp_f_t simple_sin_deg(cp_f_t a)
 static cp_f_t simple_cos_deg(cp_f_t a)
 {
     return cos(cp_deg(a));
+}
+
+static void rot_math_test(void)
+{
+    cp_mat3wi_t m[1];
+    cp_vec3_t v[1];
+    bool b;
+
+    /* triviality test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(0,0,0),
+        &CP_VEC3(0,0,1),
+        &CP_VEC3(1,0,0));
+    TEST_EQ(b, true);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+
+    /* triviality test and NULL test */
+    b = cp_mat3wi_xform_into_zx(m,
+        NULL,
+        &CP_VEC3(0,0,1),
+        NULL);
+    TEST_EQ(b, true);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+
+    /* triviality test and NULL test */
+    b = cp_mat3wi_xform_into_zx(m,
+        NULL,
+        &CP_VEC3(0,0,0),
+        NULL);
+    TEST_EQ(b, false);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+
+    /* triviality test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(0,0,0),
+        &CP_VEC3(0,0,2),
+        &CP_VEC3(2,0,0));
+    TEST_EQ(b, true);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,0, 0,1,0,0, 0,0,1,0)), true);
+
+    /* translation test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(3,4,5),
+        &CP_VEC3(3,4,7),
+        &CP_VEC3(5,4,5));
+    TEST_EQ(b, true);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,-3, 0,1,0,-4, 0,0,1,-5)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,3, 0,1,0,4, 0,0,1,5)), true);
+
+    /* translation test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(3,4,5),
+        &CP_VEC3(3,4,5),
+        &CP_VEC3(5,4,5));
+    TEST_EQ(b, false);
+    TEST_EQ(cp_mat3w_eq(&m->n,
+        &CP_MAT3W(1,0,0,-3, 0,1,0,-4, 0,0,1,-5)), true);
+    TEST_EQ(cp_mat3w_eq(&m->i,
+        &CP_MAT3W(1,0,0,3, 0,1,0,4, 0,0,1,5)), true);
+
+    /* rotation test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(3,4,5),
+        &CP_VEC3(7,8,2),
+        NULL);
+    TEST_EQ(b, true);
+    cp_vec3w_xform(v, &m->n, &CP_VEC3(3,4,5));
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec3_eq(v, &CP_VEC3(0,0,0)), true);
+
+    cp_vec3w_xform(v, &m->n, &CP_VEC3(7,8,2));
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec2_eq(&v->b, &CP_VEC2(0,0)), true);
+
+    /* rotation test */
+    b = cp_mat3wi_xform_into_zx(m,
+        &CP_VEC3(3,4,5),
+        &CP_VEC3(7,8,2),
+        &CP_VEC3(17,2,3));
+    TEST_EQ(b, true);
+    cp_vec3w_xform(v, &m->n, &CP_VEC3(3,4,5));
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec3_eq(v, &CP_VEC3(0,0,0)), true);
+
+    cp_vec3w_xform(v, &m->n, &CP_VEC3(7,8,2));
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec2_eq(&v->b, &CP_VEC2(0,0)), true);
+
+    cp_vec3w_xform(v, &m->n, &CP_VEC3(17,2,3));
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_eq(v->y, 0), true);
+
+    cp_mat3w_t i[1];
+    cp_mat3w_inv(i, &m->n);
+    cp_stream_t *cerr = CP_STREAM_FROM_FILE(stderr);
+    fprintf(stderr, "i=\n");
+    cp_mat3w_put(cerr, i);
+    fprintf(stderr, "i'=\n");
+    cp_mat3w_put(cerr, &m->i);
+    TEST_EQ(cp_mat3w_eq(i, &m->i), true);
 }
 
 #define TEST_EQ_SIN(a,b) \
@@ -262,4 +377,7 @@ extern void cp_math_test(void)
     TEST_EQ(2, 0x1p1);
     TEST_EQ(3, 0x1.8p1);
     TEST_EQ(0.125, 0x1p-3);
+
+    /* rotation matrix test */
+    rot_math_test();
 }
