@@ -107,6 +107,12 @@ map with the following slots:
      A 3 entry matrix with the camera position (in meter [m]).
      If this is missing, the camera position will not be reset.
 
+  - 'view' : array[16] of float;
+     A 16 entry (4x4) matrix with indices 0..3 forming the first column,
+     defining the camera view.
+     If this is missing, the worldView matrix will not be reset.
+
+
 The default view is the unit matrix.
 
 ## 'scene'

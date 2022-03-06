@@ -96,7 +96,8 @@
     var scaleAlphaAttr;
     var updateTime = 0.0;
     var buffer = [];
-    var matView = mat4.create();
+    var matView0 = mat4.create();
+    var matView = matView0.slice();
     var matWorld = mat4.create();
     var turnDeg = 10;
     var camPos0 = [0, 0, 1.2];
@@ -690,6 +691,11 @@
                 camPos[i] = wp.cam[i];
             }
         }
+        if (wp.view) {
+            for (var i = 0; i < 16; i++) {
+                matView[i] = wp.view[i];
+            }
+        }
         change = 1;
     }
 
@@ -717,7 +723,7 @@
             "</button>";
     }
 
-    function scrollBarHTML(id, unit)
+    function scrollBarHTML(id, unit, positive)
     {
         var ids = id.toString();
         return(
@@ -728,9 +734,9 @@
             " style=\"width:5em;\""+
             " onchange=\"scrollEdit('"+ids+"')\"/>" + unit +
             " "+
-            scrollButtonHTML(ids, 0.0, "-") +
-            scrollButtonHTML(ids, 0.5, "0") +
-            scrollButtonHTML(ids, 1.0, "+") +
+            scrollButtonHTML(ids, 0.0, positive ? "0" : "-") +
+            scrollButtonHTML(ids, 0.5, positive ? "½" : "0") +
+            scrollButtonHTML(ids, 1.0, positive ? "1" : "+") +
             "</div>" +
             "<div id=\"id-"+ids+"-bar\""+
             " onscroll=\"scrollChange('"+ids+"')\""+
@@ -773,12 +779,20 @@
         input.scrollLeft = l;
     }
 
+    function getMoveOrRot(id)
+    {
+        if (id.substring(0,4) == "rot-") {
+            return group[id.substring(4)].rot;
+        }
+        return group[id].move;
+    }
+
     function scrollChange(id)
     {
         var ids   = id.toString();
         var edit  = document.getElementById("id-" + ids + "-pos");
         var bar   = document.getElementById("id-" + ids + "-bar");
-        var m     = group[id].move;
+        var m     = getMoveOrRot(id);
         var ratio = scrollGetRatio(bar);
         var value = m.pos2value(ratio);
 
@@ -800,7 +814,7 @@
         var ids = id.toString();
         var edit  = document.getElementById("id-" + ids + "-pos");
         if (edit) {
-            var m     = group[id].move;
+            var m     = getMoveOrRot(id);
             var value = m.pos2value(ratio);
             edit.value = value;
             scrollEdit(id);
@@ -812,7 +826,7 @@
         var ids = id.toString();
         var edit  = document.getElementById("id-" + ids + "-pos");
         var bar   = document.getElementById("id-" + ids + "-bar");
-        var m     = group[id].move;
+        var m     = getMoveOrRot(id);
 
         var s     = edit.value;
         var value = Number(s) || 0;
@@ -867,28 +881,54 @@
 
     function makeMoveFunc(g, m)
     {
-        m.pos2value = function(p) {
-            var v = ((p * 2) - 1) * m.amount * 1000;
-            return Math.round(v * 10) / 10;
-        };
-        m.value2pos = function(v) {
-            return ((v / 1000 / m.amount) + 1) / 2;
-        };
-        m.set = function(v) {
-            var p = ((v * 2) - 1) * m.amount;
-            m.ratio = v;
-            m.pos = p;
-            if (m.xlat) {
-                m.cur = m.xlat(g);
-            }
-            else {
-                m.cur = [
-                    m.unit[0] * p,
-                    m.unit[1] * p,
-                    m.unit[2] * p
-                ];
-            }
-        };
+        if (m.positive) { /* scale is 0..1 */
+            m.pos2value = function(p) {
+                var v = p * m.amount * 1000;
+                return Math.round(v * 10) / 10;
+            };
+            m.value2pos = function(v) {
+                return v / 1000 / m.amount;
+            };
+            m.set = function(v) {
+                var p = v * m.amount;
+                m.ratio = v;
+                m.pos = p;
+                if (m.xlat) {
+                    m.cur = m.xlat(g);
+                }
+                else {
+                    m.cur = [
+                        m.unit[0] * p,
+                        m.unit[1] * p,
+                        m.unit[2] * p
+                    ];
+                }
+            };
+        }
+        else { /* scale is -1..+1 */
+            m.pos2value = function(p) {
+                var v = ((p * 2) - 1) * m.amount * 1000;
+                return Math.round(v * 10) / 10;
+            };
+            m.value2pos = function(v) {
+                return ((v / 1000 / m.amount) + 1) / 2;
+            };
+            m.set = function(v) {
+                var p = ((v * 2) - 1) * m.amount;
+                m.ratio = v;
+                m.pos = p;
+                if (m.xlat) {
+                    m.cur = m.xlat(g);
+                }
+                else {
+                    m.cur = [
+                        m.unit[0] * p,
+                        m.unit[1] * p,
+                        m.unit[2] * p
+                    ];
+                }
+            };
+        }
     }
 
     function makeGroupCtrls()
@@ -900,7 +940,8 @@
             g.html = "";
             var o = g.optional;
             var m = g.move;
-            if (m || o) {
+            var r = g.rot;
+            if (m || o || (r && (r.amount > 0))) {
                 var haveLabel = false;
                 if (o) {
                     g.html += checkboxHTML(id, g.name, g.default_off);
@@ -913,10 +954,19 @@
                             g.html += g.name;
                             haveLabel = true;
                         }
-                        g.html += ": " + scrollBarHTML(id, m.name || "mm");
+                        g.html += ": " + scrollBarHTML(id, m.name || "mm", m.positive);
                         g.own_div = 1;
                     }
                     makeMoveFunc(g, m);
+                }
+                if (r && (r.amount > 0)) {
+                    if (!haveLabel) {
+                        g.html += g.name;
+                        haveLabel = true;
+                    }
+                    g.html += ": "+scrollBarHTML("rot-"+id.toString(), r.name || "°", r.positive);
+                    g.own_div = 1;
+                    makeMoveFunc(g, r);
                 }
             }
         }
@@ -956,7 +1006,10 @@
         for (var id in group) {
             var g = group[id];
             if (g.move) {
-                scrollSet(id, 0.5);
+                scrollSet(id, g.move.positive ? 0 : 0.5);
+            }
+            if (g.rot && (g.rot.amount > 0)) {
+                scrollSet("rot-"+id.toString(), g.rot.positive ? 0 : 0.5);
             }
             if (g.scale) {
                 g.scale.cur = 1;
@@ -1244,11 +1297,24 @@
         change = 1;
     }
 
+    function showView()
+    {
+        var s =
+            "csg_vector_init(c->cam,\n"+
+            "    "+camPos[0]+", "+camPos[1]+", "+camPos[2]+");\n"+
+            "csg_mat4_init4(c->view,\n"+
+            "    "+matView[0]+", "+matView[4]+", "+matView[8] +", "+matView[12]+",\n"+
+            "    "+matView[1]+", "+matView[5]+", "+matView[9] +", "+matView[13]+",\n"+
+            "    "+matView[2]+", "+matView[6]+", "+matView[10]+", "+matView[14]+",\n"+
+            "    "+matView[3]+", "+matView[7]+", "+matView[11]+", "+matView[15]+");\n";
+        alert(s);
+    }
+
     function rotTop()
     {
         posChange();
-        mat4.identity(matView);
         camPos = camPos0.slice();
+        matView = matView0.slice();
     }
 
     function rotBottom()
@@ -1407,8 +1473,15 @@
                     else {
                         funN(pos, 0);
                     }
+                    if (g.rot && (g.rot.amount > 0)) {
+                        g.rot.set(funN(pos, g.rot.ratio));
+                    }
+                    else {
+                        funN(pos, 0);
+                    }
                 }
                 else {
+                    funN(pos, 0);
                     funN(pos, 0);
                     funN(pos, 0);
                 }
@@ -1519,6 +1592,9 @@
             if (g.move && !g.move.get) {
                 scrollSet(k, g.move.ratio);
             }
+            if (g.rot && (g.rot.amount > 0)) {
+                scrollSet("rot-"+k.toString(), g.rot.ratio);
+            }
         }
     }
 
@@ -1588,12 +1664,13 @@
             Reset
           </td>
           <td>
-            <button class="but" type="button" onclick="rotLeft()">&#xb7;=</button>
-            <button class="but" type="button" onclick="rotRight()">=&#xb7;</button>
+            <button class="but" type="button" onclick="rotLeft()">L</button>
+            <button class="but" type="button" onclick="rotRight()">R</button>
             <button class="but" type="button" onclick="rotTop()">&#x22a4;</button>
             <button class="but" type="button" onclick="rotBottom()">&#x22a5;</button>
-            <button class="but" type="button" onclick="rotFront()">&#x2a66;</button>
-            <button class="but" type="button" onclick="rotBack()">&#x2250;</button>
+            <button class="but" type="button" onclick="rotFront()">F</button>
+            <button class="but" type="button" onclick="rotBack()">B</button>
+            <button class="but" type="button" onclick="showView()">?</button>
           </td>
         </tr>
         <tr id="ctrl1">
@@ -1631,8 +1708,8 @@
             <button class="but" type="button" onclick="midMove(-camStep,0,0)">&#x2192;</button>
             <button class="but" type="button" onclick="midMove(0,-camStep,0)">&#x2191;</button>
             <button class="but" type="button" onclick="midMove(0,+camStep,0)">&#x2193;</button>
-            <button class="but" type="button" onclick="midMove(0,0,-camStep)">&#x2a5e;</button>
-            <button class="but" type="button" onclick="midMove(0,0,+camStep)">&#x2a62;</button>
+            <button class="but" type="button" onclick="midMove(0,0,-camStep)">F</button>
+            <button class="but" type="button" onclick="midMove(0,0,+camStep)">B</button>
           </td>
         </tr>
         <tr id="ctrl4">

@@ -1295,9 +1295,9 @@ static bool csg3_from_surface(
 
 static bool csg3_from_text(
     bool *no,
-    cp_v_obj_p_t *r,
+    cp_v_obj_p_t *r CP_UNUSED,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    mat_ctxt_t const *mo CP_UNUSED,
     cp_scad_text_t const *s)
 {
     if (c->context != IN2D) {
@@ -1306,6 +1306,7 @@ static bool csg3_from_text(
     }
     *no = true;
 
+#ifdef WITH_FONT
     cp_font_gc_t gc = {0};
 
     cp_font_t const *font = &cp_font_nozzl3_sans;
@@ -1414,6 +1415,7 @@ static bool csg3_from_text(
 
     /* push */
     cp_v_push(r, cp_obj(p));
+#endif /* WITH_FONT */
 
     return true;
 }

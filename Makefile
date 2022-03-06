@@ -4,6 +4,8 @@
 package_name := hob3l
 package_version := test
 
+WITH_FONT :=
+
 ######################################################################
 
 SHELL := /bin/sh
@@ -103,6 +105,9 @@ CFLAGS_DEBUG += -DNDEBUG
 endif
 ifeq ($(PSTRACE),1)
 CPPFLAGS_DEF += -DPSTRACE
+endif
+ifeq ($(WITH_FONT),1)
+CPPFLAGS_DEF += -DWITH_FONT
 endif
 
 CSTD=c11
@@ -262,8 +267,12 @@ MOD_C.libhob3l.a := \
     csg2-2js.c \
     csg2-2ps.c \
     ps.c \
-    gc.c \
+    gc.c
+
+ifeq ($(WITH_FONT),1)
+MOD_C.libhob3l.a += \
     font.c
+endif
 
 MOD_O.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.o))
 MOD_D.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.d))
@@ -340,10 +349,19 @@ bin: \
     hob3l.exe \
     out/hob3l-js-copy-aux
 
-lib: \
-    libhob3l.a \
-    libhob3lbase.a \
-    libhob3lfont.a
+LIB.hob3l.exe := \
+    hob3l \
+    hob3lbase
+
+ifeq ($(WITH_FONT),1)
+LIB.hob3l.exe += \
+    hob3lfont
+endif
+
+LIB_A.hob3l.exe := $(addsuffix $(_LIB), $(addprefix $(LIB_), $(LIB.hob3l.exe)))
+LIB_L.hob3l.exe := $(addprefix -l, $(LIB.hob3l.exe))
+
+lib: $(LIB_A.hob3l.exe)
 
 data: \
     $(addprefix out/,$(OUT_DATA))
@@ -414,8 +432,8 @@ libcptest.a: $(MOD_O.libcptest.a)
 	$(RANLIB) $@.new.a
 	mv $@.new.a $@
 
-hob3l.exe: $(MOD_O.hob3l.exe) libhob3l.a libhob3lbase.a libhob3lfont.a
-	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. -lhob3l -lhob3lbase -lhob3lfont $(LIBS) -lm $(CFLAGS)
+hob3l.exe: $(MOD_O.hob3l.exe) $(LIB_A.hob3l.exe)
+	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. $(LIB_L.hob3l.exe) $(LIBS) -lm $(CFLAGS)
 
 cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
 	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
@@ -665,9 +683,16 @@ install-data: installdirs-data
 	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
 	done
 
-install-lib: installdirs-lib
+install-font:
+
+ifeq ($(WITH_FONT),1)
+install-font: installdirs-lib
 	$(NORMAL_INSTALL)
 	$(INSTALL_DATA) libhob3lfont.a $(DESTDIR)$(libdir)/$(LIB_)hob3lfont$(_LIB)
+endif
+
+install-lib: installdirs-lib
+	$(NORMAL_INSTALL)
 	$(INSTALL_DATA) libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(INSTALL_DATA) libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 
@@ -687,6 +712,7 @@ install-include: installdirs-include
 uninstall:
 	$(NORMAL_UNINSTALL)
 	$(UNINSTALL) $(DESTDIR)$(bindir)/$(package_name)$(EXE)
+	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lfont$(_LIB)
 	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
 	for H in $(H_CPMAT); do \

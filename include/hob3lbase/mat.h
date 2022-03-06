@@ -79,11 +79,11 @@ extern cp_dim_t cp_mat4_det(
  * If (a-o) has length 0, the rotation into the Z axis will be skipped,
  * and the function will return false.
  *
- * If (b-o) has length 0, the rotation around the Z axis will be
- * skipped and the function will return false.
- *
  * If b is NULL, the rotation around the Z axis will be skipped and the
  * function will return true.
+ *
+ * If (b-o) has length 0 or is collinear to (0,0,1), the rotation around
+ * the Z axis will be skipped and the function will return false.
  *
  * Otherwise, the function returns true.
  */

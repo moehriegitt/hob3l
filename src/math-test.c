@@ -23,6 +23,11 @@ static void rot_math_test(void)
     cp_mat3wi_t m[1];
     cp_vec3_t v[1];
     bool b;
+    cp_mat3w_t i[1];
+    cp_stream_t *cerr = CP_STREAM_FROM_FILE(stderr);
+    cp_vec3_t const *mo;
+    cp_vec3_t const *ma;
+    cp_vec3_t const *mb;
 
     /* triviality test */
     b = cp_mat3wi_xform_into_zx(m,
@@ -91,40 +96,63 @@ static void rot_math_test(void)
         &CP_MAT3W(1,0,0,3, 0,1,0,4, 0,0,1,5)), true);
 
     /* rotation test */
-    b = cp_mat3wi_xform_into_zx(m,
-        &CP_VEC3(3,4,5),
-        &CP_VEC3(7,8,2),
-        NULL);
+    mo = &CP_VEC3(3,4,5);
+    ma = &CP_VEC3(7,8,2);
+    b = cp_mat3wi_xform_into_zx(m, mo, ma, NULL);
     TEST_EQ(b, true);
-    cp_vec3w_xform(v, &m->n, &CP_VEC3(3,4,5));
+    cp_vec3w_xform(v, &m->n, mo);
     fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
     TEST_EQ(cp_vec3_eq(v, &CP_VEC3(0,0,0)), true);
 
-    cp_vec3w_xform(v, &m->n, &CP_VEC3(7,8,2));
+    cp_vec3w_xform(v, &m->n, ma);
     fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
     TEST_EQ(cp_vec2_eq(&v->b, &CP_VEC2(0,0)), true);
 
     /* rotation test */
-    b = cp_mat3wi_xform_into_zx(m,
-        &CP_VEC3(3,4,5),
-        &CP_VEC3(7,8,2),
-        &CP_VEC3(17,2,3));
+    mo = &CP_VEC3(3,4,5);
+    ma = &CP_VEC3(7,8,2);
+    mb = &CP_VEC3(17,2,3);
+    b = cp_mat3wi_xform_into_zx(m, mo, ma, mb);
     TEST_EQ(b, true);
-    cp_vec3w_xform(v, &m->n, &CP_VEC3(3,4,5));
+    cp_vec3w_xform(v, &m->n, mo);
     fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
     TEST_EQ(cp_vec3_eq(v, &CP_VEC3(0,0,0)), true);
 
-    cp_vec3w_xform(v, &m->n, &CP_VEC3(7,8,2));
+    cp_vec3w_xform(v, &m->n, ma);
     fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
     TEST_EQ(cp_vec2_eq(&v->b, &CP_VEC2(0,0)), true);
 
-    cp_vec3w_xform(v, &m->n, &CP_VEC3(17,2,3));
+    cp_vec3w_xform(v, &m->n, mb);
     fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
     TEST_EQ(cp_eq(v->y, 0), true);
 
-    cp_mat3w_t i[1];
     cp_mat3w_inv(i, &m->n);
-    cp_stream_t *cerr = CP_STREAM_FROM_FILE(stderr);
+    fprintf(stderr, "i=\n");
+    cp_mat3w_put(cerr, i);
+    fprintf(stderr, "i'=\n");
+    cp_mat3w_put(cerr, &m->i);
+    TEST_EQ(cp_mat3w_eq(i, &m->i), true);
+
+    /* rotation test */
+    mo = &CP_VEC3(3,   4,   5);
+    ma = &CP_VEC3(7,   9,   5); /* 4, 5, 0 */
+    mb = &CP_VEC3(3-5, 4+4, 5);
+    b = cp_mat3wi_xform_into_zx(m, mo, ma, mb);
+    TEST_EQ(b, true);
+    cp_vec3w_xform(v, &m->n, mo);
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec3_eq(v, &CP_VEC3(0,0,0)), true);
+
+    cp_vec3w_xform(v, &m->n, ma);
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_vec2_eq(&v->b, &CP_VEC2(0,0)), true);
+
+    cp_vec3w_xform(v, &m->n, mb);
+    fprintf(stderr, "DEBUG: %g %g %g\n", v->x, v->y, v->z);
+    TEST_EQ(cp_eq(v->y, 0), true);
+    TEST_EQ(cp_eq(v->z, 0), true);
+
+    cp_mat3w_inv(i, &m->n);
     fprintf(stderr, "i=\n");
     cp_mat3w_put(cerr, i);
     fprintf(stderr, "i'=\n");

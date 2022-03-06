@@ -20,12 +20,6 @@ typedef double cp_f_t;
 
 #define cp_abs(x) fabs(x)
 
-typedef cp_f_t cp_dim_t;
-typedef cp_f_t cp_sqrdim_t;
-typedef cp_f_t cp_scale_t;
-typedef cp_f_t cp_det_t;
-typedef cp_f_t cp_angle_t;
-
 static inline cp_f_t cp_double(size_t u)
 {
 #if __SIZEOF_POINTER__ == 8
@@ -35,6 +29,12 @@ static inline cp_f_t cp_double(size_t u)
 }
 
 #define cp_f      cp_double
+
+typedef cp_f_t cp_dim_t;
+typedef cp_f_t cp_sqrdim_t;
+typedef cp_f_t cp_scale_t;
+typedef cp_f_t cp_det_t;
+typedef cp_f_t cp_angle_t;
 
 #define cp_dim    cp_f
 #define cp_sqrdim cp_f
