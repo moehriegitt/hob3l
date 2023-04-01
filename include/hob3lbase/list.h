@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_LIST_H_
 #define CP_LIST_H_
@@ -9,34 +9,6 @@
 #include <hob3lbase/list_tam.h>
 
 /* BEGIN MACRO * DO NOT EDIT, use 'mkmacro' instead. */
-
-/**
- * Insert a list between p and p->next.
- *
- * It will hold that p->next == n and
- * OLD(p->next)->prev == OLD(n->prev).
- *
- * For insertion of q between p and p->prev, just reverse the argument
- * order, i.e., use 'insert(q, p)'.
- */
-#define cp_list_insert(p,n) \
-    cp_list_insert_1_(CP_GENSYM(_l_n_neighIG), CP_GENSYM(_l_p_neighIG), \
-        CP_GENSYM(_nIG), CP_GENSYM(_pIG), (p), (n))
-
-#define cp_list_insert_1_(_l_n_neigh,_l_p_neigh,n,p,_p,_n) \
-    do{ \
-        __typeof__(*_p) *p = _p; \
-        __typeof__(*_n) *n = _n; \
-        assert(p != n); \
-        assert(p != NULL); \
-        assert(n != NULL); \
-        __typeof__(*p) *_l_p_neigh = p->next; \
-        __typeof__(*p) *_l_n_neigh = n->prev; \
-        n->prev = p; \
-        p->next = n; \
-        _l_p_neigh->prev = _l_n_neigh; \
-        _l_n_neigh->next = _l_p_neigh; \
-    }while(0)
 
 /**
  * Initialise a list.
@@ -58,30 +30,34 @@
     }while(0)
 
 /**
+ * Insert a list between p and p->next.
  * Split a list so that p becomes the predecessor of n.
  *
- * Splitting is only allowed if the split list has
- * more than two nodes.
+ *      ...a->n->b...    ...c->p->d...
+ * =>   ...a->d...       ...c->p->n->b...
  *
- * p and n can be the same, in which case this removes
- * the node from the other list.
+ * It will hold that p->next == n and
+ * OLD(p->next)->prev == OLD(n->prev).
+ *
+ * For insertion of q between p and p->prev, just reverse the argument
+ * order, i.e., use 'insert(q, p)'.
  */
-#define cp_list_split(p,n) \
-    cp_list_split_1_(CP_GENSYM(_l_npMN), CP_GENSYM(_l_pnMN), \
-        CP_GENSYM(_nMN), CP_GENSYM(_pMN), (p), (n))
+#define cp_list_chain(p,n) \
+    cp_list_chain_1_(CP_GENSYM(_l_npWB), CP_GENSYM(_l_pnWB), \
+        CP_GENSYM(_nWB), CP_GENSYM(_pWB), (p), (n))
 
-#define cp_list_split_1_(_l_np,_l_pn,n,p,_p,_n) \
+#define cp_list_chain_1_(_l_np,_l_pn,n,p,_p,_n) \
     do{ \
         __typeof__(*_p) *p = _p; \
         __typeof__(*_n) *n = _n; \
-        assert(n != NULL); \
         assert(p != NULL); \
-        __typeof__(*n) *_l_np = n->prev; \
-        __typeof__(*n) *_l_pn = p->next; \
+        assert(n != NULL); \
+        __typeof__(*p) *_l_pn = p->next; \
+        __typeof__(*p) *_l_np = n->prev; \
+        n->prev = p; \
+        p->next = n; \
         _l_pn->prev = _l_np; \
         _l_np->next = _l_pn; \
-        p->next = n; \
-        n->prev = p; \
     }while(0)
 
 /**
@@ -93,7 +69,7 @@
 #define cp_list_remove_1_(q,_q) \
     do{ \
         __typeof__(*_q) *q = _q; \
-        cp_list_split(q, q); \
+        cp_list_chain(q, q); \
     }while(0)
 
 /**
@@ -111,8 +87,8 @@
         cp_list_swap_( \
             q, \
             p, \
-            CP_PTRDIFF((char*)&q->next, (char*)q), \
-            CP_PTRDIFF((char*)&q->prev, (char*)q)); \
+            CP_MONUS((char*)&q->next, (char*)q), \
+            CP_MONUS((char*)&q->prev, (char*)q)); \
     }while(0)
 
 /**

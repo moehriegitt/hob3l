@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 /*
  * Original CLR red-black trees.
  *
@@ -14,7 +14,7 @@
 typedef struct cp_set {
     struct cp_set *parent;
     struct cp_set *edge[2];
-    size_t red;
+    size_t stat;
 } cp_dict_t;
 
 #endif /* CP_DICT_TAM_H_ */

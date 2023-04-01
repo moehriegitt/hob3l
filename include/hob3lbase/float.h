@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_FLOAT_H_
 #define CP_FLOAT_H_
@@ -28,7 +28,7 @@ static inline cp_f_t cp_double(size_t u)
     return (cp_f_t)u;
 }
 
-#define cp_f      cp_double
+#define cp_f cp_double
 
 typedef cp_f_t cp_dim_t;
 typedef cp_f_t cp_sqrdim_t;

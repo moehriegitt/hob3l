@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/panic.h>
@@ -103,7 +103,7 @@ static void block_list_fini(
         if (b == NULL) {
             break;
         }
-        CP_FREE(b);
+        CP_DELETE(b);
     }
 }
 
@@ -139,7 +139,7 @@ static cp_pool_block_t *block_next(
     }
 
     /* allocate new block */
-    b = cp_calloc(file, line, block_size, 1);
+    b = cp_calloc_(file, line, &cp_alloc_global, block_size, 1);
     assert(block_size > sizeof(*b));
 
     b->heap_size = block_size - sizeof(*b);
@@ -166,13 +166,13 @@ static void *try_block_calloc(
 
     size_t size = nmemb * size1;
 
-    if (CP_PTRDIFF(a->brk, a->heap) < size) {
+    if (CP_MONUS(a->brk, a->heap) < size) {
         return NULL;
     }
     char *new_brk = a->brk - size;
 
     size_t align_diff = cp_align_down_diff((size_t)new_brk, align);
-    if (CP_PTRDIFF(new_brk, a->heap) < align_diff) {
+    if (CP_MONUS(new_brk, a->heap) < align_diff) {
         return NULL;
     }
     a->brk = new_brk - align_diff;
@@ -245,3 +245,69 @@ extern void *cp_pool_calloc(
     }
     CP_DIE("allocator is broken");
 }
+
+static void *pool_calloc(
+    cp_alloc_t *m,
+    size_t a, size_t b)
+{
+    cp_pool_t *pool = CP_BOX_OF(m, *pool, alloc);
+    return cp_pool_calloc(CP_FILE, CP_LINE, pool, a, b,
+        cp_size_align(b | cp_alignof(max_align_t)));
+}
+
+static void *pool_malloc(cp_alloc_t *m, size_t a, size_t b)
+{
+    return pool_calloc(m, a, b);
+}
+
+static void pool_free(
+    cp_alloc_t *m CP_UNUSED,
+    void *p CP_UNUSED)
+{
+}
+
+static void *pool_remalloc(
+    cp_alloc_t *m,
+    void *p,
+    size_t ao, size_t an, size_t b)
+{
+    if (an <= ao) {
+        return p;
+    }
+    void *q = pool_calloc(m, an, b);
+    if (q != NULL) {
+        size_t osz = ao * b;
+        if (osz > 0) {
+            memcpy(q, p, osz);
+        }
+    }
+    return q;
+}
+
+static void *pool_recalloc(
+    cp_alloc_t *m,
+    void *p,
+    size_t ao, size_t an, size_t b)
+{
+    if (an <= ao) {
+        return p;
+    }
+    void *q = pool_calloc(m, an, b);
+    if (q != NULL) {
+        size_t osz = ao * b;
+        if (osz > 0) {
+            memcpy(q, p, osz);
+        }
+        size_t nsz = an * b;
+        memset((char*)q + osz, 0, nsz - osz);
+    }
+    return q;
+}
+
+cp_alloc_t const cp_alloc_pool_ = {
+    .x_malloc   = pool_malloc,
+    .x_calloc   = pool_calloc,
+    .x_remalloc = pool_remalloc,
+    .x_recalloc = pool_recalloc,
+    .x_free     = pool_free,
+};

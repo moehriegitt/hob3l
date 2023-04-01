@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/list.h>
@@ -54,7 +54,7 @@ static void show(num_t *base, num_t *start)
     num_t *n = start;
     fprintf(stderr, "LIST: ");
     for(;;) {
-        fprintf(stderr, "%"CP_Z"u->", CP_PTRDIFF(n, base));
+        fprintf(stderr, "%"CP_Z"u->", CP_MONUS(n, base));
         if (n->next == start) {
             break;
         }
@@ -94,7 +94,7 @@ extern void cp_list_test(void)
     TEST_EQ(n[1].next, &n[1]);
     TEST_EQ(n[1].prev, &n[1]);
 
-    TEST_VOID(cp_list_insert(&n[0], &n[1]));
+    TEST_VOID(cp_list_chain(&n[0], &n[1]));
 
     TEST_EQ(n[0].next, &n[1]);
     TEST_EQ(n[0].prev, &n[1]);
@@ -110,7 +110,7 @@ extern void cp_list_test(void)
 
     TEST_VOID(cp_list_init(&n[2]));
 
-    TEST_VOID(cp_list_insert(&n[0], &n[2]));
+    TEST_VOID(cp_list_chain(&n[0], &n[2]));
 
     TEST_EQ(n[0].next, &n[2]);
     TEST_EQ(n[0].prev, &n[1]);
@@ -131,12 +131,12 @@ extern void cp_list_test(void)
 
     TEST_VOID(cp_list_init(&n[3]));
 
-    TEST_VOID(cp_list_insert(&n[1], &n[3]));
+    TEST_VOID(cp_list_chain(&n[1], &n[3]));
     TEST_EQ(n[1].next, &n[3]);
     TEST_EQ(n[1].prev, &n[3]);
 
     /* insert([0]--2, [1]--3) == 0--1--3--2 */
-    TEST_VOID(cp_list_insert(&n[0], &n[1]));
+    TEST_VOID(cp_list_chain(&n[0], &n[1]));
 
     show(&n[0], &n[0]);
     TEST_ORDER4(&n[0], &n[1], &n[3], &n[2]);
@@ -150,17 +150,17 @@ extern void cp_list_test(void)
     show(&n[0], &n[0]);
     TEST_ORDER4(&n[0], &n[2], &n[1], &n[3]);
 
-    TEST_VOID(cp_list_split(&n[0], &n[3]));
+    TEST_VOID(cp_list_chain(&n[0], &n[3]));
     show(&n[0], &n[0]);
     show(&n[0], &n[1]);
     TEST_ORDER2(&n[0], &n[3]);
     TEST_ORDER2(&n[1], &n[2]);
 
-    TEST_VOID(cp_list_insert(&n[0], &n[1]));
+    TEST_VOID(cp_list_chain(&n[0], &n[1]));
     show(&n[0], &n[0]);
     TEST_ORDER4(&n[0], &n[1], &n[2], &n[3]);
 
-    TEST_VOID(cp_list_split(&n[0], &n[2]));
+    TEST_VOID(cp_list_chain(&n[0], &n[2]));
     show(&n[0], &n[0]);
     show(&n[0], &n[1]);
     TEST_ORDER3(&n[0], &n[2], &n[3]);

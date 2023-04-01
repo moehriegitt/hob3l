@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/def.h>
 #include <hob3lbase/ring.h>
@@ -86,11 +86,11 @@
 static void show(cp_ring_t *base, cp_ring_t *a, cp_ring_t *b)
 {
     fprintf(stderr, "RING: ");
-    fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(a, base));
+    fprintf(stderr, "%"CP_Z"u--", CP_MONUS(a, base));
     if (a != b) {
-        fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(b, base));
+        fprintf(stderr, "%"CP_Z"u--", CP_MONUS(b, base));
         for (cp_ring_each(n,a,b)) {
-            fprintf(stderr, "%"CP_Z"u--", CP_PTRDIFF(n, base));
+            fprintf(stderr, "%"CP_Z"u--", CP_MONUS(n, base));
             if (cp_ring_is_end(n)) {
                 fprintf(stderr, "|");
             }

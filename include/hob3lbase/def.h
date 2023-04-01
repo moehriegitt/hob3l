@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_DEF_H_
 #define CP_DEF_H_
@@ -16,8 +16,11 @@
 
 #define CP_UNUSED      __attribute__((__unused__))
 #define CP_NORETURN    __attribute__((__noreturn__))
+#define CP_WUR         __attribute__((__warn_unused_result__))
 #define CP_PRINTF(X,Y) __attribute__((__format__(__printf__,X,Y)))
 #define CP_VPRINTF(X)  __attribute__((__format__(__printf__,X,0)))
+
+#define CP_UNREACHABLE() __builtin_unreachable()
 
 #define CP_STATIC_ASSERT(x) _Static_assert(x,#x)
 
@@ -52,10 +55,10 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
  * not want that, I want size_t, and I will compile with -Wconversion,
  * so make that happen:
  */
-#define CP_PTRDIFF(a,b) \
-    CP_PTRDIFF_1_(CP_GENSYM(_a), CP_GENSYM(_b), (a), (b))
+#define CP_MONUS(a,b) \
+    CP_MONUS_1_(CP_GENSYM(_a), CP_GENSYM(_b), (a), (b))
 
-#define CP_PTRDIFF_1_(a, b, _a, _b) \
+#define CP_MONUS_1_(a, b, _a, _b) \
     ({ \
         __typeof__(*_a) const *a = _a; \
         __typeof__(*_b) const *b = _b; \
@@ -71,9 +74,17 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 #define CP_STRINGIFY_1_(x) CP_STRINGIFY_2_(x)
 #define CP_STRINGIFY(x)    CP_STRINGIFY_1_(x)
 
+/**
+ * Concatenate two symbolic tokens
+ */
 #define CP_CONCAT_3_(x,y) x##y
 #define CP_CONCAT_2_(x,y) CP_CONCAT_3_(x,y)
 #define CP_CONCAT(x,y) CP_CONCAT_2_(x,y)
+
+/**
+ * Concatenate three symbolic tokens
+ */
+#define CP_CONCAT3(x,y,z) CP_CONCAT(x,CP_CONCAT(y,z))
 
 #define cp_is_pow2(x) \
     ({ \
@@ -86,6 +97,43 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 #define cp_alignof(X) (__alignof__(X))
 
 #define cp_countof(a) (sizeof(a)/sizeof((a)[0]))
+
+/* binary search (bsearch is ugly) */
+#define cp_bfind_each(a,b,c, i,n) \
+    __typeof__((i)+(size_t)0) a = (i), b = a + (size_t)(n), c; \
+    (a < b) && (c = a + (((size_t)(b - a)) / 2), 1);
+
+#define cp_bfind_below(a,b,c) ({ b = c; continue; })
+#define cp_bfind_above(a,b,c) ({ a = c + 1; continue; })
+
+/* even more concise version to iterate a statically sized array */
+#define cp_bfind_arr_each(a,b,c, arr) \
+    cp_bfind_each(a,b,c, arr, cpb_countof(arr))
+
+#define CP_CMP_1_(a_, b_, _a, _b, _v,...) \
+    ({ \
+        __typeof__(0+_a) a_ = (_a); \
+        __typeof__(0+_b) b_ = (_b); \
+        int v_ = (_v); \
+        ((a_) < (b_) ? -(v_) : (a_) > (b_) ? +(v_) : 0); \
+    })
+
+/**
+ * The <=> (spaceship) operator.
+ */
+#define CP_CMP(a,...) CP_CMP_1_(CP_GENSYM(a1_), CP_GENSYM(b1_), a, __VA_ARGS__, 1, 0);
+
+#define CP_SIGN_1_(a_,v_,_a,_v,...) \
+    ({ \
+        __typeof__(0+_a) a_ = (_a); \
+        int v_ = (_v); \
+        ((a_) < 0 ? -(v_) : (a_) > 0 ? +(v_) : 0); \
+    })
+
+/**
+ * Get the sign of the value.  This is like x <=> 0.
+ */
+#define CP_SIGN(...) CP_SIGN_1_(CP_GENSYM(a1_),CP_GENSYM(v1_),__VA_ARGS__, 1)
 
 /**
  * Zero a structure and return the given pointer.
@@ -117,10 +165,8 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 /**
  * Swap two structures.
  *
- * This works for whole arrays, provided a pointer to an array
- * is passed.  If an array is passed as it, this will be reinterpreted
- * by C to be a pointer to the first element, so only the first
- * element is cleared.  This is a problem of the C language, sorry.
+ * As usual, arrays cannot be swapped, because of the limitations of the
+ * C language type system.
  */
 #define CP_SWAP(x,y) do{ \
         __typeof__(*(x)) *_xp = (x); \
@@ -138,6 +184,27 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
         __typeof__(b) _b = (b); \
         (_a + (_b - 1)) / _b; \
     })
+
+/**
+ * Minimum/maximum helper */
+#define CP_MINMAX_AUX_(op, v, ...) \
+({ \
+    __typeof__(v)     o_[] = { __VA_ARGS__ }; \
+    __typeof__((v)+0) v_ = (v); \
+    for (cq_arr_each(i_, o_)) { \
+        if (o_[i_] op v_) { v_ = o_[i_]; }; \
+    } \
+    v_; \
+})
+
+/**
+ * Find minimum of a list of things */
+#define CP_MIN(...) CP_MINMAX_AUX_(<, __VA_ARGS__)
+
+/**
+ * Find maximum of a list of things */
+#define CP_MAX(...) CP_MINMAX_AUX_(>, __VA_ARGS__)
+
 
 /**
  * Bit-clear, &~ operation without sign conversion issues
@@ -159,10 +226,20 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 
 /**
  * Helper macro to allow cp_range_each to have optional arguments.
+ *
+ * This iteration does not support cp_redo().
  */
 #define cp_size_each_1_(i,n,skipA,skipZ,...) \
     cp_size_each_2_( \
         CP_GENSYM(_skipZ), CP_GENSYM(_n), i, n, skipA, skipZ)
+
+/**
+ * Macro that can be used within some iterators to rerun
+ * the current iteration, i.e., do an loop termination
+ * check, but not advance the loop iterator, and then
+ * reexecute the loop body.
+ */
+#define cp_redo() ({ cp_advance_ = 0; continue; })
 
 /**
  * Iterator expression (for 'for') for a size_t iterator.
@@ -207,11 +284,7 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
  */
 #define cp_arr_each(i,...) cp_arr_each_1_(i, __VA_ARGS__, 0, 0)
 
-/**
- * Address of a surrouning container of an embedded substructure.
- *
- * P must not be NULL.  See CP_BOX0_OF() instead.
- */
+#if 0
 #define CP_BOX_OF(P,T,F) \
     CP_BOX_OF_1_(CP_GENSYM(_p), (P), T, F)
 
@@ -221,6 +294,30 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
         assert(_p != NULL); \
         ((__typeof__(T)*)(((size_t)_p) - cp_offsetof(__typeof__(T),F))); \
     })
+#else
+/**
+ * Address of a surrounding container of an embedded substructure.
+ *
+ * P must not be NULL.  See CP_BOX0_OF() instead.
+ */
+#define CP_BOX_OF(_val, _Target, _slot) \
+    CP_BOX_OF_1_(CP_GENSYM(val_), CP_GENSYM(val2_), CP_GENSYM(r_), CP_GENSYM(r2_), \
+        _val, _Target, _slot)
+
+#define CP_BOX_OF_1_(val_, val2_, r_, r2_, _val, _Target, _slot) \
+    ({ \
+        __typeof__(*(_val)) *val_ = (_val); \
+        typedef __typeof__(_Target) _Type; \
+        _Type *r_ = (_Type*)(((size_t)val_) - offsetof(_Type, _slot)); \
+        __auto_type r2_ = _Generic(0 ? val_ : (void*)1, \
+            void * : r_, \
+            void const * : (_Type const *)r_); \
+        __typeof__(*val_) *val2_ = _Generic(&r2_->_slot, \
+            __typeof__(*val_)* : &r2_->_slot, default : r2_->_slot); \
+        (void)val2_; \
+        r2_; \
+    })
+#endif
 
 /**
  * Version of CP_BOX_OF() that maps NULL to NULL.
@@ -269,6 +366,13 @@ typedef enum {
     CP_OP_SUB = 2,
     CP_OP_ADD = 3,
 } cp_bool_op_t;
+
+#define cp_alignof_minmax(x, min, max) cp_size_align((max) | (cp_alignof(x) & -(min)))
+
+static inline size_t cp_size_align(size_t x)
+{
+    return x & -x;
+}
 
 static inline bool strequ(char const *a, char const *b)
 {

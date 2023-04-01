@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_TAM_H_
 #define CP_CSG2_TAM_H_
@@ -7,6 +7,7 @@
 #include <hob3lbase/mat_tam.h>
 #include <hob3lbase/dict.h>
 #include <hob3lbase/err_tam.h>
+#include <hob3lbase/bool-bitmap_tam.h>
 #include <hob3l/csg_tam.h>
 #include <hob3l/csg2_fwd.h>
 #include <hob3l/csg3_fwd.h>
@@ -140,7 +141,7 @@ struct cp_csg2_poly {
     cp_v_vec2_loc_t point;
 
     /**
-     * Paths definingthe polygon.
+     * Paths defining the polygon.
      *
      * This should be equivalent information as in triangle.
      *
@@ -231,33 +232,18 @@ typedef struct {
 } cp_csg2_tree_t;
 
 /**
- * Maximum number of polygons to delay.
- */
-#define CP_CSG2_MAX_LAZY 10
-
-/**
- * Bitmap to store boolean function
- */
-typedef union {
-    unsigned char      b[((1U << CP_CSG2_MAX_LAZY) +  7) /  8];
-    unsigned short     s[((1U << CP_CSG2_MAX_LAZY) + 15) / 16];
-    unsigned int       i[((1U << CP_CSG2_MAX_LAZY) + 31) / 32];
-    unsigned long long w[((1U << CP_CSG2_MAX_LAZY) + 63) / 64];
-} cp_csg2_op_bitmap_t;
-
-/**
  * An unresolved polygon combination.
  */
 typedef struct {
     /** Number of polygons to be combined (valid entries in \a data) */
     size_t size;
     /** Polygons to be combined */
-    cp_csg2_poly_t *data[CP_CSG2_MAX_LAZY];
+    cp_csg2_poly_t *data[CP_BOOL_BITMAP_MAX_LAZY];
     /**
      * Boolean combination map to decide from a mask of inside bits for each
      * polygon whether the result is inside.  This is indexed bitwise with the
      * mask of bits.  The number of entries is (1U << size) bits. */
-    cp_csg2_op_bitmap_t comb;
+    cp_bool_bitmap_t comb;
 } cp_csg2_lazy_t;
 
 #endif /* CP_CSG2_TAM_H_ */

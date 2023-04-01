@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_MAT_H_
 #define CP_MAT_H_
@@ -52,59 +52,6 @@ extern bool cp_vec3_right_normal3(
  */
 extern cp_dim_t cp_mat4_det(
     cp_mat4_t const *m);
-
-/**
- * Make a matrix to rotate and translate into a different coordinate system.
- *
- * This returns a matrix 'into_z' that:
- *    - rotates the vector (a-o) into  the Z axis (using csg_mat4_rot_into_z),
- *    - moves o to (0,0,0), and
- *    - rotates (b-o) around Z into the X-Z plane; if (b-o) is
- *      perpendicular to (a-o), it rotates (b-o) into the X axis.
- *
- * This does not scale, i.e., the length of (a-o) and of (b-o) is irrelevant,
- * i.e., this function does not try to map (a-o) to (0,0,1), but it only
- * rotates and translates, mapping (a-o) to (0,0,k) for some k.  The same
- * holds for the secondary rotation of (b-o) into the X-Z plane.
- *
- * This function also returns the inverse 'from_z' of the matrix
- * described above.  The function can compute the inverse less numerically
- * instably than running a matrix inversion on 'into_z'.
- *
- * Both 'into_z' and 'from_z' may be NULL if the matrix and/or its inverse is
- * not needed.
- *
- * If o is NULL, it will be assumed to be equal to (0,0,0).
- *
- * If (a-o) has length 0, the rotation into the Z axis will be skipped,
- * and the function will return false.
- *
- * If b is NULL, the rotation around the Z axis will be skipped and the
- * function will return true.
- *
- * If (b-o) has length 0 or is collinear to (0,0,1), the rotation around
- * the Z axis will be skipped and the function will return false.
- *
- * Otherwise, the function returns true.
- */
-extern bool cp_mat3w_xform_into_zx_2(
-    cp_mat3w_t *into_z,
-    cp_mat3w_t *from_z,
-    cp_vec3_t const *o,
-    cp_vec3_t const *a,
-    cp_vec3_t const *b);
-
-/**
- * Same as cp_mat4_xform_into_zx_2 with a cp_mat4i_t target type.
- */
-static inline bool cp_mat3wi_xform_into_zx(
-    cp_mat3wi_t *m,
-    cp_vec3_t const *o,
-    cp_vec3_t const *a,
-    cp_vec3_t const *b)
-{
-    return cp_mat3w_xform_into_zx_2(&m->n, &m->i, o, a, b);
-}
 
 /**
  * Invserse of 4D matrix inverse.
@@ -561,6 +508,59 @@ extern void cp_vec2_nearest(
     cp_vec2_t const *p);
 
 /**
+ * Make a matrix to rotate and translate into a different coordinate system.
+ *
+ * This returns a matrix 'into_z' that:
+ *    - rotates the vector (a-o) into  the Z axis (using csg_mat4_rot_into_z),
+ *    - moves o to (0,0,0), and
+ *    - rotates (b-o) around Z into the X-Z plane; if (b-o) is
+ *      perpendicular to (a-o), it rotates (b-o) into the X axis.
+ *
+ * This does not scale, i.e., the length of (a-o) and of (b-o) is irrelevant,
+ * i.e., this function does not try to map (a-o) to (0,0,1), but it only
+ * rotates and translates, mapping (a-o) to (0,0,k) for some k.  The same
+ * holds for the secondary rotation of (b-o) into the X-Z plane.
+ *
+ * This function also returns the inverse 'from_z' of the matrix
+ * described above.  The function can compute the inverse less numerically
+ * instably than running a matrix inversion on 'into_z'.
+ *
+ * Both 'into_z' and 'from_z' may be NULL if the matrix and/or its inverse is
+ * not needed.
+ *
+ * If o is NULL, it will be assumed to be equal to (0,0,0).
+ *
+ * If (a-o) has length 0, the rotation into the Z axis will be skipped,
+ * and the function will return false.
+ *
+ * If b is NULL, the rotation around the Z axis will be skipped and the
+ * function will return true.
+ *
+ * If (b-o) has length 0 or is collinear to (0,0,1), the rotation around
+ * the Z axis will be skipped and the function will return false.
+ *
+ * Otherwise, the function returns true.
+ */
+extern bool cp_mat3w_xform_into_zx_2(
+    cp_mat3w_t *into_z2,
+    cp_mat3w_t *from_z,
+    cp_vec3_t const *o,
+    cp_vec3_t const *a,
+    cp_vec3_t const *b);
+
+/**
+ * Same as cp_mat4_xform_into_zx_2 with a cp_mat4i_t target type.
+ */
+static inline bool cp_mat3wi_xform_into_zx(
+    cp_mat3wi_t *m,
+    cp_vec3_t const *o,
+    cp_vec3_t const *a,
+    cp_vec3_t const *b)
+{
+    return cp_mat3w_xform_into_zx_2(&m->n, &m->i, o, a, b);
+}
+
+/**
  * Port side direction of the vector a-->b (i.e., the non-normalised 'normal')
  */
 static inline void cp_vec2_port(
@@ -626,10 +626,11 @@ static inline int cp_vec2_normal_z(
  * = cross_z (a - o, b - o)
  * Note: o is the center vertex of a three point path: a-o-b
  *
- * This gives negative z values when vertices of a convex polygon in
+ * This gives positive z values when vertices of a convex polygon in
  * the x-y plane are passed clockwise to this functions as a,o,b.
- * E.g. (1,0,0), (0,0,0), (0,1,0) gives (0,0,-1).  E.g., the cross3
- * product is right-handed.
+ * E.g. (1,0), (0,0), (0,1) gives +1: (1-0)*(1-0) - (0-0)*(0-0).
+ * E.g., the cross3_z product is right-handed (the normal cross
+ * product).
  */
 static inline cp_f_t cp_vec2_right_cross3_z(
     cp_vec2_t const *a,

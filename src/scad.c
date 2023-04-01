@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/vchar.h>
 #include <hob3lbase/mat.h>
@@ -91,7 +91,7 @@ static bool func_new_(
     };
     assert(type < cp_countof(size));
     assert(size[type] != 0);
-    cp_scad_t *r = cp_calloc(file, line, 1, size[type]);
+    cp_scad_t *r = cp_calloc_(file, line, &cp_alloc_global, 1, size[type]);
     *rp = r;
     r->type = type;
     r->loc = syn->loc;

@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
  * @file
@@ -7,6 +7,11 @@
  *
  * This allocates large blocks, has a very fast 'alloc', but not free.
  * Deallocation can only be done by destructing the whole allocator.
+ *
+ * Alternatively to CP_POOL_* API, the macros from alloc.h with the
+ * _ALLOC suffix can be used with pools by passing 'pool->alloc' as the
+ * memory allocator pointer.  This also works for 'vec.h' stuff (with
+ * _alloc suffix functions).
  */
 
 #ifndef CP_POOL_H_
@@ -15,10 +20,15 @@
 #include <hob3lbase/def.h>
 #include <hob3lbase/pool_tam.h>
 
-#define CP_POOL_NEW_ARR(p, x, n) \
-    ((__typeof__(x)*)cp_pool_calloc(CP_FILE, CP_LINE, p, n, sizeof(x), cp_alignof(x)))
+#define CP_POOL_NEW_ARR_PLUS(p, x, xp, n) \
+    ((__typeof__(x)*)cp_pool_calloc(CP_FILE, CP_LINE, p, n, \
+        sizeof(x) + (xp), \
+        cp_alignof_minmax(x, xp, cp_alignof(max_align_t))))
 
-#define CP_POOL_NEW(p, x) CP_POOL_NEW_ARR(p, x, 1)
+#define CP_POOL_NEW_ARR(p, x, n)   CP_POOL_NEW_ARR_PLUS(p, x, 0,  n)
+#define CP_POOL_NEW_PLUS(p, x, xp) CP_POOL_NEW_ARR_PLUS(p, x, xp, 1)
+
+#define CP_POOL_NEW(p, x)          CP_POOL_NEW_PLUS(p, x, 0)
 
 /**
  * Empty the allocator, i.e., throw away all content.
@@ -66,6 +76,8 @@ extern void *cp_pool_calloc(
     size_t size1,
     size_t align);
 
+extern cp_alloc_t const cp_alloc_pool_;
+
 /**
  * Initialises a new allocator together with a first block of memory to
  * allocate from.
@@ -77,6 +89,7 @@ static inline void cp_pool_init(
     cp_pool_t *pool)
 {
     CP_ZERO(pool);
+    *pool->alloc = cp_alloc_pool_;
 }
 
 #endif /*CP_POOL_H_ */

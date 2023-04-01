@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/list.h>
 
@@ -86,28 +86,6 @@ extern void cp_list_swap_(
 #ifdef CP_MACRO_
 
 /**
- * Insert a list between p and p->next.
- *
- * It will hold that p->next == n and
- * OLD(p->next)->prev == OLD(n->prev).
- *
- * For insertion of q between p and p->prev, just reverse the argument
- * order, i.e., use 'insert(q, p)'.
- */
-extern macro void cp_list_insert(val *p, val *n)
-{
-    assert(p != n);
-    assert(p != NULL);
-    assert(n != NULL);
-    __typeof__(*p) *_l_p_neigh = p->next;
-    __typeof__(*p) *_l_n_neigh = n->prev;
-    n->prev = p;
-    p->next = n;
-    _l_p_neigh->prev = _l_n_neigh;
-    _l_n_neigh->next = _l_p_neigh;
-}
-
-/**
  * Initialise a list.
  *
  * A list contains at least one node, which could be said
@@ -123,24 +101,30 @@ extern macro void cp_list_init(val *x)
 }
 
 /**
+ * Insert a list between p and p->next.
  * Split a list so that p becomes the predecessor of n.
  *
- * Splitting is only allowed if the split list has
- * more than two nodes.
+ *      ...a->n->b...    ...c->p->d...
+ * =>   ...a->d...       ...c->p->n->b...
  *
- * p and n can be the same, in which case this removes
- * the node from the other list.
+ * It will hold that p->next == n and
+ * OLD(p->next)->prev == OLD(n->prev).
+ *
+ * For insertion of q between p and p->prev, just reverse the argument
+ * order, i.e., use 'chain(q, p)'.
+ *
+ * For removal from a list, pass the same node twice: 'chain(n, n)'.
  */
-extern macro void cp_list_split(val *p, val *n)
+extern macro void cp_list_chain(val *p, val *n)
 {
-    assert(n != NULL);
     assert(p != NULL);
-    __typeof__(*n) *_l_np = n->prev;
-    __typeof__(*n) *_l_pn = p->next;
+    assert(n != NULL);
+    __typeof__(*p) *_l_pn = p->next;
+    __typeof__(*p) *_l_np = n->prev;
+    n->prev = p;
+    p->next = n;
     _l_pn->prev = _l_np;
     _l_np->next = _l_pn;
-    p->next = n;
-    n->prev = p;
 }
 
 /**
@@ -148,7 +132,7 @@ extern macro void cp_list_split(val *p, val *n)
  */
 extern macro void cp_list_remove(val *q)
 {
-    cp_list_split(q, q);
+    cp_list_chain(q, q);
 }
 
 /**
@@ -161,8 +145,8 @@ extern macro void cp_list_swap(val *q, val *p)
     cp_list_swap_(
         q,
         p,
-        CP_PTRDIFF((char*)&q->next, (char*)q),
-        CP_PTRDIFF((char*)&q->prev, (char*)q));
+        CP_MONUS((char*)&q->next, (char*)q),
+        CP_MONUS((char*)&q->prev, (char*)q));
 }
 
 /**

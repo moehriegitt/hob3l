@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
 #include <hob3lbase/mat.h>
@@ -296,7 +296,7 @@ static void my_at_exit(void)
 #ifdef PSTRACE
     if (cp_debug_ps != NULL) {
         cp_ps_doc_end(cp_debug_ps, cp_debug_ps_page_cnt, 0, 0, -1, -1);
-        CP_FREE(cp_debug_ps);
+        CP_DELETE(cp_debug_ps);
     }
     if (cp_debug_ps_file != NULL) {
         (void)fclose(cp_debug_ps_file);
@@ -507,7 +507,7 @@ static void parse_opt(
     key.n = strlen(key.s);
     char const *eq = strchr(key.s, '=');
     if (eq != NULL) {
-        key.n = CP_PTRDIFF(eq, key.s);
+        key.n = CP_MONUS(eq, key.s);
     }
 
     cp_get_opt_t *g =

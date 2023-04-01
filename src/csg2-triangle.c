@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #define DEBUG 0
 
@@ -159,7 +159,7 @@ static inline void list_free(ctxt_t *c, list_t *d)
     assert(d->next == d);
     assert(d->prev == d);
     d->node = NULL;
-    cp_list_insert(&c->list_free, d);
+    cp_list_chain(&c->list_free, d);
 }
 
 static void list_remove(ctxt_t *c, list_t *d)
@@ -892,8 +892,8 @@ static bool transition_proper_start(
     insert2_ey(c, ref, l, h);
 
     h->rm = l->rm = list_alloc(c, p);
-    cp_list_insert(&l->list, &h->list);
-    cp_list_insert(h->rm, &l->list);
+    cp_list_chain(&l->list, &h->list);
+    cp_list_chain(h->rm, &l->list);
 
     assert_active_pair(l, h);
 
@@ -931,7 +931,7 @@ static bool transition_bend(
     if (t->type == TOP) {
         LOG("TOP\n");
         edge_t *l = prev(t);
-        cp_list_insert(&t->list, lp);
+        cp_list_chain(&t->list, lp);
         l->rm = lp;
         chain_tri(c, lp, false);
         assert_active_pair(l, t);
@@ -942,7 +942,7 @@ static bool transition_bend(
         assert(t->type == BOT);
         LOG("BOT\n");
         edge_t *h = next(t);
-        cp_list_insert(lp, &t->list);
+        cp_list_chain(lp, &t->list);
         h->rm = lp;
         chain_tri(c, lp, true);
         assert_active_pair(t, h);
@@ -965,7 +965,7 @@ static bool transition_proper_end(
 
     list_t *lp = list_alloc(c, p);
 
-    cp_list_insert(&s->list, lp);
+    cp_list_chain(&s->list, lp);
     chain_tri(c, lp, false);
 
     list_remove(c, s->list.next);
@@ -1013,7 +1013,7 @@ static bool transition_improper_start(
     assert(s->rm == t->rm);
     node_t *rmn = get_li(s->rm);
 
-    cp_list_split(s->rm, &s->list);
+    cp_list_chain(s->rm, &s->list);
 
     bool same = (p->coord == s->rm->node->coord);
     if (same) {
@@ -1023,24 +1023,24 @@ static bool transition_improper_start(
 
     if (!same) {
         list_t *lph = list_alloc(c, p);
-        cp_list_insert(lph, &s->list);
+        cp_list_chain(lph, &s->list);
         s->rm = lph;
     }
     h->rm = s->rm;
-    cp_list_insert(&h->list, &s->list);
+    cp_list_chain(&h->list, &s->list);
 
     chain_tri(c, s->rm, true);
 
     /* make a copy of the list cell around t/s->rm */
     list_t *rml = list_alloc(c, rmn);
-    cp_list_insert(&t->list, rml);
+    cp_list_chain(&t->list, rml);
     if (!same) {
         list_t *lpl = list_alloc(c, p);
-        cp_list_insert(&t->list, lpl);
+        cp_list_chain(&t->list, lpl);
         t->rm = lpl;
     }
     l->rm = t->rm;
-    cp_list_insert(&t->list, &l->list);
+    cp_list_chain(&t->list, &l->list);
 
     chain_tri(c, t->rm, false);
 
@@ -1071,16 +1071,16 @@ static bool transition_improper_end(
 
     list_t *lp = list_alloc(c, p);
 
-    cp_list_insert(lp, &s->list);
+    cp_list_chain(lp, &s->list);
     chain_tri(c, lp, true);
     cp_list_remove(lp);
     cp_list_remove(&s->list);
 
-    cp_list_insert(&t->list, lp);
+    cp_list_chain(&t->list, lp);
     chain_tri(c, lp, false);
     cp_list_remove(&t->list);
 
-    cp_list_insert(&l->list, &h->list);
+    cp_list_chain(&l->list, &h->list);
     l->rm = h->rm = lp;
 
     cp_dict_remove(&s->node_ey, &c->ey);
@@ -1416,6 +1416,7 @@ static bool cp_csg2_tri_set(
 /* ********************************************************************** */
 /* extern */
 
+#if 0
 /**
  * Triangulate a single path.
  *
@@ -1424,7 +1425,7 @@ static bool cp_csg2_tri_set(
  *
  * Each polygon must be simple and there must be no intersecting edges
  * neither with the same polygon nor with any other polygon.
- * Polygons, however, may be fully contained with in other polygons,
+ * Polygons, however, may be fully contained within other polygons,
  * i.e., they must not intersect, but may fully overlap.
  *
  * Polygons are defined by setting up an array of nodes \p node.  The
@@ -1505,6 +1506,7 @@ extern bool cp_csg2_tri_path(
     cp_vec2_arr_ref_from_v_vec2_loc(&a2, &g->point);
     return cp_csg2_tri_set(tmp, t, &a2, &g->triangle, &a);
 }
+#endif /*0*/
 
 /**
  * Triangulate a single polygon.

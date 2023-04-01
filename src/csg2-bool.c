@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 /*
  * This is adapted from Francisco Martinez del Rio (2011), v1.4.1.
  * See: http://www4.ujaen.es/~fmartin/bool_op.html
@@ -48,10 +48,10 @@
 #include <hob3lbase/vec.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/obj.h>
+#include <hob3lbase/bool-bitmap.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
 #include <hob3l/ps.h>
-#include <hob3l/csg2-bitmap.h>
 #include "internal.h"
 
 typedef struct cp_path_ev cp_path_ev_t;
@@ -220,7 +220,7 @@ typedef struct {
     cp_list_t poly;
 
     /** Bool function bitmap */
-    cp_csg2_op_bitmap_t const *comb;
+    cp_bool_bitmap_t const *comb;
 
     /** Number of valid bits in comb */
     size_t comb_size;
@@ -540,14 +540,14 @@ static bool q_contains(
     ctxt_t *c,
     event_t *e)
 {
-    return cp_dict_maybe_member_of(&e->node_q, c->q);
+    return cp_dict_may_contain(c->q, &e->node_q);
 }
 
 static bool s_contains(
     ctxt_t *c,
     event_t *e)
 {
-    return cp_dict_maybe_member_of(&e->node_s, c->s);
+    return cp_dict_may_contain(c->s, &e->node_s);
 }
 
 /**
@@ -1883,7 +1883,7 @@ static char const *check_intersection(
     event_t **sev_ptr = sev;
     sev_ptr = add_sev(sev_ptr, el, eh);
     sev_ptr = add_sev(sev_ptr, ol, oh);
-    size_t sev_cnt = CP_PTRDIFF(sev_ptr, sev);
+    size_t sev_cnt = CP_MONUS(sev_ptr, sev);
     assert(sev_cnt >= 2);
     assert(sev_cnt <= cp_countof(sev));
 
@@ -2206,7 +2206,7 @@ static bool op_bitmap_get(
     size_t i)
 {
     assert(i < c->comb_size);
-    return cp_csg2_op_bitmap_get(c->comb, i);
+    return cp_bool_bitmap_get(c->comb, i);
 }
 
 static void ev_right(
@@ -2779,12 +2779,12 @@ extern void cp_csg2_op_lazy(
         r->data[r->size + i] = b->data[i];
     }
 
-    cp_csg2_op_bitmap_repeat(&r->comb, r->size, b->size);
-    cp_csg2_op_bitmap_spread(&b->comb, b->size, r->size);
+    cp_bool_bitmap_repeat(&r->comb, r->size, b->size);
+    cp_bool_bitmap_spread(&b->comb, b->size, r->size);
 
     r->size += b->size;
 
-    cp_csg2_op_bitmap_combine(&r->comb, &b->comb, r->size, op);
+    cp_bool_bitmap_combine(&r->comb, &b->comb, r->size, op);
 
 #ifndef NDEBUG
     /* clear with garbage to trigger bugs when accessed */

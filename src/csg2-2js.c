@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /*
  * # TODO for this module
@@ -570,5 +570,5 @@ extern void cp_csg2_tree_put_js(
     }
     scene_flush(c, s);
 
-    CP_FREE(c);
+    CP_DELETE(c);
 }

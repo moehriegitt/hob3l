@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/dict.h>
 #include <hob3lbase/pool.h>
@@ -241,7 +241,7 @@ static void tok_next(parse_t *p)
 {
     tok_next_aux(p);
     if (p->tok_type == T_ID) {
-        p->tok_type = sieve_id(p->tok_string, CP_PTRDIFF(p->lex_string, p->tok_string));
+        p->tok_type = sieve_id(p->tok_string, CP_MONUS(p->lex_string, p->tok_string));
     }
 }
 
@@ -514,7 +514,7 @@ static bool parse_text(
 
 static bool bin_skip(parse_t *p, size_t cnt)
 {
-    if (CP_PTRDIFF(p->lex_end, p->lex_string) < cnt) {
+    if (CP_MONUS(p->lex_end, p->lex_string) < cnt) {
         p->err->loc = p->lex_string;
         cp_vchar_printf(&p->err->msg, "STL binary file is too short.\n");
         return false;

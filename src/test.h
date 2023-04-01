@@ -26,6 +26,13 @@
         TEST_CHECK_(_res == (val), "(" #expr ") == " #val); \
     })
 
+#define TEST_LE(expr, val) \
+    ({ \
+        fprintf(stderr, "%s:%d: X %-20s<= %s\n", __FILE__, __LINE__, #val, #expr); \
+        __typeof__(expr) _res = (expr); \
+        TEST_CHECK_(_res <= (val), "(" #expr ") <= " #val); \
+    })
+
 #define TEST_NE(expr, val) \
     ({ \
         fprintf(stderr, "%s:%d: X %-20s!= %s\n", __FILE__, __LINE__, #val, #expr); \

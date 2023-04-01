@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3l/syn-msg.h>
 #include <hob3l/syn.h>
@@ -96,9 +96,9 @@ static void cp_syn_get_loc_src_aux(
     bool ok = format_source_line(
         post,
         &pos,
-        loc.orig + CP_PTRDIFF(token, loc.copy),
+        loc.orig + CP_MONUS(token, loc.copy),
         loc.orig,
-        CP_PTRDIFF(loc.orig_end, loc.orig));
+        CP_MONUS(loc.orig_end, loc.orig));
 
     cp_vchar_printf(pre, "%s:%"CP_Z"u:", cp_vchar_cstr(&loc.file->filename), loc.line+1);
     if (pos != CP_SIZE_MAX) {
@@ -169,9 +169,9 @@ extern bool cp_syn_get_loc(
 
             loc->orig =
                 f->content_orig.data +
-                CP_PTRDIFF(loc->copy, f->content.data);
+                CP_MONUS(loc->copy, f->content.data);
             loc->orig_end =
-                loc->orig + CP_PTRDIFF(loc->copy_end, loc->copy);
+                loc->orig + CP_MONUS(loc->copy_end, loc->copy);
 
             return true;
         }

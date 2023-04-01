@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG_TAM_H_
 #define CP_CSG_TAM_H_
@@ -116,7 +116,7 @@ struct cp_csg { CP_CSG_ };
 #define CP_CSG_OPT_DEFAULT \
     { \
         .layer_gap = -1, \
-        .max_simultaneous = CP_CSG2_MAX_LAZY, \
+        .max_simultaneous = CP_BOOL_BITMAP_MAX_LAZY, \
         .max_fn = 100, \
         .optimise = CP_CSG2_OPT_DEFAULT, \
         .color_rand = 0, \

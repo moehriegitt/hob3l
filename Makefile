@@ -1,5 +1,5 @@
 # -*- Mode: Makefile -*-
-# Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 package_name := hob3l
 package_version := test
@@ -228,8 +228,11 @@ MOD_C.libhob3lbase.a := \
     mat_gen_ext.c \
     mat_is_rot.c \
     arith.c \
+    alloc.c \
     algo.c \
+    bool-bitmap.c \
     vec.c \
+    heap.c \
     dict.c \
     list.c \
     ring.c \
@@ -256,10 +259,10 @@ MOD_C.libhob3l.a := \
     scad-2scad.c \
     csg3.c \
     csg3-2scad.c \
+    csg2.c \
     csg2-tree.c \
     csg2-layer.c \
     csg2-triangle.c \
-    csg2-bitmap.c \
     csg2-bool.c \
     csg2-hull.c \
     csg2-2scad.c \

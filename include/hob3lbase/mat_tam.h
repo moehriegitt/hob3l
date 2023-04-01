@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
  * @file
@@ -55,6 +55,7 @@ typedef struct {
     cp_vec2_t coord;
     cp_loc_t loc;
     cp_color_rgba_t color;
+    unsigned aux;
 } cp_vec2_loc_t;
 
 typedef CP_ARR_T(cp_vec2_loc_t) cp_a_vec2_loc_t;

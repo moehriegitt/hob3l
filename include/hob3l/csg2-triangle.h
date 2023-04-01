@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_TRIANGLE_H_
 #define CP_CSG2_TRIANGLE_H_
@@ -7,6 +7,74 @@
 #include <hob3lbase/stream_tam.h>
 #include <hob3lbase/pool_tam.h>
 #include <hob3l/csg2_tam.h>
+
+#if 0
+/*
+ * Triangulate a single path.
+ *
+ * This does not clear the list of triangles, but the new
+ * triangles are appended to the polygon's triangle vector.
+ *
+ * Each polygon must be simple and there must be no intersecting edges
+ * neither with the same polygon nor with any other polygon.
+ * Polygons, however, may be fully contained within other polygons,
+ * i.e., they must not intersect, but may fully overlap.
+ *
+ * Polygons are defined by setting up an array of nodes \p node.  The
+ * algorithm assumes that the structure was zeroed for initialisation
+ * and then each node's \a in, \a out, and \p point slots need to be
+ * initialised to represent the set of polygons.  The \p loc slot
+ * is optional (meaning it may remain NULL), but highly recommended
+ * for good error messages.
+ *
+ * Implicitly, edges need to be stored somewhere (they are pointed to
+ * by each node).  Each edge is also assumed to having been zeroed for
+ * initialisation.  The edges \p src and \p dst slots may be
+ * initialised, but do not need to be, as they will be initialised by
+ * the algorithm from each point's n->in and n->out information so
+ * that n->in->dst = n->out->src = n.
+ *
+ * This uses the Hertel & Mehlhorn (1983) algorithm (non-optimised).
+ *
+ * The algorithm is extended in several ways:
+ *
+ * (1) It also handles subsequent collinear edges, i.e., three (and more)
+ *     subsequent points in the polygon on the same line.  This
+ *     situation will introduce more triangles than necessary, however,
+ *     because each point will become a corner of a triangle.  This
+ *     is implemented by applying a 2 dimensional lexicographical
+ *     order to the points in the sweep line queue instead of the
+ *     original x-only order.
+ *
+ * (2) It also handles coincident vertices in the same polygon.  This
+ *     is what the CSG2 boolop algorithm outputs if the input is such
+ *     that points coincide.  There is no way to fix this: it is just
+ *     how the polygons are.  The boolop algorithm will never output
+ *     vertices in the middle of an edge, so the triangulation does
+ *     not need to handle that.  Also, I think no bends with coincident
+ *     edges will ever be output, so this is untested (and probably
+ *     will not work), only ends (proper and improper) and starts (proper
+ *     and improper) are tested.
+ *     This is implemented by again extending the sweep line point order
+ *     by considering the type or corner (first ends, then starts).
+ *     Additionally, the improper start case has a special case if vertices
+ *     coincide.
+ *
+ * Uses \p tmp for all temporary allocations (but not for constructing g).
+ *
+ * Runtime: O(n log n)
+ * Space: O(n)
+ * Where n = number of points.
+ */
+/*
+extern bool cp_csg2_tri_path(
+    cp_pool_t *tmp,
+    cp_err_t *t,
+    cp_csg2_poly_t *g,
+    cp_csg2_path_t *s);
+*/
+#endif /* 0 */
+
 
 /**
  * Triangulate a single path.
@@ -16,7 +84,7 @@
  *
  * Each polygon must be simple and there must be no intersecting edges
  * neither with the same polygon nor with any other polygon.
- * Polygons, however, may be fully contained with in other polygons,
+ * Polygons, however, may be fully contained within other polygons,
  * i.e., they must not intersect, but may fully overlap.
  *
  * Polygons are defined by setting up an array of nodes \p node.  The

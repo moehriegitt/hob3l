@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/mat.h>
 #include <hob3lbase/pool.h>
@@ -692,7 +692,7 @@ static size_t get_fn(
     return fn;
 }
 
-CP_UNUSED
+#if 0
 static double path_idx_cross3_z(
     cp_csg2_poly_t *p,
     cp_csg2_path_t *q,
@@ -705,6 +705,7 @@ static double path_idx_cross3_z(
         &cp_v_nth(&p->point, k).coord,
         &cp_v_nth(&p->point, n).coord);
 }
+#endif
 
 /**
  * Ensure that all paths of the polygon run clockwise.
@@ -1081,7 +1082,7 @@ static bool csg3_make_polyhedron_face(
     cp_scad_face_t const *sf,
     bool rev)
 {
-    /* 0 = no trangulation
+    /* 0 = no triangulation
      * 1 = use XY plane
      * 2 = use YZ plane */
     unsigned need_tri = 0;
@@ -1485,9 +1486,9 @@ static bool csg3_from_projection(
     assert(root != NULL);
 
     /* sweep (FIXME: should all be allocated in c2.tmp) */
-    CP_FREE(csg2);
-    CP_FREE(csg3->root);
-    CP_FREE(csg3);
+    CP_DELETE(csg2);
+    CP_DELETE(csg3->root);
+    CP_DELETE(csg3);
 
     /* return result */
     cp_v_push(r, cp_obj(root));
@@ -1997,7 +1998,7 @@ static bool csg3_from_linext(
         size_t const pcnt = q->point_idx.size;
         size_t const tcnt = (zcnt * pcnt) + is_cone;
 
-        /* possibly concave faces: handled by faces_n_edge_from_tower. */
+        /* possibly concave faces: handled by faces_n_edges_from_tower. */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
         cp_v_init0(&o->point, tcnt);
         for (cp_size_each(k, zcnt)) {
@@ -2259,7 +2260,7 @@ static bool rotext_arc(
 
     if (!poly_make_edges(p3, c)) {
          /* FIXME: properly destruct */
-        CP_FREE(p3);
+        CP_DELETE(p3);
         return msg(c, CP_ERR_FAIL, NULL, NULL,
             " Internal Error: 'rotate_extrude' polyhedron construction algorithm is broken.\n");
     }

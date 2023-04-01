@@ -1,5 +1,5 @@
 #! /usr/bin/perl
-# Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 # I started to write the mat.h and related files in pure C, and it was
 # OK at the beginning with some makro majik.  But I added more and
