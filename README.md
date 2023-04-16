@@ -283,13 +283,19 @@ To compile with the standard 'gcc', whatever that is, for x86:
 To compile with gcc for x86_64 (e.g., 64 bit x86 Linux):
 
 ```
-    make TARGET=nix64
+    make TARGET=gcc64
 ```
 
 To compile with gcc for i686 (e.g., 32 bit x86 Linux):
 
 ```
-    make TARGET=nix32
+    make TARGET=gcc32
+```
+
+To compile with Clang:
+
+```
+    make TARGET=clang
 ```
 
 To cross compile for Windows 64 using MingW:
@@ -304,6 +310,12 @@ To cross compile for Windows 32 using MingW:
     make TARGET=win32
 ```
 
+You can set the exact compiler name by overriding `CC`:
+
+```
+    make TARGET=win32 CC=my-funny-mingw-gcc
+```
+
 ### Tweaking Compiler Settings
 
 The Makefile has more settings that can be used to switch to other compilers
@@ -314,7 +326,7 @@ The most likely ones you may want to change are the following (listed
 with their default setting):
 
 ```
-CFLAGS_ARCH  := -march=core2 -mfpmath=sse
+CFLAGS_ARCH  := -march=native
 ```
 
 ## Running Tests
