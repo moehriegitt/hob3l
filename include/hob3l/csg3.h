@@ -40,7 +40,7 @@
  * Returns whether there the structure is non-empty, i.e.,
  * whether bb has been updated.
  */
-extern void cp_csg3_tree_bb(
+extern void cp_csg3_tree_minmax(
     cp_vec3_minmax_t *bb,
     cp_csg3_tree_t const *r,
     bool max);

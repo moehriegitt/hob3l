@@ -5,7 +5,7 @@
 #define CP_ALLOC_H_
 
 #include <stdlib.h>
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/alloc_tam.h>
 

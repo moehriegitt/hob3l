@@ -32,13 +32,13 @@ sharedstatedir   := $(prefix)/com
 localstatedir    := $(prefix)/var
 
 datadir          := $(datarootdir)
-docdir           := $(datarootdir)/doc/$(package_dir)
+docdir           := $(datarootdir)/doc/hob3l
 infodir          := $(datarootdir)/info
 localedir        := $(datarootdir)/locale
 mandir           := $(datarootdir)/man
 lispdir          := $(datarootdir)/emacs/site-lisp
 
-pkgdatadir       := $(datadir)/$(package_dir)
+pkgdatadir       := $(datadir)/hob3l
 
 htmldir          := $(docdir)
 dvidir           := $(docdir)

@@ -1,0 +1,700 @@
+#! /usr/bin/env perl
+
+use strict;
+use warnings;
+use utf8;
+use Data::Dumper;
+use POSIX;
+
+sub parse_peek($)
+{
+    my ($c) = @_;
+    return '' if $c->{i} >= scalar(@{ $c->{s} });
+    return $c->{s}[$c->{i}];
+}
+
+sub parse_next($)
+{
+    my ($c) = @_;
+    die if parse_peek($c) eq '';
+    $c->{i}++;
+}
+
+sub parse_id($)
+{
+    my ($c) = @_;
+    my $n = parse_peek($c);
+    die unless $n =~ /^[_a-z]/i;
+    parse_next($c);
+    return $n;
+}
+
+sub parse_expect($$)
+{
+    my ($c, $what) = @_;
+    my $n = parse_peek($c);
+    die "ERROR: expected '$what', found a'$n'" unless $n eq $what;
+    parse_next($c);
+}
+
+sub parse_num($)
+{
+    my ($c) = @_;
+    my $n = parse_peek($c);
+    die unless $n =~ /^[-.0-9]/;
+    parse_next($c);
+    return $n;
+}
+
+sub parse_num3($)
+{
+    my ($c) = @_;
+    my $v0 = parse_num($c);
+    my $v1 = parse_num($c);
+    my $v2 = parse_num($c);
+    return [ $v0, $v1, $v2 ];
+}
+
+sub parse_vertex($)
+{
+    my ($c) = @_;
+    parse_expect($c, 'vertex');
+    return parse_num3($c);
+}
+
+sub parse_facet($)
+{
+    my ($c) = @_;
+    return unless parse_peek($c) eq 'facet';
+    parse_expect($c, 'facet');
+
+    parse_expect($c, 'normal');
+    my $normal = parse_num3($c);
+
+    parse_expect($c, 'outer');
+    parse_expect($c, 'loop');
+
+    my $v = [];
+    push @$v, parse_vertex($c);
+    push @$v, parse_vertex($c);
+    push @$v, parse_vertex($c);
+
+    parse_expect($c, 'endloop');
+
+    parse_expect($c, 'endfacet');
+    return $v;
+}
+
+sub parse_stl($)
+{
+    my ($c) = @_;
+    parse_expect($c, 'solid');
+    my $name = parse_id($c);
+    my $facet = [];
+    for (;;) {
+        my $f = parse_facet($c);
+        last unless $f;
+        push @$facet, $f;
+    }
+    parse_expect($c, 'endsolid');
+    parse_expect($c, $name);
+    die unless parse_peek($c) eq '';
+    return {
+        type => 'poly3',
+        faces => $facet,
+    };
+}
+
+######################################################################
+
+sub parse_fig_getline($)
+{
+    my ($c) = @_;
+    return if $c->{i} >= @{ $c->{s} };
+    my $s = $c->{s}[$c->{i}++];
+    while (($c->{i} < @{ $c->{s} }) && ($c->{s}[$c->{i}] =~ /^\t/)) {
+        $s .= "\n".$c->{s}[$c->{i}++];
+    }
+    return $s;
+}
+
+sub parse_fig_body($$);
+sub parse_fig_body($$)
+{
+    my ($c, $e) = @_;
+    CMD: while (defined(my $l = parse_fig_getline($c))) {
+        my ($cmd, $subcmd, $linestyle, $width, $colour, $p6, $depth, @l) = split /\s+/, $l;
+        if (($cmd == 2) &&
+            (($subcmd == 1) || ($subcmd == 3)) &&
+            ($linestyle == 0))
+        {
+            my ($p8, $p9, $p10, $p11, $p12, $p13, $p14, $p15, $cnt, @coord) = @l;
+            my @v = ();
+            for my $i (1..$cnt) {
+                my $y = pop @coord;
+                my $x = pop @coord;
+                push @v, [ $x, -$y ];
+            }
+            for my $i (1..$cnt-1) {
+                my $j = $i-1;
+                push @{ $e->{edges} }, [ $v[$i], $v[$j] ];
+            }
+        }
+        elsif (($cmd == 2) && ($subcmd == 2) &&
+               ($linestyle == 1) && ($colour == 1) && ($depth == 99))
+        {
+            my ($p8, $p9, $p10, $p11, $p12, $p13, $p14, $p15, $cnt, @coord) = @l;
+            if ($cnt == 5) {
+                my ($ax, $ay, $bx, $by, $cx, $cy, $dx, $dy, $ex, $ey) = @coord;
+                my @x = sort { $a <=> $b }  $ax,  $bx,  $cx,  $dx,  $ex;
+                my @y = sort { $a <=> $b } -$ay, -$by, -$cy, -$dy, -$ey;
+                my $sx = $x[-1] - $x[0];
+                my $sy = $y[-1] - $y[0];
+                $e->{unit} = [ $x[0], $y[0], $sx, $sy ];
+            }
+        }
+        elsif ($cmd == 6) {
+            parse_fig_body($c, $e);
+        }
+        elsif ($cmd == -6) {
+            last CMD;
+        }
+    }
+}
+
+sub parse_fig($)
+{
+    my ($c) = @_;
+    my $head = parse_fig_getline($c);
+    die "#FIG expected" unless $head =~ /^#FIG\s+/;
+    my $scape   = parse_fig_getline($c);
+    my $gravity = parse_fig_getline($c);
+    my $units   = parse_fig_getline($c);
+    my $paper   = parse_fig_getline($c);
+    my $magnify = parse_fig_getline($c);
+    my $iple    = parse_fig_getline($c);
+    my $param1  = parse_fig_getline($c);
+    my $unit    = parse_fig_getline($c);
+    my $e = {
+        type => 'poly2',
+        edges => [],
+    };
+    parse_fig_body($c, $e);
+    if (my $u = $e->{unit}) {
+        my ($ox, $oy, $sx, $sy) = @$u;
+        for my $edge (@{ $e->{edges} }) {
+            for my $v (@$edge) {
+                my ($x,$y) = @$v;
+                my $x2 = floor(0.00001 + (($x - $ox) / $sx));
+                my $y2 = floor(0.00001 + (($y - $oy) / $sy));
+                $v = [$x2,$y2];
+            }
+        }
+    }
+    return $e;
+}
+
+######################################################################
+
+sub parse_scad_error($$)
+{
+    my ($c, $msg) = @_;
+    unless (defined pos($c->{s})) {
+        die "$c->{fn}: ERROR: parse error at unknown location: $msg\n";
+    }
+
+    # line number:
+    my $pre = substr($c->{s}, 0, pos($c->{s}));
+    my $lno = 1 + ($pre =~ tr(\n)(\n));
+
+    # show error line:
+    my $ind = '    ';
+    my $s = undef;
+    my $ptr = '';
+    if ($c->{s} =~ m(\s*((.*)\G.*))gc) {
+        $s = $1;
+        my $l = length($2);
+        my $pp = '';
+        if ($l > 30) {
+            $s = "...".substr($s, $l - 30);
+            $pp = '   ';
+            $l = 30;
+        }
+        if (length($s) > 70) {
+            $s = substr($s, 0, 70)."...";
+        }
+        $ptr = $ind.$pp.(' ' x $l)."^\n";
+    }
+    else {
+        $s = "...".substr($c->{s}, pos($c->{s}));
+        $s =~ s(\n.*)()s;
+    }
+
+    die "$c->{fn}:$lno: ERROR: parse error: $msg\n$ind$s\n$ptr";
+}
+
+sub parse_scad_try($@)
+{
+    my ($c, @them) = @_;
+    for my $it (@them) {
+        STEP: for (;;) {
+            if ($c->{s} =~ m(\G\s*)gc) {}
+            elsif ($c->{s} =~ m(\G//.*)gc) {}
+            elsif ($c->{s} =~ m(\G\Q$it\E)gc) {
+                last STEP;
+            }
+            else {
+                return;
+            }
+        }
+    }
+    return 1;
+}
+
+sub parse_scad_try_int($)
+{
+    my ($c) = @_;
+    for (;;) {
+        if ($c->{s} =~ m(\G\s*)gc) {}
+        elsif ($c->{s} =~ m(\G//.*)gc) {}
+        elsif ($c->{s} =~ m(\G[-+]?[0-9]+)gc) {
+            return 0+$&;
+        }
+        else {
+            return;
+        }
+    }
+}
+
+sub parse_scad_int($)
+{
+    my ($c) = @_;
+    my @v = parse_scad_try_int($c);
+    parse_scad_error($c, "expected integer") unless @v;
+    return @v;
+}
+
+sub parse_scad_try_num($)
+{
+    my ($c) = @_;
+    for (;;) {
+        if ($c->{s} =~ m(\G\s*)gc) {}
+        elsif ($c->{s} =~ m(\G//.*)gc) {}
+        elsif ($c->{s} =~ m(\G[-+]?[0-9]+(?:[.][0-9]+)?(?:e[-+]?[0-9]+)?)gci) {
+            return $&;
+        }
+        else {
+            return;
+        }
+    }
+}
+
+sub parse_scad_num($)
+{
+    my ($c) = @_;
+    my @v = parse_scad_try_num($c);
+    parse_scad_error($c, "expected number") unless @v;
+    return @v;
+}
+
+sub parse_scad_vec3($)
+{
+    my ($c) = @_;
+    my @v;
+    parse_scad_expect($c, '[');
+    push @v, parse_scad_num($c);
+    parse_scad_expect($c, ',');
+    push @v, parse_scad_num($c);
+    parse_scad_expect($c, ',');
+    push @v, parse_scad_num($c);
+    parse_scad_expect($c, ']');
+    return [@v];
+}
+
+sub parse_scad_expect($@)
+{
+    my ($c, @them) = @_;
+    for my $it (@them) {
+        parse_scad_try($c, $it) or parse_scad_error($c, "expected '$it'");
+    }
+}
+
+sub parse_scad_union($)
+{
+    my ($c) = @_;
+    parse_scad_expect($c, '(', ')', '{');
+    my $g = parse_scad_body($c);
+    parse_scad_expect($c, '}');
+    return $g;
+}
+
+sub parse_scad_difference($)
+{
+    my ($c) = @_;
+    parse_scad_expect($c, '(', ')');
+    my @body;
+    if (parse_scad_try($c, ';')) {}
+    else {
+        parse_scad_expect($c, '{');
+        parse_scad_items(\@body, $c);
+        parse_scad_expect($c, '}');
+    }
+    unless (@body) {
+        return { type => 'add', item => [] };
+    }
+    my $first = shift @body;
+    unless (@body) {
+        return $first;
+    }
+    return {
+        type => 'sub',
+        first => $first,
+        other => \@body,
+    };
+}
+
+sub parse_scad_list($$)
+{
+    my ($c, $cb) = @_;
+    my @list = ();
+    parse_scad_expect($c, '[');
+    unless (parse_scad_try($c, ']')) {
+        VAL: for (;;) {
+            push @list, $cb->($c);
+            if (parse_scad_try($c, ']')) {
+                last VAL;
+            }
+            parse_scad_expect($c, ',');
+        }
+    }
+    return \@list;
+}
+
+sub parse_scad_list_int($)
+{
+    my ($c) = @_;
+    return parse_scad_list($c, \&parse_scad_int);
+}
+
+sub parse_scad_polyhedron($)
+{
+    my ($c) = @_;
+    parse_scad_expect($c, '(');
+    my $points = undef;
+    my $faces  = undef;
+    unless (parse_scad_try($c, ')')) {
+        ATTR: for (;;) {
+            if (!$points && parse_scad_try($c, 'points')) {
+                parse_scad_expect($c, '=');
+                $points = parse_scad_list($c, \&parse_scad_vec3);
+            }
+            elsif (!$faces && parse_scad_try($c, 'faces')) {
+                parse_scad_expect($c, '=');
+                $faces = parse_scad_list($c, \&parse_scad_list_int);
+            }
+            else {
+                parse_scad_error($c, "expected 'points', 'faces', or ')'");
+            }
+            if (parse_scad_try($c, ')')) {
+                last ATTR;
+            }
+            parse_scad_expect($c, ',');
+        }
+    }
+    parse_scad_error($c, "missing 'points'") unless $points;
+    parse_scad_error($c, "missing 'faces'")  unless $faces;
+
+    # empty body:
+    parse_scad_try($c, ';') || parse_scad_expect($c, '{', '}');
+
+    return {
+        type => 'poly3',
+        faces => [
+            map {
+                [
+                    map {
+                        $points->[$_]
+                    }
+                    @$_
+                ];
+            }
+            @$faces
+        ],
+    };
+}
+
+sub parse_scad_items($$)
+{
+    my ($body, $c) = @_;
+    while (pos($c->{s}) < length($c->{s})) {
+        if ($c->{s} =~ m(\G\s+)gc) {}
+        elsif ($c->{s} =~ m(\G//.*)gc) {}
+        elsif ($c->{s} =~ m(\Gunion\b)gc) {
+            push @$body, parse_scad_union($c);
+        }
+        elsif ($c->{s} =~ m(\Gdifference\b)gc) {
+            push @$body, parse_scad_difference($c);
+        }
+        elsif ($c->{s} =~ m(\Gpolyhedron\b)gc) {
+            push @$body, parse_scad_polyhedron($c);
+        }
+        elsif ($c->{s} =~ m(\G(?=}))gc) {
+            # before }, return; do not consume the } (i.e., use (?=...)).
+            return;
+        }
+        else {
+            parse_scad_error($c, "expected new item or }");
+        }
+    }
+}
+
+sub parse_scad_body($)
+{
+    my ($c) = @_;
+    my @body;
+    parse_scad_items(\@body, $c);
+    if (@body == 1) {
+        return $body[0];
+    }
+    return {
+        type => 'add',
+        item => \@body
+    };
+}
+
+sub parse_scad($)
+{
+    my ($c) = @_;
+    pos($c->{s}) = 0;
+    return parse_scad_body($c);
+}
+
+######################################################################
+
+sub dump_csg($$);
+
+sub mknorm($)
+{
+    my ($x) = @_;
+    return int($x * 0x7fffffff);
+}
+
+sub mkdim($)
+{
+    my ($x) = @_;
+    return int($x * 180000);
+}
+
+sub str_vec3($)
+{
+    my ($x) = @_;
+    my @c = map { mkdim($_) } @$x;
+    return "{ .x = $c[0], .y = $c[1], .z = $c[2] }";
+}
+
+sub str_tri3($)
+{
+    my ($x) = @_;
+    return "  {\n".
+        "    .a = ".str_vec3($x->[0]).",\n".
+        "    .b = ".str_vec3($x->[1]).",\n".
+        "    .c = ".str_vec3($x->[2])." }"
+
+}
+
+#sub dump_poly3tri($$)
+#{
+#    my ($name, $stl) = @_;
+#    print "static cq_tri3_t ${name}_data[] = {\n";
+#    for my $f (@{ $stl->{triangles} }) {
+#        print str_tri3($f->{vertex}).",\n";
+#    }
+#    print "};\n";
+#
+#    my $cnt = scalar(@{ $stl->{triangles} });
+#    print "static cq_v_tri3_t ${name}_vtri3 = {\n";
+#    print ".data = ${name}_data,\n";
+#    print ".size = $cnt,\n";
+#    print ".alloc = $cnt,\n";
+#    print "};\n";
+#
+#    print "static cq_csg3_t ${name} = {\n";
+#    print ".type = CQ_TYPE_VTRI3,\n";
+#    print ".data = \&${name}_vtri3,\n";
+#    print ".size = 1,\n";
+#    print "};\n";
+#}
+
+sub dump_face3($$;$)
+{
+    my ($name, $x, $data_only) = @_;
+
+    print "static cq_vec3_t ${name}_data[] = {\n";
+    for my $v (@$x) {
+        print str_vec3($v);
+        print ",\n";
+    }
+    print "};\n";
+
+    unless ($data_only) {
+        my $cnt = scalar(@$x);
+        print "static cq_v_vec3_t ${name} = {\n";
+        print ".data = ${name}_data,\n";
+        print ".size = $cnt,\n";
+        print ".alloc = 0,\n";
+        print "};\n";
+    }
+}
+
+sub dump_poly3($$)
+{
+    my ($name, $stl) = @_;
+    my $i = 0;
+    for my $f (@{ $stl->{faces} }) {
+        dump_face3("${name}_${i}", $f, 1);
+        $i++;
+    }
+
+    print "static cq_v_vec3_t ${name}_data[] = {\n";
+    $i = 0;
+    for my $f (@{ $stl->{faces} }) {
+        my $data = "${name}_${i}_data";
+        print "{ .data = ${data}, .size = cp_countof(${data}), .alloc = 0 },\n";
+        $i++;
+    }
+    print "};\n";
+
+    my $cnt = scalar(@{ $stl->{faces} });
+    print "static cq_v_v_vec3_t ${name}_vvvec3 = {\n";
+    print ".data = ${name}_data,\n";
+    print ".size = $cnt,\n";
+    print ".alloc = 0,\n";
+    print "};\n";
+
+    print "static cq_csg3_t ${name} = {\n";
+    print ".type = CQ_TYPE_VVVEC3,\n";
+    print ".data = \&${name}_vvvec3,\n";
+    print ".size = 1,\n";
+    print "};\n";
+}
+
+sub dump_poly2($$)
+{
+    my ($name, $stl) = @_;
+
+    print "static cq_line2_t ${name}_data[] = {\n";
+    for my $f (@{ $stl->{edges} }) {
+        my ($v, $w) = @$f;
+        my ($vx, $vy) = @$v;
+        my ($wx, $wy) = @$w;
+        print "{ .a = { .x = $vx, .y = $vy }, .b = { .x = $wx, .y = $wy } },\n";
+    }
+    print "};\n";
+
+    print "static cq_v_line2_t ${name}_vline2 = {\n";
+    print ".data = ${name}_data,\n";
+    print ".size = cp_countof(${name}_data),\n";
+    print ".alloc = 0,\n";
+    print "};\n";
+
+    print "static cq_csg3_t ${name} = {\n";
+    print ".type = CQ_TYPE_VLINE2,\n";
+    print ".data = \&${name}_vline2,\n";
+    print ".size = 1,\n";
+    print "};\n";
+}
+
+sub dump_many($@)
+{
+    my ($name, @x) = @_;
+
+    my $i = 0;
+    for my $x (@x) {
+        dump_csg("${name}_$i", $x);
+        $i++;
+    }
+
+    print "static cq_csg3_t *${name}[] = {\n";
+    $i = 0;
+    for my $x (@x) {
+        print "\&${name}_$i,\n";
+        $i++;
+    }
+    print "};\n";
+}
+
+sub dump_sub($$)
+{
+    my ($name, $x) = @_;
+
+    dump_many("${name}_data", $x->{first}, @{ $x->{other} });
+
+    print "static cq_csg3_t ${name} = {\n";
+    print ".type = CQ_TYPE_SUB,\n";
+    print ".data = ${name}_data,\n";
+    print ".size = cp_countof(${name}_data),\n";
+    print "};\n";
+}
+
+sub dump_add($$)
+{
+    my ($name, $x) = @_;
+
+    dump_many("${name}_data", @{ $x->{item} });
+
+    print "static cq_csg3_t ${name} = {\n";
+    print ".type = CQ_TYPE_ADD,\n";
+    print ".data = ${name}_data,\n";
+    print ".size = cp_countof(${name}_data),\n";
+    print "};\n";
+}
+
+my %dump_cb = (
+    poly3tri => \&dump_poly3tri,
+    poly3    => \&dump_poly3,
+    poly2    => \&dump_poly2,
+    'sub'    => \&dump_sub,
+    'add'    => \&dump_add,
+);
+
+sub dump_csg($$)
+{
+    my ($name, $x) = @_;
+    my $cb = $dump_cb{$x->{type}} // die "ERROR: Unable to dump obj of type '$x->{type}'\n";
+    $cb->($name, $x);
+}
+
+######################################################################
+
+sub parse_file($)
+{
+    my ($ifn) = @_;
+    local $/ = undef;
+    my $s = do {
+        open(my $f, '<', $ifn) or die;
+        <$f>;
+    };
+
+    if ($ifn =~ m([.]stl)) {
+        return parse_stl({ s => [ split /\s+/, $s ], i => 0, fn => $ifn });
+    }
+    if ($ifn =~ m([.]fig)) {
+        return parse_fig({ s => [ split /\n+/, $s ], i => 0, fn => $ifn });
+    }
+
+    return parse_scad({ s => $s, fn => $ifn });
+}
+
+######################################################################
+
+my ($ifn) = @ARGV;
+die unless defined $ifn;
+die unless -f $ifn;
+
+my $name = $ifn;
+$name =~ s(^.*/)();
+$name =~ s([.].*$)();
+
+my $csg = parse_file($ifn);
+
+dump_csg($name, $csg);

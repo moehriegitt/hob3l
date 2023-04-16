@@ -9,62 +9,100 @@
 #include <hob3l/csg2_tam.h>
 
 /**
- * Boolean operation on two lazy polygons.
+ * The output of this algorithm is used in several different ways:
+ *   - for generating the output file (STL): for this, we need a
+ *     full triangulation (in a cp_csg2_poly_t object).
  *
- * This does 'r = r op b'.
+ *   - internally in this file to split the operation into multiple
+ *     steps.  This needs a cp_csg2_vline2_t object stored within
+ *     the input stack.
  *
- * Only the path information is used, not the triangles.
+ *   - in SCAD/CSG3 directly:
  *
- * \p r and/or \p b are reused and cleared to construct r.  This may happen
- * immediately or later in cp_csg2_op_reduce().
+ *       - for linear_extrude(): the algorithm cannot handle 'subtracting'
+ *         polygons, i.e., this ignores the path winding order.
+ *         I.e., this only works with simple polygons.
+ *         Trivially, this works with triangulated polygons, but then
+ *         produces suboptimal solutions for simple polygons.
  *
- * Uses \p tmp for all temporary allocations (but not for constructing r).
+ *       - for rotate_extrude(): same as linear_extrude().
  *
- * This uses the algorithm of Martinez, Rueda, Feito (2009), based on a
- * Bentley-Ottmann plain sweep.  The algorithm is modified:
+ *       - for circle(), square(), ...: the basic shapes are all
+ *         simple (and convex) polygons.
  *
- * (1) The original algorithm (both paper and sample implementation)
- *     does not focus on reassembling into polygons the sequence of edges
- *     the algorithm produces.  This library replaces the polygon
- *     reassembling by an O(n log n) algorithm.
+ *       - for hull(): a convex hull is trivially a simple (and convex)
+ *         polygon
  *
- * (2) The original algorithm's in/out determination strategy is not
- *     extensible to processing multiple polygons in one algorithm run.
- *     It was replaceds by a bitmask xor based algorithm.  This also lifts
- *     the restriction that no self-overlapping polygons may exist.
+ *       - for polygon(): this can have any shape and may, therefore,
+ *         not be simple.
  *
- * (3) There is handling of corner cases in than what Martinez implemented.
- *     The float business is really tricky...
+ *       - for text(): the resulting 2D shapes are often not simple
+ *         polygons as letters have holes: 'l' is probably simple
+ *         but 'o' is probably not.
  *
- * (4) Intersection points are always computed from the original line slope
- *     and offset to avoid adding up rounding errors for edges with many
- *     intersections.
- *
- * (5) Float operations have all been mapped to epsilon aware versions.
- *     (The reference implementation failed on one of my tests because of
- *     using plain floating point '<' comparison.)
- *
- * Runtime: O(k log k),
- * Space: O(k)
- * Where
- *     k = n + m + s,
- *     n = number of edges in r,
- *     m = number of edges in b,
- *     s = number of intersection points.
- *
- * Note: the operation may not actually be performed, but may be delayed until
- * cp_csg2_apply.  The runtimes are given under the assumption that cp_csg2_apply
- * follows.  Best case runtime for delaying the operation is O(1).
+ * The *_extrude() steps all run this algorithm as their body is an implicit
+ * group, so they can take care themselves to generate the necessary
+ * triangulation/simplification of the polygons.  I.e., any 2D objects can
+ * be stored in the way that SCAD does it, i.e., no need for 'text' or
+ * 'polygon' to triangulate right away.  The *_extrude() functions can
+ * optimise: a single polygon with a single path will be simple, so then
+ * there's no need to flatten (cq_sweep_poly() generates simple polygons for
+ * each path).
  */
-extern void cp_csg2_op_lazy(
-    cp_csg_opt_t const *opt,
-    cp_pool_t *tmp,
-    cp_csg2_lazy_t *r,
-    cp_csg2_lazy_t *b,
-    cp_bool_op_t op);
+typedef enum {
+    /**
+     * Produce a cp_csg2_vline2_t object for internal continuation of
+     * the boolean algorithm.  This is used internally within the layer
+     * stacks.
+     *
+     * => use internally in this module only (and the type is not exported)
+     *
+     * This uses 'cq_sweep_get_v_line2()' to produce the resulting
+     * cp_csg2_vline2_t (the 'q' member of it).
+     */
+    CP_CSG2_BOOL_MODE_VLINE2,
+
+    /**
+     * Produce a cp_csg2_poly_t object for further handling within the
+     * SCAD/CSG3 engine, e.g., for projection(cut=true) and other 2D
+     * operations within the framework.  The 'path' is filled in, but
+     * the 'triangle' is not.
+     *
+     * This is not suited for *_extrude().
+     *
+     * => can be used for any 2D flattening operations that do not
+     * end in *_extrude().
+     *
+     * This uses 'cq_sweep_poly()' to produce the resulting
+     * cp_csg2_poly_t.
+     */
+    CP_CSG2_BOOL_MODE_PATH,
+
+    /**
+     * Produce a cp_csg2_poly_t object from a layer stack for final
+     * dump in STL (or other JS) format.  The 'triangle' is filled,
+     * but the 'path' is empty (FIXME: do we need 'path'?).
+     *
+     * => use for final output generation (internally), and for
+     * flattening for *_extrude().
+     *
+     * This uses 'cq_sweep_triangle()' to produce the resulting
+     * cp_csg2_poly_t.
+     *
+     * This also produces a PATH, because it is needed that way
+     * be the later stages (e.g., STL generates the vertical faces
+     * from the path).
+     */
+    CP_CSG2_BOOL_MODE_TRI,
+} cp_csg2_bool_mode_t;
 
 /**
  * Add a layer to a tree by reducing it from another tree.
+ *
+ * This runs the algorithm in such a way that the new layer is suitable
+ * for output in various formats (e.g., STL).  The resulting layer has
+ * type cp_csg2_poly_t (while the input layer leaves are expected
+ * to be in cp_csg2_vline2_t format from the cp_csg2_tree_add_layer() step).
  *
  * The tree must have been initialised by cp_csg2_op_tree_init(),
  * and the layer ID must be in range.
@@ -76,7 +114,8 @@ extern void cp_csg2_op_lazy(
  *    k = see cp_csg2_op_poly()
  *    j = number of polygons + number of bool operations in tree
  */
-extern void cp_csg2_op_add_layer(
+extern bool cp_csg2_op_flatten_layer(
+    cp_err_t *err,
     cp_csg_opt_t const *opt,
     cp_pool_t *tmp,
     cp_csg2_tree_t *r,
@@ -86,25 +125,32 @@ extern void cp_csg2_op_add_layer(
 /**
  * Reduce a set of 2D CSG items into a single polygon.
  *
- * This does not triangulate, but only create the path.
+ * This does not triangulate, but only create the path.  It is meant for
+ * use within the SCAD/CSG3 framework (see csg3.c).
  *
  * The result is filled from root.  In the process, the elements in root are
  * cleared/reused, if necessary.
  *
- * If the result is empty. this either returns an empty
- * polygon, or NULL.  Which one is returned depends on what
- * causes the polygon to be empty.
+ * If the result is empty. this returns NULL.
  *
  * In case of an error, e.g. 3D objects that cannot be handled, this
  * assert-fails, so be sure to not pass anything this is unhandled.
  *
+ * In of an error, this also returns NULL.  To distinguish from an
+ * empty polygon, `err->msg.size > 0` should be checked instead of
+ * checking the result for NULL.
+ *
  * Runtime and space: see cp_csg2_op_add_layer.
  */
 extern cp_csg2_poly_t *cp_csg2_flatten(
+    cp_err_t *err,
     cp_csg_opt_t const *opt,
     cp_pool_t *tmp,
-    cp_v_obj_p_t *root);
+    cp_v_obj_p_t *root,
+    cp_csg2_bool_mode_t mode);
 
+#if 0
+/* FIXME: currently disabled until the algorithm is fixed */
 /**
  * Diff a layer with the next and store the result in diff_above/diff_below.
  *
@@ -121,6 +167,7 @@ extern void cp_csg2_op_diff_layer(
     cp_pool_t *tmp,
     cp_csg2_tree_t *a,
     size_t zi);
+#endif
 
 /**
  * Initialise a tree for cp_csg2_op_add_layer() operations.

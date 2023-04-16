@@ -4,7 +4,7 @@
 #ifndef CP_QSORT_H_
 #define CP_QSORT_H_
 
-#include <hob3lbase/arch.h>
+#include <hob3ldef/arch.h>
 
 #ifndef cp_qsort_r
 

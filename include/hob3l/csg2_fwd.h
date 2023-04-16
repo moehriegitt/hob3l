@@ -7,6 +7,7 @@
 typedef struct cp_csg2 cp_csg2_t;
 
 typedef struct cp_csg2_poly   cp_csg2_poly_t;
+typedef struct cp_csg2_vline2 cp_csg2_vline2_t;
 typedef struct cp_csg2_circle cp_csg2_circle_t;
 typedef struct cp_csg2_stack  cp_csg2_stack_t;
 

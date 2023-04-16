@@ -1,6 +1,35 @@
 # Hob3l
 100x Faster Slicing of SCAD Files for 3D Printing
 
+## What is This?
+
+  * C library for robust polygon boolean operations, i.e., 2D polygon
+    operations ADD, SUB, CUT, and XOR; plus polygon triangulation, and
+    cutting a 2D slice from a 3D object
+  * C library for reading SCAD (OpenScad) files and writing STL files
+  * Command line tool for reading SCAD and writing STL files for 3D printing
+
+The focus is on speed and robustness. OpenSCAD's conversion to STL is
+slow, because it produces a 3D object.  And the CGAL library (used by
+OpenSCAD) does not seems to be very robust for 3D calculations: I
+often get spurious error messages about a non-2-manifold polyhedron.
+
+Instead, Hob3l produces an STL file suitable for 3D printing.  It does
+that by pre-slicing the SCAD file into layers and using only 2D
+operations on each layer.  The 2D operations are much faster than 3D
+operations.  Also, Hob3l is very robust -- the 2D base library was
+fuzzed to try to get rid of any numeric instability problems that
+might hide somewhere.
+
+This is a major overhaul of the internals of Hob3l to get it as robust
+as possible.  Internally, it now uses 32-bit integer arithmetics with
+exact intersection point math (based on 160 bit fractionals) and a
+snap rounding algorithm to stay within the input coordinate precision.
+It reads and writes normal floating point numbers, and the float<->int
+conversions are exact within `float` precision (the native STL binary
+number format).  If necessary, the precision can be scaled (by
+default, the unit is 1/8192mm).
+
 ## Replace 3D CSG by Fast 2D Polygon Clipping
 
 Preparing a 3D model in CSG format (e.g., when using
@@ -14,9 +43,8 @@ by a workflow 'slice, then apply 2D CSG, then print':
 
 ![2D CSG](img/csg1-new.png)
 
-In the hope that the latter is faster.  First experiments indeed
-indicate a huge speed-up for a non-trivial example, and much better
-computational stability.
+The latter work flow is much faster, especially for non-trivial examples,
+and has much better computational stability.
 
 The idea is explained in more detail
 [in my blog](http://www.theiling.de/cnc/date/2018-09-23.html).
@@ -32,10 +60,9 @@ The purpose of this project is definitely not to rant about
 [OpenSCAD](http://www.openscad.org/).
 It is a great tool that I am also using.
 
-Instead, this is about a different technique for rendering CSG into
-STL that is especially suited for 3D printing, where individual slices
-from your model is all you need.  If you really need a 3D solid from
-your CSG, then do use OpenSCAD's CGAL based rendering.
+But this is about a pre-slicing technique for rendering CSG (or SCAD
+format) into STL that is suited for 3D printing.  The resulting STL is
+no smooth, but looks just like the 3D printed result: it has layers.
 
 ## Table of Contents
 
@@ -61,56 +88,56 @@ your CSG, then do use OpenSCAD's CGAL based rendering.
 
 ## SCAD Input Format
 
-The Hob3l tool reads a subset of the SCAD format used by OpenSCAD --
-I did not want to invent another format.
+The Hob3l tool reads a subset of the SCAD format used by OpenSCAD.
 
 Please check [the SCAD format documentation](doc/scadformat.md) for a
 definition of the subset of SCAD that is supported by Hob3l.
 
-Also note that OpenSCAD's `csg` export can be used as a preprocessor
-for Hob3l in case some SCAD syntax is still unsupported.
+To use the full SCAD format syntax, OpenSCAD can be used as a
+preprocessor to Hob3l:
+
+```
+    openscad thing.scad -o thing.csg
+    hob3l thing.csg -o thing.stl
+```
+
 See [Using This Tool](#using-this-tool-command-line-options).
 
 ## Status, Stability, Limitations, Future Work, TODO
 
-Despite quite some testing and debugging, this may still assert-fail
-occasionally or output rubbish.  The floating point algorithms are
-somewhat brittle and hard to get right.
+After a major overhaul, this tool has been tested very thoroughly
+wrt. stability and arithmetic robustness, in order to get rid of any
+floating point instabilities.
 
-OTOH, the basic workflow is implemented and tested, i.e., the tool can
-read the specified subset of SCAD (e.g. from OpenSCAD's CSG output),
-it can slice the input object, it can apply the 2D boolean operations
-(AKA polygon clipping), and it can triangulate the resulting
-polgygons, and write STL.  Slic3r can read the STL files Hob3l
-produces.
+The tool can read the specified subset of SCAD (e.g. from OpenSCAD's
+CSG output), it can slice the input object, it can apply the 2D
+boolean operations (AKA polygon clipping), and it can triangulate the
+resulting polgygons, and write STL.  Slic3r (and probably PrusaSlicer
+and Cura) can read the STL files Hob3l produces.
 
-Corner cases in the algorithms have been dealt with (except for
-unknown bugs).  Because of the stability design goal that extends from
-computational real number stability to corner cases, this was in focus
-from the start.  Corner case handling took up most of the development
-time and takes up a large portion of the code, because doing floating
-point computations in a stable way is really tricky.
-
-The input polyhedra must be 2-manifold.  This is because the slicing
-algorithm is edge driven and uses a notion of 'left and right face' at
-an edge, so an edge must have a unique face on each of its sides.
-This restriction will probably not be fixed soon.
+The input polyhedra must be 2-manifold.  However, in contrast to
+previous versions, Hob3l now accepts quite a few non-2-manifold
+polyhedra.  Polyhedra with holes, however, will not work.  OpenSCAD
+(or CGAL) probably now has more constraints on well-formedness than
+Hob3l.  E.g., Hob3l's algorithms are robust against wrong handedness
+of faces.
 
 The output STL contains separate layers instead of a single solid.
-This will be fixed in the future.  For now, if you hit `split` e.g. in
-slic3r, you'll get hundreds of separate layer objects -- which is not
-useful.
+This may be fixed in the future to generate contiguous polyhedra.  For
+now, if you hit `split` e.g. in slic3r, you'll get hundreds of
+separate layer objects -- which is not useful.
 
 Memory management has leaks.  I admit I don't care enough, because
 Hob3l basically starts, allocates, exits, i.e., it does not run for
-long, so the memory leaks do not build up.  The goal is to have a
-proper, fast pool based allocation.  This is prepared, but incomplete.
+long, so the memory leaks do not build up.
 
-There are not enough tests.
+There are never enough tests.  However, Hob3l's core algorithms have
+survived many millions of fuzzing tests with `afl`.
 
-The tests that exist often only test for absence of a crash or assertion
-failure, but whether the algorithm works correctly then needs to be
-inspected by a human.
+Many tests only check for the absence of a crash or assertion failure,
+but whether the algorithm works correctly needs to be inspected by a
+human.  Usage of this tool for a few years, however, seems to hint
+that it does what it is supposed to do.
 
 ## Supported Output Formats
 
@@ -136,10 +163,17 @@ let OpenSCAD simplify the input file using its .csg output), and a
 reload in the web browser will show the new model.  This package
 contains auxiliary files to make it immediately usable, e.g. the
 surrounding .html file with the WebGL viewer that loads the generated
-data.  See the `hob3l-js-copy-aux` script.
+data.  See the `hob3l-js-copy-aux` script.  The overhaul of Hob3l
+removed colour support for JS output -- it's just not the most
+important thing...
 
 `SCAD`: For debugging intermediate steps in the parser and converter,
-SCAD format output is available from several processing stages.
+SCAD format output is available from several processing stages.  The
+current version of Hob3l does not need polyhedra to be strictly
+correct like in OpenSCAD (e.g., handedness of faces may be reversed).
+For this reason, polyhedra may not be strictly correct when printed in
+SCAD debug output and then loaded into OpenSCAD for inspection.  (Note
+that STL and JS output do produce correctly oriented faces.)
 
 ## JavaScript/WebGL Output
 
@@ -182,10 +216,10 @@ meta-make layer.  Both Linux native and the MingW Windows cross
 compiler have been tested, and I hope that the MingW compiler will
 also work when run natively under Cygwin.
 
-Make variables can be used to switch how the stuff is compiled.  Since
-I tried not to overdo with gcc extensions (`({...})` and `__typeof__`
-are used frequently, though), it should be compilable without too much
-effort.
+Make variables can be used to switch how the stuff is compiled.  Some
+GCC extensions are used, but I tried not to overdo it with gcc
+extensions (`({...})` and `__typeof__` are used frequently, though),
+it should be compilable without too much effort.
 
 One unusual step is the generation of the font files (for the `text`
 command, which is currently not completely implemented, but the files

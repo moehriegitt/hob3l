@@ -187,6 +187,11 @@ typedef struct {
      * Copy position and gc back to root of CSG2 tree, so that
      * the '!' does not change the position. */
     bool keep_ctxt;
+
+    /**
+     * When only a triangulation is needed, still also generate a path --
+     * this is useful for debugging. */
+    bool tri_add_path;
 } cp_csg_opt_t;
 
 

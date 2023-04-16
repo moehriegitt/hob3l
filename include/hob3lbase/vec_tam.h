@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 
 #define CP_ARR_T(TYPE) \
     union{ \
@@ -37,9 +37,17 @@ typedef CP_ARR_T(size_t) cp_a_size_t;
 
 typedef CP_ARR_T(unsigned short) cp_a_u16_t;
 
-typedef struct {
-    size_t p[3];
-} cp_size3_t;
+#define CP_SIZE3_T \
+    struct { \
+        union { \
+            size_t p[3]; \
+            struct { \
+                size_t a, b, c; \
+            }; \
+        }; \
+    }
+
+typedef CP_SIZE3_T cp_size3_t;
 
 typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
 
@@ -73,13 +81,13 @@ typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
 
 #define cp_v_eachp_1_(v_, a_, e_, i, v) \
     cp_v_val_t(v) \
-        *cp_advance_ = (void*)1, \
+        *cp_advance_##i = (void*)1, \
         *v_ = (void*)(size_t)(v), \
         *a_ = ((cp_v_vec_t(v))(size_t)v_)->data, \
         *i = a_; \
     i != (a_ + ((cp_v_vec_t(v))(size_t)v_)->size); \
-    i += (size_t)cp_advance_, \
-        cp_advance_ = (void*)1
+    i += (size_t)cp_advance_##i, \
+        cp_advance_##i = (void*)1
 
 /**
  * This is ugly (too many casts), but it iterates the pointers to the
@@ -116,15 +124,15 @@ typedef CP_VEC_T(cp_size3_t) cp_v_size3_t;
  */
 #define cp_v_eachv_1_(v_, a_, e_, i_, i, v) \
     cp_v_val_t(v) \
-        cp_advance_ = cp_v_elemv_put_(v, 1), \
+        cp_advance_##i = cp_v_elemv_put_(v, 1), \
         v_ = cp_v_elemv_put_(v, v), \
         a_ = cp_v_elemv_put_(v, cp_v_elemv_vec_(v, v_)->data), \
         i_ = a_, \
         i; \
     (i_ != cp_v_elemv_put_(v, cp_v_elemv_val_(v, a_) + cp_v_elemv_vec_(v, v_)->size)) && \
         (i = *cp_v_elemv_val_(v,i_), 1); \
-    i_ = cp_v_elemv_put_(v, cp_v_elemv_val_(v, i_) + (size_t)cp_advance_), \
-        cp_advance_ = cp_v_elemv_put_(v, 1), \
+    i_ = cp_v_elemv_put_(v, cp_v_elemv_val_(v, i_) + (size_t)cp_advance_##i), \
+        cp_advance_##i = cp_v_elemv_put_(v, 1), \
         ({ static_assert(sizeof(v_) == sizeof(void*),""); })
 
 /**

@@ -1,0 +1,352 @@
+/* -*- Mode: C -*- */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+
+help_section "General Options";
+
+case "h":
+case "?":
+case "help": {
+    "displays this help text";
+    help();
+}
+
+case "q":
+case "quiet": {
+    "suppress all informational messages";
+    opt->verbose = 0;
+}
+
+case "v":
+case "verbose": {
+    "be more verbose";
+    opt->verbose++;
+}
+
+case "o": fn {
+    "sets the output file.  File ending selects default output format:";
+    ".stl ending selects --dump-stl, .stlb or .stb selects --dump-stlb,";
+    ".scad/.csg selects --dump-csg2, .ps selects --dump-ps,";
+    ".js selects --dump-js.";
+    opt->out_file_name = fn;
+}
+
+case "no-stlb": neg_bool &opt->prefer_stl_bin {
+    "whether to prefer binary over ASCII STL output format.";
+}
+
+case "layer-gap": dim &opt->csg.layer_gap {
+    "gap [mm] between layers in STL, SCAD, and JavaScript output.";
+    "For STL, this ensures that the output is 2-manifold.";
+    "-1 is interpreted as 0.01 for STL output and as 0 for SCAD and JS output";
+    "(default: -1)";
+    "If this is greater or equal to the step size, the output will degenerate.";
+}
+
+help_section "Compatibility Options";
+
+case "empty": err &opt->csg.err_empty {
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
+    "when they are empty by a parameter to an object primitive, e.g. 'cube(0)'";
+}
+
+case "collapse": err &opt->csg.err_collapse {
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
+    "when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'";
+}
+
+case "outside-3d": err &opt->csg.err_outside_3d {
+    "'error', 'warn', 'ignore': Treatment of 3D objects outside 3D context (default: error)";
+}
+
+case "outside-2d": err &opt->csg.err_outside_2d {
+    "'error', 'warn', 'ignore': Treatment of 2D objects outside 2D context (default: error)";
+    "Note that Hob3l does not implement 2D objects in 3D context, so there is no";
+    "option to treat them normally or extrude them to 1mm.";
+}
+
+case "unsupported-functor": err &opt->scad.err_unsupported_functor {
+    "'error', 'warn', 'ignore': Treatment of a SCAD functor that is not yet supported.";
+    "(Default: warn)";
+}
+
+case "unknown-functor": err &opt->scad.err_unknown_functor {
+    "'error', 'warn', 'ignore': Treatment of an unknown SCAD functor.";
+    "(Default: error)";
+}
+
+case "unknown-param": err &opt->scad.err_unknown_param {
+    "'error', 'warn', 'ignore': Treatment of an unknown parameter to a SCAD functor.";
+    "(Default: warn)";
+}
+
+help_section "Slicing Options";
+
+case "min": dim &opt->z_min {
+    "min slice z coord [mm] (by default, use bounding box of model,";
+    "starting at the middle of the first layer (i.e., at 50% slice";
+    "thickness) from the bottom).";
+    opt->have_z_min = true;
+}
+case "max": dim &opt->z_max {
+    "max slice z coord [mm] (default: use bounding box of model)";
+    opt->have_z_max = true;
+}
+
+case "step": dim &opt->z_step {
+    "thickness of slice [mm] (default: 0.2)";
+}
+
+case "z": dim &opt->z_min {
+    "equivalent to --min=ARG --max=ARG";
+    opt->z_max = opt->z_min;
+    opt->have_z_min = true;
+    opt->have_z_max = true;
+}
+
+case "max-fn": size &opt->csg.max_fn {
+    "maximum value of $fn for treating round objects as polyhedra (default: 50).";
+    "At $fn values larger than this, spheres will be sliced into circles";
+    "and not converted to polyhedra.";
+    "Currently, because no output format has circular arc structures, no attempt";
+    "was made to produce read arcs.  So circles are still approximated by polygons.";
+}
+
+case "opt-no-skip-empty": bool neg_bool &a {
+    "(do not) skip empty polygons (default: do)";
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_SKIP_EMPTY, a);
+}
+
+case "opt-no-drop-collinear": bool neg_bool &a {
+    "(do not) drop connecting vertex of two adjacent collinear edges (default: do)";
+    opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
+}
+
+help_section "Advanced Options";
+
+case "max-simultaneous": size &opt->csg.max_simultaneous {
+    "maximum number of polygons to process at once.";
+    "Values larger than " CP_STRINGIFY(CP_CSG2_MAX_LAZY) " are ignored.";
+    "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY) ")";
+
+    if (opt->csg.max_simultaneous < 2) {
+        fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"CP_Z"u.\n",
+            opt->csg.max_simultaneous);
+        exit(EXIT_FAILURE);
+    }
+}
+case "gran": dim &cp_pt_epsilon {
+    "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
+}
+case "eps": dim &cp_eq_epsilon {
+    "general comparison epsilon (default: 0x1p-15)";
+}
+case "eps2": dim &cp_sqr_epsilon {
+    "comparison epsilon for squared dimensions (default: 0x1p-30)";
+}
+
+help_section "Intermediate Stage Output/Alternative Output Format Options";
+
+case "dump-syn": {
+    "print after stage 1: AST of input file; don't slice";
+    opt->dump = DUMP_SYN;
+}
+case "dump-scad": {
+    "print after stage 2: SCAD tree, SCAD format; don't slice";
+    opt->dump = DUMP_SCAD;
+}
+case "dump-csg3": {
+    "print after stage 3: 3D CSG model, SCAD format; don't slice";
+    opt->dump = DUMP_CSG3;
+}
+case "dump-csg2": {
+    "print after stage 4: final 2D polygon stack in SCAD format";
+    opt->dump = DUMP_CSG2;
+}
+case "dump-ps": {
+    "print after stage 4: final 2D polygon stack in PostScript format";
+    opt->dump = DUMP_PS;
+}
+case "dump-stl": {
+    "print after stage 4: final 2D polygon stack in text STL format";
+    opt->dump = DUMP_STLA;
+}
+case "dump-stlb": {
+    "print after stage 4: final 2D polygon stack in binary STL format";
+    opt->dump = DUMP_STLB;
+}
+case "dump-js": {
+    "print after stage 4: final 2D polygon stack in JavaScript/WebGL format";
+    "The script 'hob3l-js-copy-aux' will add files needed to view the model";
+    "in a WebGL enabled web browser.";
+    opt->dump = DUMP_JS;
+}
+
+case "no-csg": bool &opt->no_csg {
+    "for stage 4: do (not) run 2D boolean operation pass (default: do)";
+    "--dump-stl and --dump-js will not print correctly with --no-csg.";
+}
+case "no-tri": bool &opt->no_tri {
+    "for stage 4: do (not) run triangulation pass (default: do)";
+    "--dump-stl and --dump-js will not print correctly with --no-tri.";
+    "--dump-csg2 may not be read correctly by OpenSCAD without --no-tri.";
+}
+case "no-diff": bool &opt->no_diff {
+    "for stage 4: do (not) run difference pass for adjacent layers (default: do)";
+    "--dump-js needs this for good output to hide inner structures.";
+    "For other formats, the difference pass is not run anyway.";
+}
+case "no-path": neg_bool &opt->csg.tri_add_path {
+    "for stage 4: if only the triangulation is needed, do (not) generate a";
+    "path (default: do not).  This is useful for debugging the equivalence of";
+    "triangulation and path generation.";
+}
+
+help_section "JavaScript/WEBGL Output Options";
+
+case "js-color-rand": uint8 &opt->csg.color_rand{
+    "How much to randomise colors in CSG2 algorithm to make the result";
+    "easier to grasp (default: 0, valid: 0..255, good start: 15). ";
+}
+
+case "js-group": append_vchar &opt->csg.js_group{
+    "Groups to list in JS/WebGL output.  This is a list separated by";
+    "white space, comma, or semicolon.";
+    "This options can be used multiple times to add more groups.";
+    "(Default: no group)";
+}
+
+case "js-no-keep-ctxt": neg_bool &opt->csg.keep_ctxt {
+    "Keep size, position, rotation, and color for the element marked with '!'";
+    "in the input file so it will be rendered exclusively, but put in the";
+    "WebGL scene unmodified.";
+}
+
+help_section "PostScript Output Options";
+
+case "ps-scale-fit": {
+    "for --dump-ps: expand to fit normal bounding box to page";
+    opt->ps_scale_step = 1;
+}
+case "ps-scale-max": {
+    "for --dump-ps: expand to fit maximum bounding box to page";
+    opt->ps_scale_step = 2;
+}
+
+case "ps-no-single-page": neg_bool &opt->ps.single_page {
+    "(do not) print all layers to a single page, bottom to top";
+}
+
+case "ps-no-tri":  bool &opt->ps.no_tri {
+    "(do not) print triangle boundaries";
+}
+case "ps-no-path": bool &opt->ps.no_path {
+    "(do not) print paths and points";
+}
+case "ps-no-mark": bool &opt->ps.no_mark {
+    "(do not) mark the polygon inside with a mark";
+}
+
+case "ps-no-wire": {
+    "same as --ps-no-tri --ps-no-path --ps-no-mark";
+    opt->ps.no_tri = true;
+    opt->ps.no_path = true;
+    opt->ps.no_mark = true;
+}
+
+case "ps-rot-x": cp_angle_t angle &a {
+    "rotate about x axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_x(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-rot-y": cp_angle_t angle &a {
+    "rotate about y axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_y(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-rot-z": cp_angle_t angle &a {
+    "rotate about z axis by angle";
+    cp_mat4_t m;
+    cp_mat4_rot_z(&m, CP_SINCOS_DEG(a));
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+
+case "ps-scale": cp_scale_t scale &s {
+    "scale output on all axes";
+    cp_mat4_t m;
+    cp_mat4_scale1(&m, s);
+    cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
+}
+case "ps-persp": scale &opt->ps_persp {
+    "perspective change (1 = 1m toward camera scales by 2)";
+}
+
+case "ps-color-path": rgb &opt->ps.color_path {
+    "RGB color of polygon paths";
+}
+case "ps-color-tri": rgb &opt->ps.color_tri {
+    "RGB color of triangle boundaries";
+}
+case "ps-color-fill": rgb &opt->ps.color_fill {
+    "RGB fill color of triangles";
+}
+case "ps-color-vertex": rgb &opt->ps.color_vertex {
+    "RGB color of vertices";
+}
+case "ps-color-mark": rgb &opt->ps.color_mark {
+    "RGB color of internal mark";
+}
+case "ps-line-width": dim &opt->ps.line_width {
+    "Line width used for polygon paths";
+}
+
+#ifdef PSTRACE
+
+help_section "Debugging Options";
+
+case "debug-ps": fn {
+    "set name of PostScript debug output file";
+
+    FILE *f = fopen(fn, "wt");
+    if (f == NULL) {
+        fprintf(stderr, "Error: Unable to open %s for writing: %s\n",
+            fn, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    cp_debug_ps_file = f;
+
+    cp_debug_ps = CP_NEW(*cp_debug_ps);
+    *cp_debug_ps = *CP_STREAM_FROM_FILE(f);
+
+    cp_ps_doc_begin(cp_debug_ps, &opt->ps,
+        CP_SIZE_MAX,
+        0, 0, CP_PS_PAPER_X, CP_PS_PAPER_Y);
+}
+case "debug-ps-page-skip": size &cp_debug_ps_page_skip {
+    "skip this amount of pages before starting to print debug PostScript";
+}
+case "debug-ps-page-count": size &cp_debug_ps_page_count {
+    "output max this amounts of debug PostScript pages (-1 = no limit)";
+}
+case "debug-ps-scale-x": scale &cp_debug_ps_scale_x {
+    "additional horizontal scaling of the debug PostScript output";
+}
+case "debug-ps-scale-y": scale &cp_debug_ps_scale_y {
+    "additional vertical scaling of the debug PostScript output";
+}
+case "debug-ps-scale": scale &cp_debug_ps_scale_x {
+    "additional scaling of the debug PostScript output";
+    cp_debug_ps_scale_y = cp_debug_ps_scale_x;
+}
+case "debug-ps-xlat-x": scale &cp_debug_ps_xlat_x {
+    "move viewport of the debug PostScript output horizontally";
+}
+case "debug-ps-xlat-y": scale &cp_debug_ps_xlat_y {
+    "move viewport of the debug PostScript output vertically";
+}
+case "debug-ps-no-dots": neg_bool &cp_debug_ps_dots {
+    "do (not) draw dots for vertices in debug PostScript output";
+}
+
+#endif /* PSTRACE */

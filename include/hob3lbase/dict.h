@@ -24,7 +24,7 @@
 #define CSG_SET_H_
 
 #include <assert.h>
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/dict_tam.h>
 
 /**

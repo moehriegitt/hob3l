@@ -1,0 +1,1124 @@
+#! /usr/bin/perl
+# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+
+use strict;
+use warnings;
+use Carp;
+use Data::Dumper;
+
+sub EXPR($@)
+{
+    my ($type, @arg) = @_;
+    return {
+        kind => 'expr',
+        type => $type,
+        arg => [ @arg ],
+    };
+}
+
+sub STMT($@)
+{
+    my ($type, @arg) = @_;
+    return {
+        kind => 'stmt',
+        type => $type,
+        arg => [ @arg ],
+    };
+}
+
+# expr:
+sub STR($)
+{
+    my ($v) = @_;
+    return EXPR('string', $v);
+}
+
+sub CONST($)
+{
+    my ($v) = @_;
+    return EXPR('const', $v);
+}
+
+sub VAR($)
+{
+    my ($v) = @_;
+    return EXPR('var', $v);
+}
+
+sub IDX_M($$$)
+{
+    my ($v, $i, $j) = @_;
+    return EXPR('idx_m', $v, $i, $j);
+}
+
+sub IDX_B_M($$$)
+{
+    my ($v, $i, $j) = @_;
+    return EXPR('idx_b_m', $v, $i, $j);
+}
+
+sub IDX_W_V($$)
+{
+    my ($v, $i) = @_;
+    return EXPR('idx_w_v', $v, $i);
+}
+
+sub IDX_V($$)
+{
+    my ($v, $i) = @_;
+    return EXPR('idx_v', $v, $i);
+}
+
+sub EQU($$)
+{
+    my ($x, $y) = @_;
+    return EXPR('==', $x, $y);
+}
+
+sub NOT($)
+{
+    my ($v) = @_;
+    return EXPR('not', $v);
+}
+
+sub SUM(@)
+{
+    return EXPR('+', @_);
+}
+
+sub MUL(@)
+{
+    return EXPR('*', @_);
+}
+
+sub NEG($)
+{
+    my ($v) = @_;
+    return EXPR('neg', $v);
+}
+
+sub INV($)
+{
+    my ($v) = @_;
+    return EXPR('inv', $v);
+}
+
+sub AND(@)
+{
+    return EXPR('&&', @_);
+}
+
+sub OR(@)
+{
+    return EXPR('||', @_);
+}
+
+# expr convenience:
+sub SUB($$)
+{
+    my ($x, $y) = @_;
+    return SUM($x, NEG($y));
+}
+
+sub DIV($$)
+{
+    my ($x, $y) = @_;
+    return MUL($x, INV($y));
+}
+
+sub R($$)
+{
+    my ($i,$j) = @_;
+    return IDX_M('r', $i, $j);
+}
+
+sub M($$)
+{
+    my ($i,$j) = @_;
+    return IDX_M('m', $i, $j);
+}
+
+sub A($$)
+{
+    my ($i,$j) = @_;
+    return IDX_M('a', $i, $j);
+}
+
+sub B($$)
+{
+    my ($i,$j) = @_;
+    return IDX_M('b', $i, $j);
+}
+
+sub C($$)
+{
+    my ($i,$j) = @_;
+    return IDX_M('c', $i, $j);
+}
+
+sub U($)
+{
+    my ($i) = @_;
+    return IDX_V('u', $i);
+}
+
+sub V($)
+{
+    my ($i) = @_;
+    return IDX_V('v', $i);
+}
+
+sub W($)
+{
+    my ($i) = @_;
+    return IDX_V('w', $i);
+}
+
+# stmts:
+sub NOP()
+{
+    return STMT('nop');
+}
+
+sub CR()
+{
+    return STMT('cr');
+}
+
+sub DEF($$)
+{
+    my ($x, $v) = @_;
+    return STMT('def', 'cp_f_t', $x, $v);
+}
+
+sub SET($$)
+{
+    my ($x, $v) = @_;
+    return STMT('set', $x, $v);
+}
+
+sub ASSERT($$)
+{
+    my ($c, $m) = @_;
+    return STMT('assert', $c, $m);
+}
+
+sub BLOCK(@)
+{
+    return STMT('block', @_);
+}
+
+# matrix:
+sub MAT_INV()
+{
+    BLOCK(
+        DEF('b00', SUB(MUL(M(0,0),      M(1,1)), MUL(M(1,0),      M(0,1)))),
+        DEF('b01', SUB(MUL(M(0,0),      M(2,1)), MUL(M(2,0),      M(0,1)))),
+        DEF('b02', SUB(MUL(M(0,0),      M(3,1)), MUL(M(3,0),      M(0,1)))),
+        DEF('b03', SUB(MUL(M(1,0),      M(2,1)), MUL(M(2,0),      M(1,1)))),
+        DEF('b04', SUB(MUL(M(1,0),      M(3,1)), MUL(M(3,0),      M(1,1)))),
+        DEF('b05', SUB(MUL(M(2,0),      M(3,1)), MUL(M(3,0),      M(2,1)))),
+        DEF('b06', SUB(MUL(M(0,2),      M(1,3)), MUL(M(1,2),      M(0,3)))),
+        DEF('b07', SUB(MUL(M(0,2),      M(2,3)), MUL(M(2,2),      M(0,3)))),
+        DEF('b08', SUB(MUL(M(0,2),      M(3,3)), MUL(M(3,2),      M(0,3)))),
+        DEF('b09', SUB(MUL(M(1,2),      M(2,3)), MUL(M(2,2),      M(1,3)))),
+        DEF('b10', SUB(MUL(M(1,2),      M(3,3)), MUL(M(3,2),      M(1,3)))),
+        DEF('b11', SUB(MUL(M(2,2),      M(3,3)), MUL(M(3,2),      M(2,3)))),
+        CR(),
+        DEF('d',
+            SUM(
+                MUL('b00', 'b11'),
+                NEG(MUL('b01', 'b10')),
+                MUL('b02', 'b09'),
+                MUL('b03', 'b08'),
+                NEG(MUL('b04', 'b07')),
+                MUL('b05', 'b06'))),
+        CR(),
+        ASSERT(NOT(EQU('d', 0)), STR("Non-invertible matrix")),
+        CR(),
+        DEF('oa', DIV(SUM(MUL(M(1,1), 'b11'), NEG(MUL(M(2,1), 'b10')), MUL(M(3,1), 'b09')),  'd')),
+        DEF('ob', DIV(SUB(MUL(M(2,0), 'b10'), SUM(MUL(M(1,0), 'b11'),  MUL(M(3,0), 'b09'))), 'd')),
+        DEF('oc', DIV(SUM(MUL(M(1,3), 'b05'), NEG(MUL(M(2,3), 'b04')), MUL(M(3,3), 'b03')),  'd')),
+        DEF('od', DIV(SUB(MUL(M(2,2), 'b04'), SUM(MUL(M(1,2), 'b05'),  MUL(M(3,2), 'b03'))), 'd')),
+        DEF('oe', DIV(SUB(MUL(M(2,1), 'b08'), SUM(MUL(M(0,1), 'b11'),  MUL(M(3,1), 'b07'))), 'd')),
+        DEF('of', DIV(SUM(MUL(M(0,0), 'b11'), NEG(MUL(M(2,0), 'b08')), MUL(M(3,0), 'b07')),  'd')),
+        DEF('og', DIV(SUB(MUL(M(2,3), 'b02'), SUM(MUL(M(0,3), 'b05'),  MUL(M(3,3), 'b01'))), 'd')),
+        DEF('oh', DIV(SUM(MUL(M(0,2), 'b05'), NEG(MUL(M(2,2), 'b02')), MUL(M(3,2), 'b01')),  'd')),
+        DEF('oi', DIV(SUM(MUL(M(0,1), 'b10'), NEG(MUL(M(1,1), 'b08')), MUL(M(3,1), 'b06')),  'd')),
+        DEF('oj', DIV(SUB(MUL(M(1,0), 'b08'), SUM(MUL(M(0,0), 'b10'),  MUL(M(3,0), 'b06'))), 'd')),
+        DEF('ok', DIV(SUM(MUL(M(0,3), 'b04'), NEG(MUL(M(1,3), 'b02')), MUL(M(3,3), 'b00')),  'd')),
+        DEF('ol', DIV(SUB(MUL(M(1,2), 'b02'), SUM(MUL(M(0,2), 'b04'),  MUL(M(3,2), 'b00'))), 'd')),
+        DEF('om', DIV(SUB(MUL(M(1,1), 'b07'), SUM(MUL(M(0,1), 'b09'),  MUL(M(2,1), 'b06'))), 'd')),
+        DEF('on', DIV(SUM(MUL(M(0,0), 'b09'), NEG(MUL(M(1,0), 'b07')), MUL(M(2,0), 'b06')),  'd')),
+        DEF('oo', DIV(SUB(MUL(M(1,3), 'b01'), SUM(MUL(M(0,3), 'b03'),  MUL(M(2,3), 'b00'))), 'd')),
+        DEF('op', DIV(SUM(MUL(M(0,2), 'b03'), NEG(MUL(M(1,2), 'b01')), MUL(M(2,2), 'b00')),  'd')),
+        CR(),
+        SET(R(0,0), 'oa'),
+        SET(R(0,1), 'oe'),
+        SET(R(0,2), 'oi'),
+        SET(R(0,3), 'om'),
+        SET(R(1,0), 'ob'),
+        SET(R(1,1), 'of'),
+        SET(R(1,2), 'oj'),
+        SET(R(1,3), 'on'),
+        SET(R(2,0), 'oc'),
+        SET(R(2,1), 'og'),
+        SET(R(2,2), 'ok'),
+        SET(R(2,3), 'oo'),
+        SET(R(3,0), 'od'),
+        SET(R(3,1), 'oh'),
+        SET(R(3,2), 'ol'),
+        SET(R(3,3), 'op'),
+    );
+}
+
+sub MAKE_MAT($)
+{
+    my ($f) = @_;
+    [map {
+        my $y = $_;
+        [map {
+            my $x = $_;
+            $f->($y,$x);
+        } 0..3]
+    } 0..3]
+}
+
+sub MAKE_MAT_UNIT()
+{
+    return MAKE_MAT(sub{ $_[0] == $_[1] ? CONST(1) : CONST(0) });
+}
+
+sub MAKE_MAT_ROT_IJ($$$)
+{
+    my ($f, $i, $j) = @_;
+    my $m = MAKE_MAT_UNIT();
+    $m->[$i][$i] = $m->[$j][$j] = $f->(0,0);
+    $m->[$i][$j] = NEG($f->(0,1));
+    $m->[$j][$i] = $f->(0,1);
+    return $m;
+}
+
+sub MAKE_MAT_ROT_X($)
+{
+    my ($f) = @_;
+    return MAKE_MAT_ROT_IJ($f, 1, 2);
+}
+
+sub MAKE_MAT_ROT_Y($)
+{
+    my ($f) = @_;
+    return MAKE_MAT_ROT_IJ($f, 2, 0);
+}
+
+sub MAKE_MAT_ROT_Z($)
+{
+    my ($f) = @_;
+    return MAKE_MAT_ROT_IJ($f, 0, 1);
+}
+
+sub MAT_MUL_M($$)
+{
+    my ($a, $b) = @_;
+    [map {
+        my $y = $_;
+        [map {
+            my $x = $_;
+            SUM(map {
+                my $i = $_;
+                MUL($a->[$y][$i], $b->[$i][$x]);
+            } 0..3);
+        } 0..3]
+    } 0..3]
+}
+
+sub SET_M($)
+{
+    my ($r) = @_;
+    BLOCK(
+        map {
+            my $y = $_;
+            map {
+                my $x = $_;
+                SET(R($y,$x), $r->[$y][$x]);
+            }
+            0..3
+        } 0..3
+    );
+}
+
+#sub MAT_MUL()
+#{
+#    BLOCK(
+#        map {
+#            my $y = $_;
+#            map {
+#                my $x = $_;
+#                SET(R($y,$x),
+#                    SUM(map {
+#                        my $i = $_;
+#                            MUL(A($y,$i), B($i,$x))
+#                        } 0..3));
+#            }
+#            0..3
+#        } 0..3
+#    );
+#}
+
+sub MAT_MUL()
+{
+    SET_M(
+        MAT_MUL_M(
+            MAKE_MAT(\&A),
+            MAKE_MAT(\&B)));
+}
+
+sub MAKE_MAT_ROT_XYZ()
+{
+    my $c = MAKE_MAT_ROT_Z(\&C);
+    my $b = MAKE_MAT_ROT_Y(\&B);
+    my $a = MAKE_MAT_ROT_X(\&A);
+    return MAT_MUL_M($c, MAT_MUL_M($b, $a));
+}
+
+sub VEC_CROSS()
+{
+    BLOCK(
+        SET(U(0), SUB(MUL(V(1),W(2)), MUL(V(2),W(1)))),
+        SET(U(1), SUB(MUL(V(2),W(0)), MUL(V(0),W(2)))),
+        SET(U(2), SUB(MUL(V(0),W(1)), MUL(V(1),W(0)))),
+    );
+}
+
+######################################################################
+
+sub is_atomic($)
+{
+    my ($q) = @_;
+    confess unless ref($q) eq 'HASH';
+    my $t = $q->{type};
+    return ($t eq 'var') || ($t eq 'const') || ($t eq 'string');
+}
+
+sub normalise($);
+sub normalise($)
+{
+    my ($q) = @_;
+    if (!ref($q)) {
+        if ($q =~ /^[-0-9]/) {
+            return CONST(0+$q);
+        }
+        if ($q =~ /^[a-zA-z_][a-zA-Z_0-9]*/) {
+            return VAR($q);
+        }
+        die "Unrecognised literal '$q', neither number nor identifier";
+    }
+
+    if (is_atomic($q)) {
+        # no further recursion: avoid VAR(VAR(VAR("a"))) from multiple calls
+        return $q;
+    }
+
+    return {
+        kind => $q->{kind},
+        type => $q->{type},
+        arg => [ map { normalise($_) } @{ $q->{arg} } ],
+    };
+}
+
+######################################################################
+
+sub simplify_expr($$);
+
+sub is_assignable($)
+{
+    my ($e) = @_;
+    return
+        ($e->{type} eq 'var') ||
+        ($e->{type} eq 'idx_m') ||
+        ($e->{type} eq 'idx_b_m') ||
+        ($e->{type} eq 'idx_w_v') ||
+        ($e->{type} eq 'idx_v');
+}
+
+sub get_var($)
+{
+    my ($e) = @_;
+    if ($e->{type} eq 'var') {
+        return $e->{arg}[0];
+    }
+    return;
+}
+
+sub get_const($)
+{
+    my ($e) = @_;
+    return $e unless ref($e);
+    if ($e->{type} eq 'const') {
+        return $e->{arg}[0];
+    }
+    return;
+}
+
+sub is_const_test(&$$)
+{
+    my ($test, $x, $y) = @_;
+    $x = get_const($x);
+    return unless defined $x;
+    $y = get_const($y);
+    return unless defined $y;
+    return $test->($x, $y);
+}
+
+sub is_equ($$)
+{
+    my ($x, $y) = @_;
+    return is_const_test { $_[0] == $_[1] } $x, $y;
+}
+
+sub is_gt($$)
+{
+    my ($x, $y) = @_;
+    return is_const_test { $_[0] > $_[1] } $x, $y;
+}
+
+sub is_ge($$)
+{
+    my ($x, $y) = @_;
+    return is_const_test { $_[0] >= $_[1] } $x, $y;
+}
+
+sub is_0($)
+{
+    my ($e) = @_;
+    return is_equ($e,0);
+}
+
+sub is_1($)
+{
+    my ($e) = @_;
+    return is_equ($e,1);
+}
+
+sub simplify_flatten_sum($)
+{
+    my ($e) = @_;
+    if ($e->{type} eq '+') {
+        return @{ $e->{arg} };
+    }
+    return $e;
+}
+
+sub simplify_flatten_mul($)
+{
+    my ($e) = @_;
+    if ($e->{type} eq '*') {
+        return @{ $e->{arg} };
+    }
+    return $e;
+}
+
+sub any_is_0(@)
+{
+    for my $e (@_) {
+        if (is_0($e)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+sub scope_get_value($$);
+sub scope_get_value($$)
+{
+    my ($scope, $name) = @_;
+    return unless $scope;
+
+    my $v = $scope->{value}{$name};
+    return $v if defined $v;
+
+    return scope_get_value($scope->{parent}, $name);
+}
+
+sub simplify_expr($$)
+{
+    my ($scope, $e) = @_;
+
+    die unless $e->{kind} eq 'expr';
+    my $t = $e->{type};
+
+    if ($t eq 'var') {
+        my ($name) = @{ $e->{arg} };
+        if (my ($v) = scope_get_value($scope, $name)) {
+            return $v;
+        }
+        return $e;
+    }
+
+    # atomics are not even looked at:
+    if (is_atomic($e)) {
+        return $e;
+    }
+
+    # recurse:
+
+    my @a = map { simplify_expr($scope, $_) } @{ $e->{arg} };
+    my $r = { %$e, arg => [ @a ] };
+
+    if ($t eq '+') {
+        # flatten sum list:
+        @a = map { simplify_flatten_sum($_) } @a;
+
+        # handle constants:
+        my $c = 0;
+        my @b = ();
+        for my $a (@a) {
+            my $x = get_const($a);
+            if (defined $x) {
+                $c += $x;
+            }
+            else {
+                push @b, $a;
+            }
+        }
+
+        # decide what to return:
+        return CONST($c) if scalar(@b) == 0;
+        unshift @b, CONST($c) unless $c == 0;
+        return $b[0] if scalar(@b) == 1;
+        $r->{arg} = [ @b ];
+        return $r;
+    }
+
+    if ($t eq '*') {
+        # flatten sum list:
+        @a = map { simplify_flatten_mul($_) } @a;
+
+        # handle constants:
+        my $c = 1;
+        my @b = ();
+        for my $a (@a) {
+            my $x = get_const($a);
+            if (defined $x) {
+                $c *= $x;
+            }
+            else {
+                push @b, $a;
+            }
+        }
+
+        # decide what to return:
+        return CONST(0) if $c == 0;
+        return CONST($c) if scalar(@b) == 0;
+        unshift @b, CONST($c) unless $c == 1;
+        return $b[0] if scalar(@b) == 1;
+        $r->{arg} = [ @b ];
+        return $r;
+    }
+
+    if ($t eq 'neg') {
+        my $u = $a[0];
+
+        if (my ($v) = get_const($u)) {
+            return CONST(-$v);
+        }
+
+        if ($u->{type} eq 'neg') {
+            return $u->{arg};
+        }
+
+        if ($u->{type} eq '+') {
+            return SUM(map { NEG($_) } @{ $u->{arg} });
+        }
+
+        return $r;
+    }
+
+    if ($t eq 'inv') {
+        my $u = $a[0];
+
+        if (my ($v) = get_const($u)) {
+            return CONST(1 / $v);
+        }
+
+        if ($u->{type} eq 'inv') {
+            return $u->{arg};
+        }
+
+        if ($u->{type} eq '*') {
+            return MUL(map { INV($_) } @{ $u->{arg} });
+        }
+        return $r;
+    }
+
+    # others are not simplified (yet):
+    # idx_m, idx_v_m, idx_w_v, idx_v, var, not, ==, &&, ||
+    return $r;
+}
+
+sub simplify_rec($$);
+sub simplify_stmt($$);
+
+sub simplify_stmt($$)
+{
+    my ($scope, $s) = @_;
+    die unless $s->{kind} eq 'stmt';
+
+    my $t = $s->{type};
+
+    if ($t eq 'block') {
+        $scope = {
+            parent => $scope,
+            value => {},
+        };
+    }
+
+    my @a = map { simplify_rec($scope, $_) } @{ $s->{arg} };
+    my $r = { %$s, arg => [ @a ] };
+
+    if ($t eq 'def') {
+        my ($type, $var, $expr) = @a;
+
+        if (my ($v) = get_var($var)) {
+            if (my ($x) = get_const($expr)) {
+                $scope->{value}{$v} = CONST($x);
+                return NOP();
+            }
+        }
+
+        return $r;
+    }
+
+    if ($t eq 'set') {
+        my ($var, $expr) = @a;
+        if (!is_assignable($var)) {
+            if (is_equ($var, $expr)) {
+                return NOP();
+            }
+            return $r;
+        }
+
+        if (my ($v) = get_var($var)) {
+            if (my ($x) = get_const($expr)) {
+                $scope->{value}{$v} = CONST($x);
+                return NOP();
+            }
+        }
+
+        return $r;
+    }
+
+    return $r;
+}
+
+sub simplify_rec($$)
+{
+    my ($scope, $q) = @_;
+    my $k = $q->{kind};
+
+    if ($k eq 'stmt') {
+        return simplify_stmt($scope, $q);
+    }
+    if ($k eq 'expr') {
+        return simplify_expr($scope, $q);
+    }
+    die "unrecognised kind: '$k'";
+}
+
+sub simplify($)
+{
+    my ($q) = @_;
+    my $scope = {
+        parent => undef,
+        value => {},
+    };
+    return simplify_rec($scope, $q);
+}
+
+######################################################################
+
+sub restrict_mat($$);
+
+sub restrict_mat($$)
+{
+    my ($n, $e) = @_;
+
+    die unless ($e->{kind} eq 'expr') || ($e->{kind} eq 'stmt');
+
+    # atomic:
+    if (is_atomic($e)) {
+        return $e;
+    }
+
+    # non-unary:
+    my $t = $e->{type};
+
+    my @a = map { restrict_mat($n, $_) } @{ $e->{arg} };
+    my $r = { %$e, arg => [ @a ] };
+
+    if ($e->{type} eq 'idx_m') {
+        my ($v,$i,$j) = @a;
+        if (is_ge($i, $n) || is_ge($j, $n)) {
+            if (is_equ($i, $j)) {
+                return CONST(1);
+            }
+            return CONST(0);
+        }
+    }
+
+    # no change:
+    return $r;
+}
+
+sub restrict_matw($$);
+
+sub restrict_matw($$)
+{
+    my ($n, $e) = @_;
+
+    die unless ($e->{kind} eq 'expr') || ($e->{kind} eq 'stmt');
+
+    # atomic:
+    if (is_atomic($e)) {
+        return $e;
+    }
+
+    # non-unary:
+    my $t = $e->{type};
+
+    my @a = map { restrict_matw($n, $_) } @{ $e->{arg} };
+    my $r = { %$e, arg => [ @a ] };
+
+    if ($e->{type} eq 'idx_m') {
+        my ($v,$i,$j) = @a;
+        if (is_ge($i, $n) || is_gt($j, $n)) {
+            if (is_equ($i, $j)) {
+                return CONST(1);
+            }
+            return CONST(0);
+        }
+        if (is_equ($j, $n)) {
+            return IDX_W_V($v,$i);
+        }
+        $r->{type} = 'idx_b_m';
+    }
+
+    # no change:
+    return $r;
+}
+
+sub restrict_vec($$);
+
+sub restrict_vec($$)
+{
+    my ($n, $e) = @_;
+
+    die unless ($e->{kind} eq 'expr') || ($e->{kind} eq 'stmt');
+
+    # atomic:
+    if (is_atomic($e)) {
+        return $e;
+    }
+
+    # non-unary:
+    my $t = $e->{type};
+
+    my @a = map { restrict_vec($n, $_) } @{ $e->{arg} };
+    my $r = { %$e, arg => [ @a ] };
+
+    if ($e->{type} eq 'idx_v') {
+        my ($v,$i) = @a;
+        if (is_ge($i, $n)) {
+            return CONST(0);
+        }
+    }
+
+    # no change:
+    return $r;
+}
+
+######################################################################
+
+sub copy($);
+
+sub copy($)
+{
+    my ($e) = @_;
+
+    die unless ($e->{kind} eq 'expr') || ($e->{kind} eq 'stmt');
+
+    # atomic:
+    if (is_atomic($e)) {
+        return $e;
+    }
+
+    # non-unary:
+    my $t = $e->{type};
+
+    my @a = map { copy($_) } @{ $e->{arg} };
+    my $r = { %$e, arg => [ @a ] };
+
+    ####
+
+    # no change:
+    return $r;
+}
+
+######################################################################
+
+sub stringify_expr($);
+
+sub need_paren($)
+{
+    my ($e) = @_;
+    if (is_atomic($e) ||
+        ($e->{type} eq 'idx_m') ||   # indexing
+        ($e->{type} eq 'idx_b_m') || # indexing
+        ($e->{type} eq 'idx_w_v') || # indexing
+        ($e->{type} eq 'idx_v') || # indexing
+        ($e->{type} eq '=='))        # uses a function call
+    {
+        return 0;
+    }
+    return 1;
+}
+
+sub stringify_expr_paren($)
+{
+    my ($e) = @_;
+    my $s = stringify_expr($e);
+    if (!need_paren($e)) {
+        return $s;
+    }
+    return "($s)";
+}
+
+sub stringify_add_arg($)
+{
+    my ($e) = @_;
+
+    die unless $e->{kind} eq 'expr';
+    my $t = $e->{type};
+    my @a = @{ $e->{arg} };
+
+    if ($e->{type} eq 'neg') {
+        return " - ".stringify_expr_paren($e->{arg}[0]);
+    }
+
+    return " + ".stringify_expr_paren($e);
+}
+
+sub stringify_mul_arg($)
+{
+    my ($e) = @_;
+
+    die unless $e->{kind} eq 'expr';
+    my $t = $e->{type};
+    my @a = @{ $e->{arg} };
+
+    if ($e->{type} eq 'inv') {
+        return " / ".stringify_expr_paren($e->{arg}[0]);
+    }
+
+    return " * ".stringify_expr_paren($e);
+}
+
+sub stringify_expr($)
+{
+    my ($e) = @_;
+
+    die unless $e->{kind} eq 'expr';
+    my $t = $e->{type};
+    my @a = @{ $e->{arg} };
+
+    if (($t eq 'var') || ($t eq 'const')) {
+        my ($x) = @a;
+        return $x;
+    }
+
+    if ($t eq 'string') {
+        my ($id) = @a;
+        return "\"$id\"";
+    }
+
+    if ($t eq 'idx_m') {
+        my ($var,$i,$j) = @a;
+        return stringify_expr($var)."->m[".stringify_expr($i)."][".stringify_expr($j)."]";
+    }
+
+    if ($t eq 'idx_b_m') {
+        my ($var,$i,$j) = @a;
+        return stringify_expr($var)."->b.m[".stringify_expr($i)."][".stringify_expr($j)."]";
+    }
+
+    if ($t eq 'idx_w_v') {
+        my ($var,$i) = @a;
+        return stringify_expr($var)."->w.v[".stringify_expr($i)."]";
+    }
+
+    if ($t eq 'idx_v') {
+        my ($var,$i) = @a;
+        return stringify_expr($var)."->v[".stringify_expr($i)."]";
+    }
+
+    if ($t eq '+') {
+        my $a0 = shift @a;
+        return stringify_expr_paren($a0).join("", map { stringify_add_arg($_) } @a);
+    }
+
+    if ($t eq '*') {
+        my $a0 = shift @a;
+        return stringify_expr_paren($a0).join("", map { stringify_mul_arg($_) } @a);
+    }
+
+    if ($t eq 'not') {
+        return '!'.stringify_expr_paren($a[0]);
+    }
+
+    if ($t eq 'neg') {
+        return '-'.stringify_expr_paren($a[0]);
+    }
+
+    if ($t eq 'inv') {
+        return '1/'.stringify_expr_paren($a[0]);
+    }
+
+    if ($t eq '==') {
+        return 'cp_equ('.join(", ", map { stringify_expr_paren($_) } @a).')';
+    }
+
+    if (($t eq '&&') || ($t eq '||')) {
+        return join(" $t ", map { stringify_expr_paren($_) } @a);
+    }
+
+    die "Unrecognised expr type: '$t'";
+}
+
+sub stringify_stmt($);
+sub stringify_stmt($)
+{
+    my ($s) = @_;
+    die unless $s->{kind} eq 'stmt';
+    my $t = $s->{type};
+    my @a = @{ $s->{arg} };
+
+    if ($t eq 'block') {
+        return [ (map { stringify_stmt($_) } @a) ];
+    }
+
+    if ($t eq 'cr') {
+        return '';
+    }
+
+    if ($t eq 'nop') {
+        return;
+    }
+
+    if ($t eq 'assert') {
+        my ($cond, $msg) = @a;
+        return "assert((".stringify_expr($cond).") && ".stringify_expr($msg).");";
+    }
+
+    if ($t eq 'def') {
+        my ($type, $var, $expr) = @a;
+        return stringify_expr($type)." ".stringify_expr($var)." = ".stringify_expr($expr).";";
+    }
+
+    if ($t eq 'set') {
+        my ($var, $expr) = @a;
+        return stringify_expr($var)." = ".stringify_expr($expr).";";
+    }
+
+    die "Unrecognised stmt type: '$t'";
+}
+
+sub stringify($)
+{
+    my ($q) = @_;
+    confess Dumper($q) unless ref($q) eq 'HASH';
+    my $k = $q->{kind};
+
+    if ($k eq 'stmt') {
+        return stringify_stmt($q);
+    }
+    if ($k eq 'expr') {
+        return stringify_expr($q);
+    }
+    die "unrecognised kind: '$k'";
+}
+
+######################################################################
+
+sub flatten($$);
+sub flatten($$)
+{
+    my ($i, $q) = @_;
+    if (!ref($q)) {
+        if ($q eq '') {
+            return "\n";
+        }
+        return ("    " x $i).$q."\n";
+    }
+
+    return
+        flatten($i, '{').
+        join("", map { flatten($i+1, $_) } @$q).
+        flatten($i, '}');
+}
+
+######################################################################
+
+sub do_mat($)
+{
+    my ($expr) = @_;
+
+    $expr = normalise($expr);
+
+    if (0) {
+        print "ORIG:\n";
+        print flatten(0,stringify(simplify($expr)));
+    }
+
+    if (1) {
+        print "MAT3:\n";
+        my $mat3 = restrict_mat(3, $expr);
+        print flatten(0,stringify(simplify($mat3)));
+    }
+
+    if (0) {
+        print "MAT2:\n";
+        my $mat2 = restrict_mat(2, $expr);
+        print flatten(0,stringify(simplify($mat2)));
+    }
+
+    if (0) {
+        print "MAT3W:\n";
+        my $mat3w = restrict_matw(3, $expr);
+        print flatten(0,stringify(simplify($mat3w)));
+    }
+
+    if (0) {
+        print "MAT2W:\n";
+        my $mat2w = restrict_matw(2, $expr);
+        print flatten(0,stringify(simplify($mat2w)));
+    }
+}
+
+sub do_vec($)
+{
+    my ($expr) = @_;
+
+    $expr = normalise($expr);
+    print "ORIG:\n";
+    print flatten(0,stringify(simplify($expr)));
+
+    print "VEC2:\n";
+    my $vec2 = restrict_vec(2, $expr);
+    print flatten(0,stringify(simplify($vec2)));
+}
+
+#do_mat(MAT_INV());
+#do_mat(MAT_MUL());
+#do_vec(VEC_CROSS());
+#do_mat(SET_M(MAKE_MAT(\&A)));
+do_mat(SET_M(MAKE_MAT_ROT_XYZ()));

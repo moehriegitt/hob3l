@@ -5,18 +5,18 @@
 #define CP_PANIC_H_
 
 #include <stdarg.h>
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 
 /**
  * Panic if this code is reached.
  */
 #define CP_DIE(...) \
-    cp_panic(CP_FILE, CP_LINE, "This code should not be reached: " __VA_ARGS__)
+    cp_panic(CP_FILE, CP_LINE, "This code failed: " __VA_ARGS__)
 
 /**
  * Not yet implemented. */
 #define CP_NYI(...) \
-    cp_panic(CP_FILE, CP_LINE, "Not implemented: " __VA_ARGS__)
+    cp_panic(CP_FILE, CP_LINE, "Not yet implemented: " __VA_ARGS__)
 
 /**
  * Panic exit w/ message.

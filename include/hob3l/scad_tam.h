@@ -4,12 +4,14 @@
 #ifndef CP_SCAD_TAM_H_
 #define CP_SCAD_TAM_H_
 
-#include <hob3lbase/def.h>
-#include <hob3lbase/mat_tam.h>
+#include <hob3lmat/mat_tam.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/err_tam.h>
 #include <hob3lbase/obj_tam.h>
+#include <hob3lbase/base-mat_tam.h>
 #include <hob3l/scad_fwd.h>
 #include <hob3l/gc_tam.h>
+#include <hob3l/csg2.h>
 
 /**
  * Map type to type ID */

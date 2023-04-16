@@ -28,38 +28,10 @@ extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
  *
  * Uses \p pool for all temporary allocations (but not for constructing r).
  */
-extern bool cp_csg2_tree_add_layer(
+extern void cp_csg2_tree_add_layer(
     cp_pool_t *pool,
     cp_csg2_tree_t *r,
-    cp_err_t *t,
     size_t zi);
-
-/**
- * Compute bounding box
- *
- * Runtime: O(n), n=size of vector
- */
-extern void cp_v_vec2_loc_minmax(
-    cp_vec2_minmax_t *m,
-    cp_v_vec2_loc_t *o);
-
-/**
- * Append all paths from a into r, destroying a.
- *
- * This does no intersection test, but simply appends vectors
- * and adjusts indices.
- *
- * This moves both the paths and the triangulation.
- *
- * NOTE: If necessary for some future algorithm, this could be
- * rewritten to only clear a->path, but leave a->point and a->triangle
- * intact, because the latter vectors do not contain any allocated
- * substructures.  Currently, for consistency, the whole poly is
- * cleared.
- */
-extern void cp_csg2_poly_merge(
-    cp_csg2_poly_t *r,
-    cp_csg2_poly_t *a);
 
 /**
  * Return the layer thickness of a given layer.

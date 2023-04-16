@@ -4,7 +4,7 @@
 #ifndef CP_CSG2_HULL_H_
 #define CP_CSG2_HULL_H_
 
-#include <hob3lbase/mat.h>
+#include <hob3l/csg2.h>
 
 /**
  * Compute the convex hull of a set of points.

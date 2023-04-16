@@ -63,7 +63,7 @@ static inline bool cp_bool_bitmap_get(
 /**
  * Set/unset a given bit in the bitmap
  */
-static inline bool cp_bool_bitmap_set(
+static inline void cp_bool_bitmap_set(
     cp_bool_bitmap_t *b,
     size_t i,
     bool v)

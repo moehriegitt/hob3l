@@ -1,74 +1,104 @@
 # -*- Mode: Makefile -*-
 # Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
 
-package_name := hob3l
-package_version := test
-
-WITH_FONT :=
-
-######################################################################
-
 SHELL := /bin/sh
 
+ifeq ($(MODE),)
 -include .mode.d
-
-# default is 'just do it' mode, with some runtime checks
-OPT := 2
-SANITIZE := 0
-WERROR := 0
-NDEBUG := 0
-FRAME := 0
-PSTRACE := 0
+endif
 
 # release mode: strict compilation, no sanitizing, no debug, no PS trace
 ifeq ($(MODE), release)
-OPT := 3
-SANITIZE := 0
-WERROR := 1
-NDEBUG := 1
-FRAME := 0
-PSTRACE := 0
+OPT ?= 3
+ARCH ?=
+SANITIZE ?= 0
+WERROR ?= 1
+NDEBUG ?= 1
+FRAME ?= 0
+PSTRACE ?= 0
+FUZZ ?= 0
 endif
 
 # devel mode: strict compilation, full set of diagnostics and checks, debuggable
 ifeq ($(MODE), devel)
-OPT := 0
-SANITIZE := 1
-WERROR := 1
-NDEBUG := 0
-FRAME := 1
-PSTRACE := 1
+OPT ?= 0
+ARCH ?= native
+SANITIZE ?= 1
+WERROR ?= 1
+NDEBUG ?= 0
+FRAME ?= 1
+PSTRACE ?= 1
+FUZZ ?= 1
 endif
 
-_ := $(shell echo MODE:=$(MODE) > .mode.d)
+# default is 'just do it' mode, with some runtime checks
+OPT ?= 2
+ARCH ?=
+SANITIZE ?= 0
+WERROR ?= 0
+NDEBUG ?= 0
+FRAME ?= 0
+PSTRACE ?= 0
+FUZZ ?= 0
+TARGET ?= gcc
+
+_ := $(shell (\
+    echo MODE:=$(MODE) ; \
+    echo OPT:=$(OPT) ; \
+    echo ARCH:=$(ARCH) ; \
+    echo SANITIZE:=$(SANITIZE) ; \
+    echo WERROR:=$(WERROR) ; \
+    echo NDEBUG:=$(NDEBUG) ; \
+    echo FRAME:=$(FRAME) ; \
+    echo PSTRACE:=$(PSTRACE) ; \
+    echo FUZZ:=$(FUZZ) ; \
+    echo TARGET:=$(TARGET) ; \
+    echo) > .mode.d)
 
 ######################################################################
 
-CC.default := gcc
-CC.nix64   := gcc -m64
-CC.nix32   := gcc -m32
-CC.win64   := x86_64-w64-mingw32-gcc
-CC.win32   := i686-w64-mingw32-gcc
+_ := $(shell mkdir -p out/test)
+_ := $(shell mkdir -p out/bin)
+_ := $(shell mkdir -p out/src)
 
-_EXE.win64  := .exe
-_EXE.win32  := .exe
+######################################################################
 
-_LIB.default := .a
-_LIB.nix64   := .a
-_LIB.nix32   := .a
-_LIB.win64   := .lib
-_LIB.win32   := .lib
+CC.gcc   := gcc
+CC.clang := clang
+CC.gcc64 := gcc -m64
+CC.gcc32 := gcc -m32
+CC.win64 := x86_64-w64-mingw32-gcc
+CC.win32 := i686-w64-mingw32-gcc
 
-LIB_.default := lib
-LIB_.nix64   := lib
-LIB_.nix32   := lib
+KIND.gcc   := gcc
+KIND.gcc32 := gcc
+KIND.gcc64 := gcc
+KIND.win32 := gcc
+KIND.win64 := gcc
+KIND.clang := clang
 
-TARGET := default
+_EXE.win64 := .exe
+_EXE.win32 := .exe
 
+_LIB.gcc   := .a
+_LIB.clang := .a
+_LIB.gcc64 := .a
+_LIB.gcc32 := .a
+_LIB.win64 := .lib
+_LIB.win32 := .lib
+
+LIB_.gcc   := lib
+LIB_.clang := lib
+LIB_.gcc64 := lib
+LIB_.gcc32 := lib
+
+KIND := $(KIND.$(TARGET))
 CC   := $(CC.$(TARGET))
 _EXE := $(_EXE.$(TARGET))
 _LIB := $(_LIB.$(TARGET))
 LIB_ := $(LIB_.$(TARGET))
+
+######################################################################
 
 AR := ar
 RANLIB := ranlib
@@ -77,34 +107,38 @@ UNINSTALL := rm -f
 UNINSTALL_DIR := rmdir
 
 CFLAGS_OPT   := -O$(OPT) -g3
-CFLAGS_ARCH  := -march=core2 -mfpmath=sse
 
-CFLAGS_SAFE  += -pipe
-CFLAGS_SAFE  += -fno-delete-null-pointer-checks
-CFLAGS_SAFE  += -fwrapv
-CFLAGS_SAFE  += -fno-strict-overflow
+ifneq ($(ARCH),)
+CFLAGS_ARCH  += -march=$(ARCH)
+endif
 
-CPPFLAGS_SAFE += -D_FORTIFY_SOURCE=2
-CFLAGS_SAFE  += -fstack-protector-strong
-#CFLAGS_SAFE  += -fstack-clash-protection
-CFLAGS_SAFE  += -fPIE -pie
-CFLAGS_SAFE  += -Wl,-z,noexecstack
-CFLAGS_SAFE  += -Wl,-z,relro
-CFLAGS_SAFE  += -Wl,-z,now
-CFLAGS_SAFE  += -Wl,-z,defs
+CFLAGS_SAFE      += -pipe
+CFLAGS_SAFE.gcc  += -fno-delete-null-pointer-checks
+CFLAGS_SAFE      += -fwrapv
+CFLAGS_SAFE.gcc  += -fno-strict-overflow
+
+CPPFLAGS_SAFE    += -D_FORTIFY_SOURCE=2
+CFLAGS_SAFE      += -fstack-protector-strong
+#CFLAGS_SAFE     += -fstack-clash-protection
+CFLAGS_SAFE      += -fPIE
+CFLAGS_SAFE.gcc  += -pie
+CFLAGS_SAFE.gcc  += -Wl,-z,noexecstack
+CFLAGS_SAFE.gcc  += -Wl,-z,relro
+CFLAGS_SAFE.gcc  += -Wl,-z,now
+CFLAGS_SAFE.gcc  += -Wl,-z,defs
 
 ifeq ($(FRAME),0)
 CFLAGS_DEBUG += -fomit-frame-pointer
 endif
 ifeq ($(SANITIZE),1)
-CFLAGS_DEBUG += -fsanitize=undefined
-# CFLAGS_DEBUG += -fsanitize=address # currently needs ASAN_OPTIONS=detect_leaks=0
+CFLAGS_DEBUG += # -fsanitize=undefined -fno-sanitize-recover=all -fsanitize-undefined-trap-on-error
+#CFLAGS_DEBUG += -fsanitize=address # currently needs ASAN_OPTIONS=detect_leaks=0
 endif
 ifeq ($(NDEBUG),1)
 CFLAGS_DEBUG += -DNDEBUG
 endif
 ifeq ($(PSTRACE),1)
-CPPFLAGS_DEF += -DPSTRACE
+CPPFLAGS_DEF += -DPSTRACE -DCQ_TRACE
 endif
 ifeq ($(WITH_FONT),1)
 CPPFLAGS_DEF += -DWITH_FONT
@@ -126,50 +160,58 @@ CFLAGS_WARN   += -Wold-style-definition
 CFLAGS_WARN   += -Wnested-externs
 CFLAGS_WARN   += -Wmissing-prototypes
 CFLAGS_WARN   += -Wstrict-prototypes
-CFLAGS_WARN   += -Waggregate-return
+# CFLAGS_WARN   += -Waggregate-return  # we do that, and it is good.
 CFLAGS_WARN   += -Wpointer-arith
 CFLAGS_WARN   += -Wcast-qual
 CFLAGS_WARN   += -Wcast-align
 CFLAGS_WARN   += -Wwrite-strings
 CFLAGS_WARN   += -Wshadow
 CFLAGS_WARN   += -Wdeprecated
-CFLAGS_WARN   += -Wlogical-op
-CFLAGS_WARN   += -Wtrampolines
-CFLAGS_WARN   += -Wsuggest-attribute=format
-CFLAGS_WARN   += -Wsuggest-attribute=noreturn
 CFLAGS_WARN   += -Wconversion
 CFLAGS_WARN   += -Wsign-conversion
 CFLAGS_WARN   += -Wstrict-overflow=5
-CPPFLAGS_WARN += -finput-charset=us-ascii
 CFLAGS_WARN   += -Wshadow
 CFLAGS_WARN   += -Wmultichar
 CFLAGS_WARN   += -Wfloat-equal
-CFLAGS_WARN   += -Wshift-overflow=2
 CFLAGS_WARN   += -Wbad-function-cast
-CFLAGS_WARN   += -Wjump-misses-init
 CFLAGS_WARN   += -Wredundant-decls
 CFLAGS_WARN   += -Wvla
+
+CFLAGS_WARN.gcc += -Wlogical-op
+CFLAGS_WARN.gcc += -Wjump-misses-init
+CFLAGS_WARN.gcc += -Wtrampolines
+CFLAGS_WARN.gcc += -Wsuggest-attribute=format
+CFLAGS_WARN.gcc += -Wsuggest-attribute=noreturn
+CFLAGS_WARN.gcc += -Wshift-overflow=2
+
+CPPFLAGS_WARN.gcc += -finput-charset=us-ascii
+
+CFLAGS_WARN.clang += -Wno-missing-field-initializers
+CFLAGS_WARN.clang += -Wno-missing-braces
 
 ifeq ($(WERROR),1)
 CFLAGS_WARN   += -Werror
 endif
 
-CFLAGS_WARN   += -fmax-errors=10
+CFLAGS_WARN.gcc += -fmax-errors=10
+
+######################################################################
+
+FUZZ_CC  := afl-gcc
+FUZZ_DEF := -DFUZZ -UNDEBUG -UPSTRACE -UCQ_TRACE
+FUZZ_OPT := -O3
 
 ######################################################################
 
 all:
 
 include install.mk
-include test.mk
 
-######################################################################
-
-CFLAGS   += $(CFLAGS_OPT)
-CFLAGS   += $(CFLAGS_WARN)
-CFLAGS   += $(CFLAGS_ARCH)
-CFLAGS   += $(CFLAGS_SAFE)
-CFLAGS   += $(CFLAGS_DEBUG)
+CFLAGS += $(CFLAGS_OPT)
+CFLAGS += $(CFLAGS_WARN)
+CFLAGS += $(CFLAGS_ARCH)
+CFLAGS += $(CFLAGS_SAFE)
+CFLAGS += $(CFLAGS_DEBUG)
 
 CPPFLAGS += $(CPPFLAGS_STD)
 CPPFLAGS += $(CPPFLAGS_DEF)
@@ -177,218 +219,31 @@ CPPFLAGS := $(CPPFLAGS_INC) $(CPPFLAGS)
 CPPFLAGS += $(CPPFLAGS_WARN)
 CPPFLAGS += $(CPPFLAGS_SAFE)
 
-######################################################################
+CFLAGS += $(CFLAGS_OPT.$(KIND))
+CFLAGS += $(CFLAGS_WARN.$(KIND))
+CFLAGS += $(CFLAGS_ARCH.$(KIND))
+CFLAGS += $(CFLAGS_SAFE.$(KIND))
+CFLAGS += $(CFLAGS_DEBUG.$(KIND))
 
-package_dir := $(package_name)
-
-HOB3L := ./hob3l.exe
-HOB3L_JS_COPY_AUX := pkgdatadir=./share sh ./script/hob3l-js-copy-aux.in
-
-######################################################################
-
-TEST_TRIANGLE.png := \
-    $(addprefix test-out/,$(notdir $(TEST_TRIANGLE.scad:.scad=.png)))
-
-TEST_STL.stl := \
-    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.stl)))
-
-TEST_STL.jsgz := \
-    $(addprefix test-out/,$(notdir $(TEST_STL.scad:.scad=.js.gz)))
-
-FAIL_TRIANGLE := \
-    $(addprefix test-out/fail-,$(notdir $(FAIL_TRIANGLE.scad:.scad=.ps)))
-
-FAIL_STL := \
-    $(addprefix test-out/fail-,$(notdir $(FAIL_STL.scad:.scad=.stl)))
-
-FAIL_JS := \
-    $(addprefix test-out/fail-,$(notdir $(FAIL_JS.scad:.scad=.js)))
+CPPFLAGS += $(CPPFLAGS_STD.$(KIND))
+CPPFLAGS += $(CPPFLAGS_DEF.$(KIND))
+CPPFLAGS := $(CPPFLAGS_INC.$(KIND)) $(CPPFLAGS)
+CPPFLAGS += $(CPPFLAGS_WARN.$(KIND))
+CPPFLAGS += $(CPPFLAGS_SAFE.$(KIND))
 
 ######################################################################
-# header files
-
-H_CPMAT := $(notdir $(wildcard include/hob3lbase/*.h))
-H_HOB3L := $(notdir $(wildcard include/hob3l/*.h))
-
-######################################################################
-# data files
-
-SHARE_DATA := \
-    gl-matrix/common.js \
-    gl-matrix/mat4.js \
-    gl-matrix/vec3.js \
-    js-hob3l.local.html
-
-######################################################################
-
-# Basic Algorithms and Data Structures:
-# libhob3lbase.a:
-MOD_C.libhob3lbase.a := \
-    mat.c \
-    mat_gen_ext.c \
-    mat_is_rot.c \
-    arith.c \
-    alloc.c \
-    algo.c \
-    bool-bitmap.c \
-    vec.c \
-    heap.c \
-    dict.c \
-    list.c \
-    ring.c \
-    stream.c \
-    pool.c \
-    vchar.c \
-    panic.c \
-    internal.c \
-    qsort.c \
-    utf8.c
-
-MOD_O.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.o))
-MOD_D.libhob3lbase.a := $(addprefix out/,$(MOD_C.libhob3lbase.a:.c=.d))
-
-# Main Functionality:
-# libhob3l.a:
-MOD_C.libhob3l.a := \
-    syn.c \
-    syn-2scad.c \
-    syn-msg.c \
-    stl-parse.c \
-    vec3-dict.c \
-    scad.c \
-    scad-2scad.c \
-    csg3.c \
-    csg3-2scad.c \
-    csg2.c \
-    csg2-tree.c \
-    csg2-layer.c \
-    csg2-triangle.c \
-    csg2-bool.c \
-    csg2-hull.c \
-    csg2-2scad.c \
-    csg2-2stl.c \
-    csg2-2js.c \
-    csg2-2ps.c \
-    ps.c \
-    gc.c
-
-ifeq ($(WITH_FONT),1)
-MOD_C.libhob3l.a += \
-    font.c
-endif
-
-MOD_O.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.o))
-MOD_D.libhob3l.a := $(addprefix out/,$(MOD_C.libhob3l.a:.c=.d))
-
-# Font library:
-# libhob3lfont.a:
-MOD_C.libhob3lfont.a := \
-    font-nozzl3_sans.c \
-    font-nozzl3_sans_black.c \
-    font-nozzl3_sans_black_oblique.c \
-    font-nozzl3_sans_bold.c \
-    font-nozzl3_sans_bold_oblique.c \
-    font-nozzl3_sans_light.c \
-    font-nozzl3_sans_light_oblique.c \
-    font-nozzl3_sans_medium.c \
-    font-nozzl3_sans_medium_oblique.c \
-    font-nozzl3_sans_oblique.c
-
-MOD_O.libhob3lfont.a := $(addprefix out/,$(MOD_C.libhob3lfont.a:.c=.o))
-MOD_D.libhob3lfont.a := $(addprefix out/,$(MOD_C.libhob3lfont.a:.c=.d))
-
-# Tests:
-# libcptest.a:
-MOD_C.libcptest.a := \
-    test.c \
-    math-test.c \
-    dict-test.c \
-    list-test.c \
-    ring-test.c
-
-MOD_O.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.o))
-MOD_D.libcptest.a := $(addprefix out/,$(MOD_C.libcptest.a:.c=.d))
-
-# Command Line Executable:
-# hob3l.exe:
-MOD_C.hob3l.exe := \
-    main.c
-
-MOD_O.hob3l.exe := $(addprefix out/,$(MOD_C.hob3l.exe:.c=.o))
-MOD_D.hob3l.exe := $(addprefix out/,$(MOD_C.hob3l.exe:.c=.d))
-
-# Test Executable:
-# cptest.exe:
-MOD_C.cptest.exe := \
-    test-main.c
-
-MOD_O.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.o))
-MOD_D.cptest.exe := $(addprefix out/,$(MOD_C.cptest.exe:.c=.d))
-
-# Font generator:
-# fontgen.exe:
-MOD_C.fontgen.exe := \
-    fontgen.c
-
-MOD_O.fontgen.exe := $(addprefix out/,$(MOD_C.fontgen.exe:.c=.o))
-MOD_D.fontgen.exe := $(addprefix out/,$(MOD_C.fontgen.exe:.c=.d))
-
-######################################################################
-
-_ := $(shell mkdir -p out)
-_ := $(shell mkdir -p test-out)
-
--include out/*.d
-
-.SECONDARY:
 
 .SUFFIXES:
 
-all: \
-    cptest.exe \
-    libcptest.a
+.SECONDARY:
 
-bin: \
-    hob3l.exe \
-    out/hob3l-js-copy-aux
-
-LIB.hob3l.exe := \
-    hob3l \
-    hob3lbase
-
-ifeq ($(WITH_FONT),1)
-LIB.hob3l.exe += \
-    hob3lfont
-endif
-
-LIB_A.hob3l.exe := $(addsuffix $(_LIB), $(addprefix $(LIB_), $(LIB.hob3l.exe)))
-LIB_L.hob3l.exe := $(addprefix -l, $(LIB.hob3l.exe))
-
-lib: $(LIB_A.hob3l.exe)
-
-data: \
-    $(addprefix out/,$(OUT_DATA))
-
-maintainer-clean: zap
+.PHONY: lib
+lib:
 
 .PHONY: sweep
 sweep:
 	rm -f *~
 	rm -f *.bak
-	rm -f src/*~
-	rm -f src/*.bak
-	rm -f font/*~
-	rm -f font/*.bak
-	rm -f include/*~
-	rm -f include/*.bak
-	rm -f include/hob3lbase/*~
-	rm -f include/hob3lbase/*.bak
-	rm -f include/hob3l/*~
-	rm -f include/hob3l/*.bak
-
-.PHONY: font-clean
-font-clean: clean
-	rm -f src/font-nozzl3*.c
 
 .PHONY: zap
 zap: sweep clean font-clean
@@ -397,14 +252,24 @@ zap: sweep clean font-clean
 .PHONY: distclean
 distclean: sweep clean
 
-.PHONY: clean-test
-clean-test:
-	rm -rf test-out
+.PHONY: speed-test
+speed-test:
 
-clean: clean-test
+.PHONY: test
+test: unit-test no-unit-test
+
+.PHONY: fail
+fail:
+
+.PHONY: unit-test
+unit-test:
+
+.PHONY: no-unit-test
+no-unit-test:
+
+.PHONY: clean
+clean: clean-test clean-fuzz clean-bin clean-src clean-speed clean-share
 	rm -rf out
-	rm -rf out-font
-	rm -rf html
 	rm -f *.o
 	rm -f *.d
 	rm -f *.i
@@ -413,328 +278,77 @@ clean: clean-test
 	rm -f *.exe
 	rm -f core
 	rm -f src/core
-	rm -f font/core
+	rm -f src/*/core
 
-libhob3l.a: $(MOD_O.libhob3l.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+.PHONY: clean-test
+clean-test:
+	rm -rf out/test
 
-libhob3lbase.a: $(MOD_O.libhob3lbase.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+.PHONY: clean-fuzz
+clean-fuzz:
+	rm -rf out/fuzz
 
-libhob3lfont.a: $(MOD_O.libhob3lfont.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+.PHONY: clean-bin
+clean-bin:
+	rm -rf out/bin
 
-libcptest.a: $(MOD_O.libcptest.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+.PHONY: clean-src
+clean-src:
+	rm -rf out/src
 
-hob3l.exe: $(MOD_O.hob3l.exe) $(LIB_A.hob3l.exe)
-	$(CC) -o $@ $(MOD_O.hob3l.exe) -L. $(LIB_L.hob3l.exe) $(LIBS) -lm $(CFLAGS)
+.PHONY: clean-speed
+clean-speed:
+	rm -rf out/speed
 
-cptest.exe: $(MOD_O.cptest.exe) libhob3lbase.a libcptest.a
-	$(CC) -o $@ $(MOD_O.cptest.exe) -L. -lcptest -lhob3lbase $(LIBS) -lm $(CFLAGS)
+.PHONY: clean-share
+clean-share:
+	rm -rf out/share
 
-fontgen.exe: $(MOD_O.fontgen.exe) libhob3lbase.a libhob3l.a
-	$(CC) -o $@ $(MOD_O.fontgen.exe) -L. -lhob3l -lhob3lbase $(LIBS) -lm $(CFLAGS)
+######################################################################
 
-out/%: script/%.in
-	sed 's_@pkgdatadir@_$(pkgdatadir)_g' $< > $@.new
-	mv $@.new $@
-
-src/mat_gen_ext.c: $(srcdir)/script/mkmat
-	$(srcdir)/script/mkmat
-
-src/mat_is_rot.c: $(srcdir)/script/mkrotmat
-	$(srcdir)/script/mkrotmat > $@.new
-	mv $@.new $@
-
-out/math-test.o: CFLAGS+=-Wno-float-equal
-
-out/%.o: src/%.c src/mat_gen_ext.c
-	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
-
-out/%.o: font/%.c
-	$(CC) -MMD -MP -MT $@ -MF out/$*.d -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
-
-%.i: %.c
-	$(CC) -MMD -MP -MT $@ -MF out/$*.d -E $< $(CPPFLAGS) $(CFLAGS) > $@.new
-	mv $@.new $@
-
-out/main.o: src/main.c src/opt.inc
-
-%.inc: %.switch $(srcdir)/script/mkswitch
-	$(srcdir)/script/mkswitch $< > $@.new
-	mv $@.new $@
-
-.PHONY: test
-test: unit-test no-unit-test
-
-.PHONY: no-unit-test
-no-unit-test: test-triangle test-triangle-prepare test-stl test-js
-
-.PHONY: fail
-fail: fail-triangle fail-stl fail-js
-
-.PHONY: unit-test
-unit-test: cptest.exe
-	./cptest.exe
-
-
-.PHONY: test-triangle
-test-triangle: $(TEST_TRIANGLE.png)
-
-.PHONY: test-stl
-test-stl: $(TEST_STL.stl)
-
-.PHONY: test-js
-test-js: $(TEST_STL.jsgz)
-
-
-.PHONY: fail-triangle
-fail-triangle: $(FAIL_TRIANGLE)
-
-.PHONY: fail-stl
-fail-stl: $(FAIL_STL)
-
-.PHONY: fail-js
-fail-js: $(FAIL_JS)
-
-
-.PHONY: test-jsgz
-test-jsgz: test-js
-
-.PHONY: test-triangle-prepare
-test-triangle-prepare: $(TEST_TRIANGLE.scad)
-
-test-out/%.png: test-out/%.ps
-	gm convert -border 10x10 -bordercolor '#ffffff' -density 144x144 $< $@.new.png
-	mv $@.new.png $@
-
-test-out/%.ps: scad-test/%.scad hob3l.exe
-	$(HOB3L) $< -z=2.0 $(HOB3L_OPT) -o $@.new.ps
-	mv $@.new.ps $@
-
-test-out/fail-%.ps: scad-test/%.scad hob3l.exe
-	! $(MAKE) test-out/$*.ps
-	echo >| $@
-
-test-out/%.stl: scad-test/%.scad hob3l.exe
-	$(HOB3L) $< -o $@.new.stl
-	mv $@.new.stl $@
-
-test-out/fail-%.stl: scad-test/%.scad hob3l.exe
-	! $(MAKE) test-out/$*.stl
-	echo >| $@
-
-test-out/%.stl: $(SCAD_DIR)/%.scad hob3l.exe
-	openscad $< -o $@.new.csg
-	$(HOB3L) $@.new.csg -o $@.new.stl
-	mv $@.new.stl $@
-	rm -f $@.new.csg
-
-test-out/%.js: scad-test/%.scad hob3l.exe
-	$(HOB3L) $< $(HOB3L_OPT) -o $@.new.js
-	cat $(wildcard $<.js) $@.new.js > $@.new2.js
-	mv $@.new2.js $@
-	rm $@.new.js
-
-test-out/fail-%.js: scad-test/%.scad hob3l.exe
-	! $(HOB3L) $< -o $@.new.js
-	echo >| $@
-
-test-out/%.js: $(SCAD_DIR)/%.scad hob3l.exe
-	openscad $< -o $@.new.csg
-	$(HOB3L) $@.new.csg -o $@.new.js
-	mv $@.new.js $@
-	rm -f $@.new.csg
-
-test-out/%.js.gz: test-out/%.js
-	$(HOB3L_JS_COPY_AUX) $(@:.gz=)
-
-scad-test/%.scad: scad-test/%.fig $(srcdir)/script/fig2scad
-	$(srcdir)/script/fig2scad $< > $@.new
-	mv $@.new $@
-
-scad-test/%-mx.scad: scad-test/%.fig $(srcdir)/script/fig2scad
-	$(srcdir)/script/fig2scad --mirror=x $< > $@.new
-	mv $@.new $@
-
-scad-test/%-r90.scad: scad-test/%.fig $(srcdir)/script/fig2scad
-	$(srcdir)/script/fig2scad --rotate=90 $< > $@.new
-	mv $@.new $@
-
-scad-test/%-r30.scad: scad-test/%.fig $(srcdir)/script/fig2scad
-	$(srcdir)/script/fig2scad --rotate=30 $< > $@.new
-	mv $@.new $@
+PROTO_CH := \
+    $(wildcard \
+	    $(srcdir)/src/hob3l/*.c \
+	    $(srcdir)/src/hob3l/*.h \
+	    $(srcdir)/src/hob3lbase/*.c \
+	    $(srcdir)/src/hob3lbase/*.h \
+	    $(srcdir)/include/hob3l/*.h \
+	    $(srcdir)/include/hob3lbase/*.h)
 
 .PHONY: update-header
 update-header: script/xproto
-	$(srcdir)/script/xproto \
-	    $(srcdir)/src/*.c \
-	    $(srcdir)/src/*.h \
-	    $(srcdir)/include/*/*.h
-	$(srcdir)/script/mkmacro \
-	    $(srcdir)/src/*.c \
-	    $(srcdir)/src/*.h \
-	    $(srcdir)/include/*/*.h
+	$(srcdir)/script/xproto  $(PROTO_CH)
+	$(srcdir)/script/mkmacro $(PROTO_CH)
 
 .PHONY: update-toc
 update-toc: README.md script/mktoc
 	$(srcdir)/script/mktoc -skip1 -in-place README.md
 	$(srcdir)/script/mktoc -skip1 -in-place doc/scadformat.md
 
-.PHONY: markdown
-markdown: \
-    html/README.html \
-    html/doc/scadformat.html \
-    html/doc/jsformat.html \
+######################################################################
 
-html/%.html: %.md
-	mkdir -p ./$(dir $@)
-	markdown $< > $@.new
+out/bin/%.o: src/%.c
+	$(CC) -MMD -MP -MT $@ -c -o $@ $< $(CPPFLAGS) $(CFLAGS)
+
+out/bin/%.i: src/%.c
+	$(CC) -MMD -MP -MT $@ -E $< $(CPPFLAGS) $(CFLAGS) > $@.new
 	mv $@.new $@
 
-SCAD_SCAD := $(wildcard $(SCAD_DIR)/*.scad)
-
-.PHONY: test-scad
-test-scad: $(addprefix test-out/,$(notdir $(SCAD_SCAD:.scad=.stl)))
-
-.PHONY: speed-test
-speed-test:
-	rm -f .mode.d.old && mv .mode.d .mode.d.old
-	$(MAKE) clean MODE=release
-	$(MAKE) -j
-	$(MAKE) -j test
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/curry.scad -o out.stl'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/curry.scad -o out.stl'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad -o out.stl'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad -o out.stl'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/uselessbox+body.scad'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/test31b.scad'
-	sync && sleep 1
-	bash -c 'time $(HOB3L) scad-test/test31b.scad'
-	rm -f .mode.d && mv .mode.d.old .mode.d
-	$(MAKE) clean
+out/fuzz/bin/%.o: src/%.c
+	$(FUZZ_CC) -MMD -MP -MT $@ -c -o $@ $< $(CPPFLAGS) $(CFLAGS) $(FUZZ_DEF) $(FUZZ_OPT)
 
 ######################################################################
 
-PS2PDF := ps2pdf
+include hob3lmat.mk
+include hob3lbase.mk
+include hob3lop.mk
+include hob3l.mk
 
-.PHONY: font
-font: out-font/.stamp
+include hob3lop-test.mk
+include hob3l-test.mk
 
-.PHONY: font-doc
-font-doc: font
-	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
-	cd out-font && pdflatex nozzl3_sans-coverage.tex < /dev/null
-	cd out-font && $(PS2PDF) nozzl3_sans-family.ps nozzl3_sans-family.pdf
-
-out-font/.stamp: fontgen.exe
-	mkdir -p out-font
-	./fontgen.exe
-
-######################################################################
-# installation, the usual ceremony.
-
-installdirs-bin:
-	$(NORMAL_INSTALL)
-	$(MKINSTALLDIR) $(DESTDIR)$(bindir)
-
-installdirs-data:
-	$(NORMAL_INSTALL)
-	$(MKINSTALLDIR) $(DESTDIR)$(pkgdatadir)
-	$(MKINSTALLDIR) $(DESTDIR)$(pkgdatadir)/gl-matrix
-
-installdirs-lib:
-	$(NORMAL_INSTALL)
-	$(MKINSTALLDIR) $(DESTDIR)$(libdir)
-
-installdirs-include:
-	$(NORMAL_INSTALL)
-	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3lbase
-	$(MKINSTALLDIR) $(DESTDIR)$(includedir)/hob3l
-
-install-bin: installdirs-bin
-	$(NORMAL_INSTALL)
-	$(INSTALL_BIN) \
-	    hob3l.exe \
-	    $(DESTDIR)$(bindir)/$(package_name)$(_EXE)
-	$(INSTALL_SCRIPT) \
-	    out/hob3l-js-copy-aux \
-	    $(DESTDIR)$(bindir)/$(package_name)-js-copy-aux
-
-install-data: installdirs-data
-	$(NORMAL_INSTALL)
-	for F in $(SHARE_DATA); do \
-	    $(INSTALL_DATA) \
-	        share/$$F \
-	        $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
-	done
-
-install-font:
-
-ifeq ($(WITH_FONT),1)
-install-font: installdirs-lib
-	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) libhob3lfont.a $(DESTDIR)$(libdir)/$(LIB_)hob3lfont$(_LIB)
+ifeq ($(FUZZ),1)
+include hob3lop-fuzz.mk
 endif
 
-install-lib: installdirs-lib
-	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
-	$(INSTALL_DATA) libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
-
-install-include: installdirs-include
-	$(NORMAL_INSTALL)
-	for H in $(H_CPMAT); do \
-	    $(INSTALL_DATA) \
-	        include/hob3lbase/$$H \
-	        $(DESTDIR)$(includedir)/hob3lbase/$$H || exit 1; \
-	done
-	for H in $(H_HOB3L); do \
-	    $(INSTALL_DATA) \
-	        include/hob3l/$$H \
-	        $(DESTDIR)$(includedir)/hob3l/$$H || exit 1; \
-	done
-
-uninstall:
-	$(NORMAL_UNINSTALL)
-	$(UNINSTALL) $(DESTDIR)$(bindir)/$(package_name)$(EXE)
-	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lfont$(_LIB)
-	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
-	$(UNINSTALL) $(DESTDIR)$(libdir)/$(LIB_)$(package_name)$(_LIB)
-	for H in $(H_CPMAT); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3lbase/$$H || exit 1; \
-	done
-	for H in $(H_HOB3L); do \
-	    $(UNINSTALL) $(DESTDIR)$(includedir)/hob3l/$$H || exit 1; \
-	done
-	for F in $(SHARE_DATA); do \
-	    $(UNINSTALL) $(DESTDIR)$(pkgdatadir)/$$F || exit 1; \
-	done
-	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3lbase
-	$(UNINSTALL_DIR) $(DESTDIR)$(includedir)/hob3l
-	$(UNINSTALL_DIR) $(DESTDIR)$(pkgdatadir)/gl-matrix
-	$(UNINSTALL_DIR) $(DESTDIR)$(pkgdatadir)
-
-# check installation by running 'test' with installed binary
-check: clean-test
-	$(MAKE) \
-	    HOB3L=$(DESTDIR)$(bindir)/$(package_name)$(_EXE) \
-	    HOB3L_JS_COPY_AUX=$(DESTDIR)$(bindir)/$(package_name)-js-copy-aux \
-	    no-unit-test
+-include out/bin/*/*.d

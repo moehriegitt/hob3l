@@ -16,8 +16,13 @@ use warnings;
 use Data::Dumper;
 
 my $P = 'cp_';
-my $I = 'hob3lbase';
+my $I = 'hob3lmat';
 my $FF = '%7.4f';
+
+my $tdim    = 'double';
+my $tsqrdim = 'double';
+my $tdet   = 'double';
+my $tscale = 'double';
 
 my $Puc = uc($P);
 my $Plc = lc($P);
@@ -224,10 +229,10 @@ sub gen_type_vec($$$)
 
     # basic type:
     my $s = "typedef union {\n";
-    $s.= "    X_dim_t v[$t->{dim}];\n";
+    $s.= "    $tdim v[$t->{dim}];\n";
     $s.= "    struct {\n";
     for my $c (coord($t->{dim})) {
-        $s.= "        X_dim_t $c;\n";
+        $s.= "        $tdim $c;\n";
     }
     $s.= "    };\n";
     if (my $ts = $t->{vecs}) {
@@ -235,11 +240,11 @@ sub gen_type_vec($$$)
         $s.= "    struct {\n";
         $s.= "        X_$ts->{name}_t b;\n";
         if ($coord[$ts->{dim}] ne 'w') {
-            $s.= "        X_dim_t w;\n";
+            $s.= "        $tdim w;\n";
         }
         $s.= "    };\n";
         $s.= "    struct {\n";
-        $s.= "        X_dim_t we;\n";
+        $s.= "        $tdim we;\n";
         $s.= "        X_$ts->{name}_t be;\n";
         $s.= "    };\n";
     }
@@ -254,7 +259,7 @@ sub gen_type_vec($$$)
     publish($oc, 'tam_h', $s);
 
     # array types:
-    gen_vec_arr_types($oc, $t);
+    #gen_vec_arr_types($oc, $t);
 }
 
 sub gen_type_mat($$$)
@@ -262,12 +267,12 @@ sub gen_type_mat($$$)
     my ($oc, $t, $elem) = @_;
     my $s = '';
     $s.= "typedef union {\n";
-    $s.= "    X_dim_t v[$t->{dim} * $t->{dim}];\n";
-    $s.= "    X_dim_t m[$t->{dim}][$t->{dim}];\n";
+    $s.= "    $tdim v[$t->{dim} * $t->{dim}];\n";
+    $s.= "    $tdim m[$t->{dim}][$t->{dim}];\n";
     $s.= "    X_$t->{vecr}{name}_t row[$t->{dim}];\n";
     $s.= "} X_$t->{name}_t;\n";
     publish($oc, 'tam_h', $s);
-    gen_vec_arr_types($oc, $t);
+    #gen_vec_arr_types($oc, $t);
 }
 
 sub gen_type_matw($$$)
@@ -275,14 +280,14 @@ sub gen_type_matw($$$)
     my ($oc, $t, $elem) = @_;
     my $s = '';
     $s.= "typedef union {\n";
-    $s.= "    X_dim_t v[$t->{dim} * ($t->{dim} + 1)];\n";
+    $s.= "    $tdim v[$t->{dim} * ($t->{dim} + 1)];\n";
     $s.= "    struct {\n";
     $s.= "       X_$t->{base}{name}_t b;\n";
     $s.= "       X_$t->{vecw}{name}_t w;\n";
     $s.= "    };\n";
     $s.= "} X_$t->{name}_t;\n";
     publish($oc, 'tam_h', $s);
-    gen_vec_arr_types($oc, $t);
+    #gen_vec_arr_types($oc, $t);
 }
 
 sub gen_type_mati($$$)
@@ -292,10 +297,10 @@ sub gen_type_mati($$$)
     $s.= "typedef struct {\n";
     $s.= "    X_$t->{base}{name}_t n;\n";
     $s.= "    X_$t->{base}{name}_t i;\n";
-    $s.= "    X_det_t d;\n";
+    $s.= "    $tdet d;\n";
     $s.= "} X_$t->{name}_t;\n";
     publish($oc, 'tam_h', $s);
-    gen_vec_arr_types($oc, $t);
+    #gen_vec_arr_types($oc, $t);
 }
 
 #### GENERIC STUFF ####
@@ -392,7 +397,7 @@ sub gen_rev_vec($$$)
     my ($oc, $t, $elem) = @_;
     my $p = proto($t, 'void', $elem, r=>$t, a=>$t);
     my $s = '';
-    $s .= "    X_dim_t h;\n";
+    $s .= "    $tdim h;\n";
     for my $i (0..($t->{dim} >> 1)-1) {
         my $j = $t->{dim} - $i - 1;
         $s .= "    h = a->v[$i];\n";
@@ -414,7 +419,7 @@ sub gen_unit_vec($$$)
     my $name = "X_$t->{name}";
     my $p = proto($t, 'bool', $elem, r=>$t, a=>$t);
     my $s = '';
-    $s .= "    X_dim_t l = ${name}_len(a);\n";
+    $s .= "    $tdim l = ${name}_len(a);\n";
     $s .= "    ${name}_div(r, a, l);\n";
     $s .= "    return !X_sqr_eq(l,0);\n";
     publish_extern($oc, $p, $s);
@@ -464,7 +469,7 @@ sub gen_neg_vec($$$)
 sub gen_mul_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>'X_scale_t');
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$tscale);
     my $s = '';
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = a->v[$i] * b;\n";
@@ -477,7 +482,7 @@ sub gen_mul_vec($$$)
 sub gen_div_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>'X_scale_t');
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$tscale);
     my $s = '';
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = X_div0(a->v[$i], b);\n";
@@ -490,7 +495,7 @@ sub gen_div_vec($$$)
 sub gen_dot_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_sqrdim_t', $elem, a=>$t, b=>$t);
+    my $p = proto($t, $tsqrdim, $elem, a=>$t, b=>$t);
     my $s = '';
     $s .= "    return\n";
     $s .= "        (a->v[0] * b->v[0])";
@@ -589,10 +594,10 @@ sub gen_minmax_and_vec($$$)
 sub gen_max_abs_coord_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_dim_t', $elem, a=>$t);
+    my $p = proto($t, "$tdim", $elem, a=>$t);
     my $s = '';
-    $s .= "    X_dim_t m = X_abs(a->v[0]);\n";
-    $s .= "    X_dim_t p = X_abs(a->v[1]);\n";
+    $s .= "    $tdim m = X_abs(a->v[0]);\n";
+    $s .= "    $tdim p = X_abs(a->v[1]);\n";
     $s .= "    if (p > m) { m = p; }\n";
     for my $i (2..$t->{dim}-1) {
         $s .= "    p = X_abs(a->v[$i]);\n";
@@ -607,7 +612,7 @@ sub gen_max_abs_coord_vec($$$)
 sub gen_sqr_len_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_sqrdim_t', $elem, a=>$t);
+    my $p = proto($t, $tsqrdim, $elem, a=>$t);
     my $s = "    return X_$t->{name}_dot(a,a);\n";
     publish_inline($oc, $p, $s);
 }
@@ -617,7 +622,7 @@ sub gen_sqr_len_vec($$$)
 sub gen_len_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_dim_t', $elem, a=>$t);
+    my $p = proto($t, $tdim, $elem, a=>$t);
     my $s = "    return sqrt(X_$t->{name}_sqr_len(a));\n";
     publish_inline($oc, $p, $s);
 }
@@ -664,7 +669,7 @@ sub gen_sqr_dist_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $name = "X_$t->{name}";
-    my $p = proto($t, 'X_sqrdim_t', $elem, a=>$t, b=>$t);
+    my $p = proto($t, $tsqrdim, $elem, a=>$t, b=>$t);
     my $s = '';
     $s .= "    ${name}_t d[1];\n";
     $s .= "    ${name}_sub(d, a, b);\n";
@@ -677,7 +682,7 @@ sub gen_sqr_dist_vec($$$)
 sub gen_dist_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_dim_t', $elem, a=>$t, b=>$t);
+    my $p = proto($t, $tdim, $elem, a=>$t, b=>$t);
     my $s = "    return sqrt(X_$t->{name}_sqr_dist(a,b));\n";
     publish_inline($oc, $p, $s);
 }
@@ -688,7 +693,7 @@ sub gen_lerp_vec($$$)
 {
     my ($oc, $t, $elem) = @_;
     my $name = "X_$t->{name}";
-    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$t, c=>"X_scale_t");
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$t, c=>"$tscale");
     my $s = '';
     $s .= "    ${name}_t h[1];\n";
     $s .= "    ${name}_sub(h, b, a);\n";
@@ -851,7 +856,7 @@ sub gen_scale_mat($$$)
     my @c = coord($t->{dimx});
 
     my $name = "X_$t->{name}";
-    my $p = proto($t, 'void', $elem, r=>$t, xt("X_scale_t", @c));
+    my $p = proto($t, 'void', $elem, r=>$t, xt("$tscale", @c));
 
     my $s = '';
     $s .= "    X_ZERO(r);\n";
@@ -872,7 +877,7 @@ sub gen_scale_mati($$$)
     my @c = coord($t->{dimx});
 
     my $name = "X_$t->{name}";
-    my $p = proto($t, 'void', $elem, r=>$t, xt('X_scale_t', @c));
+    my $p = proto($t, 'void', $elem, r=>$t, xt($tscale, @c));
     my $s = '';
     $s .= "    X_$t->{base}{name}_$elem(&r->n, ".join(", ", @c).");\n";
     $s .= "    X_$t->{base}{name}_$elem(&r->i, ".join(", ", map { "X_div0(1,$_)" } @c).");\n";
@@ -883,7 +888,7 @@ sub gen_scale_mati($$$)
 sub gen_scale1_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'void', $elem, r=>$t, a=>'X_scale_t');
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$tscale);
     my $s = "    X_$t->{name}_scale(r, ".join(", ", map {"a"} coord($t->{dimx})).");\n";
     publish_inline($oc, $p, $s);
 }
@@ -1070,8 +1075,8 @@ sub gen_rot_ij_mat($$$)
     $s .= "    assert(i < $t->{dim});\n";
     $s .= "    assert(j < $t->{dim});\n";
     $s .= "    assert(X_vec2_has_len0_or_1(sc));\n";
-    $s .= "    X_dim_t s = sc->v[0];\n";
-    $s .= "    X_dim_t c = sc->v[1];\n";
+    $s .= "    $tdim s = sc->v[0];\n";
+    $s .= "    $tdim c = sc->v[1];\n";
     $s .= "    X_$t->{name}_unit(r);\n";
     $s .= "    r->m[i][i] = c;\n";
     $s .= "    r->m[j][j] = c;\n";
@@ -1214,7 +1219,7 @@ sub gen_xlat_mat($$$)
     my $j = $t->{dimt};
     return unless defined $j;
     my @c = coord($j);
-    my $p = proto($t, 'void', $elem, r=>$t, xt('X_dim_t', @c));
+    my $p = proto($t, 'void', $elem, r=>$t, xt($tdim, @c));
     my $s = '';
     $s.= "    X_$t->{name}_unit(r);\n";
     for my $i (0..$#c) {
@@ -1228,7 +1233,7 @@ sub gen_xlat_matw($$$)
     my ($oc, $t, $elem) = @_;
     my $j = $t->{dimt};
     my @c = coord($j);
-    my $p = proto($t, 'void', $elem, r=>$t, xt('X_dim_t', @c));
+    my $p = proto($t, 'void', $elem, r=>$t, xt($tdim, @c));
     my $s = '';
     $s.= "    X_$t->{base}{name}_unit(&r->b);\n";
     $s.= "    r->w = X_VEC$j(".join(", ", @c).");\n";
@@ -1241,7 +1246,7 @@ sub gen_xlat_mati($$$)
     my $j = $t->{dimt};
     return unless defined $j;
     my @c = coord($j);
-    my $p = proto($t, 'void', $elem, r=>$t, xt('X_dim_t', @c));
+    my $p = proto($t, 'void', $elem, r=>$t, xt($tdim, @c));
     my $s = '';
     $s.= "    X_$t->{base}{name}_$elem(&r->n, ".join(", ", @c).");\n";
     $s.= "    X_$t->{base}{name}_$elem(&r->i, ".join(", ", map {"-$_" } @c).");\n";
@@ -1366,7 +1371,7 @@ sub gen_inv_mati($$$)
 sub gen_det_mati($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_det_t', $elem, a=>$t);
+    my $p = proto($t, $tdet, $elem, a=>$t);
     my $s = '';
     $s.= "    return a->d;\n";
     publish_inline($oc, $p, $s);
@@ -1406,7 +1411,7 @@ sub gen_get_idx_matw($$$)
 sub gen_get_ptr_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_dim_t*', $elem, r=>$t, x=>'size_t', y=>'size_t');
+    my $p = proto($t, "$tdim *", $elem, r=>$t, x=>'size_t', y=>'size_t');
     my $s = '';
     $s.= "    return &r->v[X_$t->{name}_get_idx(x,y)];\n";
     publish_inline($oc, $p, $s);
@@ -1417,7 +1422,7 @@ sub gen_get_ptr_mat($$$)
 sub gen_get_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'X_dim_t', $elem, a=>$t, x=>'size_t', y=>'size_t');
+    my $p = proto($t, $tdim, $elem, a=>$t, x=>'size_t', y=>'size_t');
     my $s = '';
     $s.= "    return a->v[X_$t->{name}_get_idx(x,y)];\n";
     publish_inline($oc, $p, $s);
@@ -1428,7 +1433,7 @@ sub gen_get_mat($$$)
 sub gen_set_mat($$$)
 {
     my ($oc, $t, $elem) = @_;
-    my $p = proto($t, 'void', $elem, r=>$t, x=>'size_t', y=>'size_t', c=>'X_dim_t');
+    my $p = proto($t, 'void', $elem, r=>$t, x=>'size_t', y=>'size_t', c=>$tdim);
     my $s = '';
     $s.= "    *X_$t->{name}_get_ptr(r,x,y) = c;\n";
     publish_inline($oc, $p, $s);
@@ -1536,12 +1541,12 @@ my @gen = (
         mat  => \&gen_xform_vec,
         matw => \&gen_xform_vecw,
     }],
-    ['put', {
-        vec  => \&gen_put_vec,
-        mat  => \&gen_put_mat,
-        matw => \&gen_put_matw,
-        mati => \&gen_put_mati,
-    }],
+    #['put', {
+    #    vec  => \&gen_put_vec,
+    #    mat  => \&gen_put_mat,
+    #    matw => \&gen_put_matw,
+    #    mati => \&gen_put_mati,
+    #}],
     ['scale', {
         mat  => \&gen_scale_mat,
         matw => \&gen_scale_mat,
@@ -1686,8 +1691,7 @@ my %file = (
         file => "include/$I/mat_gen_tam.h",
         ifndef => "${Puc}MAT_GEN_TAM_H_",
         include => [
-            "$I/def.h",
-            "$I/vec.h",
+            "$I/mat_def.h",
         ],
     },
     'inl_h' => {
@@ -1696,7 +1700,6 @@ my %file = (
         include => [
             "$I/mat_gen_tam.h",
             "$I/mat_gen_ext.h",
-            "$I/arith.h",
             "$I/algo.h",
         ],
     },
@@ -1704,16 +1707,13 @@ my %file = (
         file => "include/$I/mat_gen_ext.h",
         ifndef => "${Puc}MAT_GEN_H_",
         include => [
-            "$I/stream_tam.h",
             "$I/mat_gen_tam.h",
         ],
     },
     'ext_c' => {
-        file => "src/mat_gen_ext.c",
+        file => "src/$I/mat_gen_ext.c",
         include => [
-            "$I/arith.h",
             "$I/algo.h",
-            "$I/stream.h",
             "$I/mat_tam.h",
             "$I/mat_gen_tam.h",
             "$I/mat_gen_ext.h",
@@ -1730,6 +1730,7 @@ for my $ext (sort keys %{ $oc->{out} }) {
     open(my $f, '>', "$x->{file}.new") or die "open: $@";
 
     print {$f} "/* -*- Mode: C -*- */\n";
+    print {$f} "/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */\n";
     print {$f} "/* Automatically generated by mkmat. */\n";
     print {$f} "\n";
     if ($ifndef) {

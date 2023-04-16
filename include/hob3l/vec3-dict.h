@@ -4,7 +4,7 @@
 #ifndef CP_VEC3_DICT_H_
 #define CP_VEC3_DICT_H_
 
-#include <hob3lbase/mat_gen_tam.h>
+#include <hob3lmat/mat_gen_tam.h>
 #include <hob3lbase/pool_tam.h>
 #include <hob3l/vec3-dict_tam.h>
 

@@ -4,10 +4,11 @@
 #ifndef CP_CSG2_TAM_H_
 #define CP_CSG2_TAM_H_
 
-#include <hob3lbase/mat_tam.h>
+#include <hob3lmat/mat_tam.h>
 #include <hob3lbase/dict.h>
 #include <hob3lbase/err_tam.h>
 #include <hob3lbase/bool-bitmap_tam.h>
+#include <hob3lop/gon_tam.h>
 #include <hob3l/csg_tam.h>
 #include <hob3l/csg2_fwd.h>
 #include <hob3l/csg3_fwd.h>
@@ -21,10 +22,11 @@
  */
 #define cp_csg2_typeof(type) \
     _Generic(type, \
-        cp_obj_t:         CP_ABSTRACT, \
-        cp_csg2_t:        CP_CSG_TYPE, \
-        cp_csg2_poly_t:   CP_CSG2_POLY, \
-        cp_csg2_stack_t:  CP_CSG2_STACK)
+        cp_obj_t:          CP_ABSTRACT, \
+        cp_csg2_t:         CP_CSG_TYPE, \
+        cp_csg2_poly_t:    CP_CSG2_POLY, \
+        cp_csg2_stack_t:   CP_CSG2_STACK, \
+        cp_csg2_vline2_t:  CP_CSG2_VLINE2)
 
 /**
  * 2D CSG basic shapes.
@@ -56,6 +58,30 @@ typedef enum {
     /**
      * A stack of 2D layers */
     CP_CSG2_STACK,
+
+    /**
+     * A set of lines representing a polygon.  This is a simplified
+     * representation with less order than CP_CSG2_POLY -- the internal
+     * algorithms use this.  It has integer coordinates instead of
+     * the FP that is used elsewhere.
+     *
+     * This polygon representation is used internally when no
+     * CP_CSG2_POLY is needed and it can be produced more easily,
+     * e.g., when slicing a polygon from a polyhedron.
+     */
+    CP_CSG2_VLINE2,
+
+    /**
+     * The working structure of combining multiple polygons into a
+     * single one, e.g., a cq_sweep_t.  This is used when the output
+     * format is not yet determined or for intermediate results
+     * to avoid an export into a cp_csg2_vline_t or cp_csg2_poly_t.
+     *
+     * This is used only internally in the csg2-bool module as an
+     * intermediate step during the recursive computation of a polygon
+     * tree flattening, as part of a cp_csg2_lazy_t structure.
+     */
+    CP_CSG2_SWEEP = CQ_OBJ_TYPE_SWEEP,
 } cp_csg2_type_t;
 
 #define CP_CSG2_ \
@@ -67,7 +93,6 @@ typedef enum {
 #define CP_CSG2_SIMPLE_ \
     CP_CSG2_ \
     cp_mat2wi_t mat; \
-    cp_color_rgba_t color; \
     cp_f_t _fa, _fs; \
     size_t _fn;
 
@@ -103,12 +128,6 @@ struct cp_csg2_stack {
     cp_csg3_t const *csg3;
 };
 
-typedef struct {
-    cp_v_size_t point_idx;
-} cp_csg2_path_t;
-
-typedef CP_VEC_T(cp_csg2_path_t) cp_v_csg2_path_t;
-
 /**
  * A 2D polygon is actually many polygons, called paths here.
  *
@@ -130,43 +149,11 @@ struct cp_csg2_poly {
     CP_CSG2_
 
     /**
-     * The vertices of the polygon.
-     *
-     * This stores both the coordinates and the location in the
-     * input file (for error messages).
-     *
-     * Each point must be unique.  Paths and triangles refer to
-     * this array.
-     */
-    cp_v_vec2_loc_t point;
-
-    /**
-     * Paths defining the polygon.
-     *
-     * This should be equivalent information as in triangle.
-     *
-     * All paths should be clockwise.  Some processing stages
-     * work without this (e.g., triangulation and bool operations
-     * do not really care about point order), others require it
-     * (like SCAD and STL output).  The bool operation output
-     * will correctly fill this in clockwise order.  (I.e., polygon
-     * paths subtracting from an outer path will have reverse
-     * order.)
-     */
-    cp_v_csg2_path_t path;
-
-    /**
-     * Triangles defining the polygon.
-     *
-     * This should be equivalent information as in path.
-     *
-     * All triangles should be clockwise.  Whether this is
-     * required depends on the step in the processing pipeline.
-     * SCAD and STL output require this to work correctly.
-     *
-     * Without triangulation run, this is empty.
-     */
-    cp_v_size3_t triangle;
+     * The unboxed 2D polygon representation */
+    union {
+        cq_csg2_poly_t q;
+        CQ_CSG2_POLY_T;
+    };
 
     /**
      * If available, the result of subtracting the previous layer
@@ -183,6 +170,25 @@ struct cp_csg2_poly {
      * the full polygon.
      */
     cp_csg2_poly_t *diff_above;
+};
+
+/**
+ * A 2D polygon represented as a set of lines with integer coordinates.
+ *
+ * This is used for internal exact computations: slicing, 2D bool
+ * operations, triangulation, and polygon reconstruction (VLINE2->POLY
+ * reconstruction).  This is, thus, related to the 'cq_' library
+ * operations using exact and robust arithmetics.
+ */
+struct cp_csg2_vline2 {
+    /**
+     * type is CP_CSG2_VLINE2 */
+    CP_CSG2_
+
+    /**
+     * The unboxed 2D polygon representation as a set (~vector)
+     * of lines. */
+    cq_v_line2_t q;
 };
 
 /**
@@ -231,19 +237,11 @@ typedef struct {
     cp_mat3wi_t const *root_xform;
 } cp_csg2_tree_t;
 
-/**
- * An unresolved polygon combination.
- */
 typedef struct {
-    /** Number of polygons to be combined (valid entries in \a data) */
-    size_t size;
-    /** Polygons to be combined */
-    cp_csg2_poly_t *data[CP_BOOL_BITMAP_MAX_LAZY];
-    /**
-     * Boolean combination map to decide from a mask of inside bits for each
-     * polygon whether the result is inside.  This is indexed bitwise with the
-     * mask of bits.  The number of entries is (1U << size) bits. */
-    cp_bool_bitmap_t comb;
-} cp_csg2_lazy_t;
+    cp_vec2_loc_t *ref;
+    cp_loc_t loc;
+} cp_vec2_loc_ref_t;
+
+typedef CP_ARR_T(cp_vec2_loc_ref_t) cp_a_vec2_loc_ref_t;
 
 #endif /* CP_CSG2_TAM_H_ */

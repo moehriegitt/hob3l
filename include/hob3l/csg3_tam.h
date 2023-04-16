@@ -4,9 +4,9 @@
 #ifndef CP_CSG3_TAM_H_
 #define CP_CSG3_TAM_H_
 
-#include <hob3lbase/mat_tam.h>
 #include <hob3lbase/err_tam.h>
 #include <hob3lbase/obj_tam.h>
+#include <hob3lbase/base-mat.h>
 #include <hob3l/gc_tam.h>
 #include <hob3l/csg_tam.h>
 #include <hob3l/csg2_tam.h>
@@ -73,54 +73,11 @@ typedef struct {
     cp_csg2_t *csg2;
 } cp_csg3_2d_t;
 
-struct cp_csg3_edge {
-    /**
-     * Source point of foreward edge.
-     *
-     * Points to the source point ref in \a fore->point
-     * This defines the index in fore->point and fore->edge arrays.
-     * This also locates the foreword edge in the input code.
-     */
-    cp_vec3_loc_ref_t *src;
-
-    /**
-     * Destination point of foreward edge.
-     *
-     * Points to the source point ref in \a back->point.
-     * This defines the index in back->point and back->edge arrays.
-     * This also locates the backward edge in the input code.
-     */
-    cp_vec3_loc_ref_t *dst;
-
-    /**
-     * Face where this edge is used in forward direction
-     * The index in fore->edge is cp_v_idx(&fore->point, src);
-     */
-    cp_csg3_face_t *fore;
-
-    /**
-     * Face where this edge is used in backward direction.
-     * The index in back->edge is cp_v_idx(&back->point, dst);
-     */
-    cp_csg3_face_t *back;
-};
-
-typedef CP_ARR_T(cp_csg3_edge_t)  cp_a_csg3_edge_t;
-typedef CP_ARR_T(cp_csg3_edge_t*) cp_a_csg3_edge_p_t;
-
 struct cp_csg3_face {
     /**
      * Point array.  Uses the same index as the edge
      * in edge array starting at this point */
     cp_a_vec3_loc_ref_t point;
-
-    /**
-     * Edge array.  This is stored additional to the point array
-     * both for checking that the definition is sound and because
-     * it is a more useful representation for the transformation into
-     * 2D space, as each edge that is cut will become one point in 2D.
-     */
-    cp_a_csg3_edge_p_t edge;
 
     /**
      * Source location of face. */
@@ -144,29 +101,8 @@ typedef struct {
     cp_a_vec3_loc_t point;
 
     /**
-     * All edges in the polyhedron.  This is allocated to double
-     * the necessary size in order to do proper error handling.
-     * Only the first half of it is used only foreward edges are
-     * stored and backward edges are mapped to the same index.
-     * edge->size, nevertheless, has the correct number, only
-     * the array is allocated to edge->size*2 entries.  It cannot
-     * currently be reclaimed because pointers into this array
-     * are used and realloc() would invalidate them.
-     */
-    cp_a_csg3_edge_t edge;
-
-    /**
      * The faces of the polyhedron. */
     cp_v_csg3_face_t face;
-
-    /**
-     * This is a full cube, i.e., the bounding box is exactly the
-     * polyhedron.  This may have false negatives, e.g., if a cube is
-     * defined by 'polyhedron' in SCAD instead of 'cube', then this
-     * will be false.
-     * (FIXME: not yet implemented)
-     */
-    bool is_cube;
 } cp_csg3_poly_t;
 
 typedef cp_csg2_poly_t cp_csg3_poly2_t;

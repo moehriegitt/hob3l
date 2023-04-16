@@ -40,7 +40,9 @@
  * OLD(p->next)->prev == OLD(n->prev).
  *
  * For insertion of q between p and p->prev, just reverse the argument
- * order, i.e., use 'insert(q, p)'.
+ * order, i.e., use 'chain(q, p)'.
+ *
+ * For removal from a list, pass the same node twice: 'chain(n, n)'.
  */
 #define cp_list_chain(p,n) \
     cp_list_chain_1_(CP_GENSYM(_l_npWB), CP_GENSYM(_l_pnWB), \
@@ -70,25 +72,6 @@
     do{ \
         __typeof__(*_q) *q = _q; \
         cp_list_chain(q, q); \
-    }while(0)
-
-/**
- * Swap two nodes in a list or between two lists
- */
-#define cp_list_swap(q,p) \
-    cp_list_swap_1_(CP_GENSYM(_pED), CP_GENSYM(_qED), (q), (p))
-
-#define cp_list_swap_1_(p,q,_q,_p) \
-    do{ \
-        __typeof__(*_q) *q = _q; \
-        __typeof__(*_p) *p = _p; \
-        assert(q != NULL); \
-        assert(p != NULL); \
-        cp_list_swap_( \
-            q, \
-            p, \
-            CP_MONUS((char*)&q->next, (char*)q), \
-            CP_MONUS((char*)&q->prev, (char*)q)); \
     }while(0)
 
 /**
@@ -149,13 +132,5 @@
     __typeof__(*n) *_n = n, *i = _n ->prev; \
     i != _n; \
     i = i->prev
-
-/**
- * Internal function to swap two elements.
- *
- * Use cp_list_swap() instead.
- */
-extern void cp_list_swap_(
-    void *a, void *b, size_t offset_next, size_t offset_prev);
 
 #endif /* CP_LIST_H_ */

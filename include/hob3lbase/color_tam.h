@@ -22,4 +22,8 @@ typedef union {
     cp_color_rgb_t rgb;
 } cp_color_rgba_t;
 
+#define CP_COLOR_RGBA_GREY(x)  ((cp_color_rgba_t){ .r = x, .g = x, .b = x, .a = 255 })
+#define CP_COLOR_RGBA_WHITE    CP_COLOR_RGBA_GREY(255)
+#define CP_COLOR_RGBA_BLACK    CP_COLOR_RGBA_GREY(0)
+
 #endif /* CP_COLOR_TAM_H_ */

@@ -17,7 +17,7 @@
 #ifndef CP_POOL_H_
 #define CP_POOL_H_
 
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/pool_tam.h>
 
 #define CP_POOL_NEW_ARR_PLUS(p, x, xp, n) \

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/vec.h>
 
 typedef CP_VEC_T(char) cp_vchar_t;

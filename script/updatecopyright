@@ -1,0 +1,59 @@
+#! /usr/bin/perl
+# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+
+use strict;
+use warnings;
+
+my $l = 'Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file';
+
+FILE: for my $file (@ARGV) {
+    my $mode = (stat $file)[2] or die "Error: stat('$file'): $@\n";
+
+    open(my $f, '<', $file) or die "Error: open('$file'): $@\n";
+    my @a = <$f>;
+    close $f;
+
+    my $a = '';
+    if (($a[0] =~ /-\*-.*-\*-/) || ($a[0] =~ /#!/)) {
+        $a = shift @a;
+    }
+    if ($a[0] =~ /Automatically/i) {
+        # Just skip, no error...
+        next FILE;
+    }
+    if ($a[0] =~ /Copyright/i) {
+        shift @a;
+    }
+
+    my $ll = $l;
+    if (($file =~ /[.][ch]$/) ||
+        ($a =~ /\bC\b/i) ||
+        ($file =~ /[.]scad$/) ||
+        ($a =~ /\bscad\b/i))
+    {
+        $ll = "/* $ll */";
+    }
+    elsif (
+        ($file =~ /[.].mk$/) ||
+        ($file =~ /makefile/i) ||
+        ($a =~ /\bMakefile\b/i) ||
+        ($file =~ /[.].pl$/) ||
+        ($a =~ /\bperl\b/i) ||
+        ($file =~ /[.].sh$/) ||
+        ($a =~ /\bsh\b/i) ||
+        ($a =~ /\bbash\b/i))
+    {
+        $ll = "# $ll";
+    }
+    else {
+        die "Error: Unrecognised file type: $file\n";
+    }
+
+    open(my $g, '>', "$file.new") or die "Error: open('$file.new'): $@\n";
+    print {$g} join("", $a, "$ll\n", @a);
+    close $g;
+
+    chmod $mode, "$file.new" or die "Error: chmod('$file.new'): $@\n";
+
+    rename "$file.new", "$file" or die "Error: rename('$file.new', '$file'): $@\n";
+}

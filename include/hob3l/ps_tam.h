@@ -4,7 +4,7 @@
 #ifndef CP_PS_TAM_H_
 #define CP_PS_TAM_H_
 
-#include <hob3lbase/mat_gen_tam.h>
+#include <hob3lmat/mat_gen_tam.h>
 #include <hob3l/gc_tam.h>
 
 #ifndef CP_PS_PAPER_NAME

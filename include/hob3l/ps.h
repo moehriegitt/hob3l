@@ -4,7 +4,7 @@
 #ifndef CP_PS_H_
 #define CP_PS_H_
 
-#include <hob3lbase/def.h>
+#include <hob3lbase/base-def.h>
 #include <hob3lbase/stream_tam.h>
 #include <hob3l/ps_tam.h>
 
@@ -17,7 +17,7 @@ extern cp_ps_xform_t const cp_ps_mm;
 /**
  * Inititalise xform from bounding box to get maximum view on paper.
  */
-extern void cp_ps_xform_from_bb(
+extern void cp_ps_xform_from_minmax(
     cp_ps_xform_t *d,
     cp_dim_t x_min,
     cp_dim_t y_min,
