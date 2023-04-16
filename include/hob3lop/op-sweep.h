@@ -1,4 +1,5 @@
 /* -*- Mode: C -*- */
+/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /**
  * Sweep line algorithm.

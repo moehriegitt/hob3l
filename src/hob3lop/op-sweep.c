@@ -1381,20 +1381,8 @@ extern void cq_sweep_intersect(
 {
     sweep_phase1_find_intersections(data);
 
-    /* maybe finish early */
-    if (0 && (data->xings->size == 0)) {
-        assert(0);
-        /* output the edges */
-        for (cp_v_eachv(o, data->edges)) {
-            if (edge_is_deleted(data, o)) {
-                continue;
-            }
-            result_insert(data, o);
-        }
-        return;
-    }
-
-    /* otherwise run phase 2 */
+    /* always run phase 2, even with no intersections, to round also
+     * ursegment end points properly */
     sweep_phase2_snap_round(data);
 }
 
