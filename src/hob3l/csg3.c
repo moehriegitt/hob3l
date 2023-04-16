@@ -16,8 +16,12 @@
 #include <hob3l/syn.h>
 #include <hob3l/syn-msg.h>
 #include <hob3l/stl-parse.h>
+
+#ifdef WITH_FONT
 #include <hob3l/font-nozzl3_sans.h>
 #include <hob3l/font.h>
+#endif
+
 #include "internal.h"
 
 /* contexts for ctxt_t->context */

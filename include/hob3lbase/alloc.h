@@ -122,7 +122,7 @@ static inline void *cp_malloc_(
 {
     void *x = m->x_malloc(m, a, b);
     if (x == NULL) {
-        cp_panic(file, line, "Out of memory: %zu * %zu\n", a, b);
+        cp_panic(file, line, "Out of memory: %" CP_FZU " * %" CP_FZU "\n", a, b);
     }
     return x;
 }
@@ -132,7 +132,7 @@ static inline void *cp_calloc_(
 {
     void *x = m->x_calloc(m, a, b);
     if (x == NULL) {
-        cp_panic(file, line, "Out of memory: %zu * %zu\n", a, b);
+        cp_panic(file, line, "Out of memory: %" CP_FZU " * %" CP_FZU "\n", a, b);
     }
     return x;
 }
@@ -142,7 +142,7 @@ static inline void *cp_remalloc_(
 {
     void *x = m->x_remalloc(m, p, ao, an, b);
     if (x == NULL) {
-        cp_panic(file, line, "Out of memory: %zu * %zu\n", an, b);
+        cp_panic(file, line, "Out of memory: %" CP_FZU " * %" CP_FZU "\n", an, b);
     }
     return x;
 }
@@ -152,7 +152,7 @@ static inline void *cp_recalloc_(
 {
     void *x = m->x_recalloc(m, p, ao, an, b);
     if (x == NULL) {
-        cp_panic(file, line, "Out of memory: %zu * %zu\n", an, b);
+        cp_panic(file, line, "Out of memory: %" CP_FZU " * %" CP_FZU "\n", an, b);
     }
     return x;
 }

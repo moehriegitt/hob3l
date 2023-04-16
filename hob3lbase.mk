@@ -63,8 +63,8 @@ _ := $(shell mkdir -p out/test/hob3lbase)
 -include out/bin/hob3lbase/*.d
 
 all: \
-    out/bin/libhob3lbase.a \
-    out/bin/libhob3lbase-test.a \
+    out/bin/$(LIB_)hob3lbase$(_LIB) \
+    out/bin/$(LIB_)hob3lbase-test$(_LIB) \
     out/bin/hob3lbase-test.x \
     $(LIB_A.hob3lbase-test.x)
 
@@ -81,15 +81,15 @@ sweep-hob3lbase:
 	rm -f $(srcdir)/include/hob3lbase/*~
 	rm -f $(srcdir)/include/hob3lbase/*.bak
 
-out/bin/libhob3lbase.a: $(MOD_O.libhob3lbase.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3lbase$(_LIB): $(MOD_O.libhob3lbase.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
-out/bin/libhob3lbase-test.a: $(MOD_O.libhob3lbase-test.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3lbase-test$(_LIB): $(MOD_O.libhob3lbase-test.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
 out/bin/hob3lbase-test.x: \
     $(MOD_O.hob3lbase-test.x) \
@@ -131,7 +131,7 @@ installdirs-include-hob3lbase:
 install-lib: install-lib-hob3lbase
 install-lib-hob3lbase: installdirs-lib-hob3lbase
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) out/bin/libhob3lbase.a $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
+	$(INSTALL_DATA) out/bin/$(LIB_)hob3lbase$(_LIB) $(DESTDIR)$(libdir)/$(LIB_)hob3lbase$(_LIB)
 
 install-include: install-include-hob3lbase
 install-include-hob3lbase: installdirs-include-hob3lbase

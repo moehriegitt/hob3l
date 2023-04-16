@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <hob3lop/hedron.h>
 #include <hob3lop/op-ps.h>
@@ -48,7 +49,7 @@ static void ps_page(
         return;
     }
     cq_ps_page_begin();
-    fprintf(f, "%g %g moveto (%zu lines) show\n",
+    fprintf(f, "%g %g moveto (%" CP_FZU " lines) show\n",
         cq_ps_left(), cq_ps_bottom() - 14, gon->size);
     for (cp_v_eachp(i, gon)) {
         cq_ps_line(i->a.x, i->a.y, i->b.x, i->b.y);
@@ -79,7 +80,7 @@ static void test_slice(
         fprintf(stderr, "DEBUG: z=%d\n", z);
         cq_v_line2_t *gon = CP_NEW(*gon);
         cq_slice(gon, z, hedron);
-        fprintf(stderr, "DEBUG: done: %zu lines\n", gon->size);
+        fprintf(stderr, "DEBUG: done: %" CP_FZU " lines\n", gon->size);
         ps_page(gon);
 
 #if 1
@@ -240,7 +241,7 @@ static void fuzz(
 
         FILE *f = fopen(fn, "rt");
         if (f == NULL) {
-            fprintf(stderr, "%s: ERROR: %m\n", fn);
+            fprintf(stderr, "%s: ERROR: %s\n", fn, strerror(errno));
             exit(1);
         }
 
@@ -463,7 +464,7 @@ int main(int argc, char **argv)
         srand(i);
         FILE *f = fopen(OUT_TEST"random.srand.new", "wt");
         if (f == NULL) {
-            fprintf(stderr, "ERROR: %m\n");
+            fprintf(stderr, "ERROR: %s\n", strerror(errno));
             exit(1);
         }
         fprintf(f, "%u\n", i);

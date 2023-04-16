@@ -128,7 +128,7 @@ static void my_aug_event(
         break;
 
     case CP_DICT_AUG_SPLIT:
-        fprintf(stderr, "DEBUG: CLR: %p [ %p %p ]: %zu %zu\n",
+        fprintf(stderr, "DEBUG: CLR: %p [ %p %p ]: %" CP_FZU " %" CP_FZU "\n",
             a_,
             a_->edge[0],
             a_->edge[1],
@@ -210,7 +210,7 @@ static size_t dump_dict_rec(
     size_t h1 = dump_dict_rec(n->edge[0], ind+1);
     size_t h = h1 + !cp_dict_is_red(n);
 
-    printf("%*s%p %c %zu (%zu%s)\n",
+    printf("%*s%p %c %" CP_FZU " (%" CP_FZU "%s)\n",
         4*ind, "", n, cp_dict_is_red(n)?'R':'B', cp_dict_black_height(n), h,
         cp_dict_black_height(n) == h ? "" : " !ERR#");
 
@@ -315,7 +315,7 @@ static void check_seq(
     for (cp_dict_each(v_, r)) {
         num_t *v = CP_BOX_OF(v_, *v, node);
         assert(i < size);
-        fprintf(stderr, "%s:%d: r[%zu]: expect %zu == %zu\n",
+        fprintf(stderr, "%s:%d: r[%" CP_FZU "]: expect %" CP_FZU " == %" CP_FZU "\n",
             __FILE__, __LINE__, i, v->value, data[i]);
         assert(v->value == data[i]);
         i++;

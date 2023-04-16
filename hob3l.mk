@@ -103,10 +103,10 @@ sweep-hob3l:
 	rm -f include/hob3l/*~
 	rm -f include/hob3l/*.bak
 
-out/bin/libhob3l.a: $(MOD_O.libhob3l.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3l$(_LIB): $(MOD_O.libhob3l.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
 out/bin/hob3l/main.o: CPPFLAGS += -Iout/src/hob3l
 
@@ -180,7 +180,7 @@ install-data-hob3l: installdirs-data-hob3l
 install-lib: install-lib-hob3l
 install-lib-hob3l: installdirs-lib-hob3l
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) out/bin/libhob3l.a $(DESTDIR)$(libdir)/$(LIB_)hob3l$(_LIB)
+	$(INSTALL_DATA) out/bin/$(LIB_)hob3l$(_LIB) $(DESTDIR)$(libdir)/$(LIB_)hob3l$(_LIB)
 
 install-include: install-include-hob3l
 install-include-hob3l: installdirs-include-hob3l

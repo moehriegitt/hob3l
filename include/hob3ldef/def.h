@@ -12,7 +12,7 @@
 #include <math.h>
 
 #include <hob3ldef/arch.h>
-#include <hob3ldef/float.h>
+#include <hob3ldef/def-float.h>
 
 #define CP_UNUSED      __attribute__((__unused__))
 #define CP_NORETURN    __attribute__((__noreturn__))
@@ -335,9 +335,19 @@ CP_STATIC_ASSERT(CP_MAX_OF(size_t) == CP_SIZE_MAX);
 #define cp_alignof_minmax(x, min, max) cp_size_align((max) | (cp_alignof(x) & -(min)))
 
 /**
- * Get the type of something (type of value) without qualifier.
- */
-#define cp_unqual_typeof(x0_) \
-    __typeof__(({ __typeof__(x0_) x1_; __auto_type x2_ = (x1_); x2_;}))
+ * Printing size_t on older MingW */
+#ifndef CP_FZU
+#ifdef __MINGW32__
+#if __SIZEOF_POINTER__ == 8
+#define CP_FZU "I64u"
+#else
+#define CP_FZU "u"
+#endif
+#endif
+#endif
+
+#ifndef CP_FZU
+#define CP_FZU "zu"
+#endif
 
 #endif /* CP_MAT_H_ */

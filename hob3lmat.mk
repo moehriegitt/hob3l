@@ -52,8 +52,8 @@ _ := $(shell mkdir -p out/test/hob3lmat)
 -include out/bin/hob3lmat/*.d
 
 all: \
-    out/bin/libhob3lmat.a \
-    out/bin/libhob3lmat-test.a \
+    out/bin/$(LIB_)hob3lmat$(_LIB) \
+    out/bin/$(LIB_)hob3lmat-test$(_LIB) \
     out/bin/hob3lmat-test.x \
     $(LIB_A.hob3lmat-test.x)
 
@@ -70,15 +70,15 @@ sweep-hob3lmat:
 	rm -f $(srcdir)/include/hob3lmat/*~
 	rm -f $(srcdir)/include/hob3lmat/*.bak
 
-out/bin/libhob3lmat.a: $(MOD_O.libhob3lmat.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3lmat$(_LIB): $(MOD_O.libhob3lmat.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
-out/bin/libhob3lmat-test.a: $(MOD_O.libhob3lmat-test.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3lmat-test$(_LIB): $(MOD_O.libhob3lmat-test.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
 out/bin/hob3lmat-test.x: \
     $(MOD_O.hob3lmat-test.x) \
@@ -128,7 +128,7 @@ installdirs-include-hob3lmat:
 install-lib: install-lib-hob3lmat
 install-lib-hob3lmat: installdirs-lib-hob3lmat
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) out/bin/libhob3lmat.a $(DESTDIR)$(libdir)/$(LIB_)hob3lmat$(_LIB)
+	$(INSTALL_DATA) out/bin/$(LIB_)hob3lmat$(_LIB) $(DESTDIR)$(libdir)/$(LIB_)hob3lmat$(_LIB)
 
 install-include: install-include-hob3lmat
 install-include-hob3lmat: installdirs-include-hob3lmat

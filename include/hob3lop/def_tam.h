@@ -48,10 +48,6 @@ typedef unsigned long long cq_udimw_t;
 
 #define CQ_DIM_W     (((cq_dimw_t)1) << CQ_DIM_BITS)
 
-#ifdef __SIZEOF_INT128__
-
-#define CQ_HAVE_INTQ 1
-
 #define CQ_REDUCE(F, A, ...) \
 ({ \
     __typeof__(A) r_ = (A); \
@@ -61,6 +57,10 @@ typedef unsigned long long cq_udimw_t;
     } \
     r_; \
 })
+
+#ifdef __SIZEOF_INT128__
+
+#define CQ_HAVE_INTQ 1
 
 typedef unsigned __int128 cq_udimq_raw_t;
 
@@ -75,7 +75,7 @@ typedef struct {
 /**
  * A quad width type on machines that do not have it natively. */
 typedef struct {
-    cq_dimw_t l, h;
+    cq_udimw_t l, h;
 } cq_udimq_t;
 
 #endif

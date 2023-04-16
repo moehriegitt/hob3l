@@ -73,8 +73,8 @@ CC.win32 := i686-w64-mingw32-gcc
 KIND.gcc   := gcc
 KIND.gcc32 := gcc
 KIND.gcc64 := gcc
-KIND.win32 := gcc
-KIND.win64 := gcc
+KIND.win32 := mingw
+KIND.win64 := mingw
 KIND.clang := clang
 
 _EXE.win64 := .exe

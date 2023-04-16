@@ -242,7 +242,7 @@ extern cq_udimq_t cq_udimw_mul_aux(cq_udimw_t a, cq_udimw_t b);
 
 static inline cq_udimq_t cq_udimw_mul(cq_udimw_t a, cq_udimw_t b)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return (cq_udimq_t){ .x = a * (cq_udimq_raw_t)b };
 #else
     return cq_udimw_mul_aux(a, b);
@@ -251,7 +251,7 @@ static inline cq_udimq_t cq_udimw_mul(cq_udimw_t a, cq_udimw_t b)
 
 static inline int cq_udimq_cmp(cq_udimq_t a, cq_udimq_t b)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return CP_CMP(a.x, b.x);
 #else
     int i = CP_CMP(a.h, b.h);
@@ -264,7 +264,7 @@ static inline int cq_udimq_cmp(cq_udimq_t a, cq_udimq_t b)
 
 static inline int cq_udimq_eq(cq_udimq_t a, cq_udimq_t b)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return a.x == b.x;
 #else
     return (a.h == b.h) && (a.l == b.l);
@@ -273,7 +273,7 @@ static inline int cq_udimq_eq(cq_udimq_t a, cq_udimq_t b)
 
 static inline cq_udimw_t cq_udimq_max(cq_udimq_t x)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return (cq_udimw_t)(x.x >> CQ_DIMW_BITS);
 #else
     return x.h;
@@ -282,7 +282,7 @@ static inline cq_udimw_t cq_udimq_max(cq_udimq_t x)
 
 static inline cq_udimw_t cq_udimq_min(cq_udimq_t x)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return (cq_udimw_t)x.x;
 #else
     return x.l;
@@ -291,7 +291,7 @@ static inline cq_udimw_t cq_udimq_min(cq_udimq_t x)
 
 static inline cq_udimq_t cq_udimq(cq_udimw_t max, cq_udimw_t min)
 {
-#if CQ_HAVE_INTQ
+#ifdef CQ_HAVE_INTQ
     return (cq_udimq_t){ .x = ((cq_udimq_raw_t)max << CQ_DIMW_BITS) | min };
 #else
     return (cq_udimq_t){ .h = max, .l = min };

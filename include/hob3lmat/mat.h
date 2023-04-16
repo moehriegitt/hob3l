@@ -152,7 +152,7 @@ static inline bool cp_vec3_unit_x(
 {
     double l = cp_vec3_len(a);
     cp_vec3_div_x(r, a, l);
-    return isfinite(r->x) && isfinite(r->y) && isfinite(r->z);
+    return cp_isfinite(r->x) && cp_isfinite(r->y) && cp_isfinite(r->z);
 }
 
 /** unit(cross(a,b)), returns success (i.e., whether vector is not len0)

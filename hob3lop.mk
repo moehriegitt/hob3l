@@ -54,7 +54,7 @@ _ := $(shell mkdir -p out/src/hob3lop)
 -include out/bin/hob3lop/*.d
 
 all: \
-    out/bin/libhob3lop.a \
+    out/bin/$(LIB_)hob3lop$(_LIB) \
     out/bin/hob3lop-test.x
 
 lib: $(LIB_A.hob3lop-test.x)
@@ -70,10 +70,10 @@ sweep-hob3lop:
 	rm -f include/hob3lop/*~
 	rm -f include/hob3lop/*.bak
 
-out/bin/libhob3lop.a: $(MOD_O.libhob3lop.a)
-	$(AR) cr $@.new.a $+
-	$(RANLIB) $@.new.a
-	mv $@.new.a $@
+out/bin/$(LIB_)hob3lop$(_LIB): $(MOD_O.libhob3lop.a)
+	$(AR) cr $@.new$(_LIB) $+
+	$(RANLIB) $@.new$(_LIB)
+	mv $@.new$(_LIB) $@
 
 out/bin/hob3lop-test.x: \
     $(MOD_O.hob3lop-test.x) \
@@ -112,7 +112,7 @@ installdirs-include-hob3lop:
 install-lib: install-lib-hob3lop
 install-lib-hob3lop: installdirs-lib-hob3lop
 	$(NORMAL_INSTALL)
-	$(INSTALL_DATA) out/bin/libhob3lop.a $(DESTDIR)$(libdir)/$(LIB_)hob3lop$(_LIB)
+	$(INSTALL_DATA) out/bin/$(LIB_)hob3lop$(_LIB) $(DESTDIR)$(libdir)/$(LIB_)hob3lop$(_LIB)
 
 install-include: install-include-hob3lop
 install-include-hob3lop: installdirs-include-hob3lop

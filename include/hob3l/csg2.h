@@ -12,7 +12,6 @@
 #include <hob3l/csg3_tam.h>
 #include <hob3l/csg2-bool.h>
 #include <hob3l/csg2-layer.h>
-#include <hob3l/csg2-triangle.h>
 #include <hob3l/csg2-tree.h>
 #include <hob3l/csg2-2ps.h>
 #include <hob3l/csg2-2scad.h>
