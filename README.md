@@ -480,9 +480,9 @@ speeds up the 2D processing.
 The ideas from Boissonnat and Preparata 2000 (Robust Plane Sweep for
 Intersecting Segments) helped examine the complexity of the numeric
 problems and to construct a data type for storing intersection points
-exactly: with a 160 bit fractional (32 bit integer + 64 bit numerator
-+ 64 bit denominator).  This avoids overheads from generic exact math
-libraries and it is quite fast.
+exactly: with a 160 bit fractional (32 bit integer + 64 bit
+numerator + 64 bit denominator).  This avoids overheads from generic
+exact math libraries and it is quite fast.
 
 After the intersection algorithm, the snap rounding algorithm by de
 Berg 2007 (An Intersection-Sensitive Algorithm for Snap Rounding) is
