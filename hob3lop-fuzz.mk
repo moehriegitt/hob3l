@@ -9,14 +9,13 @@ FUZZ_X.hob3lop := out/fuzz/bin/hob3lop-fuzz.x
 MOD_C.hob3lop-fuzz.x := \
     $(MOD_C.hob3lop-test.x) \
     $(MOD_C.libhob3lop.a) \
-    $(MOD_C.libhob3lbase.a)
+    $(MOD_C.libhob3lbase.a) \
+    $(MOD_C.libhob3lmat.a)
 
 MOD_O.hob3lop-fuzz.x := $(addprefix out/fuzz/bin/,$(MOD_C.hob3lop-fuzz.x:.c=.o))
 MOD_D.hob3lop-fuzz.x := $(addprefix out/fuzz/bin/,$(MOD_C.hob3lop-fuzz.x:.c=.d))
 
-LIB.hob3lop-fuzz.x := \
-    hob3lbase \
-    hob3lmat
+LIB.hob3lop-fuzz.x :=
 
 LIB_A.hob3lop-fuzz.x := \
     $(addsuffix $(_LIB), \
@@ -28,9 +27,11 @@ LIB_L.hob3lop-fuzz.x := $(addprefix -l, $(LIB.hob3lop-fuzz.x))
 
 _ := $(shell mkdir -p out/fuzz/bin/hob3lbase)
 _ := $(shell mkdir -p out/fuzz/bin/hob3lop)
+_ := $(shell mkdir -p out/fuzz/bin/hob3lmat)
 
 -include out/fuzz/bin/hob3lbase/*.d
 -include out/fuzz/bin/hob3lop/*.d
+-include out/fuzz/bin/hob3lmat/*.d
 
 all: \
     $(FUZZ_X.hob3lop) \
