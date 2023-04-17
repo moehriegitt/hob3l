@@ -191,48 +191,6 @@ static inline bool cp_mat4i_eq(
     return cp_mat4i_lex_cmp(a,b) == 0;
 }
 
-static inline int cp_vec2_lex_pt_cmp(
-    cp_vec2_t const* a,
-    cp_vec2_t const* b)
-{
-    return cp_lex_pt_cmp(a->v, b->v, cp_countof(a->v));
-}
-
-static inline int cp_vec3_lex_pt_cmp(
-    cp_vec3_t const* a,
-    cp_vec3_t const* b)
-{
-    return cp_lex_pt_cmp(a->v, b->v, cp_countof(a->v));
-}
-
-static inline int cp_vec4_lex_pt_cmp(
-    cp_vec4_t const* a,
-    cp_vec4_t const* b)
-{
-    return cp_lex_pt_cmp(a->v, b->v, cp_countof(a->v));
-}
-
-static inline bool cp_vec2_pt_eq(
-    cp_vec2_t const* a,
-    cp_vec2_t const* b)
-{
-    return cp_vec2_lex_cmp(a,b) == 0;
-}
-
-static inline bool cp_vec3_pt_eq(
-    cp_vec3_t const* a,
-    cp_vec3_t const* b)
-{
-    return cp_vec3_lex_cmp(a,b) == 0;
-}
-
-static inline bool cp_vec4_pt_eq(
-    cp_vec4_t const* a,
-    cp_vec4_t const* b)
-{
-    return cp_vec4_lex_cmp(a,b) == 0;
-}
-
 static inline double cp_vec2_sqr_len(
     cp_vec2_t const* a)
 {

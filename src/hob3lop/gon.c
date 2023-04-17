@@ -3,18 +3,24 @@
 
 #include <hob3lop/gon.h>
 
-/* On 32-bit floats, we have 23 mantissa bits.
- *
- * We want at least +-1m max. size on 32-bit floats, or 1024mm =
- * 10 bits integer.
- *
- * So this is set to 2^13, which means the smallest difference
- * is 1/8192mm.
- *
- * The integer part can do 30 unsigned bits, so the coordinate
- * range at integer precision is +-2^17mm or +-128m.
- */
-double cq_dim_scale = 8192;
+double cq_dim_scale = CP_DIM_SCALE_DEFAULT;
+
+extern char const *cq_dim_scale_str_(
+    char *data,
+    size_t size)
+{
+    int exp = 0;;
+    double mant = frexp(cq_dim_scale, &exp);
+    if (cp_eq(mant, 0.5)) {
+        mant *= 2;
+        exp--;
+        snprintf(data, size, "2^%d", exp);
+    }
+    else {
+        snprintf(data, size, "%.16g", cq_dim_scale);
+    }
+    return data;
+}
 
 extern void cq_vec2_minmax(
     cq_vec2_minmax_t *r,
@@ -59,6 +65,7 @@ extern int cq_import_dim(double v)
      * with '0.500001', the behaviour is a little less surprising.
      */
     double s = floor((v * cq_dim_scale) + 0.500001);
-    cq_ovf_unless(fabs(s) <= CP_MAX_OF(int)); /* using 'unless<' so that NAN will trigger OVF */
+    double intmax = CP_MAX_OF(int);
+    cq_ovf_unless(fabs(s) <= intmax); /* using 'unless<' so that NAN will trigger OVF */
     return (int)s; /* should be free of UB after OVF test */
 }

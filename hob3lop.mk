@@ -37,7 +37,8 @@ MOD_D.hob3lop-test.x := $(addprefix out/bin/,$(MOD_C.hob3lop-test.x:.c=.d))
 
 LIB.hob3lop-test.x := \
     hob3lop \
-    hob3lbase
+    hob3lbase \
+    hob3lmat
 
 LIB_A.hob3lop-test.x := \
     $(addsuffix $(_LIB), \

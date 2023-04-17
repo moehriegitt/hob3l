@@ -2,6 +2,7 @@
 /* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
+#include <float.h>
 #include <hob3lbase/base-mat.h>
 #include <hob3lbase/pool.h>
 #include <hob3lbase/alloc.h>
@@ -31,6 +32,12 @@ typedef enum {
     DUMP_JS
 } dump_t;
 
+typedef enum {
+    AUTO_SCALE_FLOAT,
+    AUTO_SCALE_INT,
+    AUTO_SCALE_NONE,
+} auto_scale_t;
+
 typedef struct {
     cp_dim_t z_min;
     cp_dim_t z_max;
@@ -49,6 +56,8 @@ typedef struct {
     cp_csg_opt_t csg;
     cp_scad_opt_t scad;
     bool prefer_stl_bin;
+    unsigned auto_scale;
+    double cq_dim_scale_recip;
 } cp_opt_t;
 
 static bool next_i(
@@ -138,6 +147,43 @@ static bool process_stack_diff(
 }
 #endif
 
+/**
+ * Auto-adjust the scale used in the integer algorithms
+ * for float<->int conversions.
+ */
+static void auto_dim_scale(
+    cp_opt_t *opt,
+    cp_vec3_minmax_t *bb)
+{
+    if (opt->auto_scale == AUTO_SCALE_NONE) {
+        return;
+    }
+
+    /* Auto-scale so that 23 bits are used in integer arith, so that no
+     * rounding error occurs when converting to `float` (for binary STL).
+     */
+    double absmaxx = cp_max(fabs(bb->min.x), fabs(bb->max.x));
+    double absmaxy = cp_max(fabs(bb->min.y), fabs(bb->max.y));
+    double absmax  = cp_max(absmaxx, absmaxy);
+
+    int absmax_dig = 0;
+    (void)frexp(absmax, &absmax_dig);
+
+    int default_shift = 0;
+    (void)frexp(cq_dim_scale, &default_shift);
+    default_shift--;
+
+    int have_dig = FLT_MANT_DIG;
+    if ((have_dig > CQ_INT_DIG) || (opt->auto_scale == AUTO_SCALE_INT)) {
+        have_dig = CQ_INT_DIG;
+    }
+
+    int best_shift = have_dig - absmax_dig;
+    if (cp_eq(cq_dim_scale,0) || (default_shift > best_shift)) {
+        cq_dim_scale = pow(2, best_shift);
+    }
+}
+
 static bool do_file(
     cp_stream_t *sout,
     cp_opt_t *opt,
@@ -217,6 +263,13 @@ static bool do_file(
     cp_vec3_minmax_t bb = CP_VEC3_MINMAX_EMPTY;
     cp_csg3_tree_minmax(&bb, csg3, false);
 
+    /* Auto-scale so that 23 bits are used in integer arith, so that no
+     * rounding error occurs when converting to `float` (for binary STL).
+     */
+    if (cp_vec3_minmax_valid(&bb)) {
+        auto_dim_scale(opt, &bb);
+    }
+
     /* stage 4: 2D CSG */
     cp_dim_t z_min = bb.min.z + opt->z_step/2;
     cp_dim_t z_max = bb.max.z;
@@ -234,9 +287,10 @@ static bool do_file(
     }
 
     if (opt->verbose >= 1) {
-        fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"CP_Z"u, max=%g\n",
+        fprintf(stderr, "Info: Z: min=%g, step=%g, layer_cnt=%"CP_Z"u, max=%g, grid=%s\n",
             range.min, range.step, range.cnt,
-            range.min + (range.step * cp_f(range.cnt - 1)));
+            range.min + (range.step * cp_f(range.cnt - 1)),
+            cq_dim_scale_str());
     }
 
     /* process layer by layer: extract layer, slice, triangulate */
@@ -434,11 +488,32 @@ static void get_arg_dim(
     char const *str)
 {
     char *r = NULL;
-    *v = strtod(str, &r);
-    if ((str == r) || (*r != '\0')) {
+    double v1 = strtod(str, &r);
+    if ((str != r) && (*r == '/') && (r[1] != '\0')) {
+        char const *str2 = r+1;
+        double v2 = strtod(str2, &r);
+        v1 /= v2;
+        if ((str2 == r) || (*r != '\0') || !cp_isfinite(v1)) {
+            fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    if ((str != r) && (*r == '^') && (r[1] != '\0')) {
+        char const *str2 = r+1;
+        double v2 = strtod(str2, &r);
+        v1 = pow(v1, v2);
+        if ((str2 == r) || (*r != '\0') || !cp_isfinite(v1)) {
+            fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
+            exit(EXIT_FAILURE);
+        }
+    }
+    else
+    if ((str == r) || (*r != '\0') || !cp_isfinite(v1)) {
         fprintf(stderr, "Error: %s: invalid number: '%s'\n", arg, str);
         exit(EXIT_FAILURE);
     }
+    *v = v1;
 }
 
 static void get_arg_size(
@@ -617,8 +692,8 @@ int main(int argc, char **argv)
     }
 
     /* post-process options */
-    if (cp_eq_epsilon > cp_pt_epsilon) {
-        cp_eq_epsilon = cp_pt_epsilon;
+    if (!cp_eq(opt.cq_dim_scale_recip, 0)) {
+        cq_dim_scale = 1.0 / opt.cq_dim_scale_recip;
     }
     if (cp_sqr_epsilon > cp_eq_epsilon) {
         cp_sqr_epsilon = cp_eq_epsilon;

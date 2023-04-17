@@ -437,29 +437,69 @@ output that is less nice.
     --no-diff
 ```
 
-## Algorithmic Improvements
+## Algorithms
 
-The triangulation algorithm of Hertel & Mehlhorn (1983) was
-extended to support coincident vertices, because this is what the
-polygon clipping outputs.  Also, sequences of collinear edges are
-fully supported, because, again, this may happen.
+The polyhedra (from SCAD input files) are processed using `double`
+coordinates.  The 2D algorithms, however, now use 32-bit integer
+coordinates for exact math (and can handle 31-bit signed values
+without overflow).  Therefore, the coordinates in a polygon slice cut
+from a polyhedron are converted from `double` to `int` by multiplying
+by a power of two -- this way, the upper bits of the floating point
+mantissa (53 bits for `double`) can be used directly as ints with
+minimum rounding error.  When converting back from `int` to `double`,
+the integer coordinates are divided by the same power of two, meaning
+that no rounding error occurs: the integer is used directly as the
+upper mantissa bits for the floating point number (the lower bits are
+0).  A round trip from int to double to int is then loss-less.  As
+binary STL uses `float` coordinates (with a 24 bit mantissa, smaller
+than 32-bit integers), care was taken to scale in such a way that a
+wide range of float coordinates also convert to STL with no rounding
+error.  And the ASCII STL is printed with many significant digits to
+ensure that the information gets into the slicer without any loss of
+precision.  All integer operations check for overflow so that the
+scale value can be adjusted if necessary for weird input files.
 
-The polygon clipping algorithm of Mart&iacute;nez, Rueda, Feito (2009)
-was improved to have less computational instability by deriving
-crossing points always from the original edge (although currently,
-each 2D operation restarts this -- this could be improved).  Also,
-computational stability was improved by rigorous use of epsilon-aware
-arithmetics.  Further, a better polygon reassembling algorithm with
-O(n log n) runtime was implemented -- the original paper and reference
-implementation do not focus on this part.  Also, several additional
-corner cases are handled.
+The slice algorithm used to cut a polygon slice from a polyhedron is a
+simple ad-hoc algorithm that works by iterating each face, making a
+cut at a given z height, sorting the cut points, and interpreting them
+as line segments.  The subsequent algorithms need no particular order
+of edges, so a very simple algorithm can be used for slicing.
 
-For further speed-up, the polygon clipping algorithm was extended to
-support processing more than two polygons at the same time, because
-with a runtime of O(n log n), it benefits from larger n.  Currently,
-it usually works with max. 10 polygons.  Even processing 3 polygons at
-once speeds up some examples by a factor of 2 over processing 2
-polygons at once.
+The polygon clipping algorithm is a Bentley-Ottmann 1979 (Algorithms
+for reporting and counting geometric intersections) plane sweep
+algorithm using exact fractional math for the intersections.  Ideas
+from Mart&iacute;nez, Rueda, Feito 2009 (A new algorithm for computing
+Boolean operations on polygons) were used to extend Bentley-Ottmann to
+corner cases like overlapping edges.  Also, the inside/outside
+information is tracked in a way similar to that paper, extended by
+ideas from Sean Conelly's polybooljs project.  The input/output
+information was then extended to handle more than two polygons at
+once, by using a boolean function represented by a bit array.  This
+speeds up the 2D processing.
+
+The ideas from Boissonnat and Preparata 2000 (Robust Plane Sweep for
+Intersecting Segments) helped examine the complexity of the numeric
+problems and to construct a data type for storing intersection points
+exactly: with a 160 bit fractional (32 bit integer + 64 bit numerator
++ 64 bit denominator).  This avoids overheads from generic exact math
+libraries and it is quite fast.
+
+After the intersection algorithm, the snap rounding algorithm by de
+Berg 2007 (An Intersection-Sensitive Algorithm for Snap Rounding) is
+run to fit the intersection coordinates back into the input bit width
+(32-bit integer coordinates).
+
+To get a triangulation (to produce the output polyhedron in STL
+format), the triangulation algorithm of Hertel & Mehlhorn 1983 (Fast
+Triangulation of the Plane with Respect to Simple Polygons) was used
+and extended to support coincident vertices, because these cannot be
+avoided.  Also, sequences of collinear edges are supported.
+
+The same algorithm was adapted also for constructing a polygon outline
+from the set of edges produced by the preceding algorithm, if no
+triangulation is needed.  This is used in the SCAD language
+processing, e.g., with operations like extrude or project, where the
+result of the 2D boolean algorithm is fed back into the CSG tree.
 
 ## Speed comparison
 

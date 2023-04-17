@@ -183,6 +183,7 @@ out/test/hob3l/test32f.ps: HOB3L_OPT += -gran=0.5
 out/test/hob3l/test37c.js: HOB3L_OPT += -js-keep-ctxt
 
 TEST_STL.scad := \
+    test/hob3l/large1.scad \
     test/hob3l/corner17.scad \
     test/hob3l/uselessbox+body.scad \
     test/hob3l/curry.scad \

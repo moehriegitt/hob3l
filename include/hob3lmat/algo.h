@@ -50,11 +50,6 @@ typedef struct {
     cp_circle_iter_step(&iter)
 
 /**
- * Epsilon for identifying point coordinates, i.e., granularity of coordinates
- * of points. */
-extern double cp_pt_epsilon;
-
-/**
  * General epsilon for comparisons.
  *
  * Typically the square of cp_pt_epsilon.
@@ -76,14 +71,6 @@ extern double cp_sqr_epsilon;
  */
 extern int cp_lex_cmp(double const *a, double const *b, size_t size);
 
-/**
- * Comparison using cp_pt_epsilon.
- *
- * This should be used to compare new point coordinates to old coordinates,
- * or to rasterize them.
- */
-extern int cp_lex_pt_cmp(double const *a, double const *b, size_t size);
-
 /* comparisons using any epsilon */
 static inline bool cp_e_eq (cp_f_t e, cp_f_t a, cp_f_t b) { return cp_abs(a - b) < e; }
 static inline bool cp_e_le (cp_f_t e, cp_f_t a, cp_f_t b) { return (a - b) < e; }
@@ -102,14 +89,6 @@ static inline bool cp_lt (cp_f_t a, cp_f_t b) { return cp_e_lt (cp_eq_epsilon, a
 static inline bool cp_ge (cp_f_t a, cp_f_t b) { return cp_e_ge (cp_eq_epsilon, a, b); }
 static inline bool cp_gt (cp_f_t a, cp_f_t b) { return cp_e_gt (cp_eq_epsilon, a, b); }
 static inline int  cp_cmp(cp_f_t a, cp_f_t b) { return cp_e_cmp(cp_eq_epsilon, a, b); }
-
-/* comparisons using cp_pt_epsilon */
-static inline bool cp_pt_eq (cp_f_t a, cp_f_t b) { return cp_e_eq (cp_pt_epsilon, a, b); }
-static inline bool cp_pt_le (cp_f_t a, cp_f_t b) { return cp_e_le (cp_pt_epsilon, a, b); }
-static inline bool cp_pt_lt (cp_f_t a, cp_f_t b) { return cp_e_lt (cp_pt_epsilon, a, b); }
-static inline bool cp_pt_ge (cp_f_t a, cp_f_t b) { return cp_e_ge (cp_pt_epsilon, a, b); }
-static inline bool cp_pt_gt (cp_f_t a, cp_f_t b) { return cp_e_gt (cp_pt_epsilon, a, b); }
-static inline int  cp_pt_cmp(cp_f_t a, cp_f_t b) { return cp_e_cmp(cp_pt_epsilon, a, b); }
 
 /* comparisons using cp_sqr_epsilon */
 static inline bool cp_sqr_eq (cp_f_t a, cp_f_t b) { return cp_e_eq (cp_sqr_epsilon, a, b); }

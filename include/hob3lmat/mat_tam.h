@@ -26,28 +26,28 @@
 #include <hob3lmat/mat_gen_tam.h>
 
 #define CP_VEC2_MINMAX_EMPTY { \
-    {{ +CP_F_MAX, +CP_F_MAX }}, \
-    {{ -CP_F_MAX, -CP_F_MAX }} }
+    {{ +INFINITY, +INFINITY }}, \
+    {{ -INFINITY, -INFINITY }} }
 
 #define CP_VEC3_MINMAX_EMPTY { \
-    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }}, \
-    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }} }
+    {{ +INFINITY, +INFINITY, +INFINITY }}, \
+    {{ -INFINITY, -INFINITY, -INFINITY }} }
 
 #define CP_VEC4_MINMAX_EMPTY { \
-    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }}, \
-    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }} }
+    {{ +INFINITY, +INFINITY, +INFINITY, +INFINITY }}, \
+    {{ -INFINITY, -INFINITY, -INFINITY, -INFINITY }} }
 
 #define CP_VEC2_MINMAX_FULL { \
-    {{ -CP_F_MAX, -CP_F_MAX }}, \
-    {{ +CP_F_MAX, +CP_F_MAX }} }
+    {{ -INFINITY, -INFINITY }}, \
+    {{ +INFINITY, +INFINITY }} }
 
 #define CP_VEC3_MINMAX_FULL { \
-    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }}, \
-    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }} }
+    {{ -INFINITY, -INFINITY, -INFINITY }}, \
+    {{ +INFINITY, +INFINITY, +INFINITY }} }
 
 #define CP_VEC4_MINMAX_FULL { \
-    {{ -CP_F_MAX, -CP_F_MAX, -CP_F_MAX, -CP_F_MAX }}, \
-    {{ +CP_F_MAX, +CP_F_MAX, +CP_F_MAX, +CP_F_MAX }} }
+    {{ -INFINITY, -INFINITY, -INFINITY, -INFINITY }}, \
+    {{ +INFINITY, +INFINITY, +INFINITY, +INFINITY }} }
 
 #define CP_V01(p)   (p).v[0], (p).v[1]
 #define CP_V012(p)  (p).v[0], (p).v[1], (p).v[2]

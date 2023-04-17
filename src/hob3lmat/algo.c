@@ -4,7 +4,6 @@
 #include <hob3lmat/algo.h>
 #include <hob3lmat/mat.h>
 
-double cp_pt_epsilon  = CP_PT_EPSILON_DEFAULT;
 double cp_eq_epsilon  = CP_EQ_EPSILON_DEFAULT;
 double cp_sqr_epsilon = CP_SQR_EPSILON_DEFAULT;
 
@@ -43,22 +42,6 @@ extern int cp_lex_cmp(double const *a, double const *b, size_t size)
 {
     for (cp_size_each(i, size)) {
         if (!cp_eq(a[i], b[i])) {
-            return a[i] < b[i] ? -1 : +1;
-        }
-    }
-    return 0;
-}
-
-/**
- * Comparison using cp_pt_epsilon.
- *
- * This should be used to compare new point coordinates to old coordinates,
- * or to rasterize them.
- */
-extern int cp_lex_pt_cmp(double const *a, double const *b, size_t size)
-{
-    for (cp_size_each(i, size)) {
-        if (!cp_pt_eq(a[i], b[i])) {
             return a[i] < b[i] ? -1 : +1;
         }
     }

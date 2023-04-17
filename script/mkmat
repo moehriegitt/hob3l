@@ -1459,12 +1459,12 @@ my @gen = (
         mati => \&gen_eq,
         matw => \&gen_eq,
     }],
-    ['lex_pt_cmp', {
-        vec => \&gen_lex_cmp,
-    }],
-    ['pt_eq', {
-        vec => \&gen_eq,
-    }],
+    #['lex_pt_cmp', {
+    #    vec => \&gen_lex_cmp,
+    #}],
+    #['pt_eq', {
+    #    vec => \&gen_eq,
+    #}],
     ['rev', {
         vec => \&gen_rev_vec,
     }],

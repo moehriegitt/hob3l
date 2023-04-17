@@ -12,11 +12,24 @@ typedef double cp_f_t;
 #define CP_PI  3.1415926535897932384626433832795028841971694
 #define CP_TAU 6.2831853071795864769252867665590057683943388
 
-#define CP_PT_EPSILON_DEFAULT  0x1p-9
+/**
+ * By which factor to scale to convert int<->double.
+ *
+ * On 32-bit floats, we have 23 mantissa bits.
+ *
+ * We want at least +-1m max. size on 32-bit floats, or 1024mm =
+ * 10 bits integer.
+ *
+ * So this is set to 2^13, which means the smallest difference
+ * is 1/8192mm.
+ *
+ * The integer part can do 30 unsigned bits, so the coordinate
+ * range at integer precision is +-2^17mm or +-128m.
+ */
+#define CP_DIM_SCALE_DEFAULT  8192
+
 #define CP_EQ_EPSILON_DEFAULT  0x1p-15
 #define CP_SQR_EPSILON_DEFAULT (CP_EQ_EPSILON_DEFAULT * CP_EQ_EPSILON_DEFAULT)
-
-#define CP_F_MAX 0x1.fffffffffffffp+1023
 
 #define CP_FF  "%.16g"
 #define CP_FD  "%+9.5f"

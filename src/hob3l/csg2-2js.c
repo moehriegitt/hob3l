@@ -14,6 +14,7 @@
 #include <hob3lbase/base-mat.h>
 #include <hob3lbase/panic.h>
 #include <hob3lbase/alloc.h>
+#include <hob3lop/gon.h>
 #include <hob3l/syn.h>
 #include <hob3l/csg.h>
 #include <hob3l/csg2.h>
@@ -24,6 +25,8 @@
 
 #define VERTEX_MASK 0xffff
 #define VERTEX_CNT  0xffff
+
+#define PT_GRAN cq_dim_scale
 
 typedef struct {
     long x,y,z;
@@ -93,13 +96,15 @@ static void scene_flush(
             }
         }
         cp_printf(s, "},\n");
-        cp_printf(s, "   'scaleV':%g,\n", 1000/cp_pt_epsilon);
+        cp_printf(s, "   'scaleV':%16g,\n", 1000.0 * PT_GRAN);
         cp_printf(s, "   'scaleC':255,\n");
         cp_printf(s, "   'shiftI':%u,\n", SHIFT_I);
 
         if (c->tree->root_xform != NULL) {
             cp_mat3w_t const *n = &c->tree->root_xform->n;
-            cp_printf(s, "   'xform':[%g,%g,%g,0, %g,%g,%g,0, %g,%g,%g,0, %g,%g,%g,1],\n",
+            cp_printf(s,
+                "   'xform':[%16g,%16g,%16g,0, %16g,%16g,%16g,0, "
+                "%16g,%16g,%16g,0, %16g,%16g,%16g,1],\n",
                 n->b.m[0][0], n->b.m[1][0], n->b.m[2][0],
                 n->b.m[0][1], n->b.m[1][1], n->b.m[2][1],
                 n->b.m[0][2], n->b.m[1][2], n->b.m[2][2],
@@ -151,7 +156,7 @@ static void scene_flush(
 
 static inline long js_coord(cp_dim_t f)
 {
-    return lrint(f / cp_pt_epsilon);
+    return lrint(f * PT_GRAN);
 }
 
 static void store_vertex(

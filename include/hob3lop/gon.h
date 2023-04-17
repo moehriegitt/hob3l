@@ -109,4 +109,15 @@ static inline cq_vec2_t cq_import_vec2(cp_vec2_t const *v)
     };
 }
 
+/**
+ * A string representation of cq_dim_scale that prefers
+ * a power of two format like "2^13" over "8192", if the
+ * value is a power of two.
+ */
+extern char const *cq_dim_scale_str_(
+    char *data,
+    size_t size);
+
+#define cq_dim_scale_str() cq_dim_scale_str_(((char[32]){}), 32)
+
 #endif /* HOB3LOP_GON_H_ */

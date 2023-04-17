@@ -2,14 +2,18 @@
 /* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lop/matq.h>
+#include <hob3lop/gon.h>
 
 extern void cq_overflow_fail_(
     char const *file,
     int line,
     char const *cond)
 {
-    fprintf(stderr, "%s:%d: ERROR: numeric overflow: %s\n",
-        file, line, cond);
+    fprintf(stderr,
+        "%s:%d: ERROR: numeric overflow: %s\n"
+        "\tThe input coordinates may be too large.\n"
+        "\tTry --grid with a value smaller than the current %s.\n",
+        file, line, cond, cq_dim_scale_str());
 #ifndef NDEBUG
     abort();
 #endif

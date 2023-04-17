@@ -14,7 +14,9 @@ MOD_C.hob3lop-fuzz.x := \
 MOD_O.hob3lop-fuzz.x := $(addprefix out/fuzz/bin/,$(MOD_C.hob3lop-fuzz.x:.c=.o))
 MOD_D.hob3lop-fuzz.x := $(addprefix out/fuzz/bin/,$(MOD_C.hob3lop-fuzz.x:.c=.d))
 
-LIB.hob3lop-fuzz.x :=
+LIB.hob3lop-fuzz.x := \
+    hob3lbase \
+    hob3lmat
 
 LIB_A.hob3lop-fuzz.x := \
     $(addsuffix $(_LIB), \

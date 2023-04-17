@@ -42,43 +42,6 @@ case "layer-gap": dim &opt->csg.layer_gap {
     "If this is greater or equal to the step size, the output will degenerate.";
 }
 
-help_section "Compatibility Options";
-
-case "empty": err &opt->csg.err_empty {
-    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
-    "when they are empty by a parameter to an object primitive, e.g. 'cube(0)'";
-}
-
-case "collapse": err &opt->csg.err_collapse {
-    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
-    "when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'";
-}
-
-case "outside-3d": err &opt->csg.err_outside_3d {
-    "'error', 'warn', 'ignore': Treatment of 3D objects outside 3D context (default: error)";
-}
-
-case "outside-2d": err &opt->csg.err_outside_2d {
-    "'error', 'warn', 'ignore': Treatment of 2D objects outside 2D context (default: error)";
-    "Note that Hob3l does not implement 2D objects in 3D context, so there is no";
-    "option to treat them normally or extrude them to 1mm.";
-}
-
-case "unsupported-functor": err &opt->scad.err_unsupported_functor {
-    "'error', 'warn', 'ignore': Treatment of a SCAD functor that is not yet supported.";
-    "(Default: warn)";
-}
-
-case "unknown-functor": err &opt->scad.err_unknown_functor {
-    "'error', 'warn', 'ignore': Treatment of an unknown SCAD functor.";
-    "(Default: error)";
-}
-
-case "unknown-param": err &opt->scad.err_unknown_param {
-    "'error', 'warn', 'ignore': Treatment of an unknown parameter to a SCAD functor.";
-    "(Default: warn)";
-}
-
 help_section "Slicing Options";
 
 case "min": dim &opt->z_min {
@@ -121,12 +84,12 @@ case "opt-no-drop-collinear": bool neg_bool &a {
     opt->csg.optimise = CP_BIT_COPY(opt->csg.optimise, CP_CSG2_OPT_DROP_COLLINEAR, a);
 }
 
-help_section "Advanced Options";
+help_section "Algorithm Parameters";
 
 case "max-simultaneous": size &opt->csg.max_simultaneous {
     "maximum number of polygons to process at once.";
-    "Values larger than " CP_STRINGIFY(CP_CSG2_MAX_LAZY) " are ignored.";
-    "(minimum: 2, default: " CP_STRINGIFY(CP_CSG2_MAX_LAZY) ")";
+    "Values larger than " CP_STRINGIFY(CP_BOOL_BITMAP_MAX_LAZY) " are ignored.";
+    "(minimum: 2, default: " CP_STRINGIFY(CP_BOOL_BITMAP_MAX_LAZY) ")";
 
     if (opt->csg.max_simultaneous < 2) {
         fprintf(stderr, "Error: --max-simultaneous=N: N must be >=2, found %"CP_Z"u.\n",
@@ -134,14 +97,88 @@ case "max-simultaneous": size &opt->csg.max_simultaneous {
         exit(EXIT_FAILURE);
     }
 }
-case "gran": dim &cp_pt_epsilon {
-    "rasterization granularity for point coordinates [mm] (default: 0x1p-9)";
+case "grid": dim &cq_dim_scale {
+    "maximum rasterization granularity, i.e., the grid of integer coordinates [1/mm] (default: "CP_STRINGIFY(CP_DIM_SCALE_DEFAULT)").";
+    "This should be a power of two to minimze rounding errors.";
+    "This allows number formats like '2^13' to ease setting a sensible value.\n";
+    "See --auto-grid settings for automatic adjustments to this base setting.\n";
+    "If set to 0, then the maximum granularity (the most fine-grained setting) is used";
+    "when auto-scaling is enabled.";
+}
+case "no-auto-grid": {
+    "To not automatically down-scale the --grid setting.\n";
+    "If --grid is set too large, then 'float' coordinates may loose precisions.\n";
+    "If --grid is set even larger, then numeric overflows may occur in the integer\n";
+    "algorithms (there is a factor of 128 between those problems, however).";
+    opt->auto_scale = AUTO_SCALE_NONE;
+}
+case "auto-grid": {
+    "Automatically scale down the --grid setting to avoid losing precision in `float`";
+    "(for STL binary export).  This is the default.\n";
+    "To also scale up automatically, set --grid=0\n";
+    opt->auto_scale = AUTO_SCALE_FLOAT;
+}
+case "auto-grid-max": {
+    "Automatically scale down the --grid setting to avoid numeric overflow in `int`.";
+    "This allows more precision than --auto-grid=float, but binary STL output is";
+    "allowed to lose precision.";
+    "To also scale up automatically, set --grid=0\n";
+    opt->auto_scale = AUTO_SCALE_INT;
+}
+case "gran": dim &opt->cq_dim_scale_recip {
+    "rasterization granularity for point coordinates [mm] (default: 0x1p-13).";
+    "Use a reciprocal of a power of two here to minimze rounding errors.";
+    "This is the reciprocal value of the --grid option, i.e., --gran 0x1p-13 is";
+    "equivalent to --grid 8192.";
+    "This allows number formats like '1/8192' or '2^-20'to ease setting a sensible value.\n";
+    "This is deprecated, use the --grid option instead.";
 }
 case "eps": dim &cp_eq_epsilon {
     "general comparison epsilon (default: 0x1p-15)";
+    "This should be largely of any consequence these days, as the core algorithms";
+    "now use exact integer math.";
 }
 case "eps2": dim &cp_sqr_epsilon {
     "comparison epsilon for squared dimensions (default: 0x1p-30)";
+    "This should be largely of any consequence these days, as the core algorithms";
+    "now use exact integer math.";
+}
+
+help_section "SCAD Compatibility Options";
+
+case "empty": err &opt->csg.err_empty {
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
+    "when they are empty by a parameter to an object primitive, e.g. 'cube(0)'";
+}
+
+case "collapse": err &opt->csg.err_collapse {
+    "'error', 'warn', 'ignore': Treatment of empty objects (default: error)";
+    "when they collapse into emptiness by a transformation, e.g. in 'scale', 'multmatrix'";
+}
+
+case "outside-3d": err &opt->csg.err_outside_3d {
+    "'error', 'warn', 'ignore': Treatment of 3D objects outside 3D context (default: error)";
+}
+
+case "outside-2d": err &opt->csg.err_outside_2d {
+    "'error', 'warn', 'ignore': Treatment of 2D objects outside 2D context (default: error)";
+    "Note that Hob3l does not implement 2D objects in 3D context, so there is no";
+    "option to treat them normally or extrude them to 1mm.";
+}
+
+case "unsupported-functor": err &opt->scad.err_unsupported_functor {
+    "'error', 'warn', 'ignore': Treatment of a SCAD functor that is not yet supported.";
+    "(Default: warn)";
+}
+
+case "unknown-functor": err &opt->scad.err_unknown_functor {
+    "'error', 'warn', 'ignore': Treatment of an unknown SCAD functor.";
+    "(Default: error)";
+}
+
+case "unknown-param": err &opt->scad.err_unknown_param {
+    "'error', 'warn', 'ignore': Treatment of an unknown parameter to a SCAD functor.";
+    "(Default: warn)";
 }
 
 help_section "Intermediate Stage Output/Alternative Output Format Options";

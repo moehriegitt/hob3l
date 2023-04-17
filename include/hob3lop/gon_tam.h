@@ -9,6 +9,11 @@
 #include <hob3lbase/color_tam.h>
 #include <hob3lop/def_tam.h>
 
+/**
+ * Max. number of non-sign bits in an integer to avoid overflow.
+ */
+#define CQ_INT_DIG 30
+
 #define CQ_VEC2_T \
     union { \
         cq_dim_t v[2]; \
