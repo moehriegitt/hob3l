@@ -30,8 +30,14 @@ case "o": fn {
     opt->out_file_name = fn;
 }
 
-case "no-stlb": neg_bool &opt->prefer_stl_bin {
-    "whether to prefer binary over ASCII STL output format.";
+case "stl-bin": {
+    "whether binary STL should be preferred as output format.";
+    opt->prefer_stl_bin = true;
+}
+
+case "stl-txt": {
+    "whether ASCII STL should be preferred as output format (default).";
+    opt->prefer_stl_bin = false;
 }
 
 case "layer-gap": dim &opt->csg.layer_gap {

@@ -3,34 +3,53 @@
 
 ## What is This?
 
+  * Command line tool for reading SCAD and writing STL files for 3D printing
   * C library for robust polygon boolean operations, i.e., 2D polygon
     operations ADD, SUB, CUT, and XOR; plus polygon triangulation, and
     cutting a 2D slice from a 3D object
   * C library for reading SCAD (OpenScad) files and writing STL files
-  * Command line tool for reading SCAD and writing STL files for 3D printing
 
 The focus is on speed and robustness. OpenSCAD's conversion to STL is
 slow, because it produces a 3D object.  And the CGAL library (used by
 OpenSCAD) does not seems to be very robust for 3D calculations: I
-often get spurious error messages about a non-2-manifold polyhedron.
+often get spurious error messages: 'object may not be a valid 2-manifold'.
 
-Instead, Hob3l produces an STL file suitable for 3D printing.  It does
-that by pre-slicing the SCAD file into layers and using only 2D
-operations on each layer.  The 2D operations are much faster than 3D
-operations.  Also, Hob3l is very robust -- the 2D base library was
-fuzzed to try to get rid of any numeric instability problems that
-might hide somewhere.
+Instead, Hob3l uses stable arithmetics to produce an STL file suitable
+for 3D printing.  It does that by pre-slicing the SCAD file into
+layers and using only 2D operations on each layer.  The 2D operations
+are much faster than 3D operations.  Hob3l is very robust -- the 2D
+base library was fuzzed to get rid of numeric instability problems.
 
-This is a major overhaul of the internals of Hob3l to get it as robust
-as possible.  Internally, it now uses 32-bit integer arithmetics with
-exact intersection point math (based on 160 bit fractionals) and a
-snap rounding algorithm to stay within the input coordinate precision.
-It reads and writes normal floating point numbers, and the float<->int
-conversions are exact within `float` precision (the native STL binary
-number format).  If necessary, the precision can be scaled (by
-default, the unit is 1/8192mm).
+After a major overhaul of its core, Hob3l is now uses integer
+arithmetics and a snap rounding algorithm to stay within the input
+coordinate precision.  It reads and writes normal floating point
+numbers, and the float<->int conversions are exact within `float`
+precision (the native STL binary number format).  If necessary, the
+precision can be scaled (by default, the unit is 1/8192mm).
 
-## Replace 3D CSG by Fast 2D Polygon Clipping
+Hob3l produces only valid 2-manifolds.  (If not: that's a new bug.)
+
+## Always Only Valid 2-Manifolds??
+
+OK, OK, if the input polyhedra are really bad, like missing faces,
+then Hob3l may fail to produce a valid output.  But you really need
+blatantly broken input polyhedra for this.  This cannot happen unless
+you use `polyhedron()` manually in SCAD.  Hob3l is not supposed to
+fail just because you subtract an object from another object and the
+two share a part of a face (when you get flickering in
+[OpenSCAD](http://www.openscad.org/)):
+Hob3l either subtracts everything properly, or it leaves a small
+(valid) polyhedron -- but it does not become unstable and fail on you.
+
+Of course, no-one can guarantee the absense of bugs, but if Hob3l
+shows unstable behaviour, then that is a bug.  Getting it stable took
+the majority of the development time.
+
+## How Is It Fast?
+
+By replacing 3D operations (like OpenSCAD does using the CGAL library)
+by fast 2D polygon clipping: Hob3l first cuts slices and then does the
+boolean operations.
 
 Preparing a 3D model in CSG format (e.g., when using
 [OpenSCAD](http://www.openscad.org/))
@@ -54,38 +73,6 @@ Hob3l's main output formats are
   * STL for printing
   * JavaScript/WebGL for viewing and prototyping
 
-## OpenSCAD
-
-The purpose of this project is definitely not to rant about
-[OpenSCAD](http://www.openscad.org/).
-It is a great tool that I am also using.
-
-But this is about a pre-slicing technique for rendering CSG (or SCAD
-format) into STL that is suited for 3D printing.  The resulting STL is
-no smooth, but looks just like the 3D printed result: it has layers.
-
-## Table of Contents
-
-  * [Replace 3D CSG by Fast 2D Polygon Clipping](#replace-3d-csg-by-fast-2d-polygon-clipping)
-  * [OpenSCAD](#openscad)
-  * [Table of Contents](#table-of-contents)
-  * [SCAD Input Format](#scad-input-format)
-  * [Status, Stability, Limitations, Future Work, TODO](#status-stability-limitations-future-work-todo)
-  * [Supported Output Formats](#supported-output-formats)
-  * [JavaScript/WebGL Output](#javascriptwebgl-output)
-  * [Building](#building)
-      * [Different Build Variants](#different-build-variants)
-      * [Different Compiler Targets](#different-compiler-targets)
-      * [Tweaking Compiler Settings](#tweaking-compiler-settings)
-  * [Running Tests](#running-tests)
-  * [Installation](#installation)
-  * [Using This Tool, Command Line Options](#using-this-tool-command-line-options)
-      * [Tweaking Command Line Settings](#tweaking-command-line-settings)
-  * [Algorithmic Improvements](#algorithmic-improvements)
-  * [Speed comparison](#speed-comparison)
-  * [Rendering Differences](#rendering-differences)
-  * [Name](#name)
-
 ## SCAD Input Format
 
 The Hob3l tool reads a subset of the SCAD format used by OpenSCAD.
@@ -94,7 +81,9 @@ Please check [the SCAD format documentation](doc/scadformat.md) for a
 definition of the subset of SCAD that is supported by Hob3l.
 
 To use the full SCAD format syntax, OpenSCAD can be used as a
-preprocessor to Hob3l:
+preprocessor to Hob3l.  This is very fast, and OpenSCAD resolves the
+SCAD parts that Hob3l does not support.  The result can be processed
+by Hob3l:
 
 ```
     openscad thing.scad -o thing.csg
@@ -116,34 +105,31 @@ resulting polgygons, and write STL.  Slic3r (and probably PrusaSlicer
 and Cura) can read the STL files Hob3l produces.
 
 The input polyhedra must be 2-manifold.  However, in contrast to
-previous versions, Hob3l now accepts quite a few non-2-manifold
-polyhedra.  Polyhedra with holes, however, will not work.  OpenSCAD
-(or CGAL) probably now has more constraints on well-formedness than
-Hob3l.  E.g., Hob3l's algorithms are robust against wrong handedness
-of faces.
+previous versions, Hob3l now accepts quite a few non-2-manifold input
+polyhedra.  Polyhedra with holes (i.e., missing faces), however, will
+not work.  OpenSCAD (or CGAL) probably now has more constraints on
+well-formedness than Hob3l.  E.g., Hob3l's algorithms are robust
+against wrong handedness of faces.
 
 The output STL contains separate layers instead of a single solid.
-This may be fixed in the future to generate contiguous polyhedra.  For
-now, if you hit `split` e.g. in slic3r, you'll get hundreds of
-separate layer objects -- which is not useful.
+This may be fixed in the future to generate one contiguous object.
+For now, if you hit `split` in Slic3r, you'll get hundreds of separate
+layer objects -- which is not useful.
 
 Memory management has leaks.  I admit I don't care enough, because
 Hob3l basically starts, allocates, exits, i.e., it does not run for
 long, so the memory leaks do not build up.
 
 There are never enough tests.  However, Hob3l's core algorithms have
-survived many millions of fuzzing tests with `afl`.
-
-Many tests only check for the absence of a crash or assertion failure,
-but whether the algorithm works correctly needs to be inspected by a
-human.  Usage of this tool for a few years, however, seems to hint
-that it does what it is supposed to do.
+survived many millions of fuzzing tests with
+[afl](https://lcamtuf.coredump.cx/afl/).
 
 ## Supported Output Formats
 
-`STL`: The output format of Hob3l for which it was first developed, is
-STL.  This way, the input SCAD files can be converted and directly
-used in the slicer for 3D printing.
+`STL`: This is the m main output format of Hob3l for which it was
+first developed.  The input SCAD files can be converted to STL and
+directly used in a slicer for 3D printing.  Both ASCII STL (more
+precise) and binary STL (smaller) are supported.
 
 `PS`: For debugging and documentation, including algorithm
 visualisation, Hob3l can output in PostScript.  This is how the
@@ -369,14 +355,10 @@ and all `*dir` options and also `DESTDIR` support as well as
 
 For better package separation, the `install` target is split into
 `install-bin`, `install-data`, `install-lib`, `install-include`
-(e.g. to have a separate `-dev` package as in Debian distributions).
+(e.g. to compile a separate `-dev` package as in Debian
+distributions).
 
 Unfortunately, there is no `install-doc` yet.  FIXME.
-
-The package name Hob3l can be changed during installation using the
-`package_name` variable, but this only changes the executable name and
-the library name, but not the include subdirectory, because this would
-not work as the name is explicitly used in the header files.
 
 ## Using This Tool, Command Line Options
 
@@ -402,104 +384,6 @@ This can then be used in your favorite tool for computing print paths.
 ```
     slic3r thing.stl
 ```
-
-### Tweaking Command Line Settings
-
-The underlying technique of Hob3l is computationally difficult,
-because it relies on floating point operations.  The goal was
-stability, but it turned out to be really difficult to achieve, so
-Hob3l might still occasionally fail.  If this happens, the following
-command line options change internal settings that might push the tool
-back on track:
-
-```
-    --max-simultaneous=N    # decrease for better stability; min. is 2
-```
-
-The following options also have an influence, but neither large nor
-small is really better -- changing them causes different perturbations
-and thus different results, some of which might be more likely to
-succeed.  A good heuristics is to keep `gran` larger than `eps` and
-let `eps2` be about the square of `eps`.
-
-```
-    --gran=X
-    --eps=X
-    --eps2=X
-```
-
-Computing the difference between adjacent layer (e.g. for JS/WebGL
-output) often has to deal with very close points, so switching this
-off often helps to move forward, too.  Of course, this may produce
-output that is less nice.
-
-```
-    --no-diff
-```
-
-## Algorithms
-
-The polyhedra (from SCAD input files) are processed using `double`
-coordinates.  The 2D algorithms, however, now use 32-bit integer
-coordinates for exact math (and can handle 31-bit signed values
-without overflow).  Therefore, the coordinates in a polygon slice cut
-from a polyhedron are converted from `double` to `int` by multiplying
-by a power of two -- this way, the upper bits of the floating point
-mantissa (53 bits for `double`) can be used directly as ints with
-minimum rounding error.  When converting back from `int` to `double`,
-the integer coordinates are divided by the same power of two, meaning
-that no rounding error occurs: the integer is used directly as the
-upper mantissa bits for the floating point number (the lower bits are
-0).  A round trip from int to double to int is then loss-less.  As
-binary STL uses `float` coordinates (with a 24 bit mantissa, smaller
-than 32-bit integers), care was taken to scale in such a way that a
-wide range of float coordinates also convert to STL with no rounding
-error.  And the ASCII STL is printed with many significant digits to
-ensure that the information gets into the slicer without any loss of
-precision.  All integer operations check for overflow so that the
-scale value can be adjusted if necessary for weird input files.
-
-The slice algorithm used to cut a polygon slice from a polyhedron is a
-simple ad-hoc algorithm that works by iterating each face, making a
-cut at a given z height, sorting the cut points, and interpreting them
-as line segments.  The subsequent algorithms need no particular order
-of edges, so a very simple algorithm can be used for slicing.
-
-The polygon clipping algorithm is a Bentley-Ottmann 1979 (Algorithms
-for reporting and counting geometric intersections) plane sweep
-algorithm using exact fractional math for the intersections.  Ideas
-from Mart&iacute;nez, Rueda, Feito 2009 (A new algorithm for computing
-Boolean operations on polygons) were used to extend Bentley-Ottmann to
-corner cases like overlapping edges.  Also, the inside/outside
-information is tracked in a way similar to that paper, extended by
-ideas from Sean Conelly's polybooljs project.  The input/output
-information was then extended to handle more than two polygons at
-once, by using a boolean function represented by a bit array.  This
-speeds up the 2D processing.
-
-The ideas from Boissonnat and Preparata 2000 (Robust Plane Sweep for
-Intersecting Segments) helped examine the complexity of the numeric
-problems and to construct a data type for storing intersection points
-exactly: with a 160 bit fractional (32 bit integer + 64 bit
-numerator + 64 bit denominator).  This avoids overheads from generic
-exact math libraries and it is quite fast.
-
-After the intersection algorithm, the snap rounding algorithm by de
-Berg 2007 (An Intersection-Sensitive Algorithm for Snap Rounding) is
-run to fit the intersection coordinates back into the input bit width
-(32-bit integer coordinates).
-
-To get a triangulation (to produce the output polyhedron in STL
-format), the triangulation algorithm of Hertel & Mehlhorn 1983 (Fast
-Triangulation of the Plane with Respect to Simple Polygons) was used
-and extended to support coincident vertices, because these cannot be
-avoided.  Also, sequences of collinear edges are supported.
-
-The same algorithm was adapted also for constructing a polygon outline
-from the set of edges produced by the preceding algorithm, if no
-triangulation is needed.  This is used in the SCAD language
-processing, e.g., with operations like extrude or project, where the
-result of the 2D boolean algorithm is fed back into the CSG tree.
 
 ## Speed comparison
 
@@ -599,6 +483,70 @@ output top, Hob3l bottom:
 
 ![OpenSCAD preview](img/useless-preview-openscad.jpg)
 ![Hob3l preview](img/useless-preview-hob3l.jpg)
+
+## Algorithms
+
+The polyhedra (from SCAD input files) are processed using `double`
+coordinates.  The 2D algorithms, however, now use 32-bit integer
+coordinates for exact math (and can handle 31-bit signed values
+without overflow).  Therefore, the coordinates in a polygon slice cut
+from a polyhedron are converted from `double` to `int` by multiplying
+by a power of two -- this way, the upper bits of the floating point
+mantissa (53 bits for `double`) can be used directly as ints with
+minimum rounding error.  When converting back from `int` to `double`,
+the integer coordinates are divided by the same power of two, meaning
+that no rounding error occurs: the integer is used directly as the
+upper mantissa bits for the floating point number (the lower bits are
+0).  A round trip from int to double to int is then loss-less.  As
+binary STL uses `float` coordinates (with a 24 bit mantissa, smaller
+than 32-bit integers), care was taken to scale in such a way that a
+wide range of float coordinates also convert to STL with no rounding
+error.  And the ASCII STL is printed with many significant digits to
+ensure that the information gets into the slicer without any loss of
+precision.  All integer operations check for overflow so that the
+scale value can be adjusted if necessary for weird input files.
+
+The slice algorithm used to cut a polygon slice from a polyhedron is a
+simple ad-hoc algorithm that works by iterating each face, making a
+cut at a given z height, sorting the cut points, and interpreting them
+as line segments.  The subsequent algorithms need no particular order
+of edges, so a very simple algorithm can be used for slicing.
+
+The polygon clipping algorithm is a Bentley-Ottmann 1979 (Algorithms
+for reporting and counting geometric intersections) plane sweep
+algorithm using exact fractional math for the intersections.  Ideas
+from Mart&iacute;nez, Rueda, Feito 2009 (A new algorithm for computing
+Boolean operations on polygons) were used to extend Bentley-Ottmann to
+corner cases like overlapping edges.  Also, the inside/outside
+information is tracked in a way similar to that paper, extended by
+ideas from Sean Conelly's polybooljs project.  The input/output
+information was then extended to handle more than two polygons at
+once, by using a boolean function represented by a bit array.  This
+speeds up the 2D processing.
+
+The ideas from Boissonnat and Preparata 2000 (Robust Plane Sweep for
+Intersecting Segments) helped examine the complexity of the numeric
+problems and to construct a data type for storing intersection points
+exactly: with a 160 bit fractional (32 bit integer + 64 bit
+numerator + 64 bit denominator).  This avoids overheads from generic
+exact math libraries and it is quite fast.
+
+After the intersection algorithm, the snap rounding algorithm by de
+Berg 2007 (An Intersection-Sensitive Algorithm for Snap Rounding) is
+run to fit the intersection coordinates back into the input bit width
+(32-bit integer coordinates).
+
+To get a triangulation (to produce the output polyhedron in STL
+format), the triangulation algorithm of Hertel & Mehlhorn 1983 (Fast
+Triangulation of the Plane with Respect to Simple Polygons) was used
+and extended to support coincident vertices, because these cannot be
+avoided.  Also, sequences of collinear edges are supported.
+
+The same algorithm was adapted also for constructing a polygon outline
+from the set of edges produced by the preceding algorithm, if no
+triangulation is needed.  This is used in the SCAD language
+processing, e.g., with operations like extrude or project, where the
+result of the 2D boolean algorithm is fed back into the CSG tree.
 
 ## Name
 
