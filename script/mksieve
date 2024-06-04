@@ -1,0 +1,485 @@
+#! /usr/bin/env perl
+
+# This implements a table based keyword sieve.
+#
+# # Input Format
+#
+# Three parts (like gperf):
+#
+#    * First part: definitions (see below)
+#
+#    * Second part: introduced by a '%%' line:
+#        * List of keywords and more stuff: just like gperf in struct mode.
+#        * Except this tool requires the strings to be quoted like for C, i.e.,
+#        * Each line enclosed in `{`...`}` is valid C syntax for a struct definition.
+#        * Emtpy lines are ignored.
+#        * Lines starting with space followed by '#' are ignored.
+#        * Escaping works with \ : currently not supported, so \ causes an error.
+#
+# ## Definitions
+#
+#   * linewise, in email header 'key: value' syntax.
+#     currently no line continuation syntax.
+#
+#   * space before and anything after '#' plus whitespace (or end of line) is ignored.
+#
+#   * empty lines (after '#' comment removal).
+#
+#   * white space around values and around keys is ignored.
+#
+#   * empty lines are ignored.
+#
+#   * special block of lines '%{'...'}%' at beginning is printed as is
+#     to output.
+#
+#   * definition keys:
+#
+#       * key: name of slot in struct of the key (default: `name`)
+#       * prefix: name prefix to use for names (default: empty)
+#       * value_t: name of the type to be used for the struct (default: `{prefix}value_t`)
+#       * find: name of lookup function (default: `{prefix}find`)
+#       * storage: storage class of the lookup function (default: `static`)
+#       * indent: number of space per block indentation.  0 = use tabs.
+#
+#     All key values are replaced in the generated output text when enclosed in `{`...`}'.
+#     When the key in these braces is all upper case, the value is used in upper
+#     case, too.
+#
+#   * The compilation also sets constants that can be used in the same `{`...'}'
+#     syntax, e.g., to include in the output file.  Some are probably not useful
+#     externally, but they are available anyway.
+#       * minlen: the maximum key length in the set
+#       * maxlen: the maximum key length in the set
+#       * lenspan: {maxlen} - {minlen} + 1
+#       * keycnt: the number of keys
+#       * statecnt: the number of states generated for the matcher
+#       * failidx: the value used to indicate match failure
+#       * sidx_t: type of the index tables to state the state or value index
+#       * minchar: the smallest character value (0..255) needed for lookup
+#       * maxchar: the largest character value (0..255) needed for lookup
+#       * charspan: {maxchar} - {minchar} + 1
+#       * statelen: number of different chars + 1
+
+use strict;
+use warnings;
+use autodie;
+use Carp;
+use Data::Dumper;
+
+my $ID = '(?:\b[a-zA-Z_][a-zA-Z_0-9]*\b)';
+
+sub learn($)
+{
+    my ($fn) = @_;
+
+    open(my $f, '<', $fn);
+
+    my $p = {
+        opt => {
+            key => 'name',
+            prefix => '',
+            value_t => '{prefix}value_t',
+            find => '{prefix}find',
+            storage => 'static',
+            indent => 4,
+        },
+        prefix => '',
+    };
+    my $mode = 0;
+
+    # first part: definitions
+    my $ln = 0;
+    DEF: while (defined(my $s = <$f>)) {
+        $ln++;
+        $s =~ s/\s+$//;
+
+        # prefix:
+        if (($mode == 0) && ($s eq '%{')) {
+            $mode= 1;
+            next DEF;
+        }
+        if ($mode == 1) {
+            if ($s eq '%}') {
+                $mode = 2;
+            }
+            else {
+                $p->{prefix} .= "$s\n";
+            }
+            next DEF;
+        }
+
+        # once this is reached, we're in key-value mode.
+        $mode = 2;
+
+        # comments and some white space handling
+        next DEF if $s =~ m(^\s*#(?:\s.*)?$);
+        next DEF if $s eq '';
+        last DEF if $s eq '%%';
+
+        # key-value pairs:
+        die "$fn:$ln: ERROR: unable to parse 'key:value': $s\n"
+            unless $s =~ /^\s*($ID)\s*:(?:\s*(\S.*))?$/;
+        my ($k, $v) = ($1, $2 // '');
+        die "$fn:$ln: ERROR: unknown key '$s'\n" unless exists $p->{opt}{$k};
+
+        $p->{opt}{$k} = $v;
+    }
+
+    # second part:
+    $p->{choice_arr} = [];
+    KEY: while (defined(my $s = <$f>)) {
+        $ln++;
+        $s =~ s/\s+$//;
+        next KEY if $s eq '';
+        next KEY if $s =~ m(^\s*#(?:\s.*)?$);
+        $s =~ s/^\s+//;
+        my ($key, $rest) = split /,/, $s, 2;
+
+        $key  =~ s/^\s+//;
+        $key  =~ s/\s+$//;
+        $rest =~ s/^\s+//;
+        $rest =~ s/\s+$//;
+        die "ERROR: Duplicate key: '$key'\n" if $p->{choice}{$key};
+        my $e = $p->{choice}{$key} = {
+            key => $key,
+            rest => $rest,
+        };
+        push @{ $p->{choice_arr} }, $e;
+    }
+
+    # sort so that the output is more stable:
+    @{ $p->{choice_arr} } = sort { $a->{key} cmp $b->{key} } @{ $p->{choice_arr} };
+    for my $idx (0..$#{ $p->{choice_arr} }) {
+        my $e = $p->{choice_arr}[$idx];
+        $e->{idx} = $idx;
+    }
+
+    $p->{opt}{keycnt} = scalar(@{ $p->{choice_arr} });
+
+    return $p;
+}
+
+sub make_tree_rec($$$$);
+sub make_tree_rec($$$$)
+{
+    my ($p, $i, $s, $prefix) = @_;
+
+    croak if scalar(keys %$s) < 2;
+
+    my $states = $p->{state};
+    my $state = $p->{state}[$i] // croak;
+
+    croak if defined $state->{prefix};
+    $state->{idx} = $i;
+    $state->{prefix} = $prefix;
+    $p->{prefix2state}{$prefix} = $state;
+
+    # make a partitioning of values:
+    my %succ = ();
+    for my $k (keys %$s) {
+        my $v = $s->{$k};
+        my $first = substr($k, 0, 1);
+        my $rest  = substr($k, 1);
+        my $e = ($succ{$first} //= {
+            key  => $first,
+            set  => {},
+        });
+        $e->{set}{$rest} = $v;
+    }
+
+    # make redirections to states:
+    for my $first (sort keys %succ) {
+        my $e = $succ{$first};
+
+        # register char for lookup:
+        my $ord = ord($first);
+        $p->{char2tok}{$ord} //= do {
+            push @{ $p->{tok2char} }, { ord => $ord, char => $first };
+            $#{ $p->{tok2char} };
+        };
+        $p->{opt}{minchar} = $ord if !defined $p->{opt}{minchar} || $ord < $p->{opt}{minchar};
+        $p->{opt}{maxchar} = $ord if !defined $p->{opt}{maxchar} || $ord > $p->{opt}{maxchar};
+
+        # see what is the next step:
+        if (scalar(keys %{ $e->{set} }) == 1) {
+            my ($v) = (values %{ $e->{set} });
+            # point to key:
+            $state->{step}{$first} = {
+                kind => 'final',
+                idx  => $v->{idx},
+            };
+        }
+        else {
+            # make a new state:
+            push @$states, {};
+            $e->{step} = $#$states;
+
+            # redirect to that state:
+            $state->{step}{$first} = {
+                kind => 'state',
+                idx  => $e->{step},
+            };
+        }
+    }
+
+    # recurse into:
+    for my $succ (
+        sort { $a->{step} <=> $b->{step} }
+        grep { defined($_->{step}) }
+        values %succ)
+    {
+        make_tree_rec($p, $succ->{step}, $succ->{set}, $prefix.$succ->{key});
+    }
+}
+
+sub make_tree_len($$);
+sub make_tree_len($$)
+{
+    my ($p, $s) = @_;
+
+    my $states = $p->{state} // croak;
+    my $opt = $p->{opt};
+
+    # learn all maps and suffixes:
+    my %succ = ();
+    for my $k (sort { length($a) <=> length($b) } keys %$s) {
+        my $v = $s->{$k};
+        my $len = length($k);
+        $opt->{minlen} = $len if !defined $opt->{minlen} || $len < $opt->{minlen};
+        $opt->{maxlen} = $len if !defined $opt->{maxlen} || $len > $opt->{maxlen};
+
+        my $e = ($succ{$len} //= {
+            len  => $len,
+            set  => {},
+        });
+        $e->{set}{$k} = $v;
+    }
+
+    # make directions for length:
+    for my $len (sort { $a <=> $b } keys %succ) {
+        my $e = $succ{$len};
+        if (scalar(keys %{ $e->{set} }) == 1) {
+            my ($v) = (values %{ $e->{set} });
+            # point to key:
+            $p->{len}{$len} = {
+                kind => 'final',
+                idx  => $v->{idx},
+            };
+        }
+        else {
+            # make a new state:
+            push @$states, {};
+            $e->{step} = $#$states;
+
+            $p->{len}{$len} = {
+                kind => 'state',
+                idx => $e->{step},
+            };
+        }
+    }
+
+    # recurse into:
+    for my $succ (
+        sort { $a->{step} <=> $b->{step} }
+        grep { defined($_->{step}) }
+        values %succ)
+    {
+        make_tree_rec($p, $succ->{step}, $succ->{set}, '');
+    }
+}
+
+
+
+sub make_tree($)
+{
+    my ($p) = @_;
+
+    $p->{char2tok} = {};
+    $p->{tok2char} = [undef];
+    $p->{state} = [];
+    $p->{prefix2state} = {};
+
+    die unless $p->{opt}{keycnt} == scalar(keys %{ $p->{choice} });
+
+    make_tree_len($p, $p->{choice});
+
+    $p->{opt}{statecnt} = scalar(@{ $p->{state} });
+    $p->{opt}{minlen} //= 0;
+    $p->{opt}{maxlen} //= 0;
+    $p->{opt}{lenspan} = $p->{opt}{maxlen} - $p->{opt}{minlen} + 1;
+    $p->{opt}{statelen} = scalar(@{ $p->{tok2char} });
+}
+
+sub uint_max($)
+{
+    my ($max) = @_;
+    $max //= 0;
+    if ($max <= 0xff) {
+        return 'uint8_t';
+    }
+    if ($max <= 0xffff) {
+        return 'uint16_t';
+    }
+    croak unless $max <= 0xffffffff;
+    return 'uint32_t';
+}
+
+sub get_idx($$)
+{
+    my ($p, $step) = @_;
+    unless (defined $step) {
+        # failure: use failidx
+        return $p->{opt}{failidx};
+    }
+    if ($step->{kind} eq 'state') {
+        # the idx is equal to the state idx.
+        return $step->{idx};
+    }
+    if ($step->{kind} eq 'final') {
+        # the idx plus the size of the state array
+        return $step->{idx} + $p->{opt}{statecnt};
+    }
+    die "INTERNAL ERROR: Unrecognised idx: ".Dumper($step);
+}
+
+sub generate_body($)
+{
+    my ($p) = @_;
+    my $opt = $p->{opt};
+    my $s = "";
+
+    # Main map of values:
+    $s .= "\tstatic {value_t} const value[{keycnt}] = {\n";
+    my $width = 1;
+    for my $c (@{ $p->{choice_arr} }) {
+        my $val = $c->{key};
+        $val =~ s([\\\"])(\\$&)g;
+        my $qlen = length($val);
+        $width = $qlen if $width < $qlen;
+    }
+    for my $c (@{ $p->{choice_arr} }) {
+        my $val = $c->{key};
+        $val =~ s([\\\"])(\\$&)g;
+        $s.= sprintf("\t\t{ %-*s %s },\n", $width+3, "\"$val\",", $c->{rest});
+    }
+    $s .= "\t};\n";
+
+    # Make the length map:
+    $s .= "\tstatic {sidx_t} const len2step[{lenspan}] = {\n";
+    for my $l ($opt->{minlen}..$opt->{maxlen}) {
+        my $idx = get_idx($p, $p->{len}{$l});
+        $s .= "\t\t$idx,\n";
+    }
+    $s .= "\t};\n";
+
+    # Make the char2tok map:
+    $s .= "\tstatic {stok_t} const char2tok[256] = {\n";
+    for my $c (0..255) {
+        my $tok = $p->{char2tok}{$c};
+        if (defined $tok) {
+            $s .= "\t\t[$c] = $tok,\n";
+        }
+    }
+    $s .= "\t};\n";
+
+    # Make state map:
+    $s .= "\tstatic {sidx_t} const tok2step[{statecnt}][{statelen}] = {\n";
+    for my $i (0..$opt->{statecnt}-1) {
+        my $state = $p->{state}[$i];
+        $s.= "\t\t{\n";
+        $s.= "\t\t\t$p->{opt}{failidx},\n";
+        for my $tok (1..$opt->{statelen}-1) {
+            my $char = $p->{tok2char}[$tok]{char} // die "INTERNAL ERROR: no char for token $tok";
+            my $idx = get_idx($p, $state->{step}{$char});
+            $s.= "\t\t\t$idx,\n";
+        }
+        $s.= "\t\t},\n";
+    }
+    $s .= "\t};\n";
+
+    # print lookup function:
+    $s .= qq(
+\tif (len < {minlen}) { return NULL; }
+\tif (len > {maxlen}) { return NULL; }
+\tsize_t step = len2step[len - {minlen}];
+\tchar const *s0 = s;
+\twhile (step < {statecnt}) {
+\t\tstep = tok2step[step][char2tok[(uint8_t)*(s++)]];
+\t}
+\tsize_t o = (size_t)(s - s0);
+\tassert(o <= {maxlen});
+\tif (step >= {failidx}) { return NULL; }
+\t{value_t} const *v = &value[step - {statecnt}];
+\tif (memcmp(s, v->{key} + o, len - o) != 0) { return NULL; }
+\treturn v;
+);
+
+    return $s;
+}
+
+sub generate($)
+{
+    my ($p) = @_;
+    my $opt = $p->{opt};
+
+    $opt->{failidx} = $opt->{statecnt} + $opt->{keycnt};
+    $opt->{sidx_t} = uint_max($opt->{failidx});
+    $opt->{stok_t} = uint_max($opt->{statesize});
+
+    my $s = "\n";
+    $s .= $p->{prefix};
+    $s .=
+        ($opt->{storage} ? "$opt->{storage} " : "").
+        "$opt->{value_t} const * $opt->{find}(\n".
+        "\tchar const *s,\n".
+        "\tsize_t len)\n".
+        "{\n";
+    if ($opt->{keycnt} > 0) {
+        $s .= generate_body($p);
+    }
+    else {
+        $s .= "\treturn NULL;\n";
+    }
+    $s .= "}\n";
+    return $s;
+}
+
+sub replace_vars($$)
+{
+    my ($p, $sp) = @_;
+}
+
+sub compile($)
+{
+    my ($p) = @_;
+    make_tree($p);
+    my $s = generate($p);
+    replace_vars($p, \$s);
+
+    # patch tab:
+    if (my $indent = $p->{opt}{indent}) {
+        my $tab = ' ' x $indent;
+        $s =~ s(\t)($tab)g;
+    }
+
+    # patch option value:
+    my %val = ();
+    for my $k (keys %{ $p->{opt} }) {
+        my $v = $p->{opt}{$k};
+        $val{$k} = $v;
+        $val{uc($k)} = uc($v);
+    }
+    my $re = '{('.join('|', sort keys %val).')}';
+    while ($s =~ s($re)($val{$1})egsm) {} # replace recursively
+
+    return $s;
+}
+
+######################################################################
+
+print "/* Generated automatically by mksieve.  Do not edit. */\n";
+for my $fn (@ARGV) {
+    my $p = learn($fn);
+    my $s = compile($p);
+    print $s;
+}
