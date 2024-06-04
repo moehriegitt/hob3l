@@ -351,4 +351,7 @@ ifeq ($(FUZZ),1)
 include hob3lop-fuzz.mk
 endif
 
--include out/bin/*/*.d
+# Later...
+#ifeq ($(FONT),1)
+#include hob3lfont.mk
+#endif

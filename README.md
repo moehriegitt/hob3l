@@ -32,7 +32,7 @@ Hob3l produces only valid 2-manifolds.  (If not: that's a new bug.)
 ## Always Only Valid 2-Manifolds??
 
 OK, OK, if the input polyhedra are really bad, like missing faces,
-then Hob3l may fail to produce a valid output.  But you really need
+then Hob3l will fail to produce a valid output.  But you really need
 blatantly broken input polyhedra for this.  This cannot happen unless
 you use `polyhedron()` manually in SCAD.  Hob3l is not supposed to
 fail just because you subtract an object from another object and the

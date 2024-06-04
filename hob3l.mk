@@ -80,7 +80,7 @@ _ := $(shell mkdir -p out/src/hob3l)
 _ := $(shell mkdir -p out/share)
 _ := $(shell mkdir -p out/speed)
 
--include out/*.d
+-include out/bin/hob3l/*.d
 
 bin: \
     hob3l.x \
