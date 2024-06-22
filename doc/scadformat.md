@@ -25,6 +25,7 @@
       * [difference](#difference)
       * [group](#group)
       * [hull](#hull)
+      * [include](#include)
       * [import](#import)
       * [intersection](#intersection)
       * [linear_extrude](#linear_extrude)
@@ -44,6 +45,7 @@
       * [text](#text)
       * [translate](#translate)
       * [union](#union)
+      * [use](#use)
 
 ## Introduction
 
