@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_TAM_H_
 #define CP_CSG2_TAM_H_
@@ -95,12 +95,6 @@ typedef enum {
     cp_mat2wi_t mat; \
     cp_f_t _fa, _fs; \
     size_t _fn;
-
-struct cp_csg2_circle {
-    /**
-     * type is CP_CSG2_CIRCLE */
-    CP_CSG2_SIMPLE_
-};
 
 typedef struct {
     cp_csg_add_t *root;

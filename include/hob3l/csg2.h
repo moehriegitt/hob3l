@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_H_
 #define CP_CSG2_H_
@@ -35,29 +35,6 @@
  */
 extern void cp_csg2_poly_fini(
     cp_csg2_poly_t *p);
-
-/**
- * Compute bounding box
- *
- * Runtime: O(n), n=size of vector
- */
-extern void cp_v_vec2_loc_minmax(
-    cp_vec2_minmax_t *m,
-    cp_v_vec2_loc_t *o);
-
-/**
- * Compute bounding box
- *
- * This uses only the points, neither the triangles nor the paths.
- *
- * Runtime: O(n), n=number of points
- */
-static inline void cp_csg2_poly_minmax(
-    cp_vec2_minmax_t *m,
-    cp_csg2_poly_t *o)
-{
-    cp_v_vec2_loc_minmax(m, &o->point);
-}
 
 /**
  * cp_v_vec2_loc_t nth function for cp_vec2_arr_ref_t
@@ -114,6 +91,37 @@ extern cp_vec2_t *_cp_v_vec3_loc_ref_yz_nth(
 extern size_t cp_v_vec3_loc_ref_yz_idx_(
     cp_vec2_arr_ref_t const *u,
     cp_vec2_t const *a);
+
+/**
+ * Compute bounding box
+ *
+ * Runtime: O(n), n=size of vector
+ */
+extern void cp_v_vec2_loc_minmax(
+    cp_vec2_minmax_t *m,
+    cp_v_vec2_loc_t *o);
+
+/**
+ * Compute bounding box
+ *
+ * This uses only the points, neither the triangles nor the paths.
+ *
+ * Runtime: O(n), n=number of points
+ */
+static inline void cp_csg2_poly_minmax(
+    cp_vec2_minmax_t *m,
+    cp_csg2_poly_t *o)
+{
+    cp_v_vec2_loc_minmax(m, &o->point);
+}
+
+
+
+
+
+
+
+
 
 static inline cp_vec2_t *cp_vec2_arr_ref(
     cp_vec2_arr_ref_t const *a,

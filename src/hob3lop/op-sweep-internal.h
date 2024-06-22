@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CQ_OP_SWEEP_INTERNAL_H_
 #define CQ_OP_SWEEP_INTERNAL_H_

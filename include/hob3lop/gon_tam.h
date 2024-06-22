@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef HOB3LOP_GON_TAM_H_
 #define HOB3LOP_GON_TAM_H_
@@ -239,7 +239,8 @@ typedef CP_VEC_T(cp_csg2_tri_t) cp_v_csg2_tri_t;
  */
 typedef struct {
     cp_vec2_t coord;
-    unsigned aux;
+    unsigned aux1;
+    unsigned aux2;
     cp_loc_t loc;
 } cp_vec2_loc_t;
 
@@ -271,7 +272,7 @@ typedef CP_VEC_T(cp_vec2_loc_t) cp_v_vec2_loc_t;
  *     paths subtracting from an outer path will have reverse
  *     order.)
  *
- * triangle:
+ * tri:
  *     Triangles defining the polygon.
  *
  *     This should be equivalent information as in path.

@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /*
  * Uunfortunately, this code has a lot of casts and relies completely on

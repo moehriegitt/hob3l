@@ -1,10 +1,10 @@
 #! /usr/bin/perl
-# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 use strict;
 use warnings;
 
-my $l = 'Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file';
+my $l = 'Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file';
 
 FILE: for my $file (@ARGV) {
     my $mode = (stat $file)[2] or die "Error: stat('$file'): $@\n";

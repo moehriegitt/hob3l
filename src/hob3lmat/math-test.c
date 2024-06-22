@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lmat/mat.h>
 #include "hob3lmat-test.h"
@@ -282,17 +282,17 @@ extern void cp_math_test(void)
 
     /* rotation matrices should also be exact now */
     cp_mat3_t m;
-    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, CP_SINCOS_DEG(0));
+    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, &CP_SINCOS_DEG(0));
     TEST_EQ(m.m[0][0], 1); TEST_EQ(m.m[0][1], 0); TEST_EQ(m.m[0][2], 0);
     TEST_EQ(m.m[1][0], 0); TEST_EQ(m.m[1][1], 1); TEST_EQ(m.m[1][2], 0);
     TEST_EQ(m.m[2][0], 0); TEST_EQ(m.m[2][1], 0); TEST_EQ(m.m[2][2], 1);
 
-    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, CP_SINCOS_DEG(90));
+    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, &CP_SINCOS_DEG(90));
     TEST_EQ(m.m[0][0], 1); TEST_EQ(m.m[0][1], 0); TEST_EQ(m.m[0][2], 0);
     TEST_EQ(m.m[1][0], 0); TEST_EQ(m.m[1][1], 0); TEST_EQ(m.m[1][2], -1);
     TEST_EQ(m.m[2][0], 0); TEST_EQ(m.m[2][1],+1); TEST_EQ(m.m[2][2], 0);
 
-    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, CP_SINCOS_DEG(-90));
+    cp_mat3_rot_unit(&m, &(cp_vec3_t){{ 1, 0, 0 }}, &CP_SINCOS_DEG(-90));
     TEST_EQ(m.m[0][0], 1); TEST_EQ(m.m[0][1], 0); TEST_EQ(m.m[0][2], 0);
     TEST_EQ(m.m[1][0], 0); TEST_EQ(m.m[1][1], 0); TEST_EQ(m.m[1][2], +1);
     TEST_EQ(m.m[2][0], 0); TEST_EQ(m.m[2][1],-1); TEST_EQ(m.m[2][2], 0);

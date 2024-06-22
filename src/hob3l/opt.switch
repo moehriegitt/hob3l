@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 help_section "General Options";
 
@@ -72,7 +72,7 @@ case "z": dim &opt->z_min {
     opt->have_z_max = true;
 }
 
-case "max-fn": size &opt->csg.max_fn {
+case "max-fn": uint32 &opt->csg.max_fn {
     "maximum value of $fn for treating round objects as polyhedra (default: 50).";
     "At $fn values larger than this, spheres will be sliced into circles";
     "and not converted to polyhedra.";
@@ -299,19 +299,19 @@ case "ps-no-wire": {
 case "ps-rot-x": cp_angle_t angle &a {
     "rotate about x axis by angle";
     cp_mat4_t m;
-    cp_mat4_rot_x(&m, CP_SINCOS_DEG(a));
+    cp_mat4_rot_x(&m, &CP_SINCOS_DEG(a));
     cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
 }
 case "ps-rot-y": cp_angle_t angle &a {
     "rotate about y axis by angle";
     cp_mat4_t m;
-    cp_mat4_rot_y(&m, CP_SINCOS_DEG(a));
+    cp_mat4_rot_y(&m, &CP_SINCOS_DEG(a));
     cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
 }
 case "ps-rot-z": cp_angle_t angle &a {
     "rotate about z axis by angle";
     cp_mat4_t m;
-    cp_mat4_rot_z(&m, CP_SINCOS_DEG(a));
+    cp_mat4_rot_z(&m, &CP_SINCOS_DEG(a));
     cp_mat4_mul(&opt->ps.xform2, &m, &opt->ps.xform2);
 }
 

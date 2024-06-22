@@ -27,7 +27,7 @@ numbers, and the float<->int conversions are exact within `float`
 precision (the native STL binary number format).  If necessary, the
 precision can be scaled (by default, the unit is 1/8192mm).
 
-Hob3l produces only valid 2-manifolds.  (If not: that's a new bug.)
+Hob3l produces only valid 2-manifolds.
 
 ## Always Only Valid 2-Manifolds??
 
@@ -547,6 +547,43 @@ from the set of edges produced by the preceding algorithm, if no
 triangulation is needed.  This is used in the SCAD language
 processing, e.g., with operations like extrude or project, where the
 result of the 2D boolean algorithm is fed back into the CSG tree.
+
+## Development
+
+This is a project for me to relax and have fun, to be a distraction
+and to be different from my day job (which also involves programming).
+
+Because of this, the project follows some policies to avoid stress.
+Others may find them unnecessary, but these policies keep me sane and
+allow me to continue to have fun.
+
+### XNIH: Exclude What's Not Implemented Here
+
+No external libraries or tools are used for this project, except what
+belongs to the C Language, or Perl, or to libc/POSIX.  All
+functionality is either implemented here, or not at all.
+
+I like this because it helps me focus on programming, instead of
+serving and keeping up learning other APIs.  I like this because every
+API incompatibility will be my own fault.  And there will be no stress
+when upgrading to a newer version of a foreign library, because there
+are none.  Also, implementing parsers or parser generators is fun.
+
+### C and Perl
+
+This project is implemented in C with gcc extensions, for a reasonably
+modern C standard.  Perl is used for scripts.  GnuMake is used for
+building.
+
+This will not use C++, not C#, not Rust, not Go, not Swift, not Java,
+not Ruby, not Python.  Neither will it support C89 or K&R.  Because
+that's no fun to me. :-)
+
+### Linux
+
+My development platform is Linux.  This project does not actively try
+to exclude anything, but I will not debug problems on other platforms.
+Because that's no fun to me. :-)
 
 ## Name
 

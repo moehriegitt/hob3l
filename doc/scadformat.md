@@ -115,9 +115,18 @@ and modules.
 
 The following SCAD operators and identifiers are supported.  In each
 functor's parentheses, the supported arguments are listed.  $fa and
-$fs are ignored, but accepted in the input file for compatibility with
-existing files.  Both named and positional arguments are supported
-just like in OpenSCAD.
+$fs are currently ignored, but accepted in the input file for
+compatibility with existing files.  Both named and positional
+arguments are supported just like in OpenSCAD.
+
+(In an upcoming version of Hob3l, $fs, $fa, and $fn will all be
+considered.  Hob3l takes into account the scaling of objects so that
+scaling small objects produces roughly the same detail as rendering
+the object larger, e.g. for spheres.  To do this, Hob3l uses the
+magnitude of the determinant of the transform matrix to derive an
+average magnification factor.  OpenSCAD does not consider the current
+transform matrix for rendering, but only the local size, so objects
+that are scaled up have rougher approximations.)
 
 Usually the default for a missing argument is '1', but `hob3l` may
 be more restrictive than OpenSCAD: if the OpenSCAD documentation lists
@@ -139,7 +148,7 @@ OpenSCAD may still accept it and assume '1'.
     cube(size, center)
     cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
-    import(file, layer, convexity)
+    import(file, layer, convexity, $fn)
 
     polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
@@ -654,26 +663,30 @@ everything to faster 2D algorithms.
 
 ### import
 
-3D object: load a polyhedron from a file.
+3D object: load a polyhedron from a file: STL format.
+
+2D object: load a polygon from a file: SVG format.
 
 ```
 import(file[,layer,convexity])
 ```
 
   * `file` :: string
+  * `dpi` :: float
   * `layer` :: string, ignored
   * `convexity` :: integer, ignored
+  * `center` :: bool, ignored
 
-This loads a polyhedron from the file whose path is specified by
-`file`.  If `file` is a relative path name, then it is interpreted
-relative to the file where the `import` was located.
+This loads external structures from the file whose path is specified
+by `file`.  If `file` is a relative path name, then it is
+interpreted relative to the file where the `import` was located.
 
-Currently, files in text STL format are supported.  The vertices are
-assumed to be ordered in the opposite order of what the SCAD format
-uses, i.e., when viewed from the outside, each face's vertices run
-counter-clockwise.  This corresponds to the right hand rule, where the
-thumb is the face normal and the other fingers indicate the vertex
-order.
+In 3D mode, this loads a polyhedron, and files in text and binary STL format
+are supported.  The vertices are assumed to be ordered in the opposite
+order of what the SCAD format uses, i.e., when viewed from the
+outside, each face's vertices run counter-clockwise.  This corresponds
+to the right hand rule, where the thumb is the face normal and the
+other fingers indicate the vertex order.
 
 The normal is used to check that the vertices are ordered the expected
 way: if the sign of the computed normal is opposite, the vertices are
@@ -682,18 +695,109 @@ reversed to restore the right hand rule order.
 The input polyhedron must be 2-manifold just like for the `polyhedron`
 functor.
 
-_OpenSCAD compatibility_:
+In 2D mode, this loads one or more polygons, and files in SVG format
+are supported.  SVG is a very feature-rich format, and there are some
+restrictions: the only supported processing mode is secure static
+mode, so no external references are supported, no script execution, no
+animation, and no interactivity, and also no CSS styling is supported.
+Hob3l tries to mimick OpenSCAD in order to be compatible, but it tries
+even more to be compatible to the SVG 2 specification.
+
+For SVG import, the initial unit is 1/72 inch by default if a
+`viewBox` is given (for OpenSCAD and also for Hob3l).  This can be
+changed by using the `dpi` attribute.  Without a `viewBox`, 1 user
+units maps to 1mm, the default in SCAD, i.e., this is a 1:1 mapping.
+For scaling to absolute sizes, `width` and `height` attributes can be
+applied with absolute units (like `mm`) additional to a `viewBox` --
+regardless of `dpi` setting, the sizes will be absolute.  (Note:
+because OpenSCAD handles it this way, in `width`/`height` attributes,
+the unit `px` equals 1/96" (absolute), while no unit means `dpi`.)
+
+_OpenSCAD and General compatibility_:
 
   * OpenSCAD reads more file formats than Hob3l.
 
-  * OpenSCAD and also Slic3r are much more forgiving than Hob3l if the
-    input STL is not a proper 2-manifold.  Hob3l rejects many files,
-    which is frustrating.  The underlying problem is that many STL
-    files are just not correct 2-manifolds, although this should be
-    the case according to the specification.  Empty triangles (with
-    three collinear edges) are very frequent.  And Hob3l really cannot
-    handle them at the moment, because of how its slicing algorithm
-    works.
+  * Hob3l ignores the `center` attribute, while OpenSCAD applies
+    it by centering the set of coordinates.
+
+  * STL mode: OpenSCAD and also Slic3r are much more forgiving than
+    Hob3l if the input STL is not a proper 2-manifold.  Hob3l rejects
+    many files, which is frustrating.  The underlying problem is that
+    many STL files are just not correct 2-manifolds, although this
+    should be the case according to the specification.  Empty
+    triangles (with three collinear edges) are very frequent.  And
+    Hob3l really cannot handle them at the moment, because of how its
+    slicing algorithm works.
+
+  * SVG mode: Hob3l treats open polygons as if they were implicitly
+    closed, while OpenSCAD renders open polygons as strokes (but
+    always with 'bevel' style line joints, it seems).
+
+    In the future, this may change to be more OpenSCAD compatible;
+    however, OpenSCAD is also not at all SVG compatible and ignores
+    the 'stroke', 'fill', 'stroke-linejoin', etc. attributes.  It
+    may make more sense to implement this correctly and fully
+    support strokes.
+
+  * SVG mode: OpenSCAD supports `text` and `tspan` elements, but
+    Hob3l does not.
+
+  * SVG mode: OpenSCAD supports CSS via `class` and `style` (via
+    libxml), but Hob3l does not (no libxml is used).
+
+  * SVG mode: Like OpenSCAD, Hob3l does not apply any clipping at
+    the `svg` element's viewbox.
+
+  * SVG mode: Like OpenSCAD, Hob3l ignores the `fill-rule` attribute in
+    SVG (because it does not support `nonzero` for self-overlapping
+    polygons), and always implements `evenodd`.  This is against the
+    SVG spec, which let's users select the fill rule, and prescribes
+    `nonzero` to be the default.
+
+  * SVG mode: OpenSCADs behaviour is weird when a `height` are
+    applied but no `viewBox`: a shift by the absolute unit is applied
+    but no scaling is done.  Hob3l, instead, ignores the `height`
+    attribute in this case.
+
+  * SVG mode: OpenSCAD import of nested `svg` elements inside the
+    toplevel 'svg' element do not seem to work correctly at all, and a
+    nested `svg` element seems to re-defined the top-level scaling and
+    viewbox.  OpenSCAD does this very differently from how Firefox and
+    Inkscape display the SVG.  Hob3l does it like Firefox and
+    Inkscape, which is also how it is described in the W3C SVG 2 spec.
+
+  * SVG mode: OpenSCAD seems to ignore `transform` on the toplevel
+    `svg` elements (maybe a remnant from SVG 1.1), while Hob3l
+    supports this normally (like, e.g., Firefox also does).  Hob3l's
+    user unit in this transform is `mm` (the native SCAD unit).
+
+  * SVG mode: OpenSCAD does not ignore space in numeric attributes
+    like `x1` in `line` elements (maybe a remnant from SVG 1.1).
+    Hob3l does ignore it, as SVG 2 defines.
+
+  * SVG mode: OpenSCAD correctly ignores, but recurses into unknown
+    elements, like the SVG spec prescibes.  Hob3l also does that.
+    But both Firefox and Inkscape ignore the children of the unknown
+    element (at the time of writing this).
+
+### include
+
+This is a special statement to include another file in place, as if
+the file was inlined.
+
+```
+include <otherfile.scad>
+```
+
+The statement acts like a block, i.e., it is syntactically equivalent
+to a `{`...`}` structure or a single functor invocation.
+
+The contents of the other file are parsed as if they were inlined into
+the file of the `include` statement, except that paths are resolved
+inside of the included file relative to that file.
+
+The path provided to `include` is interpreted relative to the directory
+of the file if the `include` statement.
 
 ### intersection
 
@@ -724,7 +828,7 @@ see [the definition](#ignored-children).
 axis.
 
 ```
-linear_extrude({height, center, slices, twist, scale,
+linear_extrude([height]{, center, slices, twist, scale,
     convexity, $fn, $fa, $fs})
 { ... }
 ```
@@ -874,13 +978,18 @@ coordinate matrix to be multipled by:
 | 0  0  0  1 |
 ```
 
-_OpenSCAD compatibility_:
+_OpenSCAD and General compatibility_:
+
   * `multmatrix(m) X`: where `m` is not a two dimensional array:
       * OpenSCAD treats this like `X` (without warning),
       * Hob3l rejects this with an error.
   * `multmatrix(m) X`: where `m` is not invertible:
       * OpenSCAD applies the matrix and collapses `X` into 2D,
       * Hob3l rejects this with an error (determinant is 0)
+  * Note that `multmatrix` is a row-wise specification (which includes
+    the redundant last row), while in SVG format, the corresponding `matrix`
+    is a column-wise specification (and without the redundant last row
+    information).
 
 ### polygon
 
@@ -1208,6 +1317,13 @@ unit square.
 `square(size=[a,b],center=true)` is equivalent to `scale([a,b,])
 translate([-.5,-.5,0]) square()`.
 
+### surface
+
+3D object: a height map.
+
+FIXME: This is not yet implemented.  It is also weird to me how it works (I'd expect a
+2D object).  OpenSCAD segfaults on me if I try to `linear_extrude` a `surface`.
+
 ### text
 
 Render a 2D object representing the given text.
@@ -1321,3 +1437,20 @@ union() { ... }
 ```
 
 This is exactly equivalent to [group](#group).
+
+### use
+
+Not implemented.
+
+This is a special statement to include another file.  Hob3l only
+allows this at top-level scope.
+
+Since there is no handling of `function` and `module` and variables in
+Hob3l, this is not implemented either.
+
+```
+use <otherfile.scad>
+```
+
+The path provided to `use` is interpreted relative to the directory
+of the file if the `use` statement.

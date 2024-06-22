@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG_TAM_H_
 #define CP_CSG_TAM_H_
@@ -148,7 +148,7 @@ typedef struct {
      *
      * For larger values, use round shapes, if available.
      */
-    size_t max_fn;
+    unsigned max_fn;
 
     /**
      * With which groups to tag the output file, space or comma separated */

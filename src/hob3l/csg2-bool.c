@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
 #include <hob3lbase/dict.h>
@@ -471,6 +471,11 @@ static void flatten_lazy(
 /**
  * Add a layer to a tree by reducing it from another tree.
  *
+ * This runs the algorithm in such a way that the new layer is suitable
+ * for output in various formats (e.g., STL).  The resulting layer has
+ * type cp_csg2_poly_t (while the input layer leaves are expected
+ * to be in cp_csg2_vline2_t format from the cp_csg2_tree_add_layer() step).
+ *
  * The tree must have been initialised by cp_csg2_op_tree_init(),
  * and the layer ID must be in range.
  *
@@ -538,7 +543,8 @@ extern bool cp_csg2_op_flatten_layer(
 /**
  * Reduce a set of 2D CSG items into a single polygon.
  *
- * This does not triangulate, but only create the path.
+ * This does not triangulate, but only create the path.  It is meant for
+ * use within the SCAD/CSG3 framework (see csg3.c).
  *
  * The result is filled from root.  In the process, the elements in root are
  * cleared/reused, if necessary.

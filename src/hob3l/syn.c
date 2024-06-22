@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /* SCAD parser */
 
@@ -33,18 +33,82 @@
 #define K_FUNCTION  (_T_KEY + 4) /* 'function' */
 
 typedef struct {
+    char cur;
+    char *string;
+    char *end;
+    cp_syn_file_t *file;
+} lex_t;
+
+typedef struct {
+    unsigned type;
+    const char *string;
+    const char *loc;
+} tok_t;
+
+typedef struct {
+    lex_t lex;
+    tok_t tok;
+} parse_ctxt_t;
+
+typedef struct {
     cp_syn_tree_t *tree;
     cp_err_t *err;
     cp_syn_input_t *input;
-
-    char lex_cur;
-    char *lex_string;
-    char *lex_end;
-
-    unsigned tok_type;
-    const char *tok_string;
-    const char *tok_loc;
+    parse_ctxt_t c;
 } parse_t;
+
+static void tok_next(parse_t *p);
+
+static inline parse_ctxt_t begin_file(
+    parse_t *p,
+    cp_syn_file_t *f)
+{
+    parse_ctxt_t prev = p->c;
+    p->c = (parse_ctxt_t){};
+
+    p->c.lex.string = f->content.data;
+    p->c.lex.cur = *p->c.lex.string;
+    p->c.lex.end = f->content.data + f->content.size;
+    p->c.lex.file = f;
+
+    tok_next(p);
+
+    return prev;
+}
+
+static inline void end_file(
+    parse_t *p,
+    parse_ctxt_t *prev)
+{
+    p->c = *prev;
+    *prev = (parse_ctxt_t){};
+}
+
+/**
+ * Whether c is ASCII white space character.
+ */
+extern bool syn_is_space(char c)
+{
+    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
+}
+
+/**
+ * Whether c is an ASCII digit character.
+ */
+extern bool syn_is_digit(char c)
+{
+    return (c >= '0') && (c <= '9');
+}
+
+/**
+ * Whether c is an ASCII alphabetic character.
+ */
+extern bool syn_is_alpha(char c)
+{
+    return
+        ((c >= 'a') && (c <= 'z')) ||
+        ((c >= 'A') && (c <= 'Z'));
+}
 
 static bool have_err_msg(parse_t *p)
 {
@@ -54,40 +118,40 @@ static bool have_err_msg(parse_t *p)
 static void lex_next(parse_t *p)
 {
     /* EOF? */
-    if (p->lex_string >= p->lex_end) {
-        p->lex_cur = '\0';
-        /* do not push lex_string further */
+    if (p->c.lex.string >= p->c.lex.end) {
+        p->c.lex.cur = '\0';
+        /* do not push c.lex.string further */
         return;
     }
 
-    p->lex_string++;
-    p->lex_cur = *p->lex_string;
+    p->c.lex.string++;
+    p->c.lex.cur = *p->c.lex.string;
 }
 
 static void tok_next_aux2(parse_t *p)
 {
     /* do not scan beyond an error */
-    if (p->tok_type == T_ERROR) {
+    if (p->c.tok.type == T_ERROR) {
         return;
     }
 
     /* skip space */
-    while (syn_is_space(p->lex_cur)) {
+    while (syn_is_space(p->c.lex.cur)) {
         lex_next(p);
     }
 
-    /* Note that p->tok_string might point to '\0'.  It is needed for a
+    /* Note that p->c.tok.string might point to '\0'.  It is needed for a
      * location pointer nevertheless. */
-    p->tok_string = p->lex_string;
-    p->tok_loc = p->lex_string;
+    p->c.tok.string = p->c.lex.string;
+    p->c.tok.loc = p->c.lex.string;
 
     /* INT and FLOAT */
-    if ((p->lex_cur == '+') ||
-        (p->lex_cur == '-') ||
-        (p->lex_cur == '.') ||
-        syn_is_digit(p->lex_cur))
+    if ((p->c.lex.cur == '+') ||
+        (p->c.lex.cur == '-') ||
+        (p->c.lex.cur == '.') ||
+        syn_is_digit(p->c.lex.cur))
     {
-        if (*p->lex_string == '\0') {
+        if (*p->c.lex.string == '\0') {
             /* E.g. '9.9.9' or '9.9"hallo"' or '9.9foo' will all parse
              * as '9.9' + ERROR, because this syntax does not allow
              * multi char tokens to directly follow each other.  This
@@ -98,97 +162,97 @@ static void tok_next_aux2(parse_t *p)
             if (!have_err_msg(p)) {
                 cp_vchar_printf(&p->err->msg, "Expected no number here.\n");
             }
-            p->tok_type = T_ERROR;
+            p->c.tok.type = T_ERROR;
             return;
         }
 
-        p->tok_type = T_INT;
-        if (p->lex_cur == '+') {
+        p->c.tok.type = T_INT;
+        if (p->c.lex.cur == '+') {
             lex_next(p);
-            p->tok_string = p->lex_string;
+            p->c.tok.string = p->c.lex.string;
         }
         else
-        if (p->lex_cur == '-') {
+        if (p->c.lex.cur == '-') {
             lex_next(p);
         }
-        while (syn_is_digit(p->lex_cur)) {
+        while (syn_is_digit(p->c.lex.cur)) {
             lex_next(p);
         }
-        if (p->lex_cur == '.') {
-            p->tok_type = T_FLOAT;
+        if (p->c.lex.cur == '.') {
+            p->c.tok.type = T_FLOAT;
             lex_next(p);
-            while (syn_is_digit(p->lex_cur)) {
+            while (syn_is_digit(p->c.lex.cur)) {
                 lex_next(p);
             }
         }
-        if ((p->lex_cur == 'e') || (p->lex_cur == 'E')) {
-            p->tok_type = T_FLOAT;
+        if ((p->c.lex.cur == 'e') || (p->c.lex.cur == 'E')) {
+            p->c.tok.type = T_FLOAT;
             lex_next(p);
-            if ((p->lex_cur == '-') || (p->lex_cur == '+')) {
+            if ((p->c.lex.cur == '-') || (p->c.lex.cur == '+')) {
                 lex_next(p);
             }
-            while (syn_is_digit(p->lex_cur)) {
+            while (syn_is_digit(p->c.lex.cur)) {
                 lex_next(p);
             }
         }
-        *p->lex_string = '\0';
+        *p->c.lex.string = '\0';
         return;
     }
 
     /* ID */
-    if ((p->lex_cur == '$') || (p->lex_cur == '_') || syn_is_alpha(p->lex_cur)) {
-        if (*p->lex_string == '\0') {
+    if ((p->c.lex.cur == '$') || (p->c.lex.cur == '_') || syn_is_alpha(p->c.lex.cur)) {
+        if (*p->c.lex.string == '\0') {
             if (!have_err_msg(p)) {
                 cp_vchar_printf(&p->err->msg, "Expected no identifier here.\n");
             }
-            p->tok_type = T_ERROR;
+            p->c.tok.type = T_ERROR;
             return;
         }
 
-        p->tok_type = T_ID;
-        if (p->lex_cur == '$') {
+        p->c.tok.type = T_ID;
+        if (p->c.lex.cur == '$') {
             lex_next(p);
         }
         while (
-            syn_is_alpha(p->lex_cur) ||
-            syn_is_digit(p->lex_cur) ||
-            (p->lex_cur == '_'))
+            syn_is_alpha(p->c.lex.cur) ||
+            syn_is_digit(p->c.lex.cur) ||
+            (p->c.lex.cur == '_'))
         {
             lex_next(p);
         }
 
-        *p->lex_string = '\0';
+        *p->c.lex.string = '\0';
         return;
     }
 
     /* STRING */
-    if (p->lex_cur == '"') {
+    if (p->c.lex.cur == '"') {
         lex_next(p);
-        p->tok_type = T_STRING;
-        p->tok_string = p->lex_string;
-        while (*p->lex_string != '"') {
-            if (*p->lex_string == '\\') {
+        p->c.tok.type = T_STRING;
+        p->c.tok.string = p->c.lex.string;
+        while (*p->c.lex.string != '"') {
+            if (*p->c.lex.string == '\\') {
                 lex_next(p);
-                if (*p->lex_string & ~0x7f) {
+                if (*p->c.lex.string & ~0x7f) {
                     if (!have_err_msg(p)) {
                         cp_vchar_printf(&p->err->msg,
                             "8-bit characters are not supported after '\\'.\n");
                     }
-                    p->tok_loc = p->lex_string;
-                    p->tok_type = T_ERROR;
+                    p->c.tok.loc = p->c.lex.string;
+                    p->c.tok.type = T_ERROR;
                     return;
                 }
             }
-            if (*p->lex_string == '\0') {
+            if (*p->c.lex.string == '\0') {
                 if (!have_err_msg(p)) {
                     cp_vchar_printf(&p->err->msg, "End of file inside string.\n");
                 }
-                p->tok_type = T_ERROR;
+                p->c.tok.type = T_ERROR;
                 return;
             }
             lex_next(p);
         }
-        *p->lex_string = '\0';
+        *p->c.lex.string = '\0';
         lex_next(p);
         return;
     }
@@ -199,9 +263,9 @@ static void tok_next_aux2(parse_t *p)
      */
 
     /* line comment */
-    if ((p->lex_cur == '/') && (p->lex_string[1] == '/')) {
-        p->tok_type = T_LCOM;
-        while ((p->lex_cur != '\n') && (p->lex_cur != '\0')) {
+    if ((p->c.lex.cur == '/') && (p->c.lex.string[1] == '/')) {
+        p->c.tok.type = T_LCOM;
+        while ((p->c.lex.cur != '\n') && (p->c.lex.cur != '\0')) {
             lex_next(p);
         }
         /* do not eat '\n', it will be consumed as white space anyway. */
@@ -209,20 +273,20 @@ static void tok_next_aux2(parse_t *p)
     }
 
     /* block comment */
-    if ((p->lex_cur == '/') && (p->lex_string[1] == '*')) {
-        p->tok_type = T_BCOM;
+    if ((p->c.lex.cur == '/') && (p->c.lex.string[1] == '*')) {
+        p->c.tok.type = T_BCOM;
         lex_next(p);
         lex_next(p);
         char prev = 0;
-        while ((prev != '*') || (p->lex_cur != '/')) {
-            if (p->lex_cur == '\0') {
+        while ((prev != '*') || (p->c.lex.cur != '/')) {
+            if (p->c.lex.cur == '\0') {
                 if (!have_err_msg(p)) {
                     cp_vchar_printf(&p->err->msg, "File ends inside comment.\n");
                 }
-                p->tok_type = T_ERROR;
+                p->c.tok.type = T_ERROR;
                 break;
             }
-            prev = p->lex_cur;
+            prev = p->c.lex.cur;
             lex_next(p);
         }
         /* each final '/' (also works at EOF) */
@@ -231,15 +295,15 @@ static void tok_next_aux2(parse_t *p)
     }
 
     /* by default, read a single character */
-    if (!(p->lex_cur == (p->lex_cur & 127))) {
+    if (!(p->c.lex.cur == (p->c.lex.cur & 127))) {
         if (!have_err_msg(p)) {
             cp_vchar_printf(&p->err->msg,
                 "8-bit characters are not supported as symbols.\n");
         }
-        p->tok_type = T_ERROR;
+        p->c.tok.type = T_ERROR;
         return;
     }
-    p->tok_type = p->lex_cur & 127;
+    p->c.tok.type = p->c.lex.cur & 127;
     lex_next(p);
 }
 
@@ -252,31 +316,31 @@ static void tok_next(parse_t *p)
 {
     do {
         tok_next_aux2(p);
-    } while (is_comment(p->tok_type));
+    } while (is_comment(p->c.tok.type));
 }
 
 /** make a <....> path string token if the next token is currently '<' */
 static void tok_path(parse_t *p)
 {
     /* do not scan beyond an error */
-    if (p->tok_type != '<') {
+    if (p->c.tok.type != '<') {
         return;
     }
 
     /* PATH */
-    p->tok_type = T_PATH;
-    p->tok_string = p->lex_string;
-    while (*p->lex_string != '>') {
-        if (*p->lex_string == '\0') {
+    p->c.tok.type = T_PATH;
+    p->c.tok.string = p->c.lex.string;
+    while (*p->c.lex.string != '>') {
+        if (*p->c.lex.string == '\0') {
             if (!have_err_msg(p)) {
                 cp_vchar_printf(&p->err->msg, "End of file inside path.\n");
             }
-            p->tok_type = T_ERROR;
+            p->c.tok.type = T_ERROR;
             return;
         }
         lex_next(p);
     }
-    *p->lex_string = '\0';
+    *p->c.lex.string = '\0';
     lex_next(p);
 }
 
@@ -301,17 +365,17 @@ static unsigned sieve_id(char const *s)
 
 static void sieve(parse_t *p)
 {
-    if (p->tok_type != T_ID) {
+    if (p->c.tok.type != T_ID) {
         return;
     }
-    p->tok_type = sieve_id(p->tok_string);
+    p->c.tok.type = sieve_id(p->c.tok.string);
 }
 
 static bool expect(
     parse_t *p,
     unsigned type)
 {
-    if (p->tok_type == type) {
+    if (p->c.tok.type == type) {
         tok_next(p);
         return true;
     }
@@ -321,14 +385,14 @@ static bool expect(
 static const char *get_tok_string(
     parse_t *p)
 {
-    if (p->tok_type & _T_KEY) {
-        return p->tok_string;
+    if (p->c.tok.type & _T_KEY) {
+        return p->c.tok.string;
     }
-    switch (p->tok_type) {
+    switch (p->c.tok.type) {
     case T_INT:
     case T_FLOAT:
     case T_ID:
-        return p->tok_string;
+        return p->c.tok.string;
     }
     return NULL;
 }
@@ -361,8 +425,8 @@ static const char *get_tok_description(
 static void err_found(
     parse_t *p)
 {
-    if ((p->tok_type >= 32) && (p->tok_type <= 127)) {
-        cp_vchar_printf(&p->err->msg, ", found '%c'", p->tok_type);
+    if ((p->c.tok.type >= 32) && (p->c.tok.type <= 127)) {
+        cp_vchar_printf(&p->err->msg, ", found '%c'", p->c.tok.type);
     }
 
     char const *str = get_tok_string(p);
@@ -370,7 +434,7 @@ static void err_found(
         cp_vchar_printf(&p->err->msg, ", found '%s'", str);
     }
 
-    str = get_tok_description(p->tok_type);
+    str = get_tok_description(p->c.tok.type);
     if (str != NULL) {
         cp_vchar_printf(&p->err->msg, ", found %s", str);
     }
@@ -433,7 +497,7 @@ static bool parse_id(
     parse_t *p,
     char const **string)
 {
-    *string = p->tok_string;
+    *string = p->c.tok.string;
     return expect_err(p, T_ID);
 }
 
@@ -442,7 +506,7 @@ static bool parse_int(
     cp_syn_value_int_t *r)
 {
     assert(r->type == CP_SYN_VALUE_INT);
-    r->value = strtoll(p->tok_string, NULL, 10);
+    r->value = strtoll(p->c.tok.string, NULL, 10);
     return expect_err(p, T_INT);
 }
 
@@ -451,7 +515,7 @@ static bool parse_float(
     cp_syn_value_float_t *r)
 {
     assert(r->type == CP_SYN_VALUE_FLOAT);
-    r->value = strtod(p->tok_string, NULL);
+    r->value = strtod(p->c.tok.string, NULL);
     return expect_err(p, T_FLOAT);
 }
 
@@ -460,7 +524,7 @@ static bool parse_string(
     cp_syn_value_string_t *r)
 {
     assert(r->type == CP_SYN_VALUE_STRING);
-    r->value = p->tok_string;
+    r->value = p->c.tok.string;
     return expect_err(p, T_STRING);
 }
 
@@ -475,7 +539,7 @@ static bool parse_new_id(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    *rp = value_id_new(p->tok_string);
+    *rp = value_id_new(p->c.tok.string);
     return expect_err(p, T_ID);
 }
 
@@ -483,7 +547,7 @@ static bool parse_new_int(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    cp_syn_value_int_t *v = cp_syn_new(*v, p->tok_loc);
+    cp_syn_value_int_t *v = cp_syn_new(*v, p->c.tok.loc);
     *rp = cp_syn_cast(**rp, v);
     return parse_int(p, v);
 }
@@ -492,7 +556,7 @@ static bool parse_new_float(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    cp_syn_value_float_t *v = cp_syn_new(*v, p->tok_loc);
+    cp_syn_value_float_t *v = cp_syn_new(*v, p->c.tok.loc);
     *rp = cp_syn_cast(**rp, v);
     return parse_float(p, v);
 }
@@ -501,7 +565,7 @@ static bool parse_new_string(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    cp_syn_value_string_t *v = cp_syn_new(*v, p->tok_loc);
+    cp_syn_value_string_t *v = cp_syn_new(*v, p->c.tok.loc);
     *rp = cp_syn_cast(**rp, v);
     return parse_string(p, v);
 }
@@ -515,7 +579,7 @@ static bool parse_new_range_or_array(
     parse_t *p,
     cp_syn_value_t **rp)
 {
-    cp_loc_t loc = p->tok_loc;
+    cp_loc_t loc = p->c.tok.loc;
     if (!expect_err(p, '[')) {
         return false;
     }
@@ -573,7 +637,7 @@ static bool parse_new_range_or_array(
 static bool looking_at_value(
     parse_t *p)
 {
-    switch (p->tok_type) {
+    switch (p->c.tok.type) {
     case T_INT:
     case T_FLOAT:
     case T_STRING:
@@ -590,7 +654,7 @@ static bool parse_value(
     parse_t *p,
     cp_syn_value_t **r)
 {
-    switch (p->tok_type) {
+    switch (p->c.tok.type) {
     case T_INT:
         return parse_new_int(p, r);
 
@@ -618,14 +682,14 @@ static bool parse_value(
 static bool looking_at_arg(
     parse_t *p)
 {
-    return (p->tok_type == T_ID) || looking_at_value(p);
+    return (p->c.tok.type == T_ID) || looking_at_value(p);
 }
 
 static bool parse_arg(
     parse_t *p,
     cp_syn_arg_t *r)
 {
-    if (p->tok_type == T_ID) {
+    if (p->c.tok.type == T_ID) {
         char const *t1;
         bool ok CP_UNUSED = parse_id(p, &t1);
         assert(ok);
@@ -659,7 +723,7 @@ static bool parse_args(
         if (!parse_push_arg(p, r)) {
             return false;
         }
-        if (p->tok_type == ')') {
+        if (p->c.tok.type == ')') {
             return true;
         }
         if (!expect_err(p, ',')) {
@@ -672,10 +736,10 @@ static bool looking_at_modifier(
     parse_t *p)
 {
     return
-        (p->tok_type == '*') ||
-        (p->tok_type == '%') ||
-        (p->tok_type == '!') ||
-        (p->tok_type == '#');
+        (p->c.tok.type == '*') ||
+        (p->c.tok.type == '%') ||
+        (p->c.tok.type == '!') ||
+        (p->c.tok.type == '#');
 }
 
 static bool looking_at_stmt_item(
@@ -683,9 +747,10 @@ static bool looking_at_stmt_item(
 {
     sieve(p);
     return
-        (p->tok_type == T_ID) ||
-        (p->tok_type == ';') ||
-        (p->tok_type == '{') ||
+        (p->c.tok.type == T_ID) ||
+        (p->c.tok.type == K_INCLUDE) || /* this pulls in multiple items */
+        (p->c.tok.type == ';') ||
+        (p->c.tok.type == '{') ||
         looking_at_modifier(p);
 }
 
@@ -695,7 +760,7 @@ static bool looking_at_stmt(
     if (looking_at_stmt_item(p)) {
         return true;
     }
-    if (p->tok_type & _T_KEY) {
+    if (p->c.tok.type & _T_KEY) { /* allow any keyword (top-level) */
         return true;
     }
     return false;
@@ -706,7 +771,7 @@ static bool parse_modifier(
     unsigned *mod)
 {
     for (;;) {
-        switch(p->tok_type) {
+        switch(p->c.tok.type) {
         case '!': *mod |= CP_GC_MOD_EXCLAM;  break;
         case '*': *mod |= CP_GC_MOD_AST;     break;
         case '%': *mod |= CP_GC_MOD_PERCENT; break;
@@ -722,9 +787,9 @@ static bool parse_stmt_item(
     parse_t *p,
     cp_syn_stmt_item_t *r)
 {
-    if (p->tok_type == '{') {
+    if (p->c.tok.type == '{') {
         r->functor = "{";
-        r->loc = p->tok_loc;
+        r->loc = p->c.tok.loc;
     }
     else {
         bool ok =
@@ -739,11 +804,7 @@ static bool parse_stmt_item(
         r->loc = r->functor;
     }
 
-    switch (p->tok_type) {
-    case ';':
-        /* short way out: terminated by ';' */
-        return expect(p, ';');
-
+    switch (p->c.tok.type) {
     case '{':
         /* body in { ... } */
         return
@@ -765,7 +826,7 @@ static bool parse_stmt_use(
     }
     tok_path(p);
 
-    r->path = p->tok_string;
+    r->path = p->c.tok.string;
     if (!expect(p, T_PATH)) {
         return false;
     }
@@ -773,16 +834,32 @@ static bool parse_stmt_use(
     return true;
 }
 
-static bool parse_item_push_stmt(
+static bool parse_include_push_stmt_item(
     parse_t *p,
-    cp_v_syn_stmt_p_t *r)
+    cp_v_syn_stmt_item_p_t *r,
+    char const *fn)
 {
-    if (expect(p, ';')) {
-        return true;
+    cp_syn_file_t *file = CP_NEW(*file);
+    if (!cp_syn_read(file, p->err, p->input, p->c.tok.loc, fn, NULL)) {
+        assert(p->err->msg.size > 0);
+        return false;
     }
-    cp_syn_stmt_item_t *f = cp_syn_new(*f, p->tok_string);
-    cp_v_push(r, cp_syn_cast(cp_syn_stmt_t, f));
-    return parse_stmt_item(p, f);
+    expect(p, T_PATH);
+
+    parse_ctxt_t prev = begin_file(p, file);
+
+    if (!parse_stmt_item_list(p, r)) {
+        return false;
+    }
+
+    if (p->c.tok.type != T_EOF) {
+        cp_vchar_printf(&p->err->msg, "Expected end of include file'");
+        err_found(p);
+        return false;
+    }
+
+    end_file(p, &prev);
+    return true;
 }
 
 static bool parse_item_push_stmt_item(
@@ -792,9 +869,22 @@ static bool parse_item_push_stmt_item(
     if (expect(p, ';')) {
         return true;
     }
-    cp_syn_stmt_item_t *f = cp_syn_new(*f, p->tok_string);
+    sieve(p);
+    if (expect(p, K_INCLUDE)) {
+        tok_path(p);
+        return parse_include_push_stmt_item(p, r, p->c.tok.string);
+    }
+    cp_syn_stmt_item_t *f = cp_syn_new(*f, p->c.tok.string);
     cp_v_push(r, f);
     return parse_stmt_item(p, f);
+}
+
+static bool parse_item_push_stmt(
+    parse_t *p,
+    cp_v_syn_stmt_p_t *r)
+{
+    /* cast the vector: we'll only push items, but into a more generic vector */
+    return parse_item_push_stmt_item(p, (cp_v_syn_stmt_item_p_t*)r);
 }
 
 static bool parse_stmt_item_list(
@@ -819,16 +909,16 @@ static bool parse_stmt_list(
         if (!looking_at_stmt(p)) {
             return true;
         }
-        switch (p->tok_type) {
+        switch (p->c.tok.type) {
         case K_USE:{
-            cp_syn_stmt_use_t *f = cp_syn_new(*f, p->tok_string);
+            cp_syn_stmt_use_t *f = cp_syn_new(*f, p->c.tok.string);
             cp_v_push(r, cp_syn_cast(cp_syn_stmt_t, f));
             if (!parse_stmt_use(p, f)) {
                 return false;
             }
             break;}
         default:
-            if (p->tok_type & _T_KEY) {
+            if (p->c.tok.type & _T_KEY) {
                 return true;
             }
             if (!parse_item_push_stmt(p, r)) {
@@ -952,15 +1042,6 @@ static bool read_file(
     return true;
 }
 
-static void scad_start_file(
-    parse_t *p,
-    cp_syn_file_t *f)
-{
-    p->lex_string = f->content.data;
-    p->lex_cur = *p->lex_string;
-    p->lex_end = f->content.data + f->content.size;
-}
-
 /* ********************************************************************** */
 
 /**
@@ -1006,52 +1087,25 @@ extern bool cp_syn_parse(
     p->err = err;
     p->input = input;
 
-    scad_start_file(p, file);
-
-    /* scan first token */
-    tok_next(p);
+    (void)begin_file(p, file);
 
     bool ok = parse_stmt_list(p, &r->toplevel);
     if (!ok) {
         /* generic error message */
         if (err->loc == NULL) {
-            err->loc = p->tok_loc;
+            err->loc = p->c.tok.loc;
         }
         if (!have_err_msg(p)) {
             cp_vchar_printf(&err->msg, "SCAD parse error.\n");
         }
         return false;
     }
-    if (p->tok_type != T_EOF) {
-        err->loc = p->tok_loc;
-        cp_vchar_printf(&err->msg, "Operator or object functor expected.\n");
+    if (p->c.tok.type != T_EOF) {
+        err->loc = p->c.tok.loc;
+        cp_vchar_printf(&err->msg,
+            "Parsing ended before end of file: operator or object functor expected");
+        err_found(p);
         return false;
     }
     return true;
-}
-
-/**
- * Whether c is ASCII white space character.
- */
-extern bool syn_is_space(char c)
-{
-    return (c == ' ') || (c == '\t') || (c == '\r') || (c == '\n');
-}
-
-/**
- * Whether c is an ASCII digit character.
- */
-extern bool syn_is_digit(char c)
-{
-    return (c >= '0') && (c <= '9');
-}
-
-/**
- * Whether c is an ASCII alphabetic character.
- */
-extern bool syn_is_alpha(char c)
-{
-    return
-        ((c >= 'a') && (c <= 'z')) ||
-        ((c >= 'A') && (c <= 'Z'));
 }

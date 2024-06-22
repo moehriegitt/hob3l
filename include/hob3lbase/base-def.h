@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_BASE_DEF_H_
 #define CP_BASE_DEF_H_
@@ -7,6 +7,9 @@
 #include <hob3ldef/def.h>
 
 #define CP_IND 2
+
+/** Square root of 2 */
+#define CP_SQRT2 1.4142135623730950488
 
 /* To make object IDs unique to catch bugs, we define an offset
  * for each object type enum here. */
@@ -47,14 +50,30 @@ static inline size_t cp_size_align(size_t x)
     return x & -x;
 }
 
+static inline int strcmp0(char const *a, char const *b)
+{
+    return (a == b) ? 0 : (a == NULL) ? -1 : (b == NULL) ? +1 : strcmp(a,b);
+}
+
 static inline bool strequ(char const *a, char const *b)
 {
     return strcmp(a, b) == 0;
 }
 
+static inline bool strequ0(char const *a, char const *b)
+{
+    return strcmp0(a, b) == 0;
+}
+
 static inline bool strnequ(char const *a, char const *b, size_t n)
 {
     return strncmp(a, b, n) == 0;
+}
+
+static inline size_t strpref(char const *haystack, char const *needle)
+{
+    size_t n = strlen(needle);
+    return strnequ(haystack, needle, strlen(needle)) ? n : 0;
 }
 
 /**
@@ -91,5 +110,17 @@ static inline size_t cp_align_up_diff(size_t n, size_t a)
 {
     return cp_align_up(n,a) - n;
 }
+
+/**
+ * Array index with bound check: if i<n, then i, otherwise 0.
+ */
+static inline size_t cp_idx0(size_t n, size_t i)
+{
+    return i & -(size_t)(i < n);
+}
+
+/**
+ * cp_idx0() applied to index a given array */
+#define CP_IDX0(arr, i) ((arr)[cp_idx0(cp_countof(arr), i)])
 
 #endif /* CP_MAT_H_ */

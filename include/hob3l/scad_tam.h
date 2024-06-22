@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_SCAD_TAM_H_
 #define CP_SCAD_TAM_H_
@@ -82,15 +82,27 @@ typedef enum {
     unsigned modifier;
 
 typedef struct {
+    unsigned _fn;
+    double _fs, _fa;
+} cp_detail_t;
+
+#define CP_DETAIL_INIT ((cp_detail_t){ ._fn = 0, ._fs = 2.0, ._fa = 12.0 })
+
+typedef struct {
     CP_SCAD_
     double r;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_sphere_t;
 
 typedef struct {
     CP_SCAD_
     char const *file_tok;
     cp_vchar_t file;
+    bool center;
+    char const *id_tok;
+    cp_vchar_t id;
+    cp_detail_t detail;
+    double dpi;
 } cp_scad_import_t;
 
 typedef struct {
@@ -103,7 +115,7 @@ typedef struct {
 typedef struct {
     CP_SCAD_
     double r;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_circle_t;
 
 typedef struct {
@@ -112,7 +124,7 @@ typedef struct {
     double r1;
     double r2;
     bool center;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_cylinder_t;
 
 typedef struct {
@@ -253,13 +265,13 @@ typedef struct {
     cp_vec2_t scale;
     unsigned slices;
     bool center;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_linext_t;
 
 typedef struct {
     CP_SCAD_GROUP_
     cp_angle_t angle;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_rotext_t;
 
 typedef struct {
@@ -274,7 +286,7 @@ typedef struct {
     char const *direction;
     char const *language;
     char const *script;
-    unsigned _fn;
+    cp_detail_t detail;
 } cp_scad_text_t;
 
 typedef struct {

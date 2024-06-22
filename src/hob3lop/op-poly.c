@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 /*
  * This is implemented using Hertel&Mehlhorn's algorithm, i.e.,
@@ -30,9 +30,9 @@ static void cq_sweep_poly_append(
 {
     cp_csg2_path_t *v = &r->path.data[vi];
     assert(point_idx < r->point.size);
-    unsigned path_idx = r->point.data[point_idx].aux - path_idx_offs;
+    size_t path_idx = r->point.data[point_idx].aux1 - path_idx_offs;
     if (path_idx >= v->point_idx.size) {
-        r->point.data[point_idx].aux = (unsigned)(v->point_idx.size + path_idx_offs);
+        r->point.data[point_idx].aux1 = (unsigned)(v->point_idx.size + path_idx_offs);
         cp_v_push(&v->point_idx, point_idx);
         return;
     }
@@ -52,7 +52,7 @@ static void cq_sweep_poly_append(
     /* clear the positions that are not in array anymore */
     for (cp_v_each(i, &w->point_idx, 1)) {
         size_t idx = w->point_idx.data[i];
-        r->point.data[idx].aux = path_idx_offs - 1;
+        r->point.data[idx].aux1 = path_idx_offs - 1;
     }
 
     assert(w->point_idx.data[0] == point_idx);

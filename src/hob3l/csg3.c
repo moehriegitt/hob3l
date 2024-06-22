@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lbase/base-mat.h>
 #include <hob3lbase/pool.h>
@@ -16,6 +16,8 @@
 #include <hob3l/syn.h>
 #include <hob3l/syn-msg.h>
 #include <hob3l/stl-parse.h>
+#include <hob3l/xml-parse.h>
+#include <hob3l/svg-parse.h>
 
 #ifdef WITH_FONT
 #include <hob3l/font-nozzl3_sans.h>
@@ -42,21 +44,8 @@
         cp_syn_msg(c->syn, c->err, __VA_ARGS__); \
     })
 
-typedef struct {
-    cp_pool_t *tmp;
-    cp_mat3wi_t const *mat;
-    cp_gc_t gc;
-} mat_ctxt_t;
-
-typedef struct {
-    cp_pool_t *tmp;
-    cp_syn_input_t *syn;
-    cp_csg3_tree_t *tree;
-    cp_csg_opt_t const *opt;
-    cp_err_t *err;
-    unsigned context;
-    cp_scad_t *search_root;
-} ctxt_t;
+typedef cp_csg3_local_t local_t;
+typedef cp_csg3_ctxt_t  ctxt_t;
 
 static void csg3_init_tree(
     cp_csg3_tree_t *t,
@@ -67,17 +56,7 @@ static void csg3_init_tree(
     }
 }
 
-/**
- * Returns a new unit matrix.
- */
-static cp_mat3wi_t *mat_new(
-    cp_csg3_tree_t *t)
-{
-    cp_mat3wi_t *m = CP_NEW(*m);
-    cp_mat3wi_unit(m);
-    cp_v_push(&t->mat, m);
-    return m;
-}
+#define mat_new cp_csg3_mat_new
 
 static cp_mat3wi_t const *the_unit(
     cp_csg3_tree_t *result)
@@ -89,7 +68,7 @@ static cp_mat3wi_t const *the_unit(
 }
 
 static void mat_ctxt_init(
-    mat_ctxt_t *m,
+    local_t *m,
     cp_csg3_tree_t *t)
 {
     CP_ZERO(m);
@@ -112,14 +91,14 @@ static bool csg3_from_scad(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_t const *s);
 
 static bool csg3_from_v_scad(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_v_scad_p_t const *ss)
 {
     for (cp_v_each(i, ss)) {
@@ -135,7 +114,7 @@ static bool csg3_from_rec(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_rec_t const *s)
 {
     return csg3_from_v_scad(no, r, c, m, &s->child);
@@ -145,7 +124,7 @@ static bool csg3_from_difference(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_difference_t const *s)
 {
     cp_v_obj_p_t f = CP_V_INIT;
@@ -255,7 +234,7 @@ static bool csg3_from_intersection(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_intersection_t const *s)
 {
     cp_v_csg_add_p_t cut = CP_V_INIT;
@@ -291,7 +270,7 @@ static bool csg3_from_translate(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_translate_t const *s)
 {
     if (cp_vec3_has_len0(&s->v)) {
@@ -304,7 +283,7 @@ static bool csg3_from_translate(
     cp_mat3wi_xlat_v(m1, &s->v);
     cp_mat3wi_mul(m1, mo->mat, m1);
 
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m1;
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
@@ -313,7 +292,7 @@ static bool csg3_from_mirror(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_mirror_t const *s)
 {
     if (cp_vec3_has_len0(&s->v)) {
@@ -324,7 +303,7 @@ static bool csg3_from_mirror(
     cp_mat3wi_mirror_v(m1, &s->v);
     cp_mat3wi_mul(m1, mo->mat, m1);
 
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m1;
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
@@ -350,7 +329,7 @@ static bool csg3_from_scale(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_scale_t const *s)
 {
     if (!good_scale(&s->v)) {
@@ -361,7 +340,7 @@ static bool csg3_from_scale(
     cp_mat3wi_scale_v(m1, &s->v);
     cp_mat3wi_mul(m1, mo->mat, m1);
 
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m1;
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
@@ -370,7 +349,7 @@ static bool csg3_from_multmatrix(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_multmatrix_t const *s)
 {
     cp_mat3wi_t *m1 = mat_new(c->tree);
@@ -379,7 +358,7 @@ static bool csg3_from_multmatrix(
     }
     cp_mat3wi_mul(m1, mo->mat, m1);
 
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m1;
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
@@ -388,10 +367,10 @@ static bool csg3_from_color(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_color_t const *s)
 {
-    mat_ctxt_t mn  = *mo;
+    local_t mn  = *mo;
     mn.gc.color.a = s->rgba.a;
     if (s->valid) {
        mn.gc.color.rgb = s->rgba.rgb;
@@ -403,26 +382,26 @@ static bool csg3_from_rotate(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_rotate_t const *s)
 {
     cp_mat3wi_t *m1 = mat_new(c->tree);
     if (s->around_n) {
-        cp_mat3wi_rot_v(m1, &s->n, CP_SINCOS_DEG(s->a));
+        cp_mat3wi_rot_v(m1, &s->n, &CP_SINCOS_DEG(s->a));
     }
     else {
-        cp_mat3wi_rot_z(m1, CP_SINCOS_DEG(s->n.z));
+        cp_mat3wi_rot_z(m1, &CP_SINCOS_DEG(s->n.z));
 
         cp_mat3wi_t m2;
-        cp_mat3wi_rot_y(&m2, CP_SINCOS_DEG(s->n.y));
+        cp_mat3wi_rot_y(&m2, &CP_SINCOS_DEG(s->n.y));
         cp_mat3wi_mul(m1, m1, &m2);
 
-        cp_mat3wi_rot_x(&m2, CP_SINCOS_DEG(s->n.x));
+        cp_mat3wi_rot_x(&m2, &CP_SINCOS_DEG(s->n.x));
         cp_mat3wi_mul(m1, m1, &m2);
     }
     cp_mat3wi_mul(m1, mo->mat, m1);
 
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m1;
     return csg3_from_v_scad(no, r, c, &mn, &s->child);
 }
@@ -507,17 +486,53 @@ static void csg3_sphere_minmax(
     csg3_sphere_minmax1(bb, mat, 2);
 }
 
-static size_t get_fn(
-    cp_csg_opt_t const *opt,
-    size_t fn,
-    size_t min_fn,
-    bool have_circular)
+/**
+ * Get the step count for approximating items with straight lines/faces.
+ */
+extern unsigned cp_csg3_get_fn(
+    cp_detail_t const *detail,
+    unsigned min_fn,
+    unsigned max_fn,
+    bool have_circular,
+    double max_angle,
+    double max_length,
+    double mag)
 {
+    (void)max_angle;
+    (void)max_length;
+    (void)mag;
+
+    unsigned fn = detail->_fn;
+    // This is from algo to compute the no. of fragments for a circle.
+    // I think the determinant D of the current xform matrix should be
+    // taken into account:
+    //
+    //     mag = root(fabs(D));
+    //     where
+    //         root(_) = sqrt(_)       for 2D matrix
+    //         root(_) = pow(_, 1/3)   for 3D matrix
+    //
+    // OpenSCAD always uses mag=1.0 (so when you scale something,
+    // it has no influence on its approximation).
+    //
+    // And then, for arcs (circles have angle=360),  if _fn == 0:
+    //
+    //     n = ceil(MAX(MIN(max_angle / _fa, (mag * max_length) / _fs), 5))
+    //
+    // For a circle:
+    //
+    //     max_angle  = 360
+    //     max_length = r * TAU;
+    //
+    // Something similar can be done for paths with arcs and bezier curves
+    // when loading SVG.
+
     if (fn == 0) {
-        return have_circular ? 0 : opt->max_fn;
+        // FIXME: consider _fa and _fs
+        return have_circular ? 0 : max_fn;
     }
-    if (fn > opt->max_fn) {
-        return have_circular ? 0 : fn;
+    if (fn > max_fn) {
+        return have_circular ? 0 : max_fn;
     }
     if (fn < min_fn) {
         return min_fn;
@@ -726,7 +741,7 @@ static bool csg3_from_sphere(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_sphere_t const *s)
 {
     if (c->context != IN3D) {
@@ -747,7 +762,8 @@ static bool csg3_from_sphere(
         m = m1;
     }
 
-    size_t fn = get_fn(c->opt, s->_fn, 3, true);
+    // FIXME: pass correct values to get_fn instead of 0,0,0:
+    size_t fn = cp_csg3_get_fn(&s->detail, 3, c->opt->max_fn, true, 0,0,0);
     if (fn > 0) {
         /* all faces are convex */
         cp_csg3_poly_t *o = cp_csg3_new_obj(*o, s->loc, mo->gc);
@@ -812,7 +828,7 @@ static bool csg3_from_polyhedron(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_polyhedron_t const *s)
 {
     if (c->context != IN3D) {
@@ -874,13 +890,9 @@ static bool csg3_from_import(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_import_t const *s)
 {
-    if (c->context != IN3D) {
-        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
-            "'import' found outside 3D context.");
-    }
     *no = true;
 
     /* read file */
@@ -888,6 +900,52 @@ static bool csg3_from_import(
     if (!cp_syn_read(file, c->err, c->syn, s->file_tok, s->file.data, NULL)) {
         assert(c->err->msg.size > 0);
         return false;
+    }
+
+    /* is it some XML format? */
+    char const *cd = file->content.data;
+    cd += strpref(cd, CP_UTF8_BOM);
+    if (strpref(cd, "<?") || strpref(cd, "<!") || strpref(cd, "<svg")) {
+        cp_xml_t *xml = NULL;
+        if (!cp_xml_parse(&xml, c->tmp, c->err, file, CP_XML_OPT_CHOMP)) {
+            assert(c->err->msg.size > 0);
+            return false;
+        }
+
+        cp_xml_t *top = cp_xml_find(xml->child, CP_XML_ELEM, CP_XML_ANY, CP_XML_ANY);
+        assert(top != NULL);
+
+        /* SVG format */
+        if (strequ(top->data, "svg")) {
+            /* set default namespace to CP_SVG_NS and make that ns token-identical */
+            cp_xml_set_ns(top, NULL, CP_SVG_NS);
+
+            if (!strequ(top->ns, CP_SVG_NS)) {
+                return msg(c, CP_ERR_FAIL, top->loc, NULL,
+                    "Expected SVG namespace '%s', but found '%s'.\n", CP_SVG_NS, top->ns);
+            }
+
+            /* SVG format => we need 2D context */
+            if (c->context != IN2D) {
+                return msg(c, c->opt->err_outside_2d, s->loc, NULL,
+                    "'import' SVG found outside 2D context.");
+            }
+            if (!cp_svg_parse(r, c, m, &s->detail, s->dpi, top)) {
+                assert(c->err->msg.size > 0);
+                return false;
+            }
+            return true;
+        }
+
+        return msg(c, CP_ERR_FAIL, top->loc, NULL,
+            "'import' XML format: not implemented, toplevel is '%s' :: '%s'\n",
+            top->data, top->ns);
+    }
+
+    /* continue to assume it is STL format => we need 3D context */
+    if (c->context != IN3D) {
+        return msg(c, c->opt->err_outside_3d, s->loc, NULL,
+            "'import' STL found outside 3D context.");
     }
 
     /* parse file into poly */
@@ -917,7 +975,7 @@ static bool csg3_from_surface(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_surface_t const *s)
 {
     if (c->context != IN3D) {
@@ -943,7 +1001,7 @@ static bool csg3_from_text(
     bool *no,
     cp_v_obj_p_t *r CP_UNUSED,
     ctxt_t *c,
-    mat_ctxt_t const *mo CP_UNUSED,
+    local_t const *mo CP_UNUSED,
     cp_scad_text_t const *s)
 {
     if (c->context != IN2D) {
@@ -997,7 +1055,7 @@ static bool csg3_from_text(
     cp_font_print(&rc, &gc, cp_utf8_escaped_next, &iter);
 
     if (iter.error_pos != NULL) {
-        return msg(c, CP_ERR_FAIL, iter.error_pos, NULL,
+        return msg(c, CP_ERR_FAIL, iter.data, NULL,
             "'text' decoding error: %s", iter.error_msg);
     }
 
@@ -1033,7 +1091,7 @@ static bool csg3_from_text(
 
     /* re-position */
     cp_mat3wi_mul(m, mo->mat, m);
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m;
 
     /* apply transformation to all points */
@@ -1065,7 +1123,7 @@ static bool csg3_from_text(
 }
 
 static void xform_2d(
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_csg2_poly_t *o)
 {
     for (cp_v_each(i, &o->point)) {
@@ -1081,7 +1139,7 @@ static bool csg3_from_projection(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_projection_t const *s)
 {
     /* This is ignored if in 3D context or if the children are
@@ -1100,7 +1158,7 @@ static bool csg3_from_projection(
     csg3_init_tree(csg3, s->loc);
 
     /* start with fresh matrix in 2D space */
-    mat_ctxt_t mn = *m;
+    local_t mn = *m;
     mn.mat = the_unit(c->tree);
     if (!csg3_from_v_scad(no, &csg3->root->add, &c2, &mn, &s->child)) {
         assert(c->err->msg.size > 0);
@@ -1140,7 +1198,7 @@ static bool csg3_from_polygon(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_polygon_t const *s)
 {
     if (c->context != IN2D) {
@@ -1199,7 +1257,7 @@ static bool csg3_from_cube(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_cube_t const *s)
 {
     if (c->context != IN3D) {
@@ -1263,7 +1321,7 @@ static bool csg3_from_circle(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_circle_t const *s)
 {
     if (c->context != IN2D) {
@@ -1295,13 +1353,14 @@ static bool csg3_from_circle(
     cp_v_init0(&o->path, 1);
     cp_csg2_path_t *q = &cp_v_nth(&o->path, 0);
 
-    size_t fn = get_fn(c->opt, s->_fn, 3, false);
+    // FIXME: pass correct values to get_fn instead of 0,0,0:
+    size_t fn = cp_csg3_get_fn(&s->detail, 3, c->opt->max_fn, false, 0,0,0);
     cp_v_init0(&o->point, fn);
     cp_v_init0(&q->point_idx, fn);
 
     cp_angle_t a = 360.0 / cp_angle(fn);
     for (cp_size_each(i, fn)) {
-        cp_vec2_t cs = *CP_SINCOS_DEG(cp_angle(i) * a);;
+        cp_vec2_t cs = CP_SINCOS_DEG(cp_angle(i) * a);
         cp_vec2_loc_t *p = &cp_v_nth(&o->point, i);
         p->coord.x = cs.v[1];
         p->coord.y = -cs.v[0];
@@ -1311,7 +1370,7 @@ static bool csg3_from_circle(
     }
 
     /* in-place xform + color */
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m;
     xform_2d(&mn, o);
 
@@ -1322,7 +1381,7 @@ static bool csg3_from_square(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_square_t const *s)
 {
     if (c->context != IN2D) {
@@ -1372,7 +1431,7 @@ static bool csg3_from_square(
     }
 
     /* in-place xform + color */
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = m;
     xform_2d(&mn, o);
 
@@ -1389,7 +1448,7 @@ static bool csg3_poly_cylinder(
     ctxt_t *c,
     cp_mat3wi_t const *m,
     cp_scad_cylinder_t const *s,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scale_t r2,
     size_t fn)
 {
@@ -1428,7 +1487,7 @@ static bool csg3_from_cylinder(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_cylinder_t const *s)
 {
     if (c->context != IN3D) {
@@ -1487,7 +1546,8 @@ static bool csg3_from_cylinder(
     }
 
     /* cp_csg3_cylinder_t: for now, generate a polyhedron */
-    size_t fn = get_fn(c->opt, s->_fn, 3, false);
+    // FIXME: pass correct values to get_fn instead of 0,0,0:
+    size_t fn = cp_csg3_get_fn(&s->detail, 3, c->opt->max_fn, false, 0,0,0);
     return csg3_poly_cylinder(r, c, m, s, mo, r2, fn);
 }
 
@@ -1495,7 +1555,7 @@ static bool csg3_from_linext(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_linext_t const *s)
 {
     /* This is ignored if it is used in non-3D context or when
@@ -1513,7 +1573,7 @@ static bool csg3_from_linext(
     cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
 
     /* start with fresh matrix in 2D space */
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = the_unit(c->tree);
     if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
         assert(c->err->msg.size > 0);
@@ -1638,7 +1698,7 @@ static bool csg3_from_linext(
         for (cp_size_each(k, zcnt)) {
             double const z = cp_dim(k) / cp_dim(s->slices);
             cp_mat2w_t mk = {0};
-            cp_mat2w_rot(&mk, CP_SINCOS_DEG(z * -twist));
+            cp_mat2w_rot(&mk, &CP_SINCOS_DEG(z * -twist));
             cp_mat2w_t mks = {0};
             cp_mat2w_scale(&mks, cp_lerp(1, s->scale.x, z), cp_lerp(1, s->scale.y, z));
             cp_mat2w_mul(&mk, &mks, &mk);
@@ -1683,7 +1743,7 @@ static bool csg3_from_hull(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_hull_t const *s)
 {
     /* This is ignored if the child list is fully ignored (empty) */
@@ -1697,7 +1757,7 @@ static bool csg3_from_hull(
     cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
 
     /* start with fresh matrix in 2D space */
-    mat_ctxt_t mn = *m;
+    local_t mn = *m;
     mn.mat = the_unit(c->tree);
     if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
         assert(c->err->msg.size > 0);
@@ -1797,7 +1857,7 @@ static void poly3_push_face4(
 static bool rotext_arc(
     cp_v_obj_p_t *r,
     ctxt_t *c CP_UNUSED,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_rotext_t const *s,
     cp_csg2_poly_t *p2,
     size_t *idx,
@@ -1904,7 +1964,7 @@ static bool csg3_from_rotext(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *mo,
+    local_t const *mo,
     cp_scad_rotext_t const *s)
 {
     /* This is ignored if it is used in non-3D context or when
@@ -1922,7 +1982,7 @@ static bool csg3_from_rotext(
     cp_v_obj_p_t rc = {0}; /* FIXME: temporary should be in pool */
 
     /* start with fresh matrix in 2D space */
-    mat_ctxt_t mn = *mo;
+    local_t mn = *mo;
     mn.mat = the_unit(c->tree);
     if (!csg3_from_v_scad(no, &rc, &c2, &mn, &s->child)) {
         assert(c->err->msg.size > 0);
@@ -1938,7 +1998,9 @@ static bool csg3_from_rotext(
             "Expected non-empty rotate_extrude, found angle="FF"\n", angle);
     }
     unsigned min_seg_cnt = cp_ge(angle, 360) ? 3 : cp_ge(angle, 180) ? 2 : 1;
-    size_t seg_cnt = get_fn(c->opt, s->_fn, min_seg_cnt, false);
+
+    // FIXME: pass correct values to get_fn instead of 0,0,0:
+    size_t seg_cnt = cp_csg3_get_fn(&s->detail, min_seg_cnt, c->opt->max_fn, false, 0,0,0);
 
     /*
      * Flatten set of polygons into a single (multi-path) polygon.
@@ -2037,7 +2099,7 @@ static bool csg3_from_scad(
     bool *no,
     cp_v_obj_p_t *r,
     ctxt_t *c,
-    mat_ctxt_t const *m,
+    local_t const *m,
     cp_scad_t const *s)
 {
     assert(c != NULL);
@@ -2053,7 +2115,7 @@ static bool csg3_from_scad(
     }
 
     /* Is this the root? */
-    mat_ctxt_t mn;
+    local_t mn;
     ctxt_t c2;
     /* modifiers */
     if (s->modifier != 0) {
@@ -2214,7 +2276,7 @@ static bool cp_csg3_from_scad(
 
     bool no = false;
 
-    mat_ctxt_t m;
+    local_t m;
     mat_ctxt_init(&m, c->tree);
 
     if (!csg3_from_scad(&no, &c->tree->root->add, c, &m, s)) {
@@ -2240,7 +2302,7 @@ static bool cp_csg3_from_v_scad(
 
     bool no = false;
 
-    mat_ctxt_t m;
+    local_t m;
     mat_ctxt_init(&m, c->tree);
 
     if (!csg3_from_v_scad(&no, &c->tree->root->add, c, &m, ss)) {

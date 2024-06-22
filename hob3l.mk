@@ -1,5 +1,5 @@
 # -*- Mode: Makefile -*-
-# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 package_name := hob3l
 package_version := test
@@ -35,6 +35,8 @@ MOD_C.libhob3l.a := \
     hob3l/syn-2scad.c \
     hob3l/syn-msg.c \
     hob3l/stl-parse.c \
+    hob3l/xml-parse.c \
+    hob3l/svg-parse.c \
     hob3l/vec3-dict.c \
     hob3l/scad.c \
     hob3l/scad-2scad.c \
@@ -65,9 +67,9 @@ MOD_D.hob3l.x := $(addprefix out/bin/,$(MOD_C.hob3l.x:.c=.d))
 
 LIB.hob3l.x := \
     hob3l \
+    hob3lop \
     hob3lmat \
-    hob3lbase \
-    hob3lop
+    hob3lbase
 
 LIB_A.hob3l.x := $(addsuffix $(_LIB), $(addprefix out/bin/$(LIB_), $(LIB.hob3l.x)))
 LIB_L.hob3l.x := $(addprefix -l, $(LIB.hob3l.x))
@@ -107,6 +109,31 @@ out/bin/$(LIB_)hob3l$(_LIB): $(MOD_O.libhob3l.a)
 	$(AR) cr $@.new$(_LIB) $+
 	$(RANLIB) $@.new$(_LIB)
 	mv $@.new$(_LIB) $@
+
+out/src/hob3l/%.inc: src/hob3l/%.sieve script/mksieve
+	./script/mksieve $< > $@.new
+	mv $@.new $@
+
+out/bin/hob3l/scad.o: CPPFLAGS += -Iout/src/hob3l
+
+out/bin/hob3l/scad.o: src/hob3l/scad.c \
+    out/src/hob3l/scad-cmd.inc
+
+src/hob3l/scad-cmd.inc: src/hob3l/scad-cmd.sieve
+
+out/bin/hob3l/gc.o: CPPFLAGS += -Iout/src/hob3l
+
+out/bin/hob3l/gc.o: src/hob3l/gc.c \
+    out/src/hob3l/gc-color.inc
+
+src/hob3l/gc-color.inc: src/hob3l/gc-color.sieve
+
+out/bin/hob3l/svg-parse.o: CPPFLAGS += -Iout/src/hob3l
+
+out/bin/hob3l/svg-parse.o: src/hob3l/svg-parse.c \
+    out/src/hob3l/svg-elem.inc
+
+src/hob3l/svg-elem.inc: src/hob3l/svg-elem.sieve
 
 out/bin/hob3l/main.o: CPPFLAGS += -Iout/src/hob3l
 

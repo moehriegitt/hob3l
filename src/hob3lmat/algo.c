@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lmat/algo.h>
 #include <hob3lmat/mat.h>
@@ -1284,4 +1284,62 @@ extern cp_f_t cp_cos_deg(cp_f_t a)
         }
     }
     return cos(cp_deg(a));
+}
+
+/**
+ * Find the angle between two 2D vectors
+ *
+ * Returns a value in (-CP_PI, +CP_PI] (i.e., prefers +PI over -PI).
+ */
+extern cp_angle_t cp_vec2_angle(
+    cp_vec2_t const *a,
+    cp_vec2_t const *b)
+{
+#if 0
+    /* This is what is given in SVG W3C Implementation Notes eq.5.4 */
+    double c = cp_vec2_dot(a,b) / (cp_vec2_len(a) * cp_vec2_len(b));
+    /* avoid +-1.00000000000000001 to avoud NaN from acos() */
+    if (cp_eq(c, +1)) { c = +1; }
+    if (cp_eq(c, -1)) { c = -1; }
+    assert(c <= 1);
+    assert(c >= -1);
+    double r = acos(c);
+    assert(r >= 0);
+    double s = cp_vec2_cross_z(a,b);
+    if (s < 0) {
+        r = -r;
+    }
+    return r;
+#elif 0
+    /* There may be another possibility using the cross product and asin(). */
+#else
+    /* This is an implementation with atan2(), which should be equivalent. */
+    double r = atan2(b->y, b->x) - atan2(a->y, a->x);
+    if (r <= -CP_PI) {
+        r += CP_TAU;
+    }
+    if (r > +CP_PI) {
+        r -= CP_TAU;
+    }
+    return r;
+#endif
+}
+
+/**
+ * Find the angle between two 2D vectors with a given origin.
+ *
+ * This returns the angle between o-->a and o-->b using cp_vec2_angle().
+ *
+ * Returns a value in (-CP_PI, +CP_PI] (i.e., prefers +PI over -PI).
+ */
+extern cp_angle_t cp_vec2_angle3(
+    cp_vec2_t const *a,
+    cp_vec2_t const *o,
+    cp_vec2_t const *b)
+{
+    cp_vec2_t ao;
+    cp_vec2_sub(&ao, a, o);
+    cp_vec2_t bo;
+    cp_vec2_sub(&bo, b, o);
+    return cp_vec2_angle(&ao, &bo);
 }

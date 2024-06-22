@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_BOOL_H_
 #define CP_CSG2_BOOL_H_
@@ -131,16 +131,14 @@ extern bool cp_csg2_op_flatten_layer(
  * The result is filled from root.  In the process, the elements in root are
  * cleared/reused, if necessary.
  *
- * If the result is empty. this returns NULL.
+ * If the result is empty. this either returns an empty
+ * polygon, or NULL.  Which one is returned depends on what
+ * causes the polygon to be empty.
  *
  * In case of an error, e.g. 3D objects that cannot be handled, this
  * assert-fails, so be sure to not pass anything this is unhandled.
  *
- * In of an error, this also returns NULL.  To distinguish from an
- * empty polygon, `err->msg.size > 0` should be checked instead of
- * checking the result for NULL.
- *
- * Runtime and space: see cp_csg2_op_add_layer.
+ * Runtime and space: see cp_csg2_op_flatten_layer.
  */
 extern cp_csg2_poly_t *cp_csg2_flatten(
     cp_err_t *err,
@@ -149,28 +147,8 @@ extern cp_csg2_poly_t *cp_csg2_flatten(
     cp_v_obj_p_t *root,
     cp_csg2_bool_mode_t mode);
 
-#if 0
-/* FIXME: currently disabled until the algorithm is fixed */
 /**
- * Diff a layer with the next and store the result in diff_above/diff_below.
- *
- * The tree must have been processed with cp_csg2_op_add_layer(),
- * and the layer ID must be in range.
- *
- * r is modified and a diff_below polygon is added.  The original polygons
- * are left untouched.
- *
- * Runtime and space: see cp_csg2_op_add_layer.
- */
-extern void cp_csg2_op_diff_layer(
-    cp_csg_opt_t const *opt,
-    cp_pool_t *tmp,
-    cp_csg2_tree_t *a,
-    size_t zi);
-#endif
-
-/**
- * Initialise a tree for cp_csg2_op_add_layer() operations.
+ * Initialise a tree for cp_csg2_op_flatten_layer() operations.
  *
  * The tree is initialised with a single stack of layers of the given
  * size taken from \p a.  Also, the z values are copied from \p a.
@@ -182,5 +160,10 @@ extern void cp_csg2_op_diff_layer(
 extern void cp_csg2_op_tree_init(
     cp_csg2_tree_t *r,
     cp_csg2_tree_t const *a);
+
+#if 0
+/* FIXME: currently disabled until the algorithm is fixed */
+#endif
+
 
 #endif /* CP_CSG2_BOOL_H_ */

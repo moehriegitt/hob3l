@@ -1,12 +1,12 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <hob3lbase/utf8.h>
 
-static uint8_t iter_get(cp_utf8_iterator_t *iter)
+static inline uint8_t iter_get(cp_utf8_iter_t *iter)
 {
     if (iter->size == 0) {
         return 0;
@@ -14,7 +14,7 @@ static uint8_t iter_get(cp_utf8_iterator_t *iter)
     return (uint8_t)*iter->data;
 }
 
-static void iter_advance(cp_utf8_iterator_t *iter)
+static inline void iter_advance(cp_utf8_iter_t *iter)
 {
     assert(*iter->data != 0);
     assert(iter->size > 0);
@@ -22,17 +22,16 @@ static void iter_advance(cp_utf8_iterator_t *iter)
     iter->size--;
 }
 
-static void iter_error(
-    cp_utf8_iterator_t *iter, char const *back, char const *msg)
+static inline void iter_error(
+    cp_utf8_iter_t *iter, char const *back, char const *msg)
 {
     if (back != NULL) {
         iter->data = back;
     }
-    iter->error_pos = iter->data;
     iter->error_msg = msg;
 }
 
-static unsigned digit_value(unsigned c)
+static inline unsigned digit_value(unsigned c)
 {
     if ((c >= '0') && (c <= '9')) {
         return c - (uint8_t)'0';
@@ -46,7 +45,7 @@ static unsigned digit_value(unsigned c)
     return 99;
 }
 
-static bool get_cont(unsigned *result, char const *start, cp_utf8_iterator_t *iter)
+static inline bool get_cont(unsigned *result, char const *start, cp_utf8_iter_t *iter)
 {
     unsigned c2 = iter_get(iter);
     if (!((c2 >= 0x80) && (c2 <= 0xbf))) {
@@ -58,9 +57,9 @@ static bool get_cont(unsigned *result, char const *start, cp_utf8_iterator_t *it
     return true;
 }
 
-static unsigned check_valid(
+static inline unsigned check_valid(
     char const *start,
-    cp_utf8_iterator_t *iter,
+    cp_utf8_iter_t *iter,
     unsigned minimum,
     unsigned c1,
     unsigned c2,
@@ -90,7 +89,7 @@ static unsigned check_valid(
  * iter->size becomes 0, and stop at decoding errors and
  * set the iter->error pointer in that case.
  */
-extern unsigned cp_utf8_decode(cp_utf8_iterator_t *iter)
+extern unsigned cp_utf8_decode(cp_utf8_iter_t *iter)
 {
     char const *start = iter->data;
 
@@ -140,7 +139,7 @@ extern unsigned cp_utf8_decode(cp_utf8_iterator_t *iter)
  * Similar to cp_utf8_decode, but also decodes the OpenSCAD
  * string escapes, like \n, \u0020, etc.
  */
-extern unsigned cp_utf8_escaped_decode(cp_utf8_iterator_t *iter)
+extern unsigned cp_utf8_escaped_decode(cp_utf8_iter_t *iter)
 {
     char const *start = iter->data;
 
@@ -209,4 +208,51 @@ extern unsigned cp_utf8_escaped_decode(cp_utf8_iterator_t *iter)
         return 0;
     }
     return code;
+}
+
+/**
+ * Encode/write a UTF-8 sequence based on an Unicode codepoint.
+ * This returns the length of the sequence or 0 in case it
+ * does not fit into the given buffer.
+ * This also returns 0 for encoding errors, i.e., when trying to
+ * encode values >0x10ffff or trying to encode surrogates.
+ */
+extern size_t cp_utf8_encode(char *dst, size_t dst_size, unsigned cp)
+{
+    assert(cp_utf8_ok(cp));
+    if (cp <= 0x7f) {
+        if (dst_size < 1) {
+            return 0;
+        }
+        dst[0] = cp & 0x7f;
+        return 1;
+    }
+
+    if (cp <= 0x7ff) {
+        if (dst_size < 2) {
+            return 0;
+        }
+        dst[0] = (char)(0xc0 | ((cp >> 6) & 0x1f));
+        dst[1] = (char)(0x80 | ((cp >> 0) & 0x3f));
+        return 2;
+    }
+
+    if (cp <= 0xffff) {
+        if (dst_size < 3) {
+            return 0;
+        }
+        dst[0] = (char)(0xe0 | ((cp >> 12) & 0x0f));
+        dst[1] = (char)(0x80 | ((cp >> 6)  & 0x3f));
+        dst[2] = (char)(0x80 | ((cp >> 0)  & 0x3f));
+        return 3;
+    }
+
+    if (dst_size < 4) {
+        return 0;
+    }
+    dst[0] = (char)(0xf0 | ((cp >> 18) & 0x07));
+    dst[1] = (char)(0x80 | ((cp >> 12) & 0x3f));
+    dst[2] = (char)(0x80 | ((cp >> 6)  & 0x3f));
+    dst[3] = (char)(0x80 | ((cp >> 0)  & 0x3f));
+    return 4;
 }

@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <stdio.h>
 #include <float.h>
@@ -528,6 +528,20 @@ static void get_arg_size(
         exit(EXIT_FAILURE);
     }
     *v = val & CP_MAX_OF(*v);
+}
+
+static void get_arg_uint32(
+    unsigned *v,
+    char const *arg,
+    char const *str)
+{
+    size_t v2;
+    get_arg_size(&v2, arg, str);
+    if (v2 != (size_t)(unsigned)v2) {
+        fprintf(stderr, "Error %s: invalid uint32: %s\n", arg, str);
+        exit(EXIT_FAILURE);
+    }
+    *v = v2 & 0xffffffff;
 }
 
 static void get_arg_uint8(

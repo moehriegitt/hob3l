@@ -1,5 +1,5 @@
 # -*- Mode: Makefile -*-
-# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 SHELL := /bin/sh
 
@@ -197,6 +197,10 @@ CFLAGS_WARN.gcc += -fmax-errors=10
 
 ######################################################################
 
+GPERF := gperf --language=ANSI-C --compare-lengths --struct-type
+
+######################################################################
+
 FUZZ_CC  := afl-gcc
 FUZZ_DEF := -DFUZZ -UNDEBUG -UPSTRACE -UCQ_TRACE
 FUZZ_OPT := -O3
@@ -324,6 +328,10 @@ update-header: script/xproto
 update-toc: README.md script/mktoc
 	$(srcdir)/script/mktoc -skip1 -in-place README.md
 	$(srcdir)/script/mktoc -skip1 -in-place doc/scadformat.md
+
+.PHONY: update-copyright
+update-copyright: script/updatecopyright
+	grep -r -l 'Copyright.*Theiling' . | xargs ./script/updatecopyright
 
 ######################################################################
 

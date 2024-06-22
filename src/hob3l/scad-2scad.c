@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3l/scad.h>
 #include <hob3lbase/vchar.h>
@@ -67,10 +67,11 @@ static void linext_put_scad(
 {
     cp_printf(s, "linear_extrude("
         "height="FF", scale=["FF","FF"], twist="FF", slices=%u, center=%s"
-        ", $fn=%u){\n",
+        ", $fn=%u, $fa=%g, $fs=%g"
+        "){\n",
         r->height, r->scale.x, r->scale.y, r->twist,
         r->slices, r->center ? "true" : "false",
-        r->_fn);
+        r->detail._fn, r->detail._fa, r->detail._fs);
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s,"%*s}\n", d, "");
 }
@@ -81,7 +82,10 @@ static void rotext_put_scad(
     cp_scad_rotext_t const *r)
 {
     cp_printf(s, "rotate_extrude("
-        "angle=%g, $fn=%u){\n", r->angle, r->_fn);
+        "angle=%g"
+        ", $fn=%u, $fa=%g, $fs=%g"
+        "){\n", r->angle,
+        r->detail._fn, r->detail._fa, r->detail._fs);
     v_scad_put_scad(s, d + IND, &r->child);
     cp_printf(s,"%*s}\n", d, "");
 }
@@ -120,7 +124,11 @@ static void import_put_scad(
     cp_stream_t *s,
     cp_scad_import_t const *r)
 {
-    cp_printf(s, "import(s=\"%s\");\n", r->file_tok);
+    cp_printf(s, "import(s=\"%s\""
+        ", $fn=%u, $fa=%g, $fs=%g"
+        ");\n",
+        r->file_tok,
+        r->detail._fn, r->detail._fa, r->detail._fs);
 }
 
 static void surface_put_scad(
@@ -137,9 +145,12 @@ static void text_put_scad(
 {
     cp_printf(s,
         "text(text=\"%s\",size=%g,font=\"%s\",halign=\"%s\",valign=\"%s\","
-        "spacing=%g,direction=\"%s\",language=\"%s\",script=\"%s\",$fn=%u);\n",
+        "spacing=%g,direction=\"%s\",language=\"%s\",script=\"%s\""
+        ",$fn=%u,$fa=%g,$fs=%g"
+        ");\n",
         r->text, r->size, r->font, r->halign, r->valign,
-        r->spacing, r->direction, r->language, r->script, r->_fn);
+        r->spacing, r->direction, r->language, r->script,
+        r->detail._fn, r->detail._fa, r->detail._fs);
 }
 
 static void projection_put_scad(
@@ -192,26 +203,34 @@ static void sphere_put_scad(
     cp_stream_t *s,
     cp_scad_sphere_t const *r)
 {
-    cp_printf(s, "sphere(r="FF", $fn=%u);\n",
-        r->r, r->_fn);
+    cp_printf(s, "sphere(r="FF""
+        ", $fn=%u, $fa=%g, $fs=%g"
+        ");\n",
+        r->r,
+        r->detail._fn, r->detail._fa, r->detail._fs);
 }
 
 static void circle_put_scad(
     cp_stream_t *s,
     cp_scad_circle_t const *r)
 {
-    cp_printf(s, "circle(r="FF", $fn=%u);\n",
-        r->r, r->_fn);
+    cp_printf(s, "circle(r="FF""
+        ", $fn=%u, $fa=%g, $fs=%g"
+        ");\n",
+        r->r,
+        r->detail._fn, r->detail._fa, r->detail._fs);
 }
 
 static void cylinder_put_scad(
     cp_stream_t *s,
     cp_scad_cylinder_t const *r)
 {
-    cp_printf(s, "cylinder(h="FF", r1="FF", r2="FF", center=%s, $fn=%u);\n",
+    cp_printf(s, "cylinder(h="FF", r1="FF", r2="FF", center=%s"
+        ", $fn=%u, $fa=%g, $fs=%g"
+        ");\n",
         r->h, r->r1, r->r2,
         r->center ? "true" : "false",
-        r->_fn);
+        r->detail._fn, r->detail._fa, r->detail._fs);
 }
 
 static void cube_put_scad(

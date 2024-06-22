@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_CSG2_LAYER_H_
 #define CP_CSG2_LAYER_H_
@@ -37,7 +37,7 @@ extern void cp_csg2_tree_add_layer(
  * Return the layer thickness of a given layer.
  */
 extern cp_dim_t cp_csg2_layer_thickness(
-    cp_csg2_tree_t *t,
+    cp_csg2_tree_t *r,
     size_t zi CP_UNUSED);
 
 #endif /* CP_CSG2_LAYER_H_ */

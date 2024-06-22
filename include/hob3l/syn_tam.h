@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_SYN_TAM_H_
 #define CP_SYN_TAM_H_
@@ -85,7 +85,7 @@ struct cp_syn_stmt_item {
 };
 
 /**
- * SCAD parser use statement.
+ * SCAD parser `use` statement.
  */
 typedef struct {
     CP_SYN_STMT_BASE
@@ -215,7 +215,7 @@ typedef struct {
      * line vector contains pointers to lines, each delimiting its
      * previous line.
      *
-     * The parser adds a terminating '\0' to the file contents after
+     * The loader adds a terminating '\0' to the file contents after
      * reading the file, so upon successful file reading, this is 1
      * character longer than the file.  This is also the reason why
      * this string cannot reasonably be used to display the erroneous
@@ -332,5 +332,67 @@ typedef struct {
      */
     char const *orig_end;
 } cp_syn_loc_t;
+
+
+/**
+ * The XML node type */
+typedef enum {
+    /**
+     * XML document: has no name, no ns, no value, no next
+     */
+    CP_XML_DOC = 1,
+
+    /**
+     * XML element: has no value
+     */
+    CP_XML_ELEM = 2,
+
+    /**
+     * XML attribute: has no child
+     */
+    CP_XML_ATTR = 4,
+
+    /**
+     * XML CDATA: has no name, no ns, no child
+     */
+    CP_XML_CDATA = 8,
+} cp_xml_type_t;
+
+/**
+ * XML Syntax Node
+ */
+typedef struct cp_syn_xml cp_xml_t;
+struct cp_syn_xml {
+    /**
+     * What type of node
+     */
+    cp_xml_type_t type;
+
+    /**
+     * Location of this node in XML file */
+    cp_loc_t loc;
+
+    /**
+     * The XML tag or attribute name, or the data of CDATA */
+    char *data;
+
+    /**
+     * The XML tag prefix that was used (this is needed because we cannot
+     * look up `ns` early enough to avoid storing this). */
+    char const *ns_prefix;
+
+    /**
+     * The namespace, or NULL if CDATA or if no prefix is specified */
+    char const *ns;
+
+    /**
+     * The first child: element, attr, space, or cdata. */
+    cp_xml_t *child;
+
+    /**
+     * The next node in the child list (of the parent node).
+     */
+    cp_xml_t *next;
+};
 
 #endif /* CP_SYN_TAM_H_ */

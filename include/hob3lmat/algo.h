@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #ifndef CP_MAT_ALGO_H_
 #define CP_MAT_ALGO_H_
@@ -7,10 +7,13 @@
 #include <hob3lmat/mat_gen_tam.h>
 #include <hob3lmat/mat_tam.h>
 
-#define CP_SINCOS_RAD(a) (&(cp_vec2_t){ .v={ sin(a), cos(a) }})
-#define CP_SINCOS_DEG(a) (&(cp_vec2_t){ .v={ cp_sin_deg(a), cp_cos_deg(a) }})
+#define CP_SINCOS_RAD(a) ((cp_vec2_t){ .v={ sin(a), cos(a) }})
+#define CP_SINCOS_DEG(a) ((cp_vec2_t){ .v={ cp_sin_deg(a), cp_cos_deg(a) }})
 
-#define cp_deg(rad) (((rad) / (cp_f_t)180) * CP_PI)
+#define CP_COSSIN_RAD(a) ((cp_vec2_t){ .v={ cos(a), sin(a) }})
+#define CP_COSSIN_DEG(a) ((cp_vec2_t){ .v={ cp_cos_deg(a), cp_sin_deg(a) }})
+
+#define cp_deg(rad) ((rad) * (CP_PI / 180))
 
 CP_STATIC_ASSERT(cp_offsetof(cp_mat3_t,  m[0][0]) == 0);
 CP_STATIC_ASSERT(cp_offsetof(cp_mat3w_t, b.m[0][0]) == 0);
@@ -648,8 +651,32 @@ extern cp_f_t cp_sin_deg(cp_f_t a);
  */
 extern cp_f_t cp_cos_deg(cp_f_t a);
 
+/**
+ * Take a step on the circle iterator
+ */
 extern void cp_circle_iter_step(
     cp_circle_iter_t *iter);
+
+/**
+ * Find the angle between two 2D vectors
+ *
+ * Returns a value in (-CP_PI, +CP_PI] (i.e., prefers +PI over -PI).
+ */
+extern cp_angle_t cp_vec2_angle(
+    cp_vec2_t const *a,
+    cp_vec2_t const *b);
+
+/**
+ * Find the angle between two 2D vectors with a given origin.
+ *
+ * This returns the angle between o--a and o--b using cp_vec2_angle().
+ *
+ * Returns a value in (-CP_PI, +CP_PI] (i.e., prefers +PI over -PI).
+ */
+extern cp_angle_t cp_vec2_angle3(
+    cp_vec2_t const *a,
+    cp_vec2_t const *o,
+    cp_vec2_t const *b);
 
 /**
  * Same as cp_mat4_xform_into_zx_2 with a cp_mat4i_t target type.
@@ -710,6 +737,15 @@ static inline cp_f_t cp_t01(cp_f_t src, cp_f_t val, cp_f_t dst)
 static inline cp_f_t cp_t_pm(cp_f_t src, cp_f_t val, cp_f_t dst)
 {
     return (cp_t01(src, val, dst) * 2) - 1;
+}
+
+/**
+ * For angles that have exact rational results, this will return
+ * exactly those results.
+ */
+static inline cp_f_t cp_tan_deg(cp_f_t a)
+{
+    return cp_sin_deg(a) / cp_cos_deg(a);
 }
 
 #endif /* CP_MAT_ALGO_H_ */

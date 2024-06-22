@@ -1,5 +1,5 @@
 /* -*- Mode: C -*- */
-/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */
+/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */
 
 #include <hob3lmat/mat.h>
 #include <hob3lbase/vchar.h>
@@ -848,12 +848,10 @@ static bool sphere_from_item(
 {
     cp_scad_sphere_t *r = cp_scad_cast(*r, _r);
 
-    r->_fn = 0;
+    r->detail = CP_DETAIL_INIT;
     r->r = 1;
 
     bool have_r = false;
-    double _fa;
-    double _fs;
     double d;
     bool have_d = false;
     if (!GET_ARG(t, f->loc, &f->arg,
@@ -861,10 +859,10 @@ static bool sphere_from_item(
             PARAM_FLOAT ("r",   &r->r, &have_r),
         ),
         (
-            PARAM_FLOAT ("d",   &d, &have_d),
-            PARAM_FLOAT ("$fa", &_fa, OPTIONAL),
-            PARAM_FLOAT ("$fs", &_fs, OPTIONAL),
-            PARAM_UINT32("$fn", &r->_fn, OPTIONAL),
+            PARAM_FLOAT("d",    &d, &have_d),
+            PARAM_FLOAT("$fa",  &r->detail._fa, OPTIONAL),
+            PARAM_FLOAT("$fs",  &r->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn", &r->detail._fn, OPTIONAL),
         )))
     {
         return false;
@@ -888,11 +886,9 @@ static bool circle_from_item(
 {
     cp_scad_circle_t *r = cp_scad_cast(*r, _r);
 
-    r->_fn = 0;
+    r->detail = CP_DETAIL_INIT;
     r->r = 1;
 
-    double _fa;
-    double _fs;
     bool have_r = false;
     double d;
     bool have_d = false;
@@ -902,9 +898,9 @@ static bool circle_from_item(
         ),
         (
             PARAM_FLOAT ("d",   &d, &have_d),
-            PARAM_FLOAT ("$fa", &_fa, OPTIONAL),
-            PARAM_FLOAT ("$fs", &_fs, OPTIONAL),
-            PARAM_UINT32("$fn", &r->_fn, OPTIONAL),
+            PARAM_FLOAT("$fa",  &r->detail._fa, OPTIONAL),
+            PARAM_FLOAT("$fs",  &r->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn", &r->detail._fn, OPTIONAL),
         )))
     {
         return false;
@@ -1269,25 +1265,26 @@ static bool linext_from_item(
 {
     cp_scad_linext_t *r = cp_scad_cast(*r, _r);
 
+    r->detail = CP_DETAIL_INIT;
+
     r->slices = 1;
     r->scale.x = 1;
     r->scale.y = 1;
-    double _fa;
-    double _fs;
     unsigned _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
-        (),
         (
             PARAM_FLOAT ("height",       &r->height,  MANDATORY),
+        ),
+        (
             PARAM_BOOL  ("center",       &r->center,  OPTIONAL),
             PARAM_UINT32("slices",       &r->slices,  OPTIONAL),
             PARAM_FLOAT ("twist",        &r->twist,   OPTIONAL),
             PARAM_VEC2_OR_FLOAT("scale", &r->scale,   OPTIONAL),
             PARAM_UINT32("convexity",    &_convexity, OPTIONAL),
-            PARAM_FLOAT ("$fa",          &_fa,        OPTIONAL),
-            PARAM_FLOAT ("$fs",          &_fs,        OPTIONAL),
-            PARAM_UINT32("$fn",          &r->_fn,     OPTIONAL),
+            PARAM_FLOAT("$fa",  &r->detail._fa, OPTIONAL),
+            PARAM_FLOAT("$fs",  &r->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn", &r->detail._fn, OPTIONAL),
         )))
     {
         return false;
@@ -1302,20 +1299,20 @@ static bool rotext_from_item(
     cp_scad_t *_r)
 {
     cp_scad_rotext_t *r = cp_scad_cast(*r, _r);
+
+    r->detail = CP_DETAIL_INIT;
     r->angle = 360;
 
-    double _fa;        
-    double _fs;
     unsigned _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (),
         (
-            PARAM_FLOAT ("angle",        &r->angle,   OPTIONAL),
-            PARAM_UINT32("convexity",    &_convexity, OPTIONAL),
-            PARAM_FLOAT ("$fa",          &_fa,        OPTIONAL),
-            PARAM_FLOAT ("$fs",          &_fs,        OPTIONAL),
-            PARAM_UINT32("$fn",          &r->_fn,     OPTIONAL),
+            PARAM_FLOAT ("angle",     &r->angle,   OPTIONAL),
+            PARAM_UINT32("convexity", &_convexity, OPTIONAL),
+            PARAM_FLOAT("$fa",  &r->detail._fa, OPTIONAL),
+            PARAM_FLOAT("$fs",  &r->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn", &r->detail._fn, OPTIONAL),
         )))
     {
         return false;
@@ -1331,14 +1328,13 @@ static bool cylinder_from_item(
 {
     cp_scad_cylinder_t *q = cp_scad_cast(*q, _q);
 
-    q->_fn = 0;
+    q->detail = CP_DETAIL_INIT;
+
     q->h = 1;
     q->r1 = 1;
     q->r2 = 1;
     q->center = false;
 
-    double _fa;
-    double _fs;
     double r;
     bool have_r = false;
     bool have_r1 = false;
@@ -1361,9 +1357,9 @@ static bool cylinder_from_item(
             PARAM_FLOAT ("d1",  &d1, &have_d1),
             PARAM_FLOAT ("d2",  &d2, &have_d2),
             PARAM_FLOAT ("r",   &r,  &have_r),
-            PARAM_FLOAT ("$fa", &_fa, OPTIONAL),
-            PARAM_FLOAT ("$fs", &_fs, OPTIONAL),
-            PARAM_UINT32("$fn", &q->_fn, OPTIONAL),
+            PARAM_FLOAT ("$fa", &q->detail._fa, OPTIONAL),
+            PARAM_FLOAT ("$fs", &q->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn", &q->detail._fn, OPTIONAL),
         )))
     {
         return false;
@@ -1443,6 +1439,13 @@ static bool import_from_item(
 {
     cp_scad_import_t *q = cp_scad_cast(*q, _q);
 
+    q->detail = CP_DETAIL_INIT;
+
+    /* OpenSCAD seems to import SVGs in 72dpi (not 96dpi as SVG usually
+     * defines as the default resolution).
+     */
+    q->dpi = 72.0;
+
     char const *_layer;
     unsigned _convexity;
 
@@ -1451,14 +1454,26 @@ static bool import_from_item(
             PARAM_STR   ("file",      &q->file_tok, MANDATORY),
             PARAM_STR   ("layer",     &_layer,      OPTIONAL),
             PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
+            PARAM_BOOL  ("center",    &q->center,   OPTIONAL),
+            PARAM_STR   ("id",        &q->id_tok,   OPTIONAL),
         ),
-        ()))
+        (
+            PARAM_FLOAT ("dpi",  &q->dpi,        OPTIONAL),
+            PARAM_FLOAT ("$fa",  &q->detail._fa, OPTIONAL),
+            PARAM_FLOAT ("$fs",  &q->detail._fs, OPTIONAL),
+            PARAM_UINT32("$fn",  &q->detail._fn, OPTIONAL),
+        )))
     {
         return false;
     }
 
     if (!string_unquote(t, &q->file, q->file_tok)) {
         return false;
+    }
+    if (q->id_tok != NULL) {
+        if (!string_unquote(t, &q->id, q->id_tok)) {
+            return false;
+        }
     }
 
     return true;
@@ -1555,180 +1570,19 @@ static bool projection_from_item(
     return v_scad_from_v_syn_stmt_item(t, &q->child, &f->body);
 }
 
-typedef struct {
-    char const *id;
-    cp_scad_type_t type;
-    bool (*from)(
-        ctxt_t *t,
-        cp_syn_stmt_item_t *f,
-        cp_scad_t *r);
-    char const *const *arg_pos;
-    char const *const *arg_name;
-} cmd_t;
-
-static int cmp_name_cmd(void const *_a, void const *_b, void *user CP_UNUSED)
-{
-    char const *a = _a;
-    cmd_t const *b = _b;
-    return strcmp(a, b->id);
-}
+#include "scad-cmd.inc"
 
 static bool v_scad_from_syn_stmt_item(
     ctxt_t *t,
     cp_v_scad_p_t *result,
     cp_syn_stmt_item_t *f)
 {
-    static cmd_t const cmds[] = {
-        {
-           .id = "circle",
-           .type = CP_SCAD_CIRCLE,
-           .from = circle_from_item
-        },
-        {
-           .id = "color",
-           .type = CP_SCAD_COLOR,
-           .from = color_from_item
-        },
-        {
-           .id = "cube",
-           .type = CP_SCAD_CUBE,
-           .from = cube_from_item
-        },
-        {
-           .id = "cylinder",
-           .type = CP_SCAD_CYLINDER,
-           .from = cylinder_from_item
-        },
-        {
-           .id = "difference",
-           .type = CP_SCAD_DIFFERENCE,
-           .from = difference_from_item
-        },
-        {
-           .id = "group",
-           .type = CP_SCAD_UNION,
-           .from = union_from_item
-        },
-        {
-           .id = "hull",
-           .type = CP_SCAD_HULL,
-           .from = hull_from_item
-        },
-        {
-           .id = "import",
-           .type = CP_SCAD_IMPORT,
-           .from = import_from_item
-        },
-        {
-           .id = "import_stl",
-           .type = CP_SCAD_IMPORT,
-           .from = import_from_item
-        },
-        {
-           .id = "intersection",
-           .type = CP_SCAD_INTERSECTION,
-           .from = intersection_from_item
-        },
-        {
-           .id = "linear_extrude",
-           .type = CP_SCAD_LINEXT,
-           .from = linext_from_item,
-        },
-        {
-           .id = "mirror",
-           .type = CP_SCAD_MIRROR,
-           .from = mirror_from_item
-        },
-        {
-           .id = "multmatrix",
-           .type = CP_SCAD_MULTMATRIX,
-           .from = multmatrix_from_item
-        },
-        {
-           .id = "polygon",
-           .type = CP_SCAD_POLYGON,
-           .from = polygon_from_item
-        },
-        {
-           .id = "polyhedron",
-           .type = CP_SCAD_POLYHEDRON,
-           .from = polyhedron_from_item
-        },
-        {
-           .id = "projection",
-           .type = CP_SCAD_PROJECTION,
-           .from = projection_from_item
-        },
-        {
-           .id = "render",
-           .type = CP_SCAD_UNION,
-           .from = union_from_item
-        },
-        {
-           .id = "rotate",
-           .type = CP_SCAD_ROTATE,
-           .from = rotate_from_item
-        },
-        {
-           .id = "rotate_extrude",
-           .type = CP_SCAD_ROTEXT,
-           .from = rotext_from_item,
-        },
-        {
-           .id = "scale",
-           .type = CP_SCAD_SCALE,
-           .from = scale_from_item
-        },
-        {
-           .id = "sphere",
-           .type = CP_SCAD_SPHERE,
-           .from = sphere_from_item
-        },
-        {
-           .id = "square",
-           .type = CP_SCAD_SQUARE,
-           .from = square_from_item
-        },
-        {
-           .id = "surface",
-           .type = CP_SCAD_SURFACE,
-           .from = surface_from_item
-        },
-        {
-           .id = "text",
-           .type = CP_SCAD_TEXT,
-           .from = text_from_item,
-        },
-        {
-           .id = "translate",
-           .type = CP_SCAD_TRANSLATE,
-           .from = translate_from_item
-        },
-        {
-           .id = "union",
-           .type = CP_SCAD_UNION,
-           .from = union_from_item
-        },
-        {
-           /* FIXME: This has difference scoping rules, use different type. */
-           .id = "{",
-           .type = CP_SCAD_UNION,
-           .from = union_from_item
-        },
-    };
-
-    size_t idx = cp_bsearch(
-        f->functor, cmds, cp_countof(cmds), sizeof(cmds[0]), cmp_name_cmd, NULL);
-    if (idx >= cp_countof(cmds)) {
-        return msg(t, t->opt->err_unknown_functor, f->loc, NULL,
-            "Unknown functor/operator/object: '%s'.", f->functor);
-    }
-
-    cmd_t const *c = &cmds[idx];
-    if (c->type == 0) {
+    cmd_value_t const *c = cmd_find(f->functor, strlen(f->functor));
+    if (c == NULL) {
         return msg(t, t->opt->err_unsupported_functor, f->loc, NULL,
             "Unsupported functor '%s'.", f->functor);
     }
+    assert(c->type != 0);
 
     cp_scad_t *r;
     if (!func_new(&r, t, f, c->type)) {
@@ -1745,7 +1599,7 @@ static bool v_scad_from_syn_stmt_use(
     cp_v_scad_p_t *result CP_UNUSED,
     cp_syn_stmt_use_t *f CP_UNUSED)
 {
-    CP_NYI("use <...>");
+    CP_NYI("`use <...>`");
 }
 
 static bool v_scad_from_syn_stmt(

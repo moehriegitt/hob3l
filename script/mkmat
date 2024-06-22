@@ -1,5 +1,5 @@
 #! /usr/bin/perl
-# Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file
+# Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file
 
 # I started to write the mat.h and related files in pure C, and it was
 # OK at the beginning with some makro majik.  But I added more and
@@ -13,6 +13,7 @@
 
 use strict;
 use warnings;
+use Carp;
 use Data::Dumper;
 
 my $P = 'cp_';
@@ -183,25 +184,73 @@ my @coord = ('x', 'y', 'z', 'w');
 my $vec2 = $type{vec2} or die;
 my $vec3 = $type{vec3} or die;
 
+sub proto2str($);
+
+sub proto($$$@)
+{
+    my ($t, $result, $elem, @arg) = @_;
+    return { t => $t, result => $result, elem => $elem, args => \@arg };
+}
+
 sub publish($$$)
 {
     my ($oc, $where, $text) = @_;
     push @{ $oc->{out}{$where} }, $text;
 }
 
-sub publish_extern($$$)
+sub publish_macro_perhaps($$$)
 {
-    my ($oc, $proto, $body)= @_;
-    publish($oc, 'ext_h', "extern $proto;\n");
-    if (defined $body) {
-        publish($oc, 'ext_c', "extern $proto\n{\n$body}\n");
+    my ($oc, $p, $body) = @_;
+    return unless ref($p);
+    if ($p->{result} ne 'void') {
+        return;
     }
+    if ($p->{args}[0] ne 'r') {
+        return;
+    }
+    my @arg = @{ $p->{args} };
+    my ($a0name, $a0type) = splice @arg, 0, 2;
+    my $rr = proto_arg($a0type, $a0name);
+    if ($rr !~ /^\s*([a-zA-Z0-9_]+)\s*[*]\s*r\s*$/) {
+        return;
+    }
+    my $a0type1 = $1;
+
+    my $t = $p->{t};
+    my $elem = $p->{elem};
+    my $fname = "X_$t->{name}_$elem";
+    my %arg = @arg;
+    my $arg_str = join(", ", 'r', grep { $arg{$_} } @arg);
+    my $tbody =
+        "    $a0type1 r[1];\n    $fname($arg_str);\n    return *r;\n";
+
+    my $p2 = proto($t, $a0type1, uc("${elem}_"), @arg);
+    my $proto2 = proto2str($p2);
+    publish($oc, 'inl_h', "static inline $proto2\n{\n$tbody}\n");
+
+    $arg_str = join(", ", grep { $arg{$_} } @arg);
+    my $uc_fname = uc($fname);
+    publish($oc, 'inl_h',
+        "#define ${uc_fname}($arg_str) (*($a0type1"."[1]){ ${uc_fname}_($arg_str) })\n");
 }
 
 sub publish_inline($$$)
 {
-    my ($oc, $proto, $body)= @_;
+    my ($oc, $p, $body)= @_;
+    my $proto = proto2str($p);
     publish($oc, 'inl_h', "static inline $proto\n{\n$body}\n");
+    publish_macro_perhaps($oc, $p, $body);
+}
+
+sub publish_extern($$$)
+{
+    my ($oc, $p, $body)= @_;
+    my $proto = proto2str($p);
+    publish($oc, 'ext_h', "extern $proto;\n");
+    if (defined $body) {
+        publish($oc, 'ext_c', "extern $proto\n{\n$body}\n");
+    }
+    publish_macro_perhaps($oc, $p, $body);
 }
 
 sub coord($)
@@ -328,9 +377,11 @@ sub proto_arg($$)
     return "X_$type->{name}_t $q* $name";
 }
 
-sub proto($$$@)
+sub proto2str($)
 {
-    my ($t, $result, $elem, @arg) = @_;
+    my ($p) = @_;
+    return $p unless ref($p); # already a string: manual proto generation
+    my ($t, $result, $elem, @arg) = ($p->{t}, $p->{result}, $p->{elem}, @{ $p->{args} });
     die unless $t;
     die unless $result;
     die unless $elem;
@@ -342,7 +393,10 @@ sub proto($$$@)
         die unless $type;
         push @a, "\n    ".proto_arg($type, $name);
     }
-    return "$result ${name}_${elem}(".join(",", @a).")";
+    my $as = join(",", @a) || 'void';
+    my $fname = "${name}_${elem}";
+    $fname = uc($fname) if $elem =~ /^[A-Z0-9_]*[A-Z][A-Z0-9_]*$/;
+    return "$result ${fname}($as)";
 }
 
 sub xt(@)
@@ -435,7 +489,7 @@ sub gen_add_vec($$$)
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = a->v[$i] + b->v[$i];\n";
     }
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### SUB ####
@@ -448,7 +502,7 @@ sub gen_sub_vec($$$)
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = a->v[$i] - b->v[$i];\n";
     }
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### NEG ####
@@ -460,6 +514,32 @@ sub gen_neg_vec($$$)
     my $s = '';
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = -a->v[$i];\n";
+    }
+    publish_inline($oc, $p, $s);
+}
+
+#### MULC (component-wise mul) ####
+
+sub gen_mulc_vec($$$)
+{
+    my ($oc, $t, $elem) = @_;
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$t);
+    my $s = '';
+    for my $i (0..$t->{dim}-1) {
+        $s .= "    r->v[$i] = a->v[$i] * b->v[$i];\n";
+    }
+    publish_inline($oc, $p, $s);
+}
+
+#### DIVC (component-wise div) ####
+
+sub gen_divc_vec($$$)
+{
+    my ($oc, $t, $elem) = @_;
+    my $p = proto($t, 'void', $elem, r=>$t, a=>$t, b=>$t);
+    my $s = '';
+    for my $i (0..$t->{dim}-1) {
+        $s .= "    r->v[$i] = cp_div0(a->v[$i], b->v[$i]);\n";
     }
     publish_extern($oc, $p, $s);
 }
@@ -474,7 +554,7 @@ sub gen_mul_vec($$$)
     for my $i (0..$t->{dim}-1) {
         $s .= "    r->v[$i] = a->v[$i] * b;\n";
     }
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### DIV ####
@@ -503,7 +583,7 @@ sub gen_dot_vec($$$)
         $s .= " +\n        (a->v[$i] * b->v[$i])";
     }
     $s .= ";\n";
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### MIN ####
@@ -674,7 +754,7 @@ sub gen_sqr_dist_vec($$$)
     $s .= "    ${name}_t d[1];\n";
     $s .= "    ${name}_sub(d, a, b);\n";
     $s .= "    return ${name}_sqr_len(d);\n";
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### DIST ####
@@ -712,7 +792,7 @@ sub gen_dir_vec($$$)
     my $s = '';
     $s .= "    ${name}_sub(r, a, b);\n";
     $s .= "    ${name}_unit(r, r);\n";
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### put ####
@@ -823,6 +903,7 @@ sub gen_xform_vecw($$$)
     my ($oc, $t, $elem) = @_;
     die unless $t->{name};
     die unless $t->{vec};
+    # FIXME: manual prototype generation: use proto() instead.
     my $mat  = "X_$t->{base}{name}";
     my $matw = "X_$t->{name}";
     my $vec  = "X_$t->{vec}{name}";
@@ -1019,7 +1100,7 @@ sub gen_rot_v_mat($$$)
     $s .= "    X_$t->{vecx}{name}_t u;\n";
     $s .= "    X_$t->{vecx}{name}_unit(&u, v);\n";
     $s .= "    X_$t->{name}_rot_unit(r, &u, sc);\n";
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 sub gen_rot_unit_into_z_mat($$$)
@@ -1208,7 +1289,7 @@ sub gen_mirror_v_mat($$$)
     $s .= "    X_$t->{vecx}{name}_t u;\n";
     $s .= "    X_$t->{vecx}{name}_unit(&u, v);\n";
     $s .= "    X_$t->{name}_mirror_unit(r, &u);\n";
-    publish_extern($oc, $p, $s);
+    publish_inline($oc, $p, $s);
 }
 
 #### XLAT ####
@@ -1477,6 +1558,12 @@ my @gen = (
     ['sub', {
         vec => \&gen_sub_vec,
     }],
+    ['mulc', {
+        vec => \&gen_mulc_vec,
+    }],
+    ['divc', {
+        vec => \&gen_divc_vec,
+    }],
     ['mul', {
         vec => \&gen_mul_vec,
     }],
@@ -1683,6 +1770,33 @@ sub lines(@)
     return $s;
 }
 
+sub file_content($)
+{
+    my ($fn) = @_;
+    local $/ = undef;
+    open(my $f, '<', $fn) or return;
+    return <$f>;
+}
+
+sub file_is_equal($$)
+{
+    my ($fx, $fy) = @_;
+    my $cx = file_content($fx) // return 0;
+    my $cy = file_content($fy) // return 0;
+    return $cx eq $cy;
+}
+
+sub rename_if_different($$)
+{
+    my ($fnew, $fold) = @_;
+    # if no new file, or not equal, then rename to put new one in place:
+    if (!-f $fnew || !file_is_equal($fnew, $fold)) {
+        return rename($fnew, $fold);
+    }
+    # remove new version, as it is the same
+    unlink($fnew);
+}
+
 my $oc = { out => {} };
 gen_all($oc);
 
@@ -1730,7 +1844,7 @@ for my $ext (sort keys %{ $oc->{out} }) {
     open(my $f, '>', "$x->{file}.new") or die "open: $@";
 
     print {$f} "/* -*- Mode: C -*- */\n";
-    print {$f} "/* Copyright (C) 2018-2023 by Henrik Theiling, License: GPLv3, see LICENSE file */\n";
+    print {$f} "/* Copyright (C) 2018-2024 by Henrik Theiling, License: GPLv3, see LICENSE file */\n";
     print {$f} "/* Automatically generated by mkmat. */\n";
     print {$f} "\n";
     if ($ifndef) {
@@ -1754,7 +1868,15 @@ for my $ext (sort keys %{ $oc->{out} }) {
 
     close $f;
 
-    rename "$x->{file}.new", "$x->{file}" or die "rename: $@";
+    # If we use 'rename_if_different' here, then 'mkmat' gets invoked
+    # if nothing changed in the last run.  We only do this for '.h'
+    # files, because the call to 'mkmat' depends on the .c file.
+    if ($x->{file} =~ /c$/i) {
+        rename "$x->{file}.new", "$x->{file}" or die "rename: $@";
+    }
+    else {
+        rename_if_different "$x->{file}.new", "$x->{file}" or die "rename: $@";
+    }
 }
 
 0;
