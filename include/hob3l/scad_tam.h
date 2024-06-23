@@ -101,6 +101,7 @@ typedef struct {
     bool center;
     char const *id_tok;
     cp_vchar_t id;
+    char const *layer;
     cp_detail_t detail;
     double dpi;
 } cp_scad_import_t;

@@ -64,6 +64,7 @@ typedef struct {
     double width;
     double height;
     double dim;
+    char const *layer;
     double dpi;
     bool center;
     bool toplevel;
@@ -1300,15 +1301,22 @@ static bool str_path(
     return true;
 }
 
-static void xform_apply(
+static void set_local(
     local_t const **c,
-    local_t *n,
-    cp_mat2wi_t const *m1)
+    local_t *n)
 {
     if (n != *c) {
         *n = **c;
         *c = n;
     }
+}
+
+static void xform_apply(
+    local_t const **c,
+    local_t *n,
+    cp_mat2wi_t const *m1)
+{
+    set_local(c, n);
     cp_mat2wi_mul(&n->mat, &n->mat, m1);
 }
 
@@ -1436,12 +1444,13 @@ static bool xform_cmd(
     return false;
 }
 
-static void xform_try(
+static void process_std_attr(
     local_t const **c,
     local_t *n,
     ctxt_t const *p,
     cp_xml_t *xml)
 {
+    /* process transform commands */
     char const *s = s_attr_str(xml, "transform");
     if (s == NULL) {
         return;
@@ -1452,6 +1461,16 @@ static void xform_try(
             return;
         }
         s_sep(&s, COMMA);
+    }
+
+    /* compare layer with `id` attribute in SVG, like InkScape stores it. */
+    if ((*c)->layer != NULL) {
+        char const *id = s_attr_str(xml, "id");
+        if (strequ0((*c)->layer, id)) {
+            set_local(c, n);
+            /* setting 'layer' to NULL means 'active' */
+            n->layer = NULL;
+        }
     }
 }
 
@@ -1529,8 +1548,8 @@ static bool csg2_from_svg(
         xform_apply(&c, &c1, &CP_MAT2WI_XLAT(px, py));
     }
 
-    /* do the transform */
-    xform_try(&c, &c1, p, x);
+    /* standard attributes */
+    process_std_attr(&c, &c1, p, x);
 
     /* if we have a viewBox, we'll apply the DPI setting unless
      * there is a size (which takes the unit into account) */
@@ -1737,7 +1756,7 @@ static bool csg2_from_polygon(
     return true;
 }
 
-static bool csg2_from_rec_xform(
+static bool csg2_from_g(
     cp_v_obj_p_t *r,
     ctxt_t const *p,
     local_t const *c,
@@ -1746,11 +1765,11 @@ static bool csg2_from_rec_xform(
 {
     cp_xml_t *x = parent->child;
     local_t c1;
-    xform_try(&c, &c1, p, x);
+    process_std_attr(&c, &c1, p, x);
     return callback(r, p, c, x);
 }
 
-static bool csg2_from_rec_xform_warn(
+static bool csg2_from_g_warn(
     cp_v_obj_p_t *r,
     ctxt_t const *p,
     local_t const *c,
@@ -1758,7 +1777,27 @@ static bool csg2_from_rec_xform_warn(
     callback_t callback)
 {
     WARN(p, parent->loc, "Unsupported SVG element '%s'.", parent->data);
-    return csg2_from_rec_xform(r, p, c, parent, callback);
+    return csg2_from_g(r, p, c, parent, callback);
+}
+
+static bool csg2_from_obj(
+    cp_v_obj_p_t *r,
+    ctxt_t const *p,
+    local_t const *c,
+    cp_xml_t *parent,
+    callback_t callback)
+{
+    cp_xml_t *x = parent->child;
+    local_t c1;
+    process_std_attr(&c, &c1, p, x);
+
+    /* if still in search for a layer, avoid invoking the worker */
+    if (c->layer != NULL) {
+        return true;
+    }
+
+    /* layer is active => invoke worker */
+    return callback(r, p, c, x);
 }
 
 static bool csg2_from_no_rec(
@@ -1823,10 +1862,15 @@ extern bool cp_svg_parse(
     cp_csg3_ctxt_t const *p,
     cp_csg3_local_t const *local,
     cp_detail_t const *detail,
+    char const *layer,
     double dpi,
     bool center,
     cp_xml_t *xml)
 {
+    if (strequ0(layer, "")) {
+        layer = NULL;
+    }
+
     local_t c[1] = {{
         .u = *local,
         .detail = *detail,
@@ -1834,6 +1878,7 @@ extern bool cp_svg_parse(
         .height = 0,
         .dim = 0,
         .toplevel = true,
+        .layer = layer,
         .dpi = dpi,
         .center = center,
     }};

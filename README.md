@@ -4,7 +4,7 @@
 ## What is This?
 
 Hob3l is a command line tool for reading SCAD files and writing STL
-files for 3D printing.  The focus is speed and robustness.
+files for 3D printing.  The focus is on speed and robustness.
 
 OpenSCAD can convert SCAD to STL, too, but it is very slow, because it
 first produces a 3D object.  And the CGAL library used by OpenSCAD is

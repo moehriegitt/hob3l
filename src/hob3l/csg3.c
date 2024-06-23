@@ -936,7 +936,7 @@ static bool csg3_from_import(
                 return msg(c, c->opt->err_outside_2d, s->loc, NULL,
                     "'import' SVG found outside 2D context.");
             }
-            if (!cp_svg_parse(r, c, m, &s->detail, s->dpi, s->center, top)) {
+            if (!cp_svg_parse(r, c, m, &s->detail, s->layer, s->dpi, s->center, top)) {
                 assert(c->err->msg.size > 0);
                 return false;
             }

@@ -103,7 +103,7 @@ OpenSCAD may still accept it and assume '1'.
     cube(size, center)
     cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
-    import(file, layer, convexity, center, $fn)
+    import(file, layer, convexity, center, dpi, $fa, $fs, $fn)
 
     polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
@@ -623,14 +623,14 @@ everything to faster 2D algorithms.
 2D object: load a polygon from a file: SVG format.
 
 ```
-import(file[,layer,convexity])
+import(file[, layer, convexity]{, center, dpi, $fa, $fs, $fn})
 ```
 
   * `file` :: string
-  * `dpi` :: float
-  * `layer` :: string, ignored
+  * `layer` :: string
   * `convexity` :: integer, ignored
   * `center` :: bool
+  * `dpi` :: float
 
 This loads external structures from the file whose path is specified
 by `file`.  If `file` is a relative path name, then it is
@@ -670,9 +670,13 @@ regardless of `dpi` setting, the sizes will be absolute.  (Note:
 because OpenSCAD handles it this way, in `width`/`height` attributes,
 the unit `px` equals 1/96" (absolute), while no unit means `dpi`.)
 
-Hobel applies the `center` attribute in SVG format import based on the
+Hob3l applies the `center` attribute in SVG format import based on the
 `viewBox` size.  OpenSCAD uses the center of the bounding box of the
 set of coordinates instead.
+
+Hob3l reads the `layer` attribute to select sub-structures of the SVG
+file by filtering the SVG `id` attributes.  Inkscape stores layer
+names in SVG `id` attributes.
 
 _OpenSCAD and General compatibility_:
 
@@ -706,6 +710,9 @@ _OpenSCAD and General compatibility_:
 
   * SVG mode: OpenSCAD supports CSS via `class` and `style` (via
     libxml), but Hob3l does not (no libxml is used).
+
+  * SVG mode: Hob3l supports the `layer` attribute, while OpenSCAD
+    does not.
 
   * SVG mode: Like OpenSCAD, Hob3l does not apply any clipping at
     the `svg` element's viewbox.

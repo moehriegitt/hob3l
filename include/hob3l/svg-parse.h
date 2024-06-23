@@ -30,6 +30,7 @@ extern bool cp_svg_parse(
     cp_csg3_ctxt_t const *p,
     cp_csg3_local_t const *local,
     cp_detail_t const *detail,
+    char const *layer,
     double dpi,
     bool center,
     cp_xml_t *xml);

@@ -10,7 +10,7 @@ typedef struct {
 
 /** what to do by default */
 static {value_t} const elem_fallback = {
-    "", csg2_from_rec_xform_warn, csg2_from_elem
+    "", csg2_from_g_warn, csg2_from_elem
 };
 
 %}
@@ -20,15 +20,15 @@ default: &elem_fallback
 
 %%
 
-svg,           csg2_from_svg,       csg2_from_elem
-g,             csg2_from_rec_xform, csg2_from_elem
-circle,        csg2_from_rec_xform, csg2_from_circle
-ellipse,       csg2_from_rec_xform, csg2_from_ellipse
-line,          csg2_from_rec_xform, csg2_from_line
-rect,          csg2_from_rec_xform, csg2_from_rect
-path,          csg2_from_rec_xform, csg2_from_path
-polygon,       csg2_from_rec_xform, csg2_from_polygon
-polyline,      csg2_from_rec_xform, csg2_from_polyline
+svg,           csg2_from_svg,       csg2_from_elem,
+g,             csg2_from_g,         csg2_from_elem,
+circle,        csg2_from_obj,       csg2_from_circle
+ellipse,       csg2_from_obj,       csg2_from_ellipse
+line,          csg2_from_obj,       csg2_from_line
+rect,          csg2_from_obj,       csg2_from_rect
+path,          csg2_from_obj,       csg2_from_path
+polygon,       csg2_from_obj,       csg2_from_polygon
+polyline,      csg2_from_obj,       csg2_from_polyline
 title,         csg2_from_no_rec,    NULL,
 desc,          csg2_from_no_rec,    NULL,
 metadata,      csg2_from_no_rec,    NULL,

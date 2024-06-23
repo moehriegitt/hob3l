@@ -1446,18 +1446,17 @@ static bool import_from_item(
      */
     q->dpi = 72.0;
 
-    char const *_layer;
     unsigned _convexity;
 
     if (!GET_ARG(t, f->loc, &f->arg,
         (
             PARAM_STR   ("file",      &q->file_tok, MANDATORY),
-            PARAM_STR   ("layer",     &_layer,      OPTIONAL),
+            PARAM_STR   ("layer",     &q->layer,    OPTIONAL),
             PARAM_UINT32("convexity", &_convexity,  OPTIONAL),
-            PARAM_BOOL  ("center",    &q->center,   OPTIONAL),
-            PARAM_STR   ("id",        &q->id_tok,   OPTIONAL),
         ),
         (
+            PARAM_BOOL  ("center",    &q->center,   OPTIONAL),
+            PARAM_STR   ("id",        &q->id_tok,   OPTIONAL),
             PARAM_FLOAT ("dpi",  &q->dpi,        OPTIONAL),
             PARAM_FLOAT ("$fa",  &q->detail._fa, OPTIONAL),
             PARAM_FLOAT ("$fs",  &q->detail._fs, OPTIONAL),
