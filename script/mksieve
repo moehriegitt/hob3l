@@ -38,6 +38,7 @@
 #       * prefix: name prefix to use for names (default: empty)
 #       * value_t: name of the type to be used for the struct (default: `{prefix}value_t`)
 #       * find: name of lookup function (default: `{prefix}find`)
+#       * default: value to return if no choice is found (default: `NULL`)
 #       * storage: storage class of the lookup function (default: `static`)
 #       * indent: number of space per block indentation.  0 = use tabs.
 #
@@ -81,6 +82,7 @@ sub learn($)
             value_t => '{prefix}value_t',
             find => '{prefix}find',
             storage => 'static',
+            default => 'NULL',
             indent => 4,
         },
         prefix => '',
@@ -399,8 +401,8 @@ sub generate_body($)
 
     # print lookup function:
     $s .= qq(
-\tif (len < {minlen}) { return NULL; }
-\tif (len > {maxlen}) { return NULL; }
+\tif (len < {minlen}) { return ({default}); }
+\tif (len > {maxlen}) { return ({default}); }
 \tsize_t step = len2step[len - {minlen}];
 \tchar const *s0 = s;
 \twhile (step < {statecnt}) {
@@ -408,9 +410,9 @@ sub generate_body($)
 \t}
 \tsize_t o = (size_t)(s - s0);
 \tassert(o <= {maxlen});
-\tif (step >= {failidx}) { return NULL; }
+\tif (step >= {failidx}) { return ({default}); }
 \t{value_t} const *v = &value[step - {statecnt}];
-\tif (memcmp(s, v->{key} + o, len - o) != 0) { return NULL; }
+\tif (memcmp(s, v->{key} + o, len - o) != 0) { return ({default}); }
 \treturn v;
 );
 
@@ -438,7 +440,7 @@ sub generate($)
         $s .= generate_body($p);
     }
     else {
-        $s .= "\treturn NULL;\n";
+        $s .= "\treturn ({default});\n";
     }
     $s .= "}\n";
     return $s;

@@ -31,6 +31,7 @@ extern bool cp_svg_parse(
     cp_csg3_local_t const *local,
     cp_detail_t const *detail,
     double dpi,
+    bool center,
     cp_xml_t *xml);
 
 #endif /* CP_SVG_PARSE_H_ */

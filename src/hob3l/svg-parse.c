@@ -65,6 +65,7 @@ typedef struct {
     double height;
     double dim;
     double dpi;
+    bool center;
     bool toplevel;
 } local_t;
 
@@ -1454,6 +1455,19 @@ static void xform_try(
     }
 }
 
+typedef bool (*callback_t)(
+        cp_v_obj_p_t *,
+        ctxt_t const *,
+        local_t const *,
+        cp_xml_t *);
+
+typedef bool (*recurse_t)(
+        cp_v_obj_p_t *,
+        ctxt_t const *,
+        local_t const *,
+        cp_xml_t *,
+        callback_t);
+
 static bool csg2_from_elem(
     cp_v_obj_p_t *r,
     ctxt_t const *p,
@@ -1464,8 +1478,10 @@ static bool csg2_from_svg(
     cp_v_obj_p_t *r,
     ctxt_t const *p,
     local_t const *c0,
-    cp_xml_t *x)
+    cp_xml_t *parent,
+    callback_t callback)
 {
+    cp_xml_t *x = parent->child;
     // FIXME: implement centering, but not by coordinates, but by centering
     // the viewBox.
 
@@ -1502,6 +1518,7 @@ static bool csg2_from_svg(
     /* open a new context */
     local_t c1 = *c0;
     c1.toplevel = false;
+    c1.center = false;
     c1.dpi = 96; /* in non-toplevel contexts, DPI is again 96 as in SVG */
     local_t const *c = &c1;
 
@@ -1509,9 +1526,7 @@ static bool csg2_from_svg(
     double px, py;
     (void)s_attr_coord(&px, &py, c, x, "x", "y");
     if (!c0->toplevel) {
-        cp_mat2wi_t m1;
-        cp_mat2wi_xlat(&m1, px, py);
-        xform_apply(&c, &c1, &m1);
+        xform_apply(&c, &c1, &CP_MAT2WI_XLAT(px, py));
     }
 
     /* do the transform */
@@ -1520,9 +1535,8 @@ static bool csg2_from_svg(
     /* if we have a viewBox, we'll apply the DPI setting unless
      * there is a size (which takes the unit into account) */
     if (have_viewBox && c0->toplevel) {
-        cp_mat2wi_t m1;
-        cp_mat2wi_scale1(&m1, have_size ? U_PX_MM : U_DPI_MM(c0->dpi));
-        cp_mat2wi_mul(&c1.mat, &c1.mat, &m1);
+        xform_apply(&c, &c1,
+            &CP_MAT2WI_SCALE1(have_size ? U_PX_MM : U_DPI_MM(c0->dpi)));
     }
 
     /* scale only if we have all params: we have no external size limit */
@@ -1533,33 +1547,30 @@ static bool csg2_from_svg(
 
         cp_mat2wi_t m1;
         svg_xform(&m1, vx, vy, vw, vh, 0, 0, ew, eh, pas);
-        cp_mat2wi_mul(&c1.mat, &c1.mat, &m1);
+        xform_apply(&c, &c1, &m1);
+    }
+
+    /* apply centering, if requested and possible (we're not clipping, so we
+     * can do it late (i.e., only now)*/
+    if (c0->center) {
+        if (have_ew) {
+            xform_apply(&c, &c1, &CP_MAT2WI_XLAT(-vw/2, 0));
+        }
+        if (have_eh) {
+            xform_apply(&c, &c1, &CP_MAT2WI_XLAT(0, +vh/2));
+        }
     }
 
     /* At top level, have a coordinate shift to put the SVG in
      * positive coordinates */
     if (c0->toplevel) {
         if (have_viewBox) {
-            cp_mat2wi_t m1;
-            cp_mat2wi_xlat(&m1, 0, -vh);
-            cp_mat2wi_mul(&c1.mat, &c1.mat, &m1);
+            xform_apply(&c, &c1, &CP_MAT2WI_XLAT(0, -vh));
         }
     }
 
     /* recurse */
-    return csg2_from_elem(r, p, c, x);
-}
-
-static bool csg2_from_g(
-    cp_v_obj_p_t *r,
-    ctxt_t const *p,
-    local_t const *c,
-    cp_xml_t *x)
-{
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
-    return csg2_from_elem(r, p, c, x);
+    return callback(r, p, c, x);
 }
 
 static bool csg2_from_path(
@@ -1568,9 +1579,6 @@ static bool csg2_from_path(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     char const *s = TRY(s_attr_str(x, "d"));
     path_t q = path_new(r, p, c);
     (void)str_path(&q, s);
@@ -1584,9 +1592,6 @@ static bool csg2_from_rect(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     double px, py;
     (void)s_attr_coord(&px, &py, c, x, "x", "y");
 
@@ -1635,9 +1640,6 @@ static bool csg2_from_circle(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     double cx, cy;
     (void)s_attr_coord(&cx, &cy, c, x, "cx", "cy");
     double rr = 0.0;
@@ -1662,9 +1664,6 @@ static bool csg2_from_ellipse(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     double cx, cy;
     (void)s_attr_coord(&cx, &cy, c, x, "cx", "cy");
     double rx, ry;
@@ -1694,9 +1693,6 @@ static bool csg2_from_line(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     /* This is implemented correctly as a two point line, but since we never stroke,
      * this always ends up being discarded.  Maybe some day, we will implement stroke. */
     double x1, y1;
@@ -1718,9 +1714,6 @@ static bool csg2_from_polyline(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     char const *s = TRY(s_attr_str(x, "points"));
     path_t q = path_new(r, p, c);
     TRY(str_path_coord1(&q, &s, ABS, path_move, path_line));
@@ -1735,9 +1728,6 @@ static bool csg2_from_polygon(
     local_t const *c,
     cp_xml_t *x)
 {
-    local_t c1;
-    xform_try(&c, &c1, p, x);
-
     char const *s = TRY(s_attr_str(x, "points"));
     path_t q = path_new(r, p, c);
     TRY(str_path_coord1(&q, &s, ABS, path_move, path_line));
@@ -1747,11 +1737,36 @@ static bool csg2_from_polygon(
     return true;
 }
 
-static bool csg2_from_ignore(
+static bool csg2_from_rec_xform(
+    cp_v_obj_p_t *r,
+    ctxt_t const *p,
+    local_t const *c,
+    cp_xml_t *parent,
+    callback_t callback)
+{
+    cp_xml_t *x = parent->child;
+    local_t c1;
+    xform_try(&c, &c1, p, x);
+    return callback(r, p, c, x);
+}
+
+static bool csg2_from_rec_xform_warn(
+    cp_v_obj_p_t *r,
+    ctxt_t const *p,
+    local_t const *c,
+    cp_xml_t *parent,
+    callback_t callback)
+{
+    WARN(p, parent->loc, "Unsupported SVG element '%s'.", parent->data);
+    return csg2_from_rec_xform(r, p, c, parent, callback);
+}
+
+static bool csg2_from_no_rec(
     cp_v_obj_p_t *r CP_UNUSED,
     ctxt_t const *p CP_UNUSED,
     local_t const *c CP_UNUSED,
-    cp_xml_t *x CP_UNUSED)
+    cp_xml_t *parent CP_UNUSED,
+    callback_t callback CP_UNUSED)
 {
     return true;
 }
@@ -1766,12 +1781,8 @@ static bool csg2_from_elem_rec(
 {
     assert(x->data != NULL);
     elem_value_t const *cm = elem_find(x->data, strlen(x->data));
-    if (cm != NULL) {
-        return cm->callback(r, p, c, x->child);
-    }
-
-    WARN(p, x->loc, "Unsupported SVG element '%s'.", x->data);
-    return csg2_from_g(r, p, c, x->child);
+    assert(cm != NULL);
+    return cm->recurse(r, p, c, x, cm->callback);
 }
 
 static bool csg2_from_elem(
@@ -1813,6 +1824,7 @@ extern bool cp_svg_parse(
     cp_csg3_local_t const *local,
     cp_detail_t const *detail,
     double dpi,
+    bool center,
     cp_xml_t *xml)
 {
     local_t c[1] = {{
@@ -1823,6 +1835,7 @@ extern bool cp_svg_parse(
         .dim = 0,
         .toplevel = true,
         .dpi = dpi,
+        .center = center,
     }};
 
     /* Import the outer transform matrix.

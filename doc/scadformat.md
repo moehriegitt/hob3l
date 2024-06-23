@@ -1,52 +1,5 @@
 # Hob3l's Dialect Of SCAD
 
-## Table Of Contents
-
-  * [Table Of Contents](#table-of-contents)
-  * [Introduction](#introduction)
-  * [OpenSCAD CSG Format](#openscad-csg-format)
-  * [Informal Overview](#informal-overview)
-      * [Broken SCAD Syntax](#broken-scad-syntax)
-  * [Morphosyntax](#morphosyntax)
-      * [Notation](#notation)
-      * [Morphology](#morphology)
-      * [Syntax](#syntax)
-  * [Special Value Identifiers](#special-value-identifiers)
-  * [Dimensions](#dimensions)
-  * [Coordinate Matrix](#coordinate-matrix)
-  * [Functor Calls](#functor-calls)
-  * [Ignored Children](#ignored-children)
-      * [Ignored Projection](#ignored-projection)
-  * [Functors](#functors)
-      * [circle](#circle)
-      * [color](#color)
-      * [cube](#cube)
-      * [cylinder](#cylinder)
-      * [difference](#difference)
-      * [group](#group)
-      * [hull](#hull)
-      * [include](#include)
-      * [import](#import)
-      * [intersection](#intersection)
-      * [linear_extrude](#linear_extrude)
-      * [mirror](#mirror)
-      * [multmatrix](#multmatrix)
-      * [polygon](#polygon)
-      * [polyhedron](#polyhedron)
-      * [projection](#projection)
-      * [render](#render)
-      * [rotate](#rotate)
-          * [If `v` is specified](#if-v-is-specified)
-          * [If `v` is not specified](#if-v-is-not-specified)
-      * [rotate_extrude](#rotate_extrude)
-      * [scale](#scale)
-      * [sphere](#sphere)
-      * [square](#square)
-      * [text](#text)
-      * [translate](#translate)
-      * [union](#union)
-      * [use](#use)
-
 ## Introduction
 
 Hob3l reads SCAD files as its native input format in order to avoid
@@ -150,7 +103,7 @@ OpenSCAD may still accept it and assume '1'.
     cube(size, center)
     cylinder(h, r, r1, r2, d, d1, d2, center, $fn)
     polyhedron(points, faces, triangles)
-    import(file, layer, convexity, $fn)
+    import(file, layer, convexity, center, $fn)
 
     polygon(points, paths, convexity)
     circle(r, d, $fa, $fs, $fn)
@@ -677,18 +630,20 @@ import(file[,layer,convexity])
   * `dpi` :: float
   * `layer` :: string, ignored
   * `convexity` :: integer, ignored
-  * `center` :: bool, ignored
+  * `center` :: bool
 
 This loads external structures from the file whose path is specified
 by `file`.  If `file` is a relative path name, then it is
 interpreted relative to the file where the `import` was located.
 
-In 3D mode, this loads a polyhedron, and files in text and binary STL format
-are supported.  The vertices are assumed to be ordered in the opposite
-order of what the SCAD format uses, i.e., when viewed from the
-outside, each face's vertices run counter-clockwise.  This corresponds
-to the right hand rule, where the thumb is the face normal and the
-other fingers indicate the vertex order.
+In 3D mode, this loads a polyhedron, and files in text and binary STL
+format are supported.  The vertices are assumed to be ordered in the
+opposite order of what the SCAD format uses, i.e., when viewed from
+the outside, each face's vertices run counter-clockwise.  This
+corresponds to the right hand rule, where the thumb is the face normal
+and the other fingers indicate the vertex order.
+
+The `center` attribute is currently ignored for STL format import.
 
 The normal is used to check that the vertices are ordered the expected
 way: if the sign of the computed normal is opposite, the vertices are
@@ -715,12 +670,17 @@ regardless of `dpi` setting, the sizes will be absolute.  (Note:
 because OpenSCAD handles it this way, in `width`/`height` attributes,
 the unit `px` equals 1/96" (absolute), while no unit means `dpi`.)
 
+Hobel applies the `center` attribute in SVG format import based on the
+`viewBox` size.  OpenSCAD uses the center of the bounding box of the
+set of coordinates instead.
+
 _OpenSCAD and General compatibility_:
 
   * OpenSCAD reads more file formats than Hob3l.
 
-  * Hob3l ignores the `center` attribute, while OpenSCAD applies
-    it by centering the set of coordinates.
+  * Hob3l handles the `center` attribute differently from OpenSCAD:
+    for STL, Hob3l ignores it, for SVG, Hob3l uses the `viewBox`
+    size instead of the actual coordinates (like OpenSCAD).
 
   * STL mode: OpenSCAD and also Slic3r are much more forgiving than
     Hob3l if the input STL is not a proper 2-manifold.  Hob3l rejects

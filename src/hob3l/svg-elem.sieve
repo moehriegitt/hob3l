@@ -4,36 +4,39 @@
 
 typedef struct {
     char name[ELEM_MAXLEN + 1];
-    bool (*callback)(
-        cp_v_obj_p_t *,
-        ctxt_t const *,
-        local_t const *,
-        cp_xml_t *);
+    recurse_t recurse;
+    callback_t callback;
 } {value_t};
+
+/** what to do by default */
+static {value_t} const elem_fallback = {
+    "", csg2_from_rec_xform_warn, csg2_from_elem
+};
 
 %}
 
 prefix: elem_
+default: &elem_fallback
 
 %%
 
-g,             csg2_from_g
-svg,           csg2_from_svg
-circle,        csg2_from_circle
-ellipse,       csg2_from_ellipse
-line,          csg2_from_line
-rect,          csg2_from_rect
-path,          csg2_from_path
-polygon,       csg2_from_polygon
-polyline,      csg2_from_polyline
-title,         csg2_from_ignore
-desc,          csg2_from_ignore
-metadata,      csg2_from_ignore
-style,         csg2_from_ignore
-defs,          csg2_from_ignore
-use,           csg2_from_ignore
-symbol,        csg2_from_ignore
-switch,        csg2_from_ignore
-marker,        csg2_from_ignore
-image,         csg2_from_ignore
-foreignObject, csg2_from_ignore
+svg,           csg2_from_svg,       csg2_from_elem
+g,             csg2_from_rec_xform, csg2_from_elem
+circle,        csg2_from_rec_xform, csg2_from_circle
+ellipse,       csg2_from_rec_xform, csg2_from_ellipse
+line,          csg2_from_rec_xform, csg2_from_line
+rect,          csg2_from_rec_xform, csg2_from_rect
+path,          csg2_from_rec_xform, csg2_from_path
+polygon,       csg2_from_rec_xform, csg2_from_polygon
+polyline,      csg2_from_rec_xform, csg2_from_polyline
+title,         csg2_from_no_rec,    NULL,
+desc,          csg2_from_no_rec,    NULL,
+metadata,      csg2_from_no_rec,    NULL,
+style,         csg2_from_no_rec,    NULL,
+defs,          csg2_from_no_rec,    NULL,
+use,           csg2_from_no_rec,    NULL,
+symbol,        csg2_from_no_rec,    NULL,
+switch,        csg2_from_no_rec,    NULL,
+marker,        csg2_from_no_rec,    NULL,
+image,         csg2_from_no_rec,    NULL,
+foreignObject, csg2_from_no_rec,    NULL,

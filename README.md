@@ -3,67 +3,46 @@
 
 ## What is This?
 
-  * Command line tool for reading SCAD and writing STL files for 3D printing
-  * C library for robust polygon boolean operations, i.e., 2D polygon
-    operations ADD, SUB, CUT, and XOR; plus polygon triangulation, and
-    cutting a 2D slice from a 3D object
-  * C library for reading SCAD (OpenScad) files and writing STL files
+Hob3l is a command line tool for reading SCAD files and writing STL
+files for 3D printing.  The focus is speed and robustness.
 
-The focus is on speed and robustness. OpenSCAD's conversion to STL is
-slow, because it produces a 3D object.  And the CGAL library (used by
-OpenSCAD) does not seems to be very robust for 3D calculations: I
-often get spurious error messages: 'object may not be a valid 2-manifold'.
+OpenSCAD can convert SCAD to STL, too, but it is very slow, because it
+first produces a 3D object.  And the CGAL library used by OpenSCAD is
+not very robust: I often get spurious error messages due to unstable
+3D arithmetics: 'object may not be a valid 2-manifold'.
 
 Instead, Hob3l uses stable arithmetics to produce an STL file suitable
-for 3D printing.  It does that by pre-slicing the SCAD file into
-layers and using only 2D operations on each layer.  The 2D operations
-are much faster than 3D operations.  Hob3l is very robust -- the 2D
-base library was fuzzed to get rid of numeric instability problems.
+for 3D printing.  It first pre-slices the basic 3D objects from the
+SCAD file into layers and then uses 2D operations on each layer.  The
+2D operations are much faster than 3D operations, and arithmetically
+much simpler, and thus easier to get stable.
 
-After a major overhaul of its core, Hob3l is now uses integer
-arithmetics and a snap rounding algorithm to stay within the input
-coordinate precision.  It reads and writes normal floating point
-numbers, and the float<->int conversions are exact within `float`
-precision (the native STL binary number format).  If necessary, the
-precision can be scaled (by default, the unit is 1/8192mm).
-
-Hob3l produces only valid 2-manifolds.
-
-## Always Only Valid 2-Manifolds??
-
-OK, OK, if the input polyhedra are really bad, like missing faces,
-then Hob3l will fail to produce a valid output.  But you really need
-blatantly broken input polyhedra for this.  This cannot happen unless
-you use `polyhedron()` manually in SCAD.  Hob3l is not supposed to
-fail just because you subtract an object from another object and the
-two share a part of a face (when you get flickering in
-[OpenSCAD](http://www.openscad.org/)):
-Hob3l either subtracts everything properly, or it leaves a small
-(valid) polyhedron -- but it does not become unstable and fail on you.
-
-Of course, no-one can guarantee the absense of bugs, but if Hob3l
-shows unstable behaviour, then that is a bug.  Getting it stable took
-the majority of the development time.
+Hob3l is very robust -- the 2D base library was fuzzed to get rid of
+numeric instability problems.  Hob3l uses integer arithmetics and a
+snap rounding algorithm to stay within the input coordinate precision.
+It reads and writes normal floating point numbers, and the float<->int
+conversions are exact within `float` precision (the native STL binary
+number format).  If necessary, the precision can be scaled (by
+default, the unit is 1/8192mm).
 
 ## How Is It Fast?
 
-By replacing 3D operations (like OpenSCAD does using the CGAL library)
-by fast 2D polygon clipping: Hob3l first cuts slices and then does the
+To be faster than OpenSCAD, Hob3l replaces 3D operations by faster 2D
+operations.  For this, Hob3l first cuts slices and then applies the
 boolean operations.
 
-Preparing a 3D model in CSG format (e.g., when using
-[OpenSCAD](http://www.openscad.org/))
-for printing may take a long time and is often computationally instable.
+Instead, [OpenSCAD](http://www.openscad.org/) applies 3D operations to
+compute a single 3D object.  This is very expensive math, and often
+arithmetically unstable.  But for 3D printing, that single 3D object
+is not needed: it is cut into slices anyway.
 
-So Hob3l wants to replace a workflow 'apply 3D CSG, then slice, then print':
+So hob3l reverses the internal workflow.  Instead of 'compute in 3D, then slice':
+
 ![3D CSG](img/csg1-old.png)
 
-by a workflow 'slice, then apply 2D CSG, then print':
+it does 'slice, then compute in 2D':
 
 ![2D CSG](img/csg1-new.png)
-
-The latter work flow is much faster, especially for non-trivial examples,
-and has much better computational stability.
 
 The idea is explained in more detail
 [in my blog](http://www.theiling.de/cnc/date/2018-09-23.html).
@@ -73,17 +52,19 @@ Hob3l's main output formats are
   * STL for printing
   * JavaScript/WebGL for viewing and prototyping
 
+Hob3l reads OpenSCAD's native SCAD format, it can import STL files
+(for 3D imports), and SVG files (for 2D imports).
+
 ## SCAD Input Format
 
-The Hob3l tool reads a subset of the SCAD format used by OpenSCAD.
+[My SCAD format documentation](doc/scadformat.md) defines what exactly
+is supported by Hob3l, and what is different from OpenSCAD.
 
-Please check [the SCAD format documentation](doc/scadformat.md) for a
-definition of the subset of SCAD that is supported by Hob3l.
-
-To use the full SCAD format syntax, OpenSCAD can be used as a
-preprocessor to Hob3l.  This is very fast, and OpenSCAD resolves the
-SCAD parts that Hob3l does not support.  The result can be processed
-by Hob3l:
+For the full SCAD format syntax, OpenSCAD can be used as a
+preprocessor: OpenSCAD can read the full SCAD format and write a
+simplified version, with only structurs that Hob3l supports.  This is
+a fast preprocessing step, and still avoids OpenSCAD's expensive 3D
+operations:
 
 ```
     openscad thing.scad -o thing.csg
@@ -92,29 +73,59 @@ by Hob3l:
 
 See [Using This Tool](#using-this-tool-command-line-options).
 
+## Valid 2-Manifolds
+
+Hob3l produces only valid 2-manifolds.
+
+Well, if the input polyhedra are really bad, like missing faces, then
+Hob3l may fail to produce a valid output.  But you need blatantly
+broken input polyhedra for this.  This cannot happen unless you use
+`polyhedron()` manually in SCAD.  Hob3l is not supposed to fail just
+because you subtract an object from another object and the two share a
+part of a face (when you get flickering in
+[OpenSCAD](http://www.openscad.org/)): Hob3l either subtracts
+everything properly, or it leaves a small (valid) polyhedron -- but it
+does not become unstable and fail on you.
+
+If Hob3l shows unstable behaviour, then that is a bug.  Getting it
+stable took the majority of the development time, because I found this
+the most annoying problem with OpenSCAD (or the underlying CGAL
+library).
+
 ## Status, Stability, Limitations, Future Work, TODO
 
-After a major overhaul, this tool has been tested very thoroughly
-wrt. stability and arithmetic robustness, in order to get rid of any
-floating point instabilities.
+This tool has been tested very thoroughly for stability and arithmetic
+robustness, in order to get rid of any floating point instabilities,
+using a fuzzer and many millions of tests.
 
-The tool can read the specified subset of SCAD (e.g. from OpenSCAD's
-CSG output), it can slice the input object, it can apply the 2D
-boolean operations (AKA polygon clipping), and it can triangulate the
-resulting polgygons, and write STL.  Slic3r (and probably PrusaSlicer
-and Cura) can read the STL files Hob3l produces.
+The tool can read the [specified subset of SCAD](doc/scadformat.md)
+(possibly from a preprocessing step by OpenSCAD's to resolve
+unsupported syntax).  Hob3l then slices the input objects, applies the
+2D boolean operations (AKA polygon clipping), and then triangulates
+the resulting polgygons.  Then it writes STL format or WebGL/JS.
 
-The input polyhedra must be 2-manifold.  However, in contrast to
-previous versions, Hob3l now accepts quite a few non-2-manifold input
-polyhedra.  Polyhedra with holes (i.e., missing faces), however, will
-not work.  OpenSCAD (or CGAL) probably now has more constraints on
-well-formedness than Hob3l.  E.g., Hob3l's algorithms are robust
-against wrong handedness of faces.
+After that, Slic3r (and probably PrusaSlicer and Cura) can read the
+STL files Hob3l produces.  This step is still necessary, although
+Hob3l slices the input file, too, because the slicer also does the
+path planning and G-code generation, which Hob3l does not do.
 
-The output STL contains separate layers instead of a single solid.
-This may be fixed in the future to generate one contiguous object.
-For now, if you hit `split` in Slic3r, you'll get hundreds of separate
-layer objects -- which is not useful.
+The input polyhedra must be 2-manifold.  However, Hob3l accepts quite
+a few non-2-manifold input polyhedra.  Polyhedra with holes (i.e.,
+missing faces), however, will not work.  OpenSCAD (or the CGAL
+library) probably now has more constraints on well-formedness than
+Hob3l.  E.g., Hob3l's algorithms are robust against wrong handedness
+of faces.
+
+Hob3l can import STL files (both text and binary formats) for 3D
+objects and SVG files for 2D objects.  Because SVG is a very complex
+format, only a useful subset is supported, e.g., no CSS styling is
+implemented.  E.g, SVG files written by Inkscape can be read by Hob3l.
+
+The output STL contains separate layers instead of a single solid.  In
+the future, Hob3l may generate one contiguous object. It would be more
+processing and is not strictly necessary.  But if you hit `split` in
+Slic3r on the current output of Hob3l, you'll get many separate layer
+objects -- which is not useful.
 
 Memory management has leaks.  I admit I don't care enough, because
 Hob3l basically starts, allocates, exits, i.e., it does not run for
@@ -126,10 +137,10 @@ survived many millions of fuzzing tests with
 
 ## Supported Output Formats
 
-`STL`: This is the m main output format of Hob3l for which it was
-first developed.  The input SCAD files can be converted to STL and
-directly used in a slicer for 3D printing.  Both ASCII STL (more
-precise) and binary STL (smaller) are supported.
+`STL`: This is the main output format of Hob3l for which it was first
+developed.  The input SCAD files can be converted to STL and then used
+as input to a slicer for 3D printing.  Both ASCII STL (more precise)
+and binary STL (smaller) are supported.
 
 `PS`: For debugging and documentation, including algorithm
 visualisation, Hob3l can output in PostScript.  This is how the
@@ -141,25 +152,23 @@ to compare different runs and do a step-by-step analysis of what is
 going on during the algorithm runs.  The PS modules has a large number
 of command line options to customise the output.
 
-`JS/WEBGL`: For prototyping SCAD files, a web browser can be used as a
-3D model viewer by using the JavaScript/WebGL output format.  The SCAD
+`WEBGL/JS`: For prototyping SCAD files, a web browser can be used as a
+3D model viewer by using the WebGL/JavaScript output format.  The SCAD
 file can be edited in your favourite editor, then for visualisation,
 Hob3l can generate WebGL data (possibly with an intermediate step to
-let OpenSCAD simplify the input file using its .csg output), and a
+let OpenSCAD simplify the input file using its `.csg` output), and a
 reload in the web browser will show the new model.  This package
 contains auxiliary files to make it immediately usable, e.g. the
 surrounding .html file with the WebGL viewer that loads the generated
-data.  See the `hob3l-js-copy-aux` script.  The overhaul of Hob3l
-removed colour support for JS output -- it's just not the most
-important thing...
+data.  See the `hob3l-js-copy-aux` script.
 
 `SCAD`: For debugging intermediate steps in the parser and converter,
-SCAD format output is available from several processing stages.  The
-current version of Hob3l does not need polyhedra to be strictly
-correct like in OpenSCAD (e.g., handedness of faces may be reversed).
-For this reason, polyhedra may not be strictly correct when printed in
-SCAD debug output and then loaded into OpenSCAD for inspection.  (Note
-that STL and JS output do produce correctly oriented faces.)
+Hob3l can write SCAD format of several of its processing stages.  In
+intermediate stages, however, Hob3l's polyhedra may not be strictly
+correct when printed in SCAD debug output (they may use wrong
+handedness of polyhedra faces) and then loaded into OpenSCAD for
+inspection.  (But STL and WebGL/JS output do produce correctly oriented
+faces.)
 
 ## JavaScript/WebGL Output
 
@@ -198,32 +207,15 @@ sys   0m0.044s
 ## Building
 
 Building relies on GNU make and gcc, and uses no automake or other
-meta-make layer.  Both Linux native and the MingW Windows cross
-compiler have been tested, and I hope that the MingW compiler will
-also work when run natively under Cygwin.
+meta-make layer.  Both Linux native and the MinGW Windows cross
+compiler have been tested.
 
 Make variables can be used to switch how the stuff is compiled.  Some
-GCC extensions are used, but I tried not to overdo it with gcc
-extensions (`({...})` and `__typeof__` are used frequently, though),
-it should be compilable without too much effort.
+GCC extensions are used, but I tried not to overdo it (`({...})` and
+`__typeof__` are used frequently, though), it should be compilable
+without too much effort.
 
-One unusual step is the generation of the font files (for the `text`
-command, which is currently not completely implemented, but the files
-are needed already for compilation).  The font files are generated by
-a tool `fontgen`, which needs to be compiled and run.  The font files
-are not checked in, because they are quite large (about 10 .c files
-each ~2 MB), and they tend to change a lot even for minute changes to
-the font.  This would cause huge diffs.  So the first step is to
-generate them:
-
-```
-    make font
-```
-
-This only needs to be done once (even when switching compilation
-targets).  The font files are not deleted even with `make distclean`
-or similar (only `make font-clean` and `make zap` remove them), so
-now the compilation goes on normally:
+Compilation is straight-forward:
 
 ```
     make clean
@@ -231,15 +223,12 @@ now the compilation goes on normally:
     make test
 ```
 
-The resulting executable is called 'hob3l.exe' (also under Linux --
-this is so that it also works under Windows).
+Parallel building is supported using the `-j` option to make.
 
-Parallel building should be fully supported using the `-j` option to
-make.
+Some Perl scripts are used to generate C code during compilation.
 
-Some Perl scripts are used to generate C code, but all generated C
-code is also checked in, so the scripts are only invoked when changes
-are made.
+The resulting executable is called 'hob3l.x'.  It is renamed during
+installation (`hob3l` on Linux, `hob3l.exe` on Windows).
 
 ### Different Build Variants
 
@@ -284,13 +273,13 @@ To compile with Clang:
     make TARGET=clang
 ```
 
-To cross compile for Windows 64 using MingW:
+To cross compile for Windows 64 using MinGW:
 
 ```
     make TARGET=win64
 ```
 
-To cross compile for Windows 32 using MingW:
+To cross compile for Windows 32 using MinGW:
 
 ```
     make TARGET=win32
@@ -317,7 +306,7 @@ CFLAGS_ARCH  := -march=native
 
 ## Running Tests
 
-After building, tests can be run, provided that the 'hob3l.exe'
+After building, tests can be run, provided that the 'hob3l.x'
 executable can actually be executed (hopefully).  On systems where it
 works, use
 
@@ -344,9 +333,9 @@ installed executable in the same way as `make install`.
 
 ## Installation
 
-The usual installation ceremony is implemented, hopefully according to
-the GNU Coding Standard.  I.e., you have `make install` with `prefix`,
-and all `*dir` options and also `DESTDIR` support as well as
+The usual installation ceremony is implemented, according to the GNU
+Coding Standard.  I.e., you have `make install` with `prefix`, and all
+`*dir` options and also `DESTDIR` support as well as
 `$(NORMAL_INSTALL)` markers, and also `make uninstall`.
 
 ```
@@ -362,9 +351,9 @@ Unfortunately, there is no `install-doc` yet.  FIXME.
 
 ## Using This Tool, Command Line Options
 
-In general, use `hob3l --help`.
+When in doubt, use `hob3l --help`.
 
-To convert a normal scad file into the subset this Hob3l can read,
+To convert a complex SCAD file into the subset that Hob3l can read,
 start by using OpenSCAD to convert to a flat 3D CSG structure with all
 the syntactic sugar removed.  This conversion is fast.
 
@@ -372,14 +361,14 @@ the syntactic sugar removed.  This conversion is fast.
     openscad thing.scad -o thing.csg
 ```
 
-You can now use Hob3l to slice this directly instead of applying
-3D CSG:
+You can now use Hob3l to process it:
 
 ```
     hob3l thing.csg -o thing.stl
 ```
 
-This can then be used in your favorite tool for computing print paths.
+The result can then be used in your favorite tool for computing print
+paths.
 
 ```
     slic3r thing.stl
@@ -486,31 +475,32 @@ output top, Hob3l bottom:
 
 ## Algorithms
 
-The polyhedra (from SCAD input files) are processed using `double`
-coordinates.  The 2D algorithms, however, now use 32-bit integer
-coordinates for exact math (and can handle 31-bit signed values
-without overflow).  Therefore, the coordinates in a polygon slice cut
-from a polyhedron are converted from `double` to `int` by multiplying
-by a power of two -- this way, the upper bits of the floating point
-mantissa (53 bits for `double`) can be used directly as ints with
-minimum rounding error.  When converting back from `int` to `double`,
-the integer coordinates are divided by the same power of two, meaning
-that no rounding error occurs: the integer is used directly as the
-upper mantissa bits for the floating point number (the lower bits are
-0).  A round trip from int to double to int is then loss-less.  As
-binary STL uses `float` coordinates (with a 24 bit mantissa, smaller
-than 32-bit integers), care was taken to scale in such a way that a
-wide range of float coordinates also convert to STL with no rounding
-error.  And the ASCII STL is printed with many significant digits to
-ensure that the information gets into the slicer without any loss of
-precision.  All integer operations check for overflow so that the
-scale value can be adjusted if necessary for weird input files.
+The polyhedra (from SCAD input files) are processed using IEEE double
+precision floating point coordinates.  The 2D algorithms, however, now
+use 32-bit integer coordinates for exact math (and can handle 31-bit
+signed values without overflow).  Therefore, the coordinates in a
+polygon slice from a polyhedron are converted from `double` to `int`
+by multiplying by a power of two -- this way, the upper bits of the
+floating point mantissa (53 bits for `double`) can be used directly as
+ints with minimum rounding error.  When converting back from `int` to
+`double`, the integer coordinates are divided by the same power of
+two, meaning that no rounding error occurs: the integer is used
+directly as the upper mantissa bits for the floating point number (the
+lower bits are 0).  A round trip from int to double to int is then
+loss-less.  As binary STL uses `float` coordinates (with a 24 bit
+mantissa, smaller than 32-bit integers), care was taken to scale in
+such a way that a wide range of float coordinates also convert to STL
+with no rounding error.  And the ASCII STL is printed with many
+significant digits to ensure that the information gets into the slicer
+without any loss of precision.  All integer operations check for
+overflow so that the scale value can be adjusted if necessary for
+weird input files.
 
-The slice algorithm used to cut a polygon slice from a polyhedron is a
+The slice algorithm to cut a polygon slice from a polyhedron is a
 simple ad-hoc algorithm that works by iterating each face, making a
 cut at a given z height, sorting the cut points, and interpreting them
 as line segments.  The subsequent algorithms need no particular order
-of edges, so a very simple algorithm can be used for slicing.
+of edges, so a very simple algorithm is enough here.
 
 The polygon clipping algorithm is a Bentley-Ottmann 1979 (Algorithms
 for reporting and counting geometric intersections) plane sweep
@@ -536,38 +526,35 @@ Berg 2007 (An Intersection-Sensitive Algorithm for Snap Rounding) is
 run to fit the intersection coordinates back into the input bit width
 (32-bit integer coordinates).
 
-To get a triangulation (to produce the output polyhedron in STL
-format), the triangulation algorithm of Hertel & Mehlhorn 1983 (Fast
-Triangulation of the Plane with Respect to Simple Polygons) was used
-and extended to support coincident vertices, because these cannot be
-avoided.  Also, sequences of collinear edges are supported.
+To get a triangulation (fro the output polyhedron in STL format), the
+triangulation algorithm of Hertel & Mehlhorn 1983 (Fast Triangulation
+of the Plane with Respect to Simple Polygons) was used and extended to
+support coincident vertices, because these cannot be avoided.  Also,
+sequences of collinear edges are resolved.
 
 The same algorithm was adapted also for constructing a polygon outline
 from the set of edges produced by the preceding algorithm, if no
 triangulation is needed.  This is used in the SCAD language
-processing, e.g., with operations like extrude or project, where the
-result of the 2D boolean algorithm is fed back into the CSG tree.
+processing, e.g., with operations like `extrude` or `project`, where
+the result of the 2D boolean algorithm is fed back into the CSG tree.
 
 ## Development
 
 This is a project for me to relax and have fun, to be a distraction
 and to be different from my day job (which also involves programming).
-
-Because of this, the project follows some policies to avoid stress.
-Others may find them unnecessary, but these policies keep me sane and
-allow me to continue to have fun.
+The project follows some policies to avoid stress. for me to continue
+to have fun.
 
 ### XNIH: Exclude What's Not Implemented Here
 
-No external libraries or tools are used for this project, except what
-belongs to the C Language, or Perl, or to libc/POSIX.  All
-functionality is either implemented here, or not at all.
+No external libraries or tools are used for this project, except a C
+compiler, Perl, and libc/POSIX.  All functionality is either
+implemented here, or not at all.
 
-I like this because it helps me focus on programming, instead of
-serving and keeping up learning other APIs.  I like this because every
-API incompatibility will be my own fault.  And there will be no stress
-when upgrading to a newer version of a foreign library, because there
-are none.  Also, implementing parsers or parser generators is fun.
+This policy helps me focus on programming, instead of battling APIs.
+Every API incompatibility will be my own fault.  There will be no
+stress when upgrading to a newer version of a library, because there
+are none.
 
 ### C and Perl
 
@@ -575,18 +562,15 @@ This project is implemented in C with gcc extensions, for a reasonably
 modern C standard.  Perl is used for scripts.  GnuMake is used for
 building.
 
-This will not use C++, not C#, not Rust, not Go, not Swift, not Java,
-not Ruby, not Python.  Neither will it support C89 or K&R.  Because
-that's no fun to me. :-)
-
 ### Linux
 
-My development platform is Linux.  This project does not actively try
-to exclude anything, but I will not debug problems on other platforms.
-Because that's no fun to me. :-)
+My development platform is Linux.  Other platforms are not excluded,
+and the Makefile has direct support for Clang and for MinGW
+compilation.  But I cannot debug problems specific to platforms I do
+not use.
 
 ## Name
 
-The name Hob3l derives from the German word 'Hobel', which is a
-'planer' (as in 'wood planer') in English.  The 'e' was turned to `3`
-in recognition of the `slic3r' program.
+The name Hob3l derives from the German word 'Hobel', meaning 'plane'
+(as in 'wood plane').  The 'e' was turned to `3` in recognition of the
+`slic3r' program.
