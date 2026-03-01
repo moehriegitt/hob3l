@@ -149,73 +149,13 @@ static void csg2_add_layer_sphere(
     }
 }
 
-static void csg2_add_layer(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg2_t *c);
-
-static void csg2_add_layer_v(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_v_obj_p_t *c)
-{
-    for (cp_v_each(i, c)) {
-        csg2_add_layer(no, pool, r, zi, cp_csg2_cast(cp_csg2_t, cp_v_nth(c,i)));
-    }
-}
-
-static void csg2_add_layer_add(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg_add_t *c)
-{
-    csg2_add_layer_v(no, pool, r, zi, &c->add);
-}
-
-static void csg2_add_layer_sub(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg_sub_t *c)
-{
-    bool add_no = false;
-    csg2_add_layer_add(&add_no, pool, r, zi, c->add);
-    if (add_no) {
-        *no = true;
-        csg2_add_layer_add(no, pool, r, zi, c->sub);
-    }
-}
-
-static void csg2_add_layer_cut(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg_cut_t *c)
-{
-    for (cp_v_each(i, &c->cut)) {
-        csg2_add_layer_add(no, pool, r, zi, cp_v_nth(&c->cut, i));
-    }
-}
-
-static void csg2_add_layer_xor(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg_xor_t *c)
-{
-    for (cp_v_each(i, &c->xor)) {
-        csg2_add_layer_add(no, pool, r, zi, cp_v_nth(&c->xor, i));
-    }
-}
+typedef struct {
+    unsigned type;  /* 0=NODE, 1=SUB_PHASE2 */
+    cp_csg2_t *c;
+    cp_csg_sub_t *sub;
+    bool *no;
+    bool *add_no_ptr;  /* for SUB_PHASE2: pool-allocated, stable for children */
+} csg2_layer_frame_t;
 
 static void csg2_add_layer_stack(
     bool *no,
@@ -256,43 +196,6 @@ static void csg2_add_layer_stack(
     return;
 }
 
-static void csg2_add_layer(
-    bool *no,
-    cp_pool_t *pool,
-    cp_csg2_tree_t *r,
-    size_t zi,
-    cp_csg2_t *c)
-{
-    switch (c->type) {
-    case CP_CSG2_STACK:
-        csg2_add_layer_stack(no, pool, r, zi, cp_csg2_cast(cp_csg2_stack_t, c));
-        return;
-
-    case CP_CSG_ADD:
-        csg2_add_layer_add(no, pool, r, zi, cp_csg_cast(cp_csg_add_t, c));
-        return;
-
-    case CP_CSG_XOR:
-        csg2_add_layer_xor(no, pool, r, zi, cp_csg_cast(cp_csg_xor_t, c));
-        return;
-
-    case CP_CSG_SUB:
-        csg2_add_layer_sub(no, pool, r, zi, cp_csg_cast(cp_csg_sub_t, c));
-        return;
-
-    case CP_CSG_CUT:
-        csg2_add_layer_cut(no, pool, r, zi, cp_csg_cast(cp_csg_cut_t, c));
-        return;
-
-    case CP_CSG2_POLY:
-    case CP_CSG2_VLINE2:
-    case CP_CSG2_SWEEP:
-        CP_DIE("unexpected tree structure: objects should be inside stack");
-    }
-
-    CP_DIE("3D object type: %#x", c->type);
-}
-
 /* ********************************************************************** */
 /* extern */
 
@@ -325,6 +228,9 @@ extern cp_csg2_layer_t *cp_csg2_stack_get_layer(
  * the 'triangle' entries are left empty.
  *
  * Uses \p pool for all temporary allocations (but not for constructing r).
+ *
+ * Uses iterative traversal with explicit stack to avoid stack overflow
+ * on deeply nested CSG trees.
  */
 extern void cp_csg2_tree_add_layer(
     cp_pool_t *pool,
@@ -335,7 +241,125 @@ extern void cp_csg2_tree_add_layer(
     assert(r->root->type == CP_CSG2_ADD);
     assert(zi < r->z.size);
     bool no = false;
-    csg2_add_layer_add(&no, pool, r, zi, cp_csg_cast(cp_csg_add_t, r->root));
+    cp_csg_add_t *root_add = cp_csg_cast(cp_csg_add_t, r->root);
+
+    CP_VEC_T(csg2_layer_frame_t) stack;
+    cp_v_init(&stack);
+    /* Push children in reverse order so first is processed first */
+    for (size_t i = root_add->add.size; i > 0; i--) {
+        csg2_layer_frame_t f = {
+            .type = 0,
+            .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&root_add->add, i - 1)),
+            .no = &no,
+        };
+        cp_v_push_alloc(pool->alloc, &stack, f);
+    }
+
+    while (stack.size > 0) {
+        csg2_layer_frame_t f = cp_v_pop(&stack);
+
+        if (f.type == 1) {
+            /* SUB_PHASE2: add subtree done, maybe process sub */
+            if (*f.add_no_ptr && f.sub->sub != NULL) {
+                cp_csg_add_t *sub_add = f.sub->sub;
+                for (size_t i = sub_add->add.size; i > 0; i--) {
+                    csg2_layer_frame_t fc = {
+                        .type = 0,
+                        .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&sub_add->add, i - 1)),
+                        .no = f.no,
+                    };
+                    cp_v_push_alloc(pool->alloc, &stack, fc);
+                }
+            }
+            continue;
+        }
+
+        switch (f.c->type) {
+        case CP_CSG2_STACK:
+            csg2_add_layer_stack(f.no, pool, r, zi, cp_csg2_cast(cp_csg2_stack_t, f.c));
+            break;
+
+        case CP_CSG_ADD: {
+            cp_csg_add_t *add = cp_csg_cast(cp_csg_add_t, f.c);
+            for (size_t i = add->add.size; i > 0; i--) {
+                csg2_layer_frame_t fc = {
+                    .type = 0,
+                    .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&add->add, i - 1)),
+                    .no = f.no,
+                };
+                cp_v_push_alloc(pool->alloc, &stack, fc);
+            }
+            break;
+        }
+
+        case CP_CSG_SUB: {
+            cp_csg_sub_t *sub = cp_csg_cast(cp_csg_sub_t, f.c);
+            bool *add_no_ptr = CP_POOL_NEW(pool, bool);
+            *add_no_ptr = false;
+            csg2_layer_frame_t fsub = {
+                .type = 1,
+                .sub = sub,
+                .no = f.no,
+                .add_no_ptr = add_no_ptr,
+            };
+            cp_v_push_alloc(pool->alloc, &stack, fsub);
+            if (sub->add != NULL) {
+                cp_csg_add_t *add = sub->add;
+                for (size_t i = add->add.size; i > 0; i--) {
+                    csg2_layer_frame_t fc = {
+                        .type = 0,
+                        .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&add->add, i - 1)),
+                        .no = add_no_ptr,
+                    };
+                    cp_v_push_alloc(pool->alloc, &stack, fc);
+                }
+            }
+            break;
+        }
+
+        case CP_CSG_XOR: {
+            cp_csg_xor_t *xor = cp_csg_cast(cp_csg_xor_t, f.c);
+            for (size_t i = xor->xor.size; i > 0; i--) {
+                cp_csg_add_t *add = cp_v_nth(&xor->xor, i - 1);
+                for (size_t j = add->add.size; j > 0; j--) {
+                    csg2_layer_frame_t fc = {
+                        .type = 0,
+                        .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&add->add, j - 1)),
+                        .no = f.no,
+                    };
+                    cp_v_push_alloc(pool->alloc, &stack, fc);
+                }
+            }
+            break;
+        }
+
+        case CP_CSG_CUT: {
+            cp_csg_cut_t *cut = cp_csg_cast(cp_csg_cut_t, f.c);
+            for (size_t i = cut->cut.size; i > 0; i--) {
+                cp_csg_add_t *add = cp_v_nth(&cut->cut, i - 1);
+                for (size_t j = add->add.size; j > 0; j--) {
+                    csg2_layer_frame_t fc = {
+                        .type = 0,
+                        .c = cp_csg2_cast(cp_csg2_t, cp_v_nth(&add->add, j - 1)),
+                        .no = f.no,
+                    };
+                    cp_v_push_alloc(pool->alloc, &stack, fc);
+                }
+            }
+            break;
+        }
+
+        case CP_CSG2_POLY:
+        case CP_CSG2_VLINE2:
+        case CP_CSG2_SWEEP:
+            CP_DIE("unexpected tree structure: objects should be inside stack");
+
+        default:
+            CP_DIE("3D object type: %#x", f.c->type);
+        }
+    }
+
+    cp_v_fini_alloc(pool->alloc, &stack);
 }
 
 /**

@@ -13,7 +13,7 @@
 #else
 #  define CP_LL "ll"
 #  define CP_Z  "z"
-#  define cp_qsort_r qsort_r
+/* Use our iterative qsort to avoid stack overflow on deep recursion */
 #endif
 
 #endif /* CP_ARCH_H_ */

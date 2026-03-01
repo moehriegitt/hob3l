@@ -11,7 +11,7 @@ size_t cp_debug_ps_page_cnt = 0;
 cp_ps_xform_t cp_debug_ps_xform = CP_PS_XFORM_MM;
 cp_ps_opt_t const *cp_debug_ps_opt = NULL;
 size_t cp_debug_ps_page_skip = 0;
-size_t cp_debug_ps_page_count = -1U;
+size_t cp_debug_ps_page_count = (size_t)-1;
 cp_scale_t cp_debug_ps_scale_x = 1;
 cp_scale_t cp_debug_ps_scale_y = 1;
 cp_scale_t cp_debug_ps_xlat_x = 0;
@@ -41,7 +41,7 @@ extern bool cp_debug_ps_page_begin(void)
     if (cp_debug_ps_page_count == 0) {
         return false;
     }
-    if (cp_debug_ps_page_count != -1U) {
+    if (cp_debug_ps_page_count != (size_t)-1) {
        cp_debug_ps_page_count--;
     }
 

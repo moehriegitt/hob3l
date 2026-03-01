@@ -52,7 +52,6 @@ typedef struct {
     cp_bool_bitmap_t comb;
 } cp_csg2_lazy_t;
 
-typedef cp_csg2_bool_mode_t mode_t;
 typedef cp_csg2_lazy_t      lazy_t;
 
 /**
@@ -81,7 +80,7 @@ typedef struct {
 static void flatten_eager(
     cp_pool_t *tmp,
     lazy_t *r,
-    mode_t mode)
+    cp_csg2_bool_mode_t mode)
 {
     if (r->size == 0) {
         return;
